@@ -163,6 +163,7 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
   const worktreeEdits = Object.keys(repairedFiles).map(path => ({ path, status: '??' }));
   const final = script.final ?? true;
   const finalHead = script.repair ? committed : initial;
+  const finalAudits = final ? script.repair ? 2 : 1 : 0;
   function once(operation: string) { expect(consumed.get(operation) ?? 0, `exhausted ${operation} answer`).toBe(0); consumed.set(operation, 1); calls.push(operation); }
   function retain<T extends object>(port: T): T {
     return new Proxy(port, { get(target, key, receiver) {
@@ -189,8 +190,8 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
     async changedEntries(project, base = 'HEAD') { expect(project).toBe(root); return pending(base); },
     async worktreeLineChanges(project, base = 'HEAD') { expect(project).toBe(root); pending(base); throw new Error('NFR fixture explicitly declares line measurements unavailable'); },
     async worktreePatch(project, base = 'HEAD') { expect(project).toBe(root); pending(base); throw new Error('NFR fixture explicitly declares patch measurements unavailable'); },
-    async findCommitByTrailers(project, trailers) { expect(project).toBe(root); expect(trailers).toEqual([{ key: 'Ramify-Run', value: runId }, { key: 'Ramify-Gate', value: 'ga-0002' }]); const count = consumed.get('lookup') ?? 0; expect(count, 'exhausted lookup answer').toBeLessThan(script.lookups ?? 1); consumed.set('lookup', count + 1); calls.push('lookup'); return null; },
-    async commitAccepted(project, message) { expect(project).toBe(root); expect(message).toContain(`Ramify-Run: ${runId}`); expect(message).toContain('Ramify-Gate: ga-0002'); expect(consumed.get('lookup')).toBeGreaterThan(0); const count = consumed.get('commit') ?? 0; expect(count, 'exhausted commit answer').toBeLessThan(script.commits ?? (final ? 1 : 0)); consumed.set('commit', count + 1); calls.push('commit'); head = finalHead; return script.repair ? committed : null; },
+    async findCommitByTrailers(project, trailers) { expect(project).toBe(root); expect(trailers[0]).toEqual({ key: 'Ramify-Run', value: runId }); expect(trailers[1]?.value).toBe(script.repair && stage !== 'initial' ? 'ga-0003' : 'ga-0002'); const count = consumed.get('lookup') ?? 0; expect(count, 'exhausted lookup answer').toBeLessThan(script.lookups ?? finalAudits); consumed.set('lookup', count + 1); calls.push('lookup'); return null; },
+    async commitAccepted(project, message) { expect(project).toBe(root); expect(message).toContain(`Ramify-Run: ${runId}`); expect(message).toContain(`Ramify-Gate: ${script.repair && stage !== 'initial' ? 'ga-0003' : 'ga-0002'}`); expect(consumed.get('lookup')).toBeGreaterThan(0); const count = consumed.get('commit') ?? 0; expect(count, 'exhausted commit answer').toBeLessThan(script.commits ?? finalAudits); consumed.set('commit', count + 1); calls.push('commit'); if (script.repair && stage === 'initial') return null; head = finalHead; return script.repair ? committed : null; },
     async diffNameStatus(project, from, to) { expect(project).toBe(root); expect([initial, ...Object.values(trees)]).toContain(from); expect([initial, committed, ...Object.values(trees)]).toContain(to); return to === trees.drift ? [{ path: driftPath!, status: 'A' }] : to === trees.repairedDrift || to === committed && stage === 'repairedDrift' ? [...edits, { path: driftPath!, status: 'A' }] : to === committed || to === trees.repaired ? edits : []; },
   });
   const candidates = retain(scriptedCandidates(root, {
@@ -217,7 +218,7 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
   });
   const auditChecks: string[] = [];
   const auditAnswers = mappedAudit(({ check, context }) => {
-    expect(context.projectRoot).toBe(root); expect(context.sourceCommit).toBe(finalHead); expect(context.checkpoint).toBe('final');
+    expect(context.projectRoot).toBe(root); expect(context.sourceCommit).toBe(script.repair && stage === 'initial' ? initial : finalHead); expect(context.checkpoint).toBe('final');
     expect(['tests', 'type-check', 'ramify-check']).toContain(check.kind); auditChecks.push(check.kind);
     return { stdout: 'Synthetic NFR harness-policy evidence; no provider publication claim',
       ...(script.finalGateFails && check.kind === 'tests' ? { outcome: { kind: 'completed' as const, exitCode: 1 } } : {}) };
@@ -228,9 +229,9 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
       expect(input.projectRoot).toBe(root); expect(input.mode).toBe(input.attemptId === 'ga-0001' ? 'project-default' : 'full'); expect(input.nested).toBe(input.attemptId !== 'ga-0001');
       // Validate the committed gate checkpoint itself rather than interpreting its numeric identity.
       if (input.attemptId === 'ga-0001') { expect(input.sourceCommit).toBe(initial); expect(runId ?? input.runId).toBe(input.runId); runId = input.runId; once('readiness-audit'); }
-      else { expect(input.attemptId).toBe('ga-0002'); expect(input.runId).toBe(runId); expect(input.sourceCommit).toBe(finalHead); once('final-audit'); }
+      else { expect(input.attemptId).toBe(script.repair && stage !== 'initial' ? 'ga-0003' : 'ga-0002'); expect(input.runId).toBe(runId); expect(input.sourceCommit).toBe(script.repair && stage === 'initial' ? initial : finalHead); const count = consumed.get('final-audit') ?? 0; expect(count).toBeLessThan(finalAudits); consumed.set('final-audit', count + 1); calls.push('final-audit'); }
       const result = await auditAnswers.run(input);
-      if (input.attemptId === 'ga-0002') await answer.afterFinalAudit?.();
+      if (input.attemptId !== 'ga-0001') await answer.afterFinalAudit?.();
       return result;
     },
   });
@@ -273,18 +274,18 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
     assertAnswered() { expect(git.unexpected, `caught Git failures: ${JSON.stringify(git.unexpected)}`).toEqual([]); expect(failures, `caught external failures: ${JSON.stringify(failures)}`).toEqual([]); },
     assertComplete() {
       this.assertAnswered();
-      for (const operation of ['capture', 'branch', 'readiness-audit', ...(final ? ['final-audit'] : [])]) expect(consumed.get(operation), `required ${operation} answer consumed exactly once`).toBe(1);
-      expect(consumed.get('lookup') ?? 0, 'required lookup answers consumed').toBe(final || script.finalLookup ? script.lookups ?? 1 : 0);
-      expect(consumed.get('commit') ?? 0, 'required commit responses consumed').toBe(script.commits ?? (final ? 1 : 0));
-      expect(consumed.get('final-audit') ?? 0).toBe(final ? 1 : 0);
+      for (const operation of ['capture', 'branch', 'readiness-audit']) expect(consumed.get(operation), `required ${operation} answer consumed exactly once`).toBe(1);
+      expect(consumed.get('lookup') ?? 0, 'required lookup answers consumed').toBe(final || script.finalLookup ? script.lookups ?? finalAudits : 0);
+      expect(consumed.get('commit') ?? 0, 'required commit responses consumed').toBe(script.commits ?? finalAudits);
+      expect(consumed.get('final-audit') ?? 0).toBe(finalAudits);
       if (script.repair) expect(consumed.get('repair') ?? 0).toBe((script.repaired ?? true) ? 1 : 0);
-      expect(auditChecks).toEqual(final ? ['tests', 'type-check', 'ramify-check'] : []);
-      expect(auditAnswers.requests).toHaveLength(final ? 2 : 1); auditAnswers.assertComplete();
+      expect(auditChecks).toEqual(Array.from({ length: finalAudits }, () => ['tests', 'type-check', 'ramify-check']).flat());
+      expect(auditAnswers.requests).toHaveLength(finalAudits + 1); auditAnswers.assertComplete();
       for (const operation of ['--version', 'measure']) expect(ramify.calls.some(call => call.operation === 'run' && call.argv[0] === operation), `required ${operation}`).toBe(true);
       expect(calls).toContain('preview');
       expect(calls, 'required captured index read').toContain('index');
       expect(calls, 'required head read').toContain('head');
-      if (final) expect(candidates.calls.some(call => call.startsWith('commitTree ')), 'required frozen committed tree read').toBe(true);
+      if (final && stage !== 'drift') expect(candidates.calls.some(call => call.startsWith('commitTree ')), 'required frozen committed tree read').toBe(true);
       if (script.repair) expect(calls, 'repair refreshes declared topology').toContain('refresh');
     },
   };

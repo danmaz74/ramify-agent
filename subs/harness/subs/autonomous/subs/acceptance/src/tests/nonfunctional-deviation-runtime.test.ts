@@ -56,18 +56,32 @@ const intake = { goal: 'Answer review notes quickly.', elements: [
 ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } };
 const analysis = { elements: [], entries: [], hypotheses: [], coverageLimits: [], scenarios: [], integrationScenarios: [] };
 
-async function startExhaustedRun(options: { finalGateFails?: boolean } = {}) {
+async function startExhaustedRun(options: { finalGateFails?: boolean;
+  pauseAudit?: { entered(): void; wait(): Promise<void> };
+  pauseAssessment?: { entered(): void; wait(): Promise<void> };
+  beforeSettled?: (types: () => string[]) => Promise<void> } = {}) {
   const fixture = await copyFixture();
   cleanups.push(fixture.remove);
   const boundaryAnswers = nfrBoundaries(fixture.root, { finalGateFails: options.finalGateFails });
   answers.push(boundaryAnswers);
   await writeFile(join(fixture.root, 'plans', plan, 'plan.md'), `# Review notes\n\n${quote}\n`);
-  const opened = await openRuns(fixture.root, { ...boundaryAnswers.options,
+  const configuredAudit = { ...boundaryAnswers.options.configuredAudit,
+    run: async (input: Parameters<typeof boundaryAnswers.options.configuredAudit.run>[0]) => {
+      if (input.attemptId !== 'ga-0001' && options.pauseAudit) {
+        options.pauseAudit.entered();
+        await options.pauseAudit.wait();
+      }
+      return boundaryAnswers.options.configuredAudit.run(input);
+    } };
+  const opened = await openRuns(fixture.root, { ...boundaryAnswers.options, configuredAudit,
     policy: root => testPolicy(root),
     script: spec => {
       if (spec.submission.name === intakeToolName) return [{ kind: 'submit', input: intake }];
       if (spec.role === 'initial-architect') return [{ kind: 'submit', input: analysis }];
-      if (spec.submission.name === coordinatorAssessmentToolName) return [{ kind: 'submit', input: {
+      if (spec.submission.name === coordinatorAssessmentToolName) return [
+        ...(options.pauseAssessment ? [{ kind: 'await' as const, until: () => {
+          options.pauseAssessment!.entered(); return options.pauseAssessment!.wait();
+        } }] : []), { kind: 'submit' as const, input: {
         kind: 'assessment', results: [{ nfr: 'nfr-001', result: 'not-satisfied',
           inspectedScope: ['subs/workspace'], evidence: ['Observed 87 milliseconds'], uncertainty: 'Load varies' }],
       } }];
@@ -80,9 +94,13 @@ async function startExhaustedRun(options: { finalGateFails?: boolean } = {}) {
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun(plan));
+  await options.beforeSettled?.(() => opened.service.events(plan, receipt.jobId)?.map(event => event.type) ?? []);
   if (options.finalGateFails) {
-    await until(() => opened.service.events(plan, receipt.jobId)?.some(event =>
-      event.type === 'gate-attempted' && event.data.checkpoint === 'final') === true);
+    await until(() => {
+      const events = opened.service.events(plan, receipt.jobId);
+      return events?.some(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final') === true
+        && events.some(event => event.type === 'nonfunctional-deviation-recorded');
+    });
     for (let attempt = 0; attempt < 20; attempt += 1) {
       try {
         await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
@@ -96,6 +114,43 @@ async function startExhaustedRun(options: { finalGateFails?: boolean } = {}) {
   else await opened.service.settled(plan, receipt.jobId);
   return { fixture, opened, receipt, boundaryAnswers, queries: new RunQueries(createQuerySource(opened.service)) };
 }
+
+function heldCheck() {
+  let entered!: () => void;
+  let release!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  return { started, release: () => release(), pause: { entered: () => entered(), wait: () => held } };
+}
+
+test.each(['audit-first', 'assessment-first'] as const)('final audit and assessment overlap and join (%s)', async order => {
+  const audit = heldCheck(), assessment = heldCheck();
+  const result = await startExhaustedRun({ pauseAudit: audit.pause, pauseAssessment: assessment.pause,
+    beforeSettled: async types => {
+      try {
+        await Promise.all([audit.started, assessment.started]);
+        expect(types()).toContain('candidate-prepared');
+        expect(types()).not.toContain('job-completed');
+        if (order === 'audit-first') {
+          audit.release();
+          await until(() => types().includes('gate-attempted'));
+          expect(types()).not.toContain('nonfunctional-assessed');
+        } else {
+          assessment.release();
+          await until(() => types().includes('nonfunctional-assessed'));
+          expect(types()).not.toContain('gate-attempted');
+        }
+        expect(types()).not.toContain('job-completed');
+      } finally {
+        audit.release(); assessment.release();
+      }
+    } });
+  expect(onlyRun(result.opened.service, plan).state).toBe('completed');
+  const events = await runEventsOnDisk(result.fixture.root, plan, result.receipt.jobId);
+  expect(events.filter(event => event.type === 'candidate-prepared')).toHaveLength(1);
+  expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(1);
+  expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(1);
+}, 30_000);
 
 test('an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding', async () => {
   const { fixture, opened, receipt, queries } = await startExhaustedRun();

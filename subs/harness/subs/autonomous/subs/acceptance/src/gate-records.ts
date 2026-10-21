@@ -147,6 +147,8 @@ export const gateOperationSchema = z.object({
   schema: z.literal('ramify-agent.gate-operation/2'),
   /** A new-policy final effect cannot outlive its exact assessed candidate. */
   finalAssessment: z.object({ assessment: text, candidate: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u) }).strict().optional(),
+  /** A prepared final candidate may be committed before its semantic assessment. */
+  finalCandidate: z.object({ candidate: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u) }).strict().optional(),
   checkpoint: z.enum(['iteration', 'contract', 'breaking-iteration', 'work-item', 'final']),
   request: z.object({
     id: text,

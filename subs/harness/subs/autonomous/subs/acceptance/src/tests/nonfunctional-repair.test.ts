@@ -134,12 +134,13 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
   cleanups.push(() => service.close());
   const start = startRun('review-notes');
   if (start.type !== 'start-run') throw new Error('Unexpected command');
-  if (quietReview) vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   const receipt = await service.execute({ ...start, payload: { ...start.payload,
     ...(debug ? { breakpoint: 'before-agent:engineer' as const } : {}) } });
   if (quietReview) {
+    await assessmentWait.entered;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     for (const wait of [assessmentWait, investigationWait]) {
-      await wait.entered;
+      if (wait !== assessmentWait) await wait.entered;
       await vi.advanceTimersByTimeAsync(60 * 60_000);
       expect(onlyRun(service, 'review-notes').state).toBe('running');
       wait.release();
@@ -256,16 +257,16 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
   const candidates = events.filter(event => event.type === 'candidate-prepared');
   expect(candidates).toHaveLength(2);
   expect(candidates[0]!.data.tree).not.toBe(candidates[1]!.data.tree);
-  expect(events.find(event => event.type === 'candidate-bound-to-gate')?.data.tree).toBe(candidates[1]!.data.tree);
+  expect(events.filter(event => event.type === 'candidate-bound-to-gate').at(-1)?.data.tree).toBe(candidates[1]!.data.tree);
   const repaired = events.find(event => event.type === 'nonfunctional-repair-committed')!;
   const finalAssessmentEvent = assessmentsOnDisk[1]!;
   const closed = events.find(event => event.type === 'nonfunctional-round-closed')!;
-  const finalGate = events.find(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')!;
+  const finalGate = events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final').at(-1)!;
   if (finalGate.type !== 'gate-attempted') throw new Error('Missing final gate');
   const completed = events.find(event => event.type === 'job-completed')!;
   expect(repaired.sequence).toBeLessThan(finalAssessmentEvent.sequence);
   expect(finalAssessmentEvent.sequence).toBeLessThan(closed.sequence);
-  expect(closed.sequence).toBeLessThan(finalGate.sequence);
+  expect(candidates[1]!.sequence).toBeLessThan(finalGate.sequence);
   expect(finalGate.sequence).toBeLessThan(completed.sequence);
   const gateRecord = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId,
     runLayout.gate(finalGate.data.gate)), 'utf8')) as { checkpoint: string; commands: unknown[]; audit?: { mode: string } };

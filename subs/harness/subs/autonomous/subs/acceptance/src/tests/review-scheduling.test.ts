@@ -144,7 +144,7 @@ describe('a driven run', () => {
       },
     });
     const { service, runId, events } = run;
-    expect(onlyRun(service, plan).state).toBe('completed');
+    expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
     // Design requests have no guidance in these candidates: unavailable at once, never started.
     const started = eventsOf(events, 'review-attempt-started').map(event => event.data.attempt);
     expect(started).toEqual(['rq-0001.a01', 'rq-0002.a01', 'rq-0002.a02', 'rq-0003.a01', 'rq-0004.a01', 'rq-0005.a01', 'rq-0006.a01', 'rq-0007.a01', 'rq-0008.a01', 'rq-0009.a01']);
@@ -187,7 +187,7 @@ describe('a driven run', () => {
       },
     });
     const { service, runId, events } = run;
-    expect(onlyRun(service, plan).state).toBe('completed');
+    expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
     // rq-0002 and rq-0003 wait; rq-0004 of the second iteration, and both
     // requests of the third, arrive with the queue full.
     const finished = eventsOf(events, 'review-attempt-finished');
@@ -219,7 +219,7 @@ describe('a driven run', () => {
       },
     });
     const { service, runId, events } = run;
-    expect(onlyRun(service, plan).state).toBe('completed');
+    expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
     const finished = eventsOf(events, 'review-attempt-finished');
     expect(finished.map(event => [event.data.attempt, event.data.result, event.data.reason])).toEqual(expect.arrayContaining([
       ['rq-0001.a01', 'complete', null],

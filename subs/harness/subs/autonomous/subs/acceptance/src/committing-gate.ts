@@ -117,7 +117,8 @@ export class CommittingGates {
     summary?: string,
     modules?: readonly ModuleNotice[],
     goal?: string,
-    binding?: { candidateId: string; assessment: Assessment },
+    binding?: { candidateId: string; tree: string; assessment?: Assessment; onCommitted?: (commit: string) => void },
+    deferRecovery = false,
   ): Promise<GateAttempt> {
     if (this.host.awaitGateAdmission !== undefined && !await this.host.awaitGateAdmission()) {
       throw new Error('Gate admission stopped before any commit or check effect');
@@ -146,7 +147,7 @@ export class CommittingGates {
       latestAttempt = attempt;
       if (!attempts.includes(attempt.id)) attempts.push(attempt.id);
       const obstruction = this.observe().policy.recovery === undefined || this.host.recoverGate === undefined ? null : checkExecutionObstruction(attempt);
-      if (obstruction === null || this.host.ignoring()) return attempt;
+      if (obstruction === null || this.host.ignoring() || deferRecovery) return attempt;
       if (obstruction.automatic && mayRetryTask({ attempt: retries, limit: this.observe().policy.limits.infrastructureRetriesPerGate, classification: 'transport' })) {
         retries++;
         if (this.host.retryGateDelay !== undefined && !await this.host.retryGateDelay(Math.min(1000 * retries, 2000))) return attempt;
@@ -155,7 +156,7 @@ export class CommittingGates {
         if (!await this.host.recoverGate!(attempt, obstruction.diagnostic, 0, attempts)) return attempt;
         if (this.host.awaitGateAdmission !== undefined && !await this.host.awaitGateAdmission()) return attempt;
         retries = 0;
-        const changedFinal = binding !== undefined && (await this.host.previewCandidateTree()).tree !== binding.assessment.candidate.tree;
+        const changedFinal = binding !== undefined && (await this.host.previewCandidateTree()).tree !== binding.tree;
         if (changedFinal) {
           const id = gateAttemptId(this.gateCount() + 1);
           const { audit: _oldAudit, provider: _oldProvider, ...historical } = attempt;
@@ -177,7 +178,7 @@ export class CommittingGates {
 
   private async committingCheckpointAttempt(
     request: CheckpointRequest, summary?: string, modules?: readonly ModuleNotice[], goal?: string,
-    binding?: { candidateId: string; assessment: Assessment },
+    binding?: { candidateId: string; tree: string; assessment?: Assessment; onCommitted?: (commit: string) => void },
   ): Promise<GateAttempt> {
     const scratch = await scratchSafetyRule(this.host.projectRoot, await declaredModuleDirectories(this.host.projectRoot), this.host.git);
     const { rules: scopeRules, ownership, authorityUnavailable, ownershipPreflight } = await this.candidateAuthority(request);
@@ -443,7 +444,7 @@ export class CommittingGates {
     modules?: readonly ModuleNotice[],
     goal?: string,
     recordedMessage?: string,
-    binding?: { candidateId: string; assessment: Assessment },
+    binding?: { candidateId: string; tree: string; assessment?: Assessment; onCommitted?: (commit: string) => void },
     ownership?: Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>>,
   ): Promise<GateAttempt> {
     const identity = prepared.request;
@@ -465,9 +466,11 @@ export class CommittingGates {
       ...(earlierAttempts(this.observe(), identity.id, identity.subject ?? {}).length === 0 ? {} : { earlier: earlierAttempts(this.observe(), identity.id, identity.subject ?? {}) }),
     });
     const operation: GateOperation = { ...gateOperation(prepared, message),
-      ...(this.observe().policy.recovery !== undefined && binding !== undefined ? { finalAssessment: {
-        assessment: binding.assessment.id, candidate: binding.candidateId, tree: binding.assessment.candidate.tree,
-      } } : {}) };
+      ...(binding !== undefined && binding.assessment === undefined
+        ? { finalCandidate: { candidate: binding.candidateId, tree: binding.tree } }
+        : this.observe().policy.recovery !== undefined && binding?.assessment !== undefined
+          ? { finalAssessment: { assessment: binding.assessment.id, candidate: binding.candidateId, tree: binding.tree } }
+          : {}) };
     let scheduling: Promise<void> | undefined;
     let schedulingError: unknown;
     const effect = this.host.effect<{ readonly attempt: GateAttempt }>({
@@ -501,7 +504,7 @@ export class CommittingGates {
             if (binding !== undefined) {
               if (rendering.written.length > 0) throw new CandidateDriftError('Final gate rendering changed the assessed candidate');
               const current = await this.host.previewCandidateTree();
-              if (current.tree !== binding.assessment.candidate.tree) throw new CandidateDriftError('Final gate source changed after assessment');
+              if (current.tree !== binding.tree) throw new CandidateDriftError('Final gate source changed after preparation');
             }
             await assertScratchSafe(this.host.projectRoot, await declaredModuleDirectories(this.host.projectRoot), this.host.git);
           };
@@ -519,6 +522,7 @@ export class CommittingGates {
         }
         await this.host.afterWrite('gate-committing', this.host.identity.jobId);
         const sourceCommit = commit ?? identity.head;
+        if (binding !== undefined && prepared.checkpoint === 'final') binding.onCommitted?.(sourceCommit);
         if ((prepared.checkpoint === 'iteration' || prepared.checkpoint === 'breaking-iteration') && this.observe().policy.reviews !== undefined
           && identity.subject?.workItem !== undefined && identity.subject.iteration !== undefined) {
           const candidate = { gate: identity.id, workItem: identity.subject.workItem,

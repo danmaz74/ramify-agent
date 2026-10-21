@@ -171,7 +171,7 @@ export async function reviewRun(root: string, cleanups: Array<() => Promise<void
   const beforeFinal = gates.slice(0, -1).reduce((head, gate) => gate.commit ?? head, materialized);
   const afterFinal = gates.at(-1)?.commit ?? beforeFinal;
   const tree = scripted[beforeFinal]?.tree;
-  const previewCount = scenario.previewCount ?? 4;
+  const previewCount = scenario.previewCount ?? 5;
   if (previewCount > 0 && (tree === undefined || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(tree))) {
     throw new Error(`Review run must state a valid final candidate tree for ${beforeFinal}`);
   }

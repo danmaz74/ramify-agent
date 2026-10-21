@@ -1624,8 +1624,8 @@ export class Acceptance {
       if (decision.action === 'assess') {
         const candidate = state.input.candidate;
         if (candidate === null || state.candidateId === null) throw new Error('assessment lacks prepared candidate');
-        if (await this.assessNonfunctionalCandidate(agent, packages, evidence,
-          { id: state.candidateId, candidate }, decision.round, decision.phase) === null) return null;
+        const prepared = { id: state.candidateId, candidate };
+        if (!await this.qualifyNonfunctionalCandidate(agent, packages, evidence, prepared, decision.round, decision.phase)) return null;
         continue;
       }
       if (decision.action === 'investigate' || decision.action === 'repair-or-close') {
@@ -2118,6 +2118,63 @@ export class Acceptance {
     return record.value;
   }
 
+  /** Commit one prepared source, then settle its independent read-only checks before repair decisions. */
+  private async qualifyNonfunctionalCandidate(
+    agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>,
+    catalog: Awaited<ReturnType<typeof readAcceptedEvidence>> & { status: 'available' },
+    prepared: { id: string; candidate: Candidate }, round: number, phase: Assessment['phase'],
+  ): Promise<boolean> {
+    const gateId = gateAttemptId(this.gates.gateCount() + 1);
+    const previous = this.events('gate-attempted').filter(event => event.data.checkpoint === 'final').at(-1);
+    const previousRecord = previous === undefined ? null : await this.ports.readRecord(runLayout.gate(previous.data.gate), runSchemas.gate);
+    const previousOperation = previous === undefined ? null : await this.ports.readRecord(runLayout.gateOperation(previous.data.gate), runSchemas.gateOperation);
+    const priorForCandidate = previousRecord?.kind === 'valid' && previousOperation?.kind === 'valid'
+      && previousOperation.value.finalCandidate?.candidate === prepared.id
+      ? previousRecord.value : null;
+    const head = priorForCandidate === null ? await this.git.currentHead(this.projectRoot) : null;
+    let committed!: (commit: string) => void;
+    const ready = new Promise<string>(resolve => { committed = resolve; });
+    const assessment = ready.then(async commit => {
+      if ((await this.candidates.commitTree(this.projectRoot, commit)) !== prepared.candidate.tree) {
+        await this.ports.fail('inputs-changed', `Final candidate ${prepared.id} is not the committed source ${commit}`,
+          [runLayout.candidate(prepared.id)]);
+        return null;
+      }
+      return this.assessNonfunctionalCandidate(agent, packages, catalog, prepared, round, phase);
+    });
+    const gate = priorForCandidate === null ? this.gates.committingCheckpoint({ id: gateId, runId: this.input.record.jobId,
+      checkpoint: 'final', projectRoot: this.projectRoot, directory: this.path(runLayout.gateOutput(gateId)),
+      head: head!, policy: this.observe().policy, proposedBy: null },
+    undefined, undefined, undefined,
+    { candidateId: prepared.id, tree: prepared.candidate.tree, onCommitted: committed }, true) : Promise.resolve(priorForCandidate);
+    const settledGate = gate.then(value => { committed(value.audited ?? value.head); return value; }, error => { committed('unavailable'); throw error; });
+    const [gateResult, assessmentResult] = await Promise.allSettled([settledGate, assessment]);
+    if (gateResult.status === 'rejected') throw gateResult.reason;
+    if (assessmentResult.status === 'rejected') throw assessmentResult.reason;
+    if (priorForCandidate === null) await this.ports.afterWrite('gate-committed', this.input.record.jobId);
+    if (assessmentResult.value === null) return false;
+    const attempt = gateResult.value;
+    if (attempt.audited !== null && attempt.evidence !== null) {
+      const tree = await this.candidates.commitTree(this.projectRoot, attempt.audited);
+      if (tree !== prepared.candidate.tree) {
+        await this.ports.fail('inputs-changed', `Final gate audited tree ${tree}, not prepared tree ${prepared.candidate.tree}`,
+          [runLayout.candidate(prepared.id), runLayout.gate(attempt.id)]);
+        return false;
+      }
+      if (!this.events('candidate-bound-to-gate').some(event => event.data.gate === attempt.id)) {
+        await this.ports.write({ type: 'candidate-bound-to-gate', data: {
+          candidate: prepared.id, assessment: assessmentResult.value.id, gate: attempt.id,
+          commit: attempt.audited, tree,
+        } });
+      }
+    }
+    if ((await this.ports.previewCandidateTree()).tree !== prepared.candidate.tree) {
+      await this.ports.fail('inputs-changed', 'The source tree changed during final candidate checks', [runLayout.candidate(prepared.id)]);
+      return false;
+    }
+    return !this.ports.ignoring();
+  }
+
   private async assessNonfunctionalCandidate(
     agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>,
     catalog: Awaited<ReturnType<typeof readAcceptedEvidence>> & { status: 'available' },
@@ -2477,7 +2534,43 @@ export class Acceptance {
       this.events('final-correction-planned').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY,
       this.events('nonfunctional-final-invalidated').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY,
     );
-    const previousFinal = this.events('gate-attempted').filter(event => event.sequence > latestQualificationChange && event.data.checkpoint === 'final').at(-1);
+    const recentFinal = this.events('gate-attempted').filter(event => event.sequence > latestQualificationChange && event.data.checkpoint === 'final').at(-1);
+    const recentRecord = recentFinal === undefined ? null : await this.ports.readRecord(runLayout.gate(recentFinal.data.gate), runSchemas.gate);
+    const recentOperation = recentFinal === undefined ? null : await this.ports.readRecord(runLayout.gateOperation(recentFinal.data.gate), runSchemas.gateOperation);
+    let previousFinal = recentRecord?.kind === 'valid' &&
+      (recentOperation?.kind === 'valid' && recentOperation.value.finalCandidate?.candidate === binding.candidateId ||
+        this.events('candidate-bound-to-gate').some(event => event.data.gate === recentFinal?.data.gate && event.data.candidate === binding.candidateId))
+      ? recentFinal : undefined;
+    if (previousFinal !== undefined && recentRecord?.kind === 'valid' && this.observe().policy.recovery !== undefined) {
+      const obstruction = checkExecutionObstruction(recentRecord.value);
+      if (obstruction !== null && this.ports.gateHost.recoverGate !== undefined) {
+        let alreadyResumed = false;
+        for (const resumed of this.events('operation-recovery-resumed').filter(event => event.sequence > previousFinal!.sequence)) {
+          const recovery = await this.ports.readRecord(runLayout.operationRecovery(resumed.data.occurrenceId), runSchemas.operationRecovery);
+          if (recovery.kind === 'valid' && recovery.value.boundary.kind === 'gate'
+            && recovery.value.boundary.checkpoint === 'final'
+            && recovery.value.boundary.candidate === (recentRecord.value.audited ?? recentRecord.value.head)) {
+            alreadyResumed = true;
+            break;
+          }
+        }
+        for (const paused of this.events('operation-recovery-paused').filter(event => event.sequence > previousFinal!.sequence)) {
+          const recovery = await this.ports.readRecord(runLayout.operationRecovery(paused.data.occurrenceId), runSchemas.operationRecovery);
+          if (recovery.kind === 'valid' && recovery.value.boundary.kind === 'gate'
+            && recovery.value.boundary.checkpoint === 'final'
+            && recovery.value.boundary.candidate === (recentRecord.value.audited ?? recentRecord.value.head)
+            && this.events('job-continued').some(event => event.sequence > paused.sequence && event.data.command !== undefined)) {
+            alreadyResumed = true;
+            break;
+          }
+        }
+        if (!alreadyResumed && !await this.ports.gateHost.recoverGate(recentRecord.value, obstruction.diagnostic, 0, [recentRecord.value.id])) return;
+        if ((await this.ports.previewCandidateTree()).tree !== binding.assessment.candidate.tree) {
+          throw new CandidateReassessmentRequired('The externally repaired final candidate needs fresh assessment');
+        }
+        previousFinal = undefined;
+      }
+    }
     let gateId = previousFinal?.data.gate ?? gateAttemptId(this.gates.gateCount() + 1);
     let attempt!: GateAttempt;
     if (previousFinal !== undefined) {
@@ -2502,7 +2595,7 @@ export class Acceptance {
           head,
           policy: this.observe().policy,
           proposedBy: null,
-        }, undefined, undefined, undefined, binding);
+        }, undefined, undefined, undefined, { ...binding, tree: binding.assessment.candidate.tree });
       } catch (error) {
         if (!(error instanceof CandidateDriftError)) throw error;
         await this.ports.fail('inputs-changed', error.message, [runLayout.assessment(binding.assessment.id)]);

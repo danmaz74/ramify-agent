@@ -453,6 +453,23 @@ an earlier recovery admission. Required checks cannot be weakened by continuatio
 Consequential commits use their existing identity and owner evidence to reconcile
 a lost acknowledgement. Safe cleanup remains with the resource owner.
 
+### Final Candidate Qualification
+
+After functional work, the harness prepares a final candidate and commits it
+through the final gate. Its non-functional coordinator assesses that exact
+candidate while the configured full nested audit runs. Both results settle
+before a non-functional repair, infrastructure recovery decision, final
+correction or completion. A failed audit retains the assessment; a failed or
+unavailable assessment retains the audit. A repair prepares a new candidate
+with new checks, while the earlier records remain tied to their source.
+
+The prepared candidate, gate operation, gate attempt and coordinator invocation
+are retained separately. On restart, an existing result is reused and only
+missing work proceeds. Candidate identity is verified again before completion.
+Recorded event and invocation start/end times can show overlap; audit command
+durations come from the provider. Missing historical times remain unknown, and
+no stage duration is inferred from the preceding stage's completion.
+
 ### Execution Breakpoints Suspend The Whole Run
 
 A start-run command may select `before-agent:engineer`. Unsupported selectors

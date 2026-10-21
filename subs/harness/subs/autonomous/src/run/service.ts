@@ -105,6 +105,7 @@ import { verifyDocumentBytes } from '../../../plan-evidence/src/interfaces/contr
 
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/planning/src/evidence.js';
 import { assessmentSchema, type Assessment } from '../../../nonfunctional/src/interfaces/contracts.js';
+import { preparedCandidateSchema } from '../../subs/acceptance/src/nonfunctional-records.js';
 
 
 
@@ -1519,12 +1520,18 @@ export class AutonomousRunService {
         continue;
       }
       const operation = read.value as GateOperation;
-      let binding: { candidateId: string; assessment: Assessment } | undefined;
+      let binding: { candidateId: string; tree: string; assessment?: Assessment } | undefined;
       if (operation.finalAssessment !== undefined) {
         const assessment = assessmentSchema.parse(this.committedBody(run, runLayout.assessment(operation.finalAssessment.assessment)));
         if (assessment.id !== operation.finalAssessment.assessment || assessment.candidate.tree !== operation.finalAssessment.tree || operation.checkpoint !== 'final') throw new Error('The pending final effect has an incompatible captured assessment prerequisite');
         if ((await this.previewCandidateTree()).tree !== operation.finalAssessment.tree) throw new Error('The pending final effect candidate changed after its retained assessment; responsible reassessment is required before any commit or audit replay');
-        binding = { candidateId: operation.finalAssessment.candidate, assessment };
+        binding = { candidateId: operation.finalAssessment.candidate, tree: assessment.candidate.tree, assessment };
+      }
+      if (operation.finalCandidate !== undefined) {
+        if (operation.checkpoint !== 'final' || operation.finalAssessment !== undefined) throw new Error('The pending final effect has incompatible candidate prerequisites');
+        const candidate = preparedCandidateSchema.parse(this.committedBody(run, runLayout.candidate(operation.finalCandidate.candidate)));
+        if (candidate.candidate.tree !== operation.finalCandidate.tree || (await this.previewCandidateTree()).tree !== operation.finalCandidate.tree) throw new Error('The pending final effect candidate changed after preparation');
+        binding = { candidateId: operation.finalCandidate.candidate, tree: operation.finalCandidate.tree };
       }
       const recovered = await this.gates(run).commitGate(preparedGate(operation), undefined, undefined, undefined, operation.message, binding);
       performed.push(recovered.commit === null && recovered.audited === null

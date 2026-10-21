@@ -464,6 +464,12 @@ written to `diagnoses/d-NNNN/` outside the run's log. It is diagnosis only:
 it is never audit evidence, qualifies no candidate and cannot close an
 iteration or request a review.
 
+In an automated run, final qualification commits a prepared candidate before
+starting its non-functional assessment and configured full nested audit. These
+checks run independently on the same candidate and both settle before repair
+or completion. Restart reuses retained results; a source-changing repair gets
+a new candidate and new applicable checks.
+
 `step after` applies what a run records after the named invocation's
 accepted submission, as far as that is a function of records. It checks the
 submission against the hash its end recorded. Each line says `Applied:` with

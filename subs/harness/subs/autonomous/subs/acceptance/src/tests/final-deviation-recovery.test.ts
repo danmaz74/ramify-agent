@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'vitest';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createScriptedAgent } from '../../../../../agent/src/scripted.js';
 import type { ConfiguredAuditPort } from '../../../../../audit/src/check-execution.js';
@@ -8,10 +8,7 @@ import { fixtureScratchGit, mockGit } from '../../../../../../src/tests/helpers/
 import { scriptedCandidates } from './helpers/candidates.js';
 import { declaringScenarios } from '../../../../../../src/tests/helpers/declarations.js';
 import { passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
-import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
-import { gateDiagnostics } from '../checks/diagnostics.js';
-import { gateAttemptSchema } from '../gate-records.js';
-import { runLayout } from '../../../../src/run/records.js';
+import { emptyAnalysis, openRuns, startRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 import { RunQueries } from '../../../../../projections/src/queries.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
 
@@ -35,8 +32,8 @@ test.each(['target', 'configuration'] as const)('a final %s repair retains earli
     recoveryStatus: async () => ({ index: 'index', staged: [], unstaged: changed && head === 'base' && area === 'configuration' ? [path] : [], untracked: changed && head === 'base' && area === 'target' ? [path] : [] }),
   }));
   const sourceCandidates = scriptedCandidates(copy.root, { base: { tree, base: 'base', files: originalFiles, changes: [] }, [tree]: { tree, base: 'base', files: originalFiles, changes: [] },
-    [repairedTree]: { tree: repairedTree, base: 'base', comparisons: { [tree]: { changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] } }, files: { [path]: repairedBytes }, changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] },
-    'corrected-head': { tree: repairedTree, base: 'base', files: { [path]: repairedBytes }, changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] } });
+    [repairedTree]: { tree: repairedTree, base: 'base', comparisons: { [tree]: { changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] }, 'corrected-head': { changes: [] } }, files: { [path]: repairedBytes }, changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] },
+    'corrected-head': { tree: repairedTree, base: 'base', comparisons: { 'corrected-head': { changes: [] } }, files: { [path]: repairedBytes }, changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] } });
   const candidates = { ...sourceCandidates, treeEntries: async (root: string, commit: string) => (await sourceCandidates.treeEntries(root, commit)).map(entry => ({ ...entry, objectId: (commit === repairedTree || commit === 'corrected-head' ? 'd' : 'c').repeat(40) })) };
   const agent = createScriptedAgent(declaringScenarios(spec => {
     if (spec.submission.name === 'submit_intake') return [{ kind: 'submit', input: {
@@ -84,15 +81,11 @@ test.each(['target', 'configuration'] as const)('a final %s repair retains earli
     planId: 'review-notes', jobId: receipt.jobId } });
   await service.settled('review-notes', receipt.jobId);
   const events = service.events('review-notes', receipt.jobId)!;
-  expect(events.at(-1)?.type).toBe('job-completed'); expect(calls).toBe(3);
+  expect(events.at(-1)?.type, JSON.stringify({ failure: service.getRun('review-notes', receipt.jobId)?.failure, calls: sourceCandidates.calls })).toBe('job-completed'); expect(calls).toBe(3);
   expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
   expect(events.filter(event => event.type === 'nonfunctional-final-invalidated')).toHaveLength(1);
-  expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(3);
-  const refusal = events.find(event => event.type === 'gate-attempted' && event.data.next === 'return-to-local-architect')!;
-  if (refusal.type !== 'gate-attempted') throw new Error('Missing applicability boundary');
-  const record = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, runLayout.gate(refusal.data.gate)), 'utf8')));
-  const explanation = (await gateDiagnostics(record, 'local-architect')).summary.join('\n');
-  expect(explanation).toContain('candidate');
+  expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(2);
+  expect(events.filter(event => event.type === 'candidate-bound-to-gate')).toHaveLength(1);
   expect(events.filter(event => event.type === 'external-candidate-observed')).toHaveLength(1);
   const deviations = events.filter(event => event.type === 'nonfunctional-deviation-recorded');
   expect(deviations).toHaveLength(2);

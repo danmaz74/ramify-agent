@@ -1,10 +1,10 @@
 import { scriptedCandidates } from './candidates.js';
 
-/** Explicit unchanged-tree finalization answers: preparation, pre-gate, commit, post-gate. */
+/** Finalization answers: preparation, commit, joined checks, pre-publication, post-publication. */
 export function finalCandidate(root: string, before: string, after = before) {
   const tree = 'a'.repeat(40);
   return {
-    previews: [before, before, before, after].map(head => ({ repositoryRoot: root, head, tree })),
+    previews: [before, before, after, after, after].map(head => ({ repositoryRoot: root, head, tree })),
     candidates: scriptedCandidates(root, { [after]: { tree, base: before, files: {}, changes: [] } }),
   };
 }
