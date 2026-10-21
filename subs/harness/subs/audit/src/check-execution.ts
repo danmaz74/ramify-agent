@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -311,7 +312,7 @@ export function configuredFullRecovery(provider: unknown): 'timeout' | 'infrastr
   return null;
 }
 
-/** Project the provider's established instability for prompts without deciding test origin or changing its verdict. */
+/** Project the provider's established instability for reconciliation without deciding test origin or changing its verdict. */
 export function configuredAuditInstability(provider: unknown): readonly string[] {
   if (typeof provider !== 'object' || provider === null || !('status' in provider)) return [];
   const result = provider as AuditResult;
@@ -324,6 +325,32 @@ export function configuredAuditInstability(provider: unknown): readonly string[]
     return warnings.length || failures.length ? [JSON.stringify({ projectRoot: project.projectRoot,
       warnings, failures, evidence: evidence.flakiness?.evidence, refs: evidence.refs,
       policy: evidence.summary.flakinessPolicy })] : [];
+  });
+}
+
+/** One provider-established observation per test, with identity stable across audit receipts. */
+export function configuredAuditInstabilityObservations(provider: unknown): readonly { key: string; detail: string }[] {
+  if (typeof provider !== 'object' || provider === null || !('status' in provider)) return [];
+  const result = provider as AuditResult;
+  const projects = result.projects ?? [{ projectRoot: '.', result }];
+  return projects.flatMap(project => {
+    const evidence = project.result;
+    if (evidence.status !== 'completed') return [];
+    const grouped = new Map<string, { warnings: unknown[]; failures: unknown[] }>();
+    const collect = (identity: unknown, kind: 'warnings' | 'failures', item: unknown) => {
+      const key = JSON.stringify({ projectRoot: project.projectRoot, identity });
+      const held = grouped.get(key) ?? { warnings: [], failures: [] };
+      held[kind].push(item);
+      grouped.set(key, held);
+    };
+    for (const warning of evidence.summary.warningDispositions ?? []) collect(warning.entry, 'warnings', warning);
+    for (const failure of evidence.flakiness?.failures ?? [])
+      if (failure.classification === 'observed-instability' || failure.priorInstability) collect(failure.identity, 'failures', failure);
+    return [...grouped].map(([identity, observations]) => ({
+      key: createHash('sha256').update(identity).digest('hex'),
+      detail: JSON.stringify({ projectRoot: project.projectRoot, ...observations,
+        evidence: evidence.flakiness?.evidence, refs: evidence.refs, policy: evidence.summary.flakinessPolicy }),
+    }));
   });
 }
 

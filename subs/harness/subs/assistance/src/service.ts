@@ -551,6 +551,8 @@ export class AssistanceService {
       if (!entry) throw new CommandRejection('not-found', 'Finding does not belong to this execution');
       if (entry.pendingUserDecision !== null || entry.verification.kind !== 'assessment')
         throw new CommandRejection('invalid-request', 'Required checks and pending user authority cannot be disposed as discretionary suggestions');
+      if (request.action !== 'fix' && entry.reports.some(report => report.producer === 'review:test-reliability'))
+        throw new CommandRejection('invalid-request', 'Provider-established test instability requires origin judgment and any added-test repair; it cannot be waived or deferred as a suggestion');
       const authority = { kind: 'work-item-assessment' as const, ref: assessment.id };
       const findingCommand: CheckFindingCommand = { type: 'dispose', checkFinding: entry.id, expectedRevision: entry.revision,
         decision: { actor: { kind: 'agent', role: 'assisted-coordinator', invocation: request.commandId }, source: entry.reports.at(-1)!.source,

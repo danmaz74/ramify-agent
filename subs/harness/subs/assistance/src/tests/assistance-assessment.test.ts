@@ -73,6 +73,32 @@ afterEach(async () => {
 });
 
 describe('assisted assessment pipeline with real service records', () => {
+  it.each(['audit-first', 'review-first'] as const)('starts independent checks and retains the %s result while its sibling is pending', async order => {
+    let releaseAudit!: () => void;
+    let releaseReview!: () => void;
+    const auditHeld = new Promise<void>(resolve => { releaseAudit = resolve; });
+    const reviewHeld = new Promise<void>(resolve => { releaseReview = resolve; });
+    const started: string[] = [];
+    const { service, job } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline) }, {
+      operations: unusedOperations,
+      audit: async input => { started.push('audit'); await auditHeld; return audit(input.candidateCommit); },
+      review: async input => { started.push('review'); await reviewHeld; return { status: 'submitted', value: reviewReport(input.candidate),
+        operationId: input.operationId, sessionId: 'controlled-review', eventCount: 1 }; },
+    });
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: `controlled-${order}` });
+    await vi.waitFor(() => expect(started).toEqual(['audit', 'review']));
+    const stages = () => service.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages;
+    expect(stages().find(stage => stage.name === 'audit-started')?.evidence).toMatchObject({ candidate: first });
+    expect(stages().find(stage => stage.name === 'review-started')?.evidence).toMatchObject({ candidate: first });
+    if (order === 'audit-first') releaseAudit(); else releaseReview();
+    await vi.waitFor(() => expect(stages().some(stage => stage.name === (order === 'audit-first' ? 'audit' : 'review'))).toBe(true));
+    expect(stages().some(stage => stage.name === (order === 'audit-first' ? 'review' : 'audit'))).toBe(false);
+    expect(service.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('running');
+    if (order === 'audit-first') releaseReview(); else releaseAudit();
+    expect((await outcome(service, job.jobId, admitted.assessmentId)).gate).toBe('clear');
+  });
+
   it.each(['stale-decision', 'stale-relation', 'committed'] as const)('resumes accepted reconciliation without replaying a %s on a later revision', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'assistance-reconciliation-resume-')); roots.push(root);
     await mkdir(join(root, 'plans/sample'), { recursive: true });
@@ -156,7 +182,7 @@ describe('assisted assessment pipeline with real service records', () => {
       },
       reconcile: async input => {
         expect(input.message).toContain(`Original plan/execution baseline: ${baseline}`);
-        expect(input.message).toContain('required repair, not waive it as optional quality work');
+        expect(input.message).toContain('required added-test repair must not be waived');
         expect(input.message).toContain('its flakiness creates no repair investigation, reruns or assignment');
         const isRepair = input.candidate === first;
         if (!isRepair) await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.ts' }, new AbortController().signal);
@@ -742,28 +768,73 @@ describe('assisted assessment pipeline with real service records', () => {
         ...(kind === 'retained' ? { priorInstability: { sourceRevision: first, evidence: { reportObject: 'prior-report', artifactPath: 'observations.json' } } } : {}) }] } };
     const review = vi.fn(async (input: Parameters<NonNullable<AssessmentDependencies['review']>>[0]) => {
       const value = reviewReport(input.candidate);
-      if (input.candidate === repaired) {
-        expect(input.prepared.message).toContain(`Original plan/execution baseline: ${baseline}`);
-        expect(input.prepared.message).toContain(`base commit: ${first}`);
-        expect(input.prepared.message).toContain('returns 2 reliably');
-        expect(input.prepared.message).toContain('not test origin');
-        expect(input.prepared.message).toContain('including additions to existing files');
-        expect(input.prepared.message).toContain('its flakiness creates no repair investigation, reruns or assignment');
-        const evidence = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
-        expect(evidence).toBeDefined();
-        value.requirements[0] = { ...value.requirements[0]!, outcome: 'unmet', explanation: 'The test added in the earlier plan iteration still needs deterministic verification preserving its coverage.' };
-      }
+      expect(input.prepared.message).not.toContain('returns 2 reliably');
       return { status: 'submitted' as const, value, operationId: input.operationId, sessionId: 'script', eventCount: 1 };
     });
-    const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline), [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
+    const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline), [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
       operations: unusedOperations, audit: async input => ({ ...audit(input.candidateCommit),
-        result: { ...audit(input.candidateCommit).result, provider: input.candidateCommit === repaired ? provider : undefined } }), review });
+        result: { ...audit(input.candidateCommit).result, provider: input.candidateCommit === repaired ? provider : undefined } }), review,
+      reconcile: async input => {
+        expect(input.message).toContain(`Original plan/execution baseline: ${baseline}`);
+        expect(input.message).toContain('returns 2 reliably');
+        expect(input.message).toContain('including additions to existing files');
+        expect(input.message).toContain('its flakiness creates no repair investigation, reruns or assignment');
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001',
+          rationale: 'This test was added in the earlier plan iteration and needs reliable verification.', communication: { mode: 'quiet' }, action: { action: 'repair' } }],
+          next: { kind: 'correct', goal: 'Repair the unstable test while preserving coverage.' }, brief: 'Repair the unstable test.' });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'script-reliability', eventCount: 1 };
+      } });
     const initial = await assess(first, baseline, 'initial');
     expect(initial.outcome.gate).toBe('clear');
     const followUp = await assess(repaired, first, 'follow-up', { previousAssessment: initial.id });
-    expect(review).toHaveBeenCalledTimes(2);
+    expect(review).toHaveBeenCalledTimes(1);
     expect(followUp.outcome.gate).toBe('action-required');
-    expect(followUp.outcome.repairs.join(' ')).toContain('deterministic verification');
+    expect(followUp.outcome.repairs.join(' ')).toContain('Provider-established test instability');
+    await expect(service.findingDecide({ planId: 'sample', jobId: job.jobId, assessmentId: followUp.id,
+      checkFinding: 'cf-0001', action: 'leave', rationale: 'Treat as optional.', commandId: `dismiss-${kind}` })).rejects.toThrow('cannot be waived or deferred');
+  });
+
+  it.each(['existing', 'unknown'] as const)('keeps %s test origin judgment in reconciliation without asking the reviewer', async origin => {
+    const testFile = 'src/feature.test.ts';
+    const withTest = (value: string, base: string) => ({ ...source(value, base), files: { ...source(value, base).files,
+      [testFile]: 'it("returns 2", () => expect(feature).toBe(2));\n' } });
+    const provider = { status: 'completed', summary: { warningDispositions: [{ entry: { path: testFile, testId: 'returns 2' }, basis: 'current-instability' }],
+      flakinessPolicy: { onFailure: 'warning' } }, refs: { runRef: 'refs/audits/unstable' } };
+    const review = vi.fn(async (input: Parameters<NonNullable<AssessmentDependencies['review']>>[0]) => {
+      expect(input.prepared.message).not.toContain('current-instability');
+      return { status: 'submitted' as const, value: reviewReport(input.candidate), operationId: input.operationId,
+        sessionId: 'source-review', eventCount: 1 };
+    });
+    const { service, job, assess } = await setup({ [baseline]: withTest('0', baseline), [first]: withTest('2', baseline),
+      [repaired]: { ...withTest('2', first), comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } } }, {
+      operations: unusedOperations, audit: async input => ({ ...audit(input.candidateCommit), result: {
+        ...audit(input.candidateCommit).result, provider: { ...provider, refs: { runRef: `refs/audits/${input.candidateCommit}` } } } }), review,
+      reconcile: async input => {
+        expect(input.message).toContain('current-instability');
+        const action = origin === 'existing' ? { action: 'supersede', reassessed: ['cfr-0001'], replacement: 'The test exists in the original baseline.' }
+          : { action: 'leave' };
+        if (origin === 'existing') {
+          await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: testFile }, new AbortController().signal);
+          const evidence = input.tools.find(tool => tool.name === 'assessment_evidence')!;
+          expect((await evidence.execute({ ref: `baseline:${testFile}` }, new AbortController().signal)).text).toContain('returns 2');
+        }
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001',
+          rationale: origin === 'existing' ? 'The exact test was present in the original baseline.' : 'Source origin cannot yet be established.',
+          communication: { mode: 'quiet' }, action }], next: origin === 'existing' ? { kind: 'complete' } : { kind: 'unresolved' },
+          brief: origin === 'existing' ? 'Retain provider warning; no plan repair.' : 'Determine test origin.' });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'origin-reconciliation', eventCount: 1 };
+      },
+    });
+    const firstAssessment = await assess(first, baseline, `origin-${origin}`);
+    expect(firstAssessment.outcome.gate).toBe(origin === 'existing' ? 'clear' : 'incomplete');
+    if (origin === 'existing') {
+      const repeated = await assess(repaired, first, 'origin-repeat', { previousAssessment: firstAssessment.id });
+      expect(repeated.outcome.gate).toBe('clear');
+      expect(service.findings('sample', job.jobId)).toHaveLength(1);
+      expect(review).toHaveBeenCalledTimes(1);
+    } else expect(firstAssessment.outcome.gaps.join(' ')).toContain('Test origin');
   });
 
   it.each(['leave', 'defer'] as const)('records coordinator %s and verifies a correction without repeating broad review', async action => {
@@ -827,13 +898,15 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(b.outcome.repairs.join(' ')).not.toContain('configured audit failed');
   });
 
-  it('returns failed configured checks directly without semantic review or reconciliation', async () => {
+  it('retains a clean review with failed configured checks without reconciliation', async () => {
+    const review = vi.fn(async (input: Parameters<NonNullable<AssessmentDependencies['review']>>[0]) => ({
+      status: 'submitted' as const, value: reviewReport(input.candidate), operationId: input.operationId, sessionId: 'script', eventCount: 1 }));
     const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit, 'failed'),
-      review: async () => { throw new Error('Semantic review must not run after failed audit'); },
-      reconcile: async () => { throw new Error('Reconciliation must not run after failed audit'); },
+      review, reconcile: async () => { throw new Error('Audit failure alone must not invoke reconciliation'); },
     });
     const result = await assess(first, baseline, 'assess-missing');
+    expect(review).toHaveBeenCalledTimes(1);
     expect(result.outcome.gate).toBe('action-required');
     expect(result.outcome.gaps).toEqual([]);
     expect(result.outcome.repairs.join(' ')).toContain('configured audit failed');

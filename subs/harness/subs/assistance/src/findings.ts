@@ -58,6 +58,33 @@ export function reportReviewConcerns(input: {
   });
 }
 
+/** Provider instability is an observed reliability question, independent of review coverage. */
+export function reportAuditInstability(input: {
+  state: CheckFindingState; assessment: string; tree: string;
+  observations: readonly { key: string; detail: string }[]; evidence: CheckFindingEvidence;
+}): CheckFindingCommand[] {
+  return input.observations.flatMap((observation, index) => {
+    const issueKey = `audit-instability-${observation.key}`;
+    const summary = `Provider-established test instability: ${observation.detail}`.slice(0, 4000);
+    if ([...input.state.findings.values()].some(entry => entry.reports.some(report => report.producer === 'review:test-reliability'
+      && report.issueKey === issueKey) && (entry.standing === 'open'
+        || entry.decisions.find(decision => decision.id === entry.settledBy)?.decision.action === 'supersede'))) return [];
+    return [reportCommand({
+      producer: 'review:test-reliability', attempt: input.assessment, reportKey: `instability-${index + 1}`,
+      owner: { kind: 'run' }, source: { kind: 'tree', id: input.tree }, issueKey,
+      verification: { kind: 'assessment' },
+      observation: { kind: 'review-concern', summary,
+        evidence: [input.evidence], locations: [] },
+      judgment: { actor: { kind: 'harness', reason: 'Provider evidence requires plan-origin judgment' },
+        consequence: 'Determine whether this unstable test was added by the plan; added tests require reliable verification.',
+        rationale: 'The audit provider established instability, but it did not determine test origin.',
+        uncertainty: 'Compare the individual test with the original execution baseline, including additions to existing files.',
+        remedy: 'If added by this plan, repair or replace the test while preserving coverage; if existing, retain the provider verdict without assigning repair.',
+        risk: 'medium', ground: null }, suggests: null, credibility: 'ungrounded', modules: [],
+    })];
+  });
+}
+
 /** Factual findings can close only with a matching, complete check witness on this candidate. */
 export function factualFindingCommands(input: {
   state: CheckFindingState; assessment: string; tree: string; audit: AssistedAuditOutcome;

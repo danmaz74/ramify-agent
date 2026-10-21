@@ -102,8 +102,9 @@ An iteration defaults to one broad review. Its corrections use the previous
 assessment (explicit `previous_assessment`, or the latest completed assessment of
 the same recorded iteration). Follow-up inspects selected repairs and relevant
 surrounding behavior. If prior acceptance was met and no open findings or protected
-conflicts remain, passing configured checks can finish a correction without another
-semantic invocation. Otherwise the reviewer receives a focused follow-up brief.
+conflicts remain, a correction may omit another semantic invocation. The
+configured check still runs and must finish before the assessment result.
+Otherwise the reviewer receives a focused follow-up brief.
 A nonempty `review_reason` explicitly requests another broad review and records why.
 `review-policy` stage evidence records broad iteration, final-plan, focused-follow-up or not-run work;
 not-run work is never represented as a completed review. The first final assessment
@@ -125,8 +126,8 @@ architectural concern names a concrete practical consequence and the smallest
 useful correction; speculative redesign, style preferences and reopening settled
 decisions without new evidence are not useful final findings.
 
-The first packet contains the complete captured plan, final audit/protection
-state, known finding dispositions, changed file/module hints, and compact earlier
+The first packet contains the complete captured plan, protection state,
+known finding dispositions, changed file/module hints, and compact earlier
 iteration outcomes, boundaries, candidates, conclusions and evidence references.
 At most 30 recent assessment summaries are inline; the original records remain
 available on demand. No cumulative patch is eagerly collected or embedded. Full
@@ -151,9 +152,16 @@ of earlier unmet or uncertain answers. Exact protection authority and failed
 required checks retain their meaning. Subsequent final repairs keep focused
 follow-up; no evidence cache, automatic invalidation graph or new ledger is added.
 
-A failed configured audit returns its diagnostic evidence after factual finding
-and protection ingestion. It does not invoke semantic review or reconciliation.
-Audit and protection stages and the deliberately unrun review remain visible.
+The configured audit and scheduled semantic review inspect the same committed
+candidate independently. Either can finish first; each result is retained when
+available. Failed or unavailable audit evidence does not suppress review, and a
+clean or unavailable review does not suppress audit evidence. Required check
+failures remain factual obligations. Provider-established test instability,
+including warnings after a passing audit, receives a separate test-origin judgment
+through reconciliation even when review is clean or deliberately omitted. Audit
+failure alone does not require reconciliation. An assessment finishes only after
+both scheduled checks settle. `audit-started` and `review-started` record their
+candidate and start time; stage completion times retain their existing meaning.
 
 Large audit outcomes are retained intact as verified content-addressed evidence beside the ledger. The compact audit stage records its state and exact requested/audited candidate identities plus the artifact reference. Resume and on-demand `assessment_evidence` reads verify and resolve that reference; historical inline stages remain readable. Readiness binds the recorded stage, without embedding the provider report again or changing the ledger line limit.
 

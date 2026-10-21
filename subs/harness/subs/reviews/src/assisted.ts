@@ -1,4 +1,4 @@
-import { testReliabilityGuidance } from './test-reliability.js';
+import { sourceTestQualityGuidance } from './test-reliability.js';
 import { z } from 'zod';
 import type { CandidateSource } from '../../evidence/src/git.js';
 import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../task-execution/src/submissions.js';
@@ -65,8 +65,6 @@ export interface AssistedReviewBriefing {
   readonly iteration: string;
   readonly snapshot: CandidateSnapshot;
   readonly outcome: string;
-  readonly audit: { readonly status: 'passed' | 'failed' | 'pending' | 'unavailable'; readonly detail?: string };
-  readonly testingContext?: string;
   readonly requirements: readonly AssistedRequirement[];
   readonly principles: readonly { readonly path: string; readonly note: string }[];
   readonly protectionPaths?: readonly string[];
@@ -80,12 +78,11 @@ export function assistedReviewMessage(input: AssistedReviewBriefing, diffPayload
   const lines = [
     `Combined code and scope review ${input.id} for iteration ${input.iteration}.`, '',
     `Candidate commit: ${snapshot.commit}; tree: ${snapshot.tree}; base commit: ${snapshot.base}.`,
-    testReliabilityGuidance, '', input.testingContext ?? 'Inspect retained audit and original baseline evidence when test reliability is in question.', '',
-    `Audit: ${input.audit.status}${input.audit.detail ? ` — ${input.audit.detail}` : ''}.`, '',
+    sourceTestQualityGuidance, '',
     '## Intended outcome', '', input.outcome, '',
     '## Acceptance references', '',
     ...input.requirements.map(item => `- ${item.ref}: ${item.text}`), '',
-    'Answer every acceptance reference, including requirements with no implementation. Mark missing behavior unmet and uncertain evidence uncertain. Support conclusions with relevant candidate evidence selected through ordinary inspection. Do not infer an audit pass from pending, failed or unavailable audit evidence.', '',
+    'Answer every acceptance reference, including requirements with no implementation. Mark missing behavior unmet and uncertain evidence uncertain. Support conclusions with relevant candidate evidence selected through ordinary inspection.', '',
     `Unauthorized protected differences: ${JSON.stringify(input.protectionPaths ?? [])}. For an unmet requirement whose implementation and all other obligations are satisfied, pendingProtection may name only these exact paths when their authorization is the sole remaining condition. Keep uncertain evidence uncertain. Do not create a semantic concern solely to duplicate a factual protection choice.`, '',
     '## Selected guidance', '',
     ...(input.principles.length ? input.principles.map(item => `- ${item.path}: ${item.note}`) : ['None supplied.']), '',
@@ -167,8 +164,7 @@ function assistedFinalReviewMessage(input: AssistedReviewBriefing, diffPayload: 
   return [
     `Final plan review ${input.id}.`, '',
     `Candidate commit: ${snapshot.commit}; tree: ${snapshot.tree}; base commit: ${snapshot.base}.`,
-    testReliabilityGuidance, '', input.testingContext ?? 'Inspect retained audit and original baseline evidence when test reliability is in question.', '',
-    `Audit: ${input.audit.status}${input.audit.detail ? ` — ${input.audit.detail}` : ''}.`,
+    sourceTestQualityGuidance, '',
     `Final protection: ${finalContext?.protection ?? 'See retained protection evidence.'}`, '',
     'Assess whole-plan completeness, cross-iteration integration, remaining fixed and nonfunctional obligations, unresolved findings and meaningful limitations. Assess architectural quality: avoid unnecessary complexity and preserve clean modularity. This is a final plan assessment, not another broad iteration code/scope pass.',
     'Reuse accepted iteration assessments as evidence. Revisit previously reviewed behavior when later changes, conflicting evidence, unresolved limitations or a concrete integration concern warrant it. Explain why earlier evidence applies to this candidate. An accepted report is evidence, not proof that all requirements were met; preserve unmet and uncertain answers unless you explain their resolution.',
@@ -176,7 +172,7 @@ function assistedFinalReviewMessage(input: AssistedReviewBriefing, diffPayload: 
     '## Final goal', '', input.outcome, '',
     '## Complete plan and acceptance', '', ...input.requirements.map(item => `- ${item.ref}: ${item.text}`), '',
     'Answer every acceptance reference. Missing behavior is unmet; unresolved uncertainty remains uncertain. For met answers, cite relevant candidate evidencePaths or supplied accepted iteration evidenceRefs, and explain applicability in explanation. Do not invent references to missing, unavailable, interrupted or unsubmitted reviews. No fresh source inspection is required merely to repeat an accepted earlier conclusion. Inspect source and relevant surrounding behavior when the final integration judgment needs it.',
-    `Unauthorized protected differences: ${JSON.stringify(input.protectionPaths ?? [])}. pendingProtection may name only these exact paths when their authorization is the sole remaining condition and all other obligations are met. Keep uncertainty and independent failed checks visible.`, '',
+    `Unauthorized protected differences: ${JSON.stringify(input.protectionPaths ?? [])}. pendingProtection may name only these exact paths when their authorization is the sole remaining condition and all other obligations are met. Keep uncertainty visible.`, '',
     '## Iteration evidence and boundaries', '',
     `Showing ${finalContext?.iterations.length ?? 0} compact outcomes of ${finalContext?.total ?? 0} prior iteration assessments. Full records and older outcomes are available through assessment_evidence.`,
     ...(finalContext?.iterations.map(item => JSON.stringify(item)) ?? []),

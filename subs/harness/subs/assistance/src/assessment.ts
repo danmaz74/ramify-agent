@@ -1,4 +1,4 @@
-import { configuredAuditInstability } from '../../audit/src/check-execution.js';
+import { configuredAuditInstabilityObservations } from '../../audit/src/check-execution.js';
 import { finalIterationContext } from './final-context.js';
 import { verifiedCandidateSource } from '../../evidence/src/git-text.js';
 import { createHash } from 'node:crypto';
@@ -20,7 +20,7 @@ import { compareProtection, type ProtectionComparison } from './protection.js';
 import { captureAssistanceDocuments, readCandidateDocument, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
-import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, predecessorAssessment, retainedRequirementAnswers, substantiveGaps, reportReviewConcerns, knownFindingSummary, unverifiedSemanticClosures } from './findings.js';
+import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, predecessorAssessment, retainedRequirementAnswers, substantiveGaps, reportReviewConcerns, reportAuditInstability, knownFindingSummary, unverifiedSemanticClosures } from './findings.js';
 
 const digest = (value: unknown): string => `sha256:${createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex')}`;
 const errorText = (error: unknown): string => error instanceof Error ? error.message : String(error);
@@ -93,49 +93,29 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     const snapshot = await openCandidateSnapshot(source, projectRoot, { commit: request.candidate, base });
     signal.throwIfAborted();
     const auditPrevious = await readAuditEvidence(stages('audit'), context.readEvidence);
-    const audit = auditPrevious?.state === 'passed' || auditPrevious?.state === 'failed' ? auditPrevious
-      : await (dependencies.audit ?? auditAssistedCandidate)({ projectRoot, baselineCommit: baseline, candidateCommit: snapshot.commit,
-        jobId: job.jobId, attemptId: `${assessment.id}-audit`, signal });
-    if (audit !== auditPrevious) {
-      // A stage is copied into its transition, revision record and stage record.
-      // Keep a large provider result once, rather than multiplying it in each line.
-      const retained = Buffer.byteLength(JSON.stringify(audit)) > 128 * 1024
-        ? { schema: 'ramify-agent.assisted-audit-reference/1', state: audit.state,
-          requestedSourceCommit: audit.requestedSourceCommit, auditedSourceCommit: audit.auditedSourceCommit,
-          artifact: await context.retainEvidence(audit) } satisfies AuditEvidenceReference : audit;
-      await record('audit', retained);
-    }
-    const instability = configuredAuditInstability(audit.result?.provider);
-    const testingContext = `Original plan/execution baseline: ${baseline}. This remains the origin boundary across iterations and repairs. Read original files with assessment_evidence ref baseline:<path>. Retained audit: assessment_evidence ref assessments/${assessment.id}/stages/audit.json (includes raw provider evidence and verdict).\nProvider-established instability (not test origin):\n${instability.length ? instability.join('\n') : 'None reported in the supplied provider result.'}`;
-    if (audit.state === 'unavailable') gaps.push(`Audit evidence unavailable: ${audit.detail}`);
+    if (!auditPrevious || auditPrevious.state === 'unavailable') await record('audit-started', { candidate: snapshot.commit, startedAt: new Date().toISOString() });
+    const auditWork = auditPrevious?.state === 'passed' || auditPrevious?.state === 'failed' ? Promise.resolve(auditPrevious)
+      : (async () => {
+        let result;
+        try { result = await (dependencies.audit ?? auditAssistedCandidate)({ projectRoot, baselineCommit: baseline, candidateCommit: snapshot.commit,
+          jobId: job.jobId, attemptId: `${assessment.id}-audit`, signal }); }
+        catch (error) { result = { state: 'unavailable' as const, requestedSourceCommit: snapshot.commit,
+          auditedSourceCommit: null, result: null, detail: errorText(error) }; }
+        const retained = Buffer.byteLength(JSON.stringify(result)) > 128 * 1024
+          ? { schema: 'ramify-agent.assisted-audit-reference/1', state: result.state,
+            requestedSourceCommit: result.requestedSourceCommit, auditedSourceCommit: result.auditedSourceCommit,
+            artifact: await context.retainEvidence(result) } satisfies AuditEvidenceReference : result;
+        await record('audit', retained);
+        return result;
+      })();
+
+    try {
 
     const protection = stages<ProtectionComparison>('protection') ?? await (dependencies.protection ?? compareProtection)({
       projectRoot, baselineCommit: baseline, candidateCommit: snapshot.commit, rules: job.protection!.rules, candidates: source, signal,
       exceptions: acceptedProtectionExceptions(context.findingState(), context.assessments()),
     });
     if (!stages('protection')) await record('protection', protection);
-    const auditStage = stages('audit');
-    const factualEvidence = { kind: 'assisted-checks',
-      ref: isAuditEvidenceReference(auditStage) ? auditStage.artifact.path : `assessments/${assessment.id}/stages/audit.json`,
-      hash: isAuditEvidenceReference(auditStage) ? `sha256:${auditStage.artifact.sha256}` : digest(audit) };
-    // Pure domain ingestion is already idempotent; keying the transaction also covers decisions after a restart.
-    const factual = factualFindingCommands({ state: context.findingState(), assessment: assessment.id, tree: snapshot.tree, audit, protection,
-      protectionSelection: digest({ baseline, rules: job.protection!.rules }), evidence: factualEvidence,
-      protectionEvidence: { kind: 'protection-comparison', ref: `assessments/${assessment.id}/stages/protection.json`, hash: digest(protection) } });
-    if (factual.length) await context.recordFindings(factual);
-
-    if (audit.state === 'failed') {
-      await record('review-policy', { mode: 'not-run', reason: 'Configured check failed; return diagnostics directly for repair.' });
-      const remaining = remainingBriefs(findingDetails(context.findingState()));
-      gaps.push(...substantiveGaps(predecessorAssessment(assessment, context.assessments())));
-      for (const answer of retainedRequirementAnswers({ ...assessment, stages: [...context.stages()] }, context.assessments())) {
-        if (answer.outcome === 'unmet') remaining.repairs.push(`${answer.ref}: ${answer.explanation}`);
-        if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
-      }
-      return compactOutcome({ gate: 'action-required', summary: audit.detail, ...remaining, gaps,
-        evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`) });
-    }
-
     for (const retained of context.assessments()) {
       if (retained.id === assessment.id) continue;
       const cached = (retained.stages.find(stage => stage.name === 'reconciliation-accepted') ?? retained.stages.find(stage => stage.name === 'reconciliation'))?.evidence as ReconciliationEvidence | undefined;
@@ -205,15 +185,12 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     ];
     const priorReview = previous?.stages.find(stage => stage.name === 'review-accepted') ?? previous?.stages.find(stage => stage.name === 'review');
     const prior = priorReview?.evidence as ReviewEvidence | undefined;
-    if (request.kind === 'iteration' && previous && !request.reviewReason && prior?.result.status === 'submitted'
+    const skipReview = request.kind === 'iteration' && previous && !request.reviewReason && prior?.result.status === 'submitted'
       && prior.result.value.requirements.every(answer => answer.outcome === 'met') && !substantiveGaps(previous).length
-      && !findingDetails(context.findingState()).some(detail => detail.summary.standing === 'open') && !protection.violations.length && !gaps.length && audit.state === 'passed' && instability.length === 0) {
-      await record('review-policy', { mode: 'not-run', reason: 'Selected correction verified by configured checks; no remaining semantic repair selected.', previousAssessment: previous.id });
-      return compactOutcome({ gate: 'clear', summary: 'Repair candidate verified; broad review deliberately not repeated.',
-        repairs: [], decisions: [], gaps: [], evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`) });
-    }
-    if (!stages('review-policy')) await record('review-policy', { mode: focused ? 'focused-follow-up' : request.kind === 'final' ? 'final-plan' : 'broad',
-      reason: request.reviewReason ?? (focused ? 'Verify selected repairs and relevant surrounding behavior.' : request.kind === 'final' ? 'Assess whole-plan completeness, integration and architectural quality using retained iteration evidence.' : 'Initial assessment.'), previousAssessment: previous?.id ?? null });
+      && !findingDetails(context.findingState()).some(detail => detail.summary.standing === 'open') && !protection.violations.length && !gaps.length;
+    if (!stages('review-policy')) await record('review-policy', { mode: skipReview ? 'not-run' : focused ? 'focused-follow-up' : request.kind === 'final' ? 'final-plan' : 'broad',
+      reason: skipReview ? 'Selected semantic correction has no remaining semantic repair; configured checks are evaluated separately.'
+        : request.reviewReason ?? (focused ? 'Verify selected repairs and relevant surrounding behavior.' : request.kind === 'final' ? 'Assess whole-plan completeness, integration and architectural quality using retained iteration evidence.' : 'Initial assessment.'), previousAssessment: previous?.id ?? null });
     const intendedOutcome = request.brief
       + (request.focusModule === undefined ? '' : `\nDeclared module focus: ${request.focusModule ?? 'broader assignment'}. Focus is advisory; cross-module changes are allowed.`)
       + (request.additionalContext === undefined ? '' : `\nAdditional context:\n${request.additionalContext}`);
@@ -269,12 +246,13 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         return retainedSourceGap(`Retained review source evidence is unavailable: ${errorText(error)}`);
       }
     }
-    if (reviewed?.result.status !== 'submitted') {
+    if (!skipReview && reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
-        briefing: { id: assessment.id, kind: request.kind, finalContext, iteration: assessment.id, snapshot, outcome: (focused ? 'Focused repair follow-up: inspect the selected repairs and relevant surrounding behavior. Do not repeat the broad iteration review or unchanged discretionary issues. Verify previously unmet requirements affected by the repair.\n' : '') + intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
-          testingContext, requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
+        briefing: { id: assessment.id, kind: request.kind, finalContext, iteration: assessment.id, snapshot, outcome: (focused ? 'Focused repair follow-up: inspect the selected repairs and relevant surrounding behavior. Do not repeat the broad iteration review or unchanged discretionary issues. Verify previously unmet requirements affected by the repair.\n' : '') + intendedOutcome + followUp,
+          requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
       const operations = await dependencies.operations();
+      if (!stages('review-started')) await record('review-started', { candidate: snapshot.commit, startedAt: new Date().toISOString() });
       const result = await scheduledReview(async () => (dependencies.review ?? runAssistedPiReview)({
         operations, runId: job.jobId, operationId: `${assessment.id}-review-${assessment.revision}`, projectRoot,
         candidate: snapshot.commit, tree: snapshot.tree, kind: request.kind, prepared: withEvidence, signal,
@@ -290,15 +268,30 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       reviewed = stages<ReviewEvidence>('review-accepted') ?? { result, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'candidate-inspection/1', limitations };
       await record('review', reviewed);
     }
-    if (!stages('review') && reviewed.result.status === 'submitted') await record('review', reviewed);
-    if (reviewed.result.status !== 'submitted') gaps.push(`Required review unavailable: ${reviewed.result.reason}`);
-    else {
+    if (reviewed && !stages('review') && reviewed.result.status === 'submitted') await record('review', reviewed);
+    if (!skipReview && reviewed?.result.status !== 'submitted') gaps.push(`Required review unavailable: ${reviewed?.result.reason ?? 'no result'}`);
+    else if (reviewed?.result.status === 'submitted') {
       const report = reviewed.result.value;
       for (const answer of report.requirements) if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
       const reports = reportReviewConcerns({ assessment: assessment.id, tree: snapshot.tree, report, bindings: reviewed.bindings,
         evidence: { kind: 'assisted-review', ref: `assessments/${assessment.id}/stages/review.json`, hash: digest(reviewed) } });
       if (reports.length) await context.recordFindings(reports, 'review-reports');
     }
+
+    const audit = await auditWork;
+    const instability = configuredAuditInstabilityObservations(audit.result?.provider);
+    const testingContext = `Original plan/execution baseline: ${baseline}. This remains the origin boundary across iterations and repairs. Read original files with assessment_evidence ref baseline:<path>. Retained audit: assessment_evidence ref assessments/${assessment.id}/stages/audit.json (includes raw provider evidence and verdict).\nProvider-established instability (not test origin):\n${instability.length ? instability.map(item => item.detail).join('\n') : 'None reported in the supplied provider result.'}`;
+    if (audit.state === 'unavailable') gaps.push(`Audit evidence unavailable: ${audit.detail}`);
+    const auditStage = stages('audit');
+    const factualEvidence = { kind: 'assisted-checks',
+      ref: isAuditEvidenceReference(auditStage) ? auditStage.artifact.path : `assessments/${assessment.id}/stages/audit.json`,
+      hash: isAuditEvidenceReference(auditStage) ? `sha256:${auditStage.artifact.sha256}` : digest(audit) };
+    const factual = factualFindingCommands({ state: context.findingState(), assessment: assessment.id, tree: snapshot.tree, audit, protection,
+      protectionSelection: digest({ baseline, rules: job.protection!.rules }), evidence: factualEvidence,
+      protectionEvidence: { kind: 'protection-comparison', ref: `assessments/${assessment.id}/stages/protection.json`, hash: digest(protection) } });
+    if (factual.length) await context.recordFindings(factual);
+    if (instability.length) await context.recordFindings(reportAuditInstability({ state: context.findingState(), assessment: assessment.id, tree: snapshot.tree,
+      observations: instability, evidence: factualEvidence }), 'audit-instability');
 
     let reconciliation = stages<ReconciliationEvidence>('reconciliation-accepted') ?? stages<ReconciliationEvidence>('reconciliation');
     if (reconciliation?.status === 'submitted') {
@@ -324,7 +317,8 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         authority: 'You may plan repairs, replace disproved judgments, or verify semantic fixes after inspection. You cannot waive or defer obligations, change protected commitments, or dismiss factual required failures. Leave unresolved material decisions for the coordinator. Do not promote stylistic nits or speculative optional work.',
         context: `${testingContext}\nAudit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\n${request.kind === 'final' && !focused ? `Captured plan:\n${context.planMarkdown}\n` : 'Original plan available with assessment_evidence ref captured-plan.\n'}Iteration: ${intendedOutcome}`,
         requests: [{ request: assessment.id, kind: 'code/scope/design', iteration: assessment.id, candidate: snapshot.commit,
-          attempt: reviewed.result.operationId, result: reviewed.result.status === 'submitted' ? (gaps.length ? 'partial; see assessment gaps' : 'complete') : `not verified: ${reviewed.result.reason}` }],
+          attempt: reviewed?.result.operationId ?? null, result: skipReview ? 'deliberately not run for selected semantic correction'
+            : reviewed?.result.status === 'submitted' ? (gaps.length ? 'partial; see assessment gaps' : 'complete') : `not verified: ${reviewed?.result.reason ?? 'no result'}` }],
         attention, others: details.filter(detail => !entries.has(detail.summary.id)).map(detail => detail.summary),
         iterations: [{ id: assessment.id, goal: intendedOutcome + followUp, outcome: null }],
         earlier: context.assessments().filter(item => item.id !== assessment.id && item.outcome !== null).map(item => ({ id: item.id, next: item.outcome!.gate, brief: item.outcome!.summary })), refused: [],
@@ -357,6 +351,12 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
             if (!validated.ok) return validated;
             const errors = validated.value.submission.dispositions.flatMap((item, index) => {
               if (item.action.action === 'defer') return [{ path: `dispositions.${index}.action`, message: 'Deferral requires coordinator authority; leave the concern open or propose a repair.' }];
+              const reliability = details.find(detail => detail.summary.id === item.checkFinding)?.reports.items
+                .some(report => report.producer === 'review:test-reliability');
+              if (reliability && (item.action.action === 'waive' || item.action.action === 'request-user-decision'))
+                return [{ path: `dispositions.${index}.action`, message: 'Provider-established instability needs test-origin judgment; preserve a new-test repair or unresolved origin.' }];
+              if (reliability && item.action.action === 'fixed' && instability.length)
+                return [{ path: `dispositions.${index}.action`, message: 'The current provider still reports instability; a passing audit verdict alone cannot verify reliable coverage.' }];
               if ((item.action.action === 'fixed' || item.action.action === 'supersede') && tools.read().size === 0)
                 return [{ path: `dispositions.${index}.action`, message: 'Inspect candidate source before closing a semantic concern.' }];
               return [];
@@ -388,7 +388,12 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     else if (attention.length) gaps.push(`Reconciliation unavailable: ${reconciliation?.reason ?? 'no valid assessment'}`);
 
     const remaining = remainingBriefs(findingDetails(context.findingState()).filter(detail => !authorizedProtectionFinding(detail.summary, protection)));
-    if (reviewed.result.status !== 'submitted') gaps.push(...substantiveGaps(previous));
+    for (const detail of findingDetails(context.findingState())) {
+      if (detail.summary.standing === 'open' && detail.reports.items.some(report => report.producer === 'review:test-reliability')
+        && !detail.decisions.items.some(decision => decision.decision.action === 'plan-repair'))
+        gaps.push(`${detail.summary.id}: Test origin or reliable repair remains unresolved against original baseline ${baseline}.`);
+    }
+    if (!skipReview && reviewed?.result.status !== 'submitted') gaps.push(...substantiveGaps(previous));
     const answers = retainedRequirementAnswers({ ...assessment, stages: [...context.stages()] }, context.assessments());
     for (const answer of answers) {
       if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
@@ -400,6 +405,10 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       summary: gaps.length ? 'Assessment has required evidence gaps; established issues are retained.'
         : remaining.repairs.length || remaining.decisions.length ? 'Assessment completed with remaining actions.' : 'Required assessment completed with no remaining material issue.',
       ...remaining, gaps, evidence: [...new Set([...evidence, ...context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`)])] });
+    } finally {
+      // An interrupted review does not abandon a check already running on this candidate.
+      await auditWork.catch(() => undefined);
+    }
   };
 }
 

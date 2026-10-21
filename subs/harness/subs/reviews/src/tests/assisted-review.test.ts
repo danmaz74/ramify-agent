@@ -18,14 +18,14 @@ describe('assisted review preparation', () => {
     const accepted = 'assessments/as-0001/stages/review.json';
     const prepared = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 4,
       briefing: { id: 'final-1', kind: 'final', iteration: 'final-1', snapshot, outcome: 'Complete the captured plan.',
-        audit: { status: 'passed' }, principles: [], requirements: [{ ref: 'plan', text: 'The complete captured plan.' }],
+        principles: [], requirements: [{ ref: 'plan', text: 'The complete captured plan.' }],
         finalContext: { total: 1, acceptedReviewRefs: [accepted], protection: 'No unauthorized protected differences.', iterations: [{
           id: 'as-0001', iteration: 'it-1', goal: 'Implement feature.', base: 'base', candidate: 'candidate', status: 'completed', gate: 'action-required',
           conclusion: 'Feature complete; exact protection authority remains pending.', remaining: ['Protected contract change requires authority.'], evidenceRefs: [accepted] }] } } });
     expect(diff).not.toHaveBeenCalled();
     expect(prepared.message).toContain('Final plan review');
-    expect(prepared.message).toContain('Tests added in earlier plan iterations remain this implementation');
-    expect(prepared.message).toContain('required repair, not waive it as optional quality work');
+    expect(prepared.message).toContain('source-level test quality');
+    expect(prepared.message).not.toContain('Provider-established instability');
     expect(prepared.message).not.toContain('huge cumulative patch');
     expect(prepared.message).not.toContain('Combined code and scope review');
     for (const phrase of ['whole-plan completeness', 'cross-iteration integration', 'fixed and nonfunctional', 'architectural quality',
@@ -37,7 +37,7 @@ describe('assisted review preparation', () => {
     expect(prepared.validate({ ...report, requirements: [{ ...report.requirements[0], evidenceRefs: ['assessments/as-9999/stages/review.json'] }] }).ok).toBe(false);
     expect(prepared.validate({ ...report, requirements: [{ ...report.requirements[0], explanation: '' }] }).ok).toBe(false);
     const ordinary = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 4,
-      briefing: { id: 'iteration', iteration: 'it-1', snapshot, outcome: 'Implement feature.', audit: { status: 'passed' },
+      briefing: { id: 'iteration', iteration: 'it-1', snapshot, outcome: 'Implement feature.',
         principles: [], requirements: [{ ref: 'plan', text: 'Implement feature.' }] } });
     expect(diff).toHaveBeenCalled();
     expect(ordinary.message).toContain('Combined code and scope review');
@@ -56,13 +56,13 @@ describe('assisted review preparation', () => {
     expect(JSON.stringify(z.toJSONSchema(assistedReviewDeclarationSchema(undefined), { io: 'input' }))).toBe(JSON.stringify(iteration));
   });
 
-  it('renders factual audit state and requires answers for behavior absent from the diff', async () => {
+  it('requires answers for behavior absent from the diff without audit state', async () => {
     const candidates = source();
     const snapshot = await openCandidateSnapshot(candidates, root, { commit: 'candidate', base: 'base' });
     const prepared = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 4,
       briefing: { id: 'review-1', iteration: 'iteration-1', snapshot, outcome: 'Add feature and migration.',
-        audit: { status: 'pending' }, principles: [], requirements: [{ ref: 'feature', text: 'Feature works' }, { ref: 'migration', text: 'Migration is present' }] } });
-    expect(prepared.message).toContain('Audit: pending');
+        principles: [], requirements: [{ ref: 'feature', text: 'Feature works' }, { ref: 'migration', text: 'Migration is present' }] } });
+    expect(prepared.message).not.toContain('Audit:');
     expect(prepared.message).not.toContain('gate passed');
     expect(prepared.message).toContain('including requirements with no implementation');
     const report = { inspected: ['src/feature.ts'], missing: [], concerns: [], codeAssessment: 'Feature looks sound.',
@@ -81,18 +81,18 @@ describe('assisted review preparation', () => {
   it('keeps a valid zero-concern report and explicit design escalation distinct', async () => {
     const candidates = source(); const snapshot = await openCandidateSnapshot(candidates, root, { commit: 'candidate', base: 'base' });
     const prepared = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 4,
-      briefing: { id: 'review-2', iteration: 'iteration-1', snapshot, outcome: 'Add feature.', audit: { status: 'failed', detail: 'configured audit failed' },
+      briefing: { id: 'review-2', iteration: 'iteration-1', snapshot, outcome: 'Add feature.',
         principles: [{ path: 'design.principles.md', note: 'Ownership applies.' }], requirements: [{ ref: 'feature', text: 'Feature works' }] } });
     const report = { inspected: ['src/feature.ts'], missing: [], concerns: [], codeAssessment: 'No code concern.', scopeAssessment: 'Goal covered.',
       design: { needed: true, reason: 'Ownership changed.', assessment: 'The new owner receives the exported feature.' }, requirements: [{ ref: 'feature', outcome: 'met', explanation: 'Source present.', evidencePaths: ['src/feature.ts'] }] };
-    expect(prepared.message).toContain('Audit: failed — configured audit failed');
+    expect(prepared.message).not.toContain('Audit:');
     expect(prepared.validate(report).ok).toBe(true);
   });
 
   it('retains twenty material concerns and an explicit overflow gap', async () => {
     const candidates = source(); const snapshot = await openCandidateSnapshot(candidates, root, { commit: 'candidate', base: 'base' });
     const prepared = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 20,
-      briefing: { id: 'review-overflow', iteration: 'iteration-1', snapshot, outcome: 'Assess all defects.', audit: { status: 'passed' },
+      briefing: { id: 'review-overflow', iteration: 'iteration-1', snapshot, outcome: 'Assess all defects.',
         principles: [], requirements: [{ ref: 'feature', text: 'Feature works' }] } });
     const concern = (index: number) => ({ summary: `Defect ${index}`, consequence: 'Behavior fails.', rationale: 'Candidate source shows it.',
       uncertainty: 'Needs repair.', remedy: 'Correct the behavior.', locations: [{ path: 'src/feature.ts', startLine: 1, endLine: 1 }],
@@ -112,7 +112,7 @@ describe('assisted review preparation', () => {
     const snapshot = await openCandidateSnapshot(candidates, root, { commit: 'candidate', base: 'base' });
     const prepared = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 4,
       briefing: { id: 'approval-review', iteration: 'iteration-1', snapshot, outcome: 'Implement feature.',
-        audit: { status: 'passed' }, principles: [], requirements: [{ ref: 'feature', text: 'Feature works.' }],
+        principles: [], requirements: [{ ref: 'feature', text: 'Feature works.' }],
         protectionPaths: ['src/feature.ts'] } });
     const report = { inspected: ['src/feature.ts'], missing: [], concerns: [], codeAssessment: 'Implementation is complete.',
       scopeAssessment: 'Only the exact protected change needs authority.', design: { needed: false, reason: 'No ownership change.', assessment: 'Contracts preserved.' },

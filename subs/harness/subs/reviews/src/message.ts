@@ -1,4 +1,4 @@
-import { testReliabilityGuidance } from './test-reliability.js';
+import { sourceTestQualityGuidance } from './test-reliability.js';
 import { deviationNotice } from '../../plan-evidence/src/interfaces/catalog.js';
 import type { CapturedInput } from './inputs.js';
 import type { CandidateSnapshot } from './snapshot.js';
@@ -75,12 +75,11 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
   const lines = [
     `${questions[kind]} ${request.id} of iteration ${request.key.iteration} of work item ${request.workItem}.`,
     '',
-    `The audited candidate is commit ${request.key.candidate} (tree ${request.tree}); its gate ${request.gate} passed. The diff is taken from ${request.base}.`,
+    `The candidate is commit ${request.key.candidate} (tree ${request.tree}). The diff is taken from ${request.base}.`,
     '',
     'The request\'s assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.',
     '',
-    testReliabilityGuidance, '',
-    'Inspect the retained audit evidence for this candidate, including warning dispositions and current or retained instability; a passing gate can still report unstable tests. Use original baseline/source evidence to determine origin.', '',
+    sourceTestQualityGuidance, '',
     '## The iteration',
     '',
     ...(assignment === null
@@ -111,7 +110,7 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     lines.push('## The guidance this design is judged against', '');
     const oriented = briefing.oriented;
     if (oriented === undefined) {
-      lines.push('Each file is part of the audited candidate. If this session has not read one of them yet, inspect it when relevant.', '');
+      lines.push('Each file is part of the candidate. If this session has not read one of them yet, inspect it when relevant.', '');
       for (const entry of request.guidance) lines.push(`- ${entry.ref} (sha256 ${entry.hash.slice(0, 12)})`);
     } else {
       // Orientation supplies reusable context, not proof of an exhaustive read.

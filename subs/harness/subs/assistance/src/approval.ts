@@ -63,9 +63,15 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
   const review = (assessment.stages.find(stage => stage.name === 'review-accepted') ?? assessment.stages.find(stage => stage.name === 'review'))?.evidence as {
     result?: { status: string; value?: AssistedReviewSubmission };
   } | undefined;
+  const reviewPolicy = assessment.stages.find(stage => stage.name === 'review-policy')?.evidence as { mode?: string; previousAssessment?: string } | undefined;
+  const deliberatelySkipped = reviewPolicy?.mode === 'not-run' && assessment.request.kind === 'iteration'
+    && input.assessments.some(item => item.id === reviewPolicy.previousAssessment && item.status === 'completed'
+      && ((item.stages.find(stage => stage.name === 'review-accepted') ?? item.stages.find(stage => stage.name === 'review'))?.evidence as {
+        result?: { status: string };
+      } | undefined)?.result?.status === 'submitted');
   const heldProtection = assessment.stages.find(stage => stage.name === 'protection')?.evidence as ProtectionComparison | undefined;
   if (audit?.state !== 'passed' || audit.requestedSourceCommit !== assessment.request.candidate
-    || audit.auditedSourceCommit === null || (!input.reviewContinued && (review?.result?.status !== 'submitted' || !review.result.value))
+    || audit.auditedSourceCommit === null || (!input.reviewContinued && !deliberatelySkipped && (review?.result?.status !== 'submitted' || !review.result.value))
     || heldProtection?.baselineCommit !== readiness.baseline || heldProtection.candidateCommit !== readiness.candidate) return null;
   const protection = authorizeProtection(heldProtection, acceptedProtectionExceptions(state, input.assessments));
   const authorized = (path: string) => protection.changes.some(change => change.path === path && change.authorizedBy !== null);
@@ -77,7 +83,8 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
   for (const id of readiness.blockers) {
     const entry = state.findings.get(id);
     const settlement = entry?.decisions.find(decision => decision.id === entry.settledBy);
-    const coordinatorChoice = settlement?.actor.kind === 'agent' && settlement.actor.role === 'assisted-coordinator'
+    const coordinatorChoice = !entry?.reports.some(report => report.producer === 'review:test-reliability')
+      && settlement?.actor.kind === 'agent' && settlement.actor.role === 'assisted-coordinator'
       && (settlement.decision.action === 'waive' || settlement.decision.action === 'defer') && entry?.verification.kind === 'assessment';
     if (!coordinatorChoice && (!entry || !authorizedProtectionFinding(entry, protection))) {
       if (!details.some(detail => detail.summary.id === id && detail.summary.standing === 'open'))

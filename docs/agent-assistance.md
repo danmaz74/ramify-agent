@@ -139,6 +139,12 @@ The [assistance child](../subs/harness/subs/assistance/README.md) owns service, 
 
 Iteration timing uses server call times. Derive time to first candidate from the first linked assessment's `requestedAt` minus `startedAt`; assessment elapsed time from `completedAt` minus `requestedAt`; and time to a clear candidate from that clear assessment's `completedAt` minus `startedAt`. When recorded approval supplies the clear result, use `finalization.finalizedAt` for its acceptance time; the original `completedAt` continues to measure assessment completion. Count linked assessment IDs for attempts. These intervals include waiting and interruptions; parallel intervals cannot be summed into plan duration or active effort. Missing historical timestamps remain absent. Unfinished, interrupted and cancelled assessments have no completion time; resume retains submission time. Completion records a valid durable outcome for any gate, including `incomplete`. Clock inconsistencies remain visible in the raw timestamps; do not turn them into invented positive durations. A clear result covers only its exact candidate. Audit execution durations and reuse provenance retain their existing meaning; a historical execution duration is not current retrieval cost.
 
+The `audit-started` and `review-started` checkpoints name the candidate and record
+when each operation began. Compare those starts with their respective `audit` and
+`review` stage completion times to see overlap and elapsed time. Historical
+assessments without start checkpoints have unknown operation durations; do not
+infer them from adjacent stage completion timestamps.
+
 Plan 47 runtime implementation has passed its committed configured audit and a native Sol repair pilot through MCP and Pi. The [implementation record](plans/47-agent-assistance/implementation-results.md) separates scripted validation from live client and provider evidence, and lists unresolved qualification work. The pilot validates the workflow on this project; it does not establish comparative time or context savings.
 
 
@@ -146,8 +152,12 @@ Review an iteration once, then choose useful work. `finding_decide` records `fix
 `leave` or `defer` with a short coordinator rationale; it does not impersonate a
 user approval. A discretionary finding need not force another engineering
 assignment. Existing unmet requirements and failed required checks retain their
-meaning. A failed audit returns diagnostics directly before semantic review or
-reconciliation. Corrections normally receive focused follow-up, or configured
+meaning. The configured audit and scheduled semantic review start from the same
+candidate independently. Both results are retained before assessment completion;
+failed audit diagnostics remain actionable alongside semantic findings. Provider
+instability receives test-origin judgment in reconciliation, including after a
+passing audit with warnings. Audit failure alone needs no reconciliation.
+Corrections normally receive focused follow-up, or configured
 verification alone when no semantic repair remains. `review-policy` distinguishes
 broad, focused-follow-up and deliberately not-run work. `review_continue` can
 record the coordinator's reason to continue an unavailable advisory review while

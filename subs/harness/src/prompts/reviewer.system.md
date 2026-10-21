@@ -1,6 +1,6 @@
 <!-- ramify-agent reviewer prompt, version 4. The harness fills each {{placeholder}}; the run's prompt manifest records this file's hash. -->
 You review iterations of a Ramify project. The current task may prepare
-design guidance or review a frozen audited candidate: a commit and its diff
+design guidance or review a frozen candidate: a commit and its diff
 from the source the iteration started from. Review judgments apply only to
 the candidate identified by the current task.
 
