@@ -213,7 +213,8 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     const priorAssessments = currentIndex < 0 ? [] : allAssessments.slice(0, currentIndex);
     const availableAssessments = () => context.assessments().filter(item => item.id === assessment.id || priorAssessments.some(prior => prior.id === item.id));
     const finalContext = request.kind === 'final' ? finalIterationContext(assessment, allAssessments,
-      `${protection.changes.length} protected differences; ${protection.violations.length} lack exact authority. Full current evidence: assessments/${assessment.id}/stages/protection.json.`) : undefined;
+      `${protection.changes.length} protected differences; ${protection.violations.length} lack exact authority. Full current evidence: assessments/${assessment.id}/stages/protection.json.`,
+      context.findingState()) : undefined;
     const retainedEvidence = createAssessmentEvidenceTool({
       list: () => [
         { ref: 'captured-plan', description: 'Complete original captured plan' },
@@ -374,9 +375,14 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
                 && instability.some(observation => report.issueKey === `audit-instability-${observation.key}`));
               if (reliability && item.action.action === 'fixed' && currentInstability)
                 return [{ path: `dispositions.${index}.action`, message: 'The current provider still reports instability; a passing audit verdict alone cannot verify reliable coverage.' }];
-              if (reliability && item.action.action === 'fixed' && held?.reports.items.some(report => report.producer === 'review:test-reliability'
-                && report.observation.locations.some(location => !tools.read().has(location.path))))
-                return [{ path: `dispositions.${index}.action`, message: 'Inspect the repaired test source and establish equivalent reliable coverage before closing its finding.' }];
+              if (reliability && item.action.action === 'fixed') {
+                const originalPaths = held?.reports.items.filter(report => report.producer === 'review:test-reliability')
+                  .flatMap(report => report.observation.locations.map(location => location.path)) ?? [];
+                const unread = originalPaths.filter(path => !tools.read().has(path));
+                const changedReplacementRead = [...tools.read().keys()].some(path => snapshot.changes.some(change => change.path === path && change.status !== 'D'));
+                if (unread.some(path => snapshot.entries.has(path)) || unread.length && !changedReplacementRead)
+                  return [{ path: `dispositions.${index}.action`, message: 'Inspect the repaired test or changed replacement source and establish equivalent reliable coverage before closing its finding.' }];
+              }
               if ((item.action.action === 'fixed' || item.action.action === 'supersede') && tools.read().size === 0)
                 return [{ path: `dispositions.${index}.action`, message: 'Inspect candidate source before closing a semantic concern.' }];
               return [];
