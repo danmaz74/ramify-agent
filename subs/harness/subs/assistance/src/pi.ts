@@ -23,7 +23,7 @@ export interface PiAssessmentInput<T> {
     readonly name: string;
     readonly description: string;
     readonly inputSchema: JsonSchema;
-    readonly validate: (value: unknown) => SubmissionValidation<T> | Promise<SubmissionValidation<T>>;
+    readonly validate: (value: unknown, delivery?: { readonly sessionId: string; readonly operationId: string; readonly eventCount: number }) => SubmissionValidation<T> | Promise<SubmissionValidation<T>>;
   };
   readonly currentAuthority?: (() => Promise<boolean>) | undefined;
   /** Persist the validated report before Pi receives an accepted submission verdict. */
@@ -71,7 +71,7 @@ export async function runPiAssessment<T>(input: PiAssessmentInput<T>): Promise<P
     sessionId, expectedPoint: created.point, task, additions: [], toolChange: { add: declarations, activate: declarations.map(item => item.name), inactivate: [] }, policy,
     bindings: { task, policy, tools: input.tools, submission: { name: input.submission.name, async accept(value, signal) {
       if (signal.aborted) return { accepted: false, final: true, errors: ['Assessment was cancelled'] };
-      const verdict = await input.submission.validate(value);
+      const verdict = await input.submission.validate(value, { sessionId, operationId: input.operationId, eventCount });
       if (!verdict.ok) return { accepted: false, errors: [rejectionAnswer(verdict.errors)] };
       await input.onSubmitted?.(verdict.value, { sessionId, operationId: input.operationId, eventCount });
       accepted = verdict.value;
@@ -101,6 +101,7 @@ export interface AssistedPiReviewInput extends Omit<PiAssessmentInput<AssistedRe
   readonly kind?: 'iteration' | 'final';
   readonly identityContract?: 'legacy' | 'descriptive';
   readonly prepared: Omit<PreparedReview, 'validate'> & { readonly validate: (value: unknown) => SubmissionValidation<AssistedReviewSubmission> };
+  readonly acceptValidated?: ((value: AssistedReviewSubmission, delivery: { readonly sessionId: string; readonly operationId: string; readonly eventCount: number }) => Promise<SubmissionValidation<AssistedReviewSubmission>>) | undefined;
 }
 
 export function runAssistedPiReview(input: AssistedPiReviewInput): Promise<PiAssessmentResult<AssistedReviewSubmission>> {
@@ -109,6 +110,10 @@ export function runAssistedPiReview(input: AssistedPiReviewInput): Promise<PiAss
       ? 'You assess final plan completeness, cross-iteration integration, remaining fixed/nonfunctional obligations and architectural quality. Reuse accepted iteration evidence with explained applicability; revisit behavior for later changes, conflicting evidence, unresolved limitations or concrete integration concerns. Avoid unnecessary complexity and preserve clean modularity. Raise architectural findings only for concrete practical consequences and propose the smallest useful correction, avoiding speculative redesign or settled issues without new evidence. Full records, source and individual/cumulative diffs are available on demand. Do not edit source. Preserve genuine uncertainty, unmet requirements and exact protection authority. Submit only through submit_assisted_review.'
       : 'You are an independent reviewer of one pinned candidate. Review code and intended scope together. Use the supplied candidate inspection tools, including shell. Select relevant inspection and report meaningful limitations without an exhaustive file inventory. Do not edit source. A claim about an audit is limited to the factual audit status in the task. Answer each acceptance reference, including absent implementation. Submit only through submit_assisted_review.',
     submission: { name: 'submit_assisted_review', description: input.kind === 'final' ? 'Submit the final plan completeness, integration, architecture and remaining-obligation assessment.' : 'Submit the combined code, scope, design-need and acceptance coverage report.',
-      inputSchema: z.toJSONSchema(assistedReviewDeclarationSchema(input.kind, input.identityContract ?? 'legacy'), { io: 'input' }) as JsonSchema, validate: input.prepared.validate },
+      inputSchema: z.toJSONSchema(assistedReviewDeclarationSchema(input.kind, input.identityContract ?? 'legacy'), { io: 'input' }) as JsonSchema,
+      validate: async (value, delivery) => {
+        const checked = input.prepared.validate(value);
+        return checked.ok && input.acceptValidated && delivery ? input.acceptValidated(checked.value, delivery) : checked;
+      } },
   });
 }

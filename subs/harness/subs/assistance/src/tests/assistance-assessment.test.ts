@@ -125,6 +125,81 @@ describe('assisted assessment pipeline with real service records', () => {
     services.push(reopened);
     expect(reopened.findings('sample', job.jobId)).toMatchObject([{ id: namedId, reason: 'repair-planned' }]);
   });
+  it('returns an occupied descriptive name to the same review submission and commits its corrected name with accepted evidence', async () => {
+    let reviews = 0;
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        reviews++;
+        const report = reviewReport(input.candidate, true);
+        const propose = async (name: string) => {
+          const checked = input.prepared.validate({ ...report, concerns: report.concerns.map(concern => ({ ...concern, findingKey: `draft:finding:${name}` })) });
+          expect(checked.ok).toBe(true);
+          if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
+          return input.acceptValidated!(checked.value, { operationId: input.operationId, sessionId: `review-${reviews}`, eventCount: 1 });
+        };
+        if (reviews === 2) {
+          const collision = await propose('feature-returns-one');
+          expect(collision).toMatchObject({ ok: false, errors: [{ path: 'concerns.0.findingKey' }] });
+        }
+        const accepted = await propose(reviews === 1 ? 'feature-returns-one' : 'feature-returns-one-second-review');
+        expect(accepted.ok).toBe(true);
+        if (!accepted.ok) throw new Error(JSON.stringify(accepted.errors));
+        return { status: 'submitted', value: accepted.value, operationId: input.operationId, sessionId: `review-${reviews}`, eventCount: 1 };
+      },
+      reconcile: async input => ({ status: 'incomplete', reason: 'Scripted reconciliation stops after review acceptance',
+        operationId: input.operationId, eventCount: 0 }),
+    };
+    const { service, job, candidates, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline),
+      [repaired]: source('2', baseline) }, dependencies, '# Plan\nThe feature returns 2.\n', 'descriptive');
+    await assess(first, baseline, 'first-review');
+    const second = await assess(repaired, baseline, 'second-review');
+    expect(reviews).toBe(2);
+    expect(service.findings('sample', job.jobId).map(item => item.id)).toEqual([
+      'finding:feature-returns-one', 'finding:feature-returns-one-second-review',
+    ]);
+    expect(service.assessmentDetail('sample', job.jobId, second.id).stages.filter(stage => stage.name === 'review-accepted')).toHaveLength(1);
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ ...dependencies, candidates }) });
+    services.push(reopened);
+    expect(reopened.findings('sample', job.jobId).map(item => item.id)).toEqual([
+      'finding:feature-returns-one', 'finding:feature-returns-one-second-review',
+    ]);
+  });
+  it('resumes descriptive review after an accepted tool reply is lost without replaying its finding', async () => {
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const report = reviewReport(input.candidate, true);
+        const checked = input.prepared.validate({ ...report, concerns: report.concerns.map(concern => ({ ...concern,
+          findingKey: 'draft:finding:feature-returns-one' })) });
+        if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
+        expect(await input.acceptValidated!(checked.value, { operationId: input.operationId, sessionId: 'lost-reply', eventCount: 1 }))
+          .toMatchObject({ ok: true });
+        throw new Error('The accepted tool reply was lost');
+      },
+    };
+    const { service, job, candidates } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) },
+      dependencies, '# Plan\nThe feature returns 2.\n', 'descriptive');
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'lost-review' });
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    expect(service.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.filter(stage => stage.name === 'review-accepted')).toHaveLength(1);
+    expect(service.findings('sample', job.jobId).map(item => item.id)).toContain('finding:feature-returns-one');
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ candidates,
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async () => { throw new Error('Accepted review must be reused'); },
+      reconcile: async input => ({ status: 'incomplete', reason: 'Scripted reconciliation stops after review acceptance',
+        operationId: input.operationId, eventCount: 0 }),
+    }) });
+    services.push(reopened);
+    const priorRevision = reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision;
+    await reopened.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(priorRevision));
+    await outcome(reopened, job.jobId, admitted.assessmentId);
+    expect(reopened.findings('sample', job.jobId).filter(item => item.id === 'finding:feature-returns-one')).toHaveLength(1);
+  });
   it.each(['stale-decision', 'stale-relation', 'committed'] as const)('resumes accepted reconciliation without replaying a %s on a later revision', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'assistance-reconciliation-resume-')); roots.push(root);
     await mkdir(join(root, 'plans/sample'), { recursive: true });

@@ -235,6 +235,11 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('nonfunctional-deviation-recorded', z.object({ deviation: text, nfr: text, assessment: text, checkFinding: text,
     checkFindings: checkFindingEventsField,
   }).strict()),
+  /** A descriptive exhausted close publishes every unresolved requirement in one finding transition. */
+  event('nonfunctional-deviations-recorded', z.object({ assessment: text, actionInvocation: text,
+    deviations: z.array(z.object({ deviation: text, nfr: text, checkFinding: text }).strict()).min(1),
+    checkFindings: checkFindingEventsField,
+  }).strict()),
   event('candidate-bound-to-gate', z.object({ candidate: text, assessment: text, gate: text, commit: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/) }).strict()),
   /** Plan 16 coordination records are committed with these events. The
    * original request and each revision remain separate immutable records. */

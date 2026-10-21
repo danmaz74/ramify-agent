@@ -452,6 +452,9 @@ describe('no query appends an event', () => {
           expect(findings.protocol).toBe('check-findings/2');
           expect(findings.items.map(item => item.id)).toEqual(expect.arrayContaining(['finding:reviewer-notes-1', 'finding:reviewer-notes-3']));
           expect((await queries.checkFinding(plan, run.runId, 'finding:reviewer-notes-1')).summary.id).toBe('finding:reviewer-notes-1');
+          const readiness = await queries.mergeReadiness(plan, run.runId, lines);
+          expect(readiness.readiness).toMatchObject({ status: 'pending-review',
+            checkFindings: expect.arrayContaining(['finding:reviewer-notes-1', 'finding:reviewer-notes-3']) });
         }
         await queries.checkFindingModules(plan, run.runId);
         await queries.reviews(plan, run.runId, { workItem: null, after: null, limit: 100 });
@@ -976,6 +979,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.nonfunctional-repair-assignment/1.scope.resolved.ownership.provider', values: ['ramify.ownership/1'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
   { union: 'record ramify-agent.gate-attempt/3.ownershipPreflight.failureStatus', values: ['invalid', 'incomplete', 'unavailable', 'unsupported', 'execution-failed'], file: 'subs/harness/src/tests/ownership-mutation-classification.test.ts', test: 'a committing checkpoint with unavailable current ownership never commits or audits (%j)' },
   { union: 'run log.type', values: ['nonfunctional-deviation-recorded'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
+  { union: 'run log.type', values: ['nonfunctional-deviations-recorded'], file: 'subs/harness/subs/autonomous/subs/acceptance/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'a descriptive two-requirement close corrects an intervening name collision and survives reload' },
   { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.owner.kind', values: ['run'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
   { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.source.kind', values: ['document'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
   { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['request-user-decision'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
@@ -1500,7 +1504,7 @@ describe('the acceptance matrix, composed', () => {
     }
     expect(problems).toEqual([]);
   });
-  test('the HTTP list, cursor, detail and review projections serve a completed descriptive finding', async () => {
+  test('the HTTP projections and merge readiness serve descriptive deviations through disposition and reload', async () => {
     const run = finished.get('name-rejection')!;
     const app = createApp({ projectRoot: run.root, runs: run.service });
     const server = await new Promise<ReturnType<typeof app.listen>>(resolve => {
@@ -1541,6 +1545,27 @@ describe('the acceptance matrix, composed', () => {
       expect(errorResponseSchema.parse(unknownCursor.body).error.code).toBe('invalid-request');
     } finally {
       await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+    const queries = new RunQueries(createQuerySource(run.service));
+    const version = () => run.service.getRun(plan, run.runId)!.version;
+    expect((await queries.mergeReadiness(plan, run.runId, version())).readiness.status).toBe('pending-review');
+    for (const id of ['finding:reviewer-notes-1', 'finding:reviewer-notes-3']) {
+      const finding = (await queries.checkFinding(plan, run.runId, id)).summary;
+      expect(finding.planDeviation?.id).toMatch(/^plan-deviation:/u);
+      const decision = finding.pendingUserDecision!;
+      expect(decision.options.map(option => option.id)).toContain('accept');
+      await run.service.execute({ commandId: `accept-${id}`, expectedVersion: version(), type: 'respond-to-check-finding',
+        payload: { planId: plan, jobId: run.runId, responder: 'reviewer', checkFinding: id,
+          expectedRevision: finding.revision, request: decision.request, option: 'accept' } });
+    }
+    expect((await queries.mergeReadiness(plan, run.runId, version())).readiness.status).toBe('ready');
+    await run.service.close();
+    const reopened = await openRuns(run.root, { git: run.git, agent: run.agent });
+    try {
+      const loaded = new RunQueries(createQuerySource(reopened.service));
+      expect((await loaded.mergeReadiness(plan, run.runId, reopened.service.getRun(plan, run.runId)!.version)).readiness.status).toBe('ready');
+    } finally {
+      await reopened.service.close();
     }
   });
 });

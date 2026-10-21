@@ -3,6 +3,7 @@ import { finalIterationContext } from './final-context.js';
 import { verifiedCandidateSource } from '../../evidence/src/git-text.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import type { SubmissionValidation } from '../../task-execution/src/submissions.js';
 import type { JsonSchema } from '../../agent/src/interfaces/port.js';
 import type { SessionOperations } from '../../agent/src/interfaces/session-operations.js';
 import { decideCheckFindingChange } from '../../check-findings/src/decide.js';
@@ -35,6 +36,8 @@ export interface AssessmentDependencies {
 }
 interface ReviewEvidence {
   readonly result: PiAssessmentResult<AssistedReviewSubmission>;
+  /** The immutable author proposal accepted with its finding events under one writer hold. */
+  readonly proposalHash?: string;
   readonly bindings: readonly ConcernBinding[];
   readonly read: readonly string[];
   readonly inspected: readonly string[];
@@ -277,15 +280,38 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
           testingContext, requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
       const operations = await dependencies.operations();
+      const acceptSubmitted = async (value: AssistedReviewSubmission, delivery: { readonly sessionId: string; readonly operationId: string; readonly eventCount: number }): Promise<SubmissionValidation<AssistedReviewSubmission>> => {
+        if (stages<ReviewEvidence>('review-accepted')?.proposalHash === digest(value)) return { ok: true, value };
+        const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source,
+          warn: message => limitations.push(message) }, snapshot, prepared.tools, value, null,
+        path => path === null ? 'ungrounded' : 'agent-generated');
+        const held: ReviewEvidence = { result: { status: 'submitted', value, ...delivery }, bindings,
+          read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()],
+          sourceVerification: 'candidate-inspection/1', limitations, proposalHash: digest(value) };
+        const commands = reportReviewConcerns({ assessment: assessment.id, tree: snapshot.tree, report: value, bindings,
+          evidence: { kind: 'assisted-review', ref: `assessments/${assessment.id}/stages/review-accepted.json`, hash: digest(held) } });
+        const accepted = await context.acceptReview(held, held.proposalHash!, commands);
+        return accepted.ok ? { ok: true, value } : accepted;
+      };
       const result = await scheduledReview(async () => (dependencies.review ?? runAssistedPiReview)({
         operations, runId: job.jobId, operationId: `${assessment.id}-review-${assessment.revision}`, projectRoot,
         candidate: snapshot.commit, tree: snapshot.tree, kind: request.kind, identityContract: job.identityContract ?? 'legacy', prepared: withEvidence, signal,
+        ...(job.identityContract === 'descriptive' ? { acceptValidated: acceptSubmitted } : {}),
         onSubmitted: async (value, evidence) => {
+          if (job.identityContract === 'descriptive') {
+            const accepted = await acceptSubmitted(value, evidence);
+            if (!accepted.ok) throw new Error(accepted.errors.map(error => `${error.path}: ${error.message}`).join('; '));
+            return;
+          }
           const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source, warn: message => limitations.push(message) },
             snapshot, prepared.tools, value, null, path => path === null ? 'ungrounded' : 'agent-generated');
           await record('review-accepted', { result: { status: 'submitted', value, ...evidence }, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'candidate-inspection/1', limitations });
         },
       }));
+      if (job.identityContract === 'descriptive' && result.status === 'submitted' && !stages('review-accepted')) {
+        const accepted = await acceptSubmitted(result.value, { operationId: result.operationId, sessionId: result.sessionId, eventCount: result.eventCount });
+        if (!accepted.ok) return incomplete('Descriptive review needs a corrected finding name.', accepted.errors.map(error => `${error.path}: ${error.message}`));
+      }
       const bindings = result.status === 'submitted' ? await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source,
         warn: message => limitations.push(message) }, snapshot, prepared.tools, result.value, null,
         path => path === null ? 'ungrounded' : 'agent-generated') : [];
@@ -297,9 +323,11 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     else {
       const report = reviewed.result.value;
       for (const answer of report.requirements) if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
-      const reports = reportReviewConcerns({ assessment: assessment.id, tree: snapshot.tree, report, bindings: reviewed.bindings,
-        evidence: { kind: 'assisted-review', ref: `assessments/${assessment.id}/stages/review.json`, hash: digest(reviewed) } });
-      if (reports.length) await context.recordFindings(reports, 'review-reports');
+      if (job.identityContract !== 'descriptive') {
+        const reports = reportReviewConcerns({ assessment: assessment.id, tree: snapshot.tree, report, bindings: reviewed.bindings,
+          evidence: { kind: 'assisted-review', ref: `assessments/${assessment.id}/stages/review.json`, hash: digest(reviewed) } });
+        if (reports.length) await context.recordFindings(reports, 'review-reports');
+      }
     }
 
     let reconciliation = stages<ReconciliationEvidence>('reconciliation-accepted') ?? stages<ReconciliationEvidence>('reconciliation');

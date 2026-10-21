@@ -108,12 +108,15 @@ function deviationsOf(view: RunView): Map<string, DeviationRecord> {
         const parsed = planDeviationSchema.safeParse(record.body);
         if (parsed.success) deviations.set(parsed.data.checkFinding, parsed.data);
       } else if ((schema === 'ramify-agent.nonfunctional-deviation/1' || schema === 'ramify-agent.nonfunctional-deviation/2')
-        && line.transaction.event.type === 'nonfunctional-deviation-recorded') {
+        && (line.transaction.event.type === 'nonfunctional-deviation-recorded' || line.transaction.event.type === 'nonfunctional-deviations-recorded')) {
         const parsed = nonfunctionalDeviationSchema.safeParse(record.body);
-        if (parsed.success && parsed.data.id === line.transaction.event.data.deviation
-          && parsed.data.origin.nfr === line.transaction.event.data.nfr
-          && parsed.data.origin.assessment === line.transaction.event.data.assessment
-          && parsed.data.checkFinding === line.transaction.event.data.checkFinding) {
+        const event = line.transaction.event;
+        const entries = event.type === 'nonfunctional-deviation-recorded'
+          ? [event.data] : event.data.deviations;
+        if (parsed.success && entries.some(entry => parsed.data.id === entry.deviation
+          && parsed.data.origin.nfr === entry.nfr
+          && parsed.data.origin.assessment === event.data.assessment
+          && parsed.data.checkFinding === entry.checkFinding)) {
           deviations.set(parsed.data.checkFinding, parsed.data);
         }
       }

@@ -2691,7 +2691,8 @@ export class WorkCoordination {
       if (eventsOf(history.events, 'plan-deviation-recorded').some(event => event.data.request === request)) return { stale: `${request} is already answered with a deviation` };
       held = eventsOf(history.events, 'plan-deviation-recorded').length >= this.deviationLimit();
       if (descriptive && (eventsOf(history.events, 'plan-deviation-recorded').some(event => event.data.deviation === id)
-        || eventsOf(history.events, 'nonfunctional-deviation-recorded').some(event => event.data.deviation === id)))
+        || eventsOf(history.events, 'nonfunctional-deviation-recorded').some(event => event.data.deviation === id)
+        || eventsOf(history.events, 'nonfunctional-deviations-recorded').some(event => event.data.deviations.some(entry => entry.deviation === id))))
         return { stale: `deviation.deviationKey ${id} conflicts with an accepted plan deviation; propose another descriptive name` };
       const record = planDeviationSchema.parse({
         schema: descriptive ? 'ramify-agent.plan-deviation/2' : 'ramify-agent.plan-deviation/1',

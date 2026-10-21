@@ -8,9 +8,11 @@ import { RunQueries } from '../../../../../projections/src/queries.js';
 import { CommandRejection } from '../../../../../../src/jobs/commands.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { onlyRun, openRuns, runEventsOnDisk, startRun, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
+import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
+import { concern, report } from '../../../../../../src/tests/helpers/check-findings.js';
+import { runLayout } from '../../../../src/run/records.js';
 import { resetSpawnAttempts, spawnAttempts } from '../../../../../../src/tests/helpers/process-guard.js';
 vi.mock('node:child_process', async importOriginal => {
   const { guardedChildProcess } = await import('../../../../../../src/tests/helpers/process-guard.js');
@@ -213,4 +215,106 @@ test('a rejected NFR decision remains current after a ledger rebuild and require
   expect((await rebuilt.checkFindings(plan, receipt.jobId,
     { workItem: null, module: null, select: 'all', order: 'attention', after: null, limit: 20 }, reconstructedVersion))
     .items[0]?.planDeviation).toMatchObject({ followUp: 'Rework the response path before merge' });
+}, 30_000);
+
+test('a descriptive two-requirement close corrects an intervening name collision and survives reload', async () => {
+  const fixture = await copyFixture(); cleanups.push(fixture.remove);
+  const boundaryAnswers = nfrBoundaries(fixture.root); answers.push(boundaryAnswers);
+  await writeFile(join(fixture.root, 'plans', plan, 'plan.md'), `# Review notes\n\n${quote}\n\nThe service must preserve a 30 second timeout.\n`);
+  type Opened = Awaited<ReturnType<typeof openRuns>>;
+  let opened: Opened | undefined;
+  let activeRunId: string | undefined;
+  let injected = false;
+  const git = { ...boundaryAnswers.options.git,
+    previewCandidateTree: async (...args: Parameters<NonNullable<typeof boundaryAnswers.options.git>['previewCandidateTree']>) => {
+      const preview = await boundaryAnswers.options.git.previewCandidateTree(...args);
+      const service = opened?.service;
+      if (!injected && service && activeRunId && service.events(plan, activeRunId)?.some(event => event.type === 'nonfunctional-round-closed')) {
+        injected = true;
+        const occupied = report({ ...concern({ key: 'external-close-name' }), findingKey: 'draft:finding:preserve-service-timeout' });
+        const result = await service.recordCheckFindings(plan, activeRunId, {
+          cause: { kind: 'producer', producer: 'review:code', attempt: 'external-close-collision' }, commands: [occupied],
+        });
+        expect(result?.kind).toBe('committed');
+      }
+      return preview;
+    },
+  };
+  let closeCalls = 0;
+  opened = await openRuns(fixture.root, { ...boundaryAnswers.options, git, identityContract: 'descriptive',
+    policy: root => testPolicy(root), script: spec => {
+      if (spec.submission.name === intakeToolName) {
+        const document = [...spec.prompt.matchAll(/document:[a-z0-9-]+/gu)][0]?.[0];
+        if (!document) throw new Error('Missing descriptive plan document');
+        return [{ kind: 'submit', input: { goal: 'Preserve response properties.', elements: [
+          { key: 'draft:non-functional-requirement:answer-quickly', kind: 'non-functional', document,
+            text: quote, conditions: [], uncertainty: '' },
+          { key: 'draft:non-functional-requirement:preserve-timeout', kind: 'non-functional', document,
+            text: 'The service must preserve a 30 second timeout.', conditions: [], uncertainty: '' },
+        ], incorporation: { documents: [{ document, scenarios: true, uncertainty: '' }], missing: [] } } }];
+      }
+      if (spec.submission.name === 'submit_principle_elements') return [{ kind: 'submit', input: { elements: [] } }];
+      if (spec.submission.name === 'submit_catalog_check') return [{ kind: 'submit', input: { corrections: [], entries: [], scenarios: [] } }];
+      if (spec.role === 'initial-architect') return [{ kind: 'submit', input: analysis }];
+      if (spec.submission.name === coordinatorAssessmentToolName) return [{ kind: 'submit', input: { kind: 'assessment', results: [
+        { nfr: 'non-functional-requirement:answer-quickly', result: 'not-satisfied', inspectedScope: ['subs/workspace'], evidence: ['87 milliseconds'], uncertainty: 'Load varies' },
+        { nfr: 'non-functional-requirement:preserve-timeout', result: 'not-satisfied', inspectedScope: ['subs/workspace'], evidence: ['45 seconds'], uncertainty: 'Configuration varies' },
+      ] } }];
+      if (spec.submission.name === coordinatorActionToolName) {
+        closeCalls += 1;
+        if (closeCalls === 2) {
+          const source = opened?.service.committed(plan, activeRunId!);
+          expect(source?.entries.some(line => line.transaction.event.type === 'nonfunctional-deviations-recorded')).toBe(false);
+          expect(source?.entries.flatMap(line => line.transaction.records)
+            .some(record => (record.body as { schema?: string }).schema === 'ramify-agent.nonfunctional-deviation/2')).toBe(false);
+        }
+        const suffix = closeCalls === 1 ? 'preserve-service-timeout' : 'preserve-service-timeout-qualified';
+        return [{ kind: 'submit', input: { kind: 'close', deviations: [
+          { nfr: 'non-functional-requirement:answer-quickly', deviationKey: 'draft:plan-deviation:answer-quickly',
+            findingKey: 'draft:finding:answer-quickly', proposedAlternative: 'Use a cached read', uncertainty: 'Load varies' },
+          { nfr: 'non-functional-requirement:preserve-timeout', deviationKey: `draft:plan-deviation:${suffix}`,
+            findingKey: `draft:finding:${suffix}`, proposedAlternative: 'Configure 30 seconds', uncertainty: 'Configuration varies' },
+        ] } }];
+      }
+      return [];
+    },
+  });
+  cleanups.push(() => opened!.service.close());
+  const receipt = await opened.service.execute(startRun(plan));
+  activeRunId = receipt.jobId;
+  await opened.service.settled(plan, receipt.jobId);
+  const events = await runEventsOnDisk(fixture.root, plan, receipt.jobId);
+  expect(injected).toBe(true);
+  expect(closeCalls).toBe(2);
+  expect(events.filter(event => event.type === 'nonfunctional-deviation-recorded')).toHaveLength(0);
+  const batches = events.filter(event => event.type === 'nonfunctional-deviations-recorded');
+  expect(batches).toHaveLength(1);
+  expect(batches[0]!.data.deviations).toHaveLength(2);
+  expect(batches[0]!.data.deviations.map(entry => entry.deviation)).toEqual([
+    'plan-deviation:answer-quickly', 'plan-deviation:preserve-service-timeout-qualified',
+  ]);
+  expect(batches[0]!.data.checkFindings.filter(event => event.type === 'check-finding-opened')).toHaveLength(2);
+  expect(events.at(-1)).toMatchObject({ type: 'job-completed', data: { planDeviations: 2 } });
+  const queries = new RunQueries(createQuerySource(opened.service));
+  const version = opened.service.getRun(plan, receipt.jobId)!.version;
+  expect((await queries.mergeReadiness(plan, receipt.jobId, version)).readiness).toMatchObject({ status: 'pending-review',
+    checkFindings: ['finding:answer-quickly', 'finding:preserve-service-timeout-qualified'] });
+  await opened.service.close();
+  await rm(runPath(fixture.root, plan, receipt.jobId, runLayout.nonfunctionalDeviation(batches[0]!.data.deviations[1]!.deviation)));
+  const reloaded = await openRuns(fixture.root, { ...boundaryAnswers.options, identityContract: 'descriptive' });
+  cleanups.push(() => reloaded.service.close());
+  const rebuilt = new RunQueries(createQuerySource(reloaded.service));
+  expect((await runEventsOnDisk(fixture.root, plan, receipt.jobId)).filter(event => event.type === 'nonfunctional-deviations-recorded')).toHaveLength(1);
+  expect((await rebuilt.mergeReadiness(plan, receipt.jobId, version)).readiness.status).toBe('pending-review');
+  for (const entry of batches[0]!.data.deviations) {
+    const current = reloaded.service.getRun(plan, receipt.jobId)!.version;
+    const item = await rebuilt.checkFinding(plan, receipt.jobId, entry.checkFinding, current);
+    const request = item.summary.pendingUserDecision?.request;
+    if (!request) throw new Error(`${entry.checkFinding} has no disposition request after reload`);
+    await reloaded.service.execute({ commandId: `accept-${entry.checkFinding}`, expectedVersion: current,
+      type: 'respond-to-check-finding', payload: { planId: plan, jobId: receipt.jobId, responder: 'reviewer',
+        checkFinding: entry.checkFinding, expectedRevision: item.summary.revision, request, option: 'accept' } });
+  }
+  const acceptedVersion = reloaded.service.getRun(plan, receipt.jobId)!.version;
+  expect((await rebuilt.mergeReadiness(plan, receipt.jobId, acceptedVersion)).readiness.status).toBe('ready');
 }, 30_000);
