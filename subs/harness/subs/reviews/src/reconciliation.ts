@@ -125,7 +125,7 @@ export interface ExecutionReconciliationContext  {
   /** Actual unavailable advisory review results permit an explicit verification assignment without a finding. */
   readonly unavailableReviews?: boolean;
   readonly attention: ReadonlyMap<CheckFindingId, AttentionEntry>;
-  readonly unstableTests?: ReadonlyMap<CheckFindingId, { readonly observedTree: string }>;
+  readonly unstableTests?: ReadonlyMap<CheckFindingId, { readonly observedTree: string; readonly observedTrees?: readonly string[] }>;
   readonly held: ReadonlyMap<CheckFindingId, number>;
   readonly actor: CheckFindingActor;
   readonly source: CheckFindingSource;
@@ -190,8 +190,9 @@ export async function validateReconciliationForExecution(input: unknown, context
     if (origin.origin === 'added' && action !== 'repair' && action !== 'fixed')
       errors.push({ path: 'dispositions', message: `${id} is an added unstable test whose reliable coverage is required`, expected: 'repair or verified fixed' });
     if (origin.origin === 'added' && action === 'fixed' &&
-      (origin.coverageEvidence === undefined || context.source.kind !== 'tree' || context.source.id === unstable.observedTree))
-      errors.push({ path: 'testOrigins', message: `${id} requires a later candidate and semantic evidence that reliable coverage was preserved`, expected: 'coverageEvidence on a later source tree' });
+      (origin.coverageEvidence === undefined || context.source.kind !== 'tree' ||
+        (unstable.observedTrees ?? [unstable.observedTree]).includes(context.source.id)))
+      errors.push({ path: 'testOrigins', message: `${id} requires a later candidate without this test's provider-established instability and semantic evidence that reliable coverage was preserved`, expected: 'coverageEvidence on a later source tree without matching instability' });
   }
   for (const origin of submission.testOrigins ?? []) if (!context.unstableTests?.has(origin.checkFinding))
     errors.push({ path: 'testOrigins', message: `${origin.checkFinding} is not a provider-established unstable test in this attention set`, expected: 'an unstable-test finding' });

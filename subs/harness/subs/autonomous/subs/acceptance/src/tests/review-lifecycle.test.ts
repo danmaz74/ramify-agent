@@ -12,7 +12,7 @@ import { snapshotToolNames } from '../../../../../reviews/src/snapshot.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
 import { mappedAudit, passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
-import { completionProposed, submit, write } from '../../../../../../src/tests/helpers/iterations.js';
+import { completionProposed, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { disposition, reconcile, submission } from '../../../../../../src/tests/helpers/check-findings-composition.js';
 import { mockGit } from '../../../../../../src/tests/helpers/mock-git.js';
 import { attemptRecord, candidates, eventsOf, gate, limit, notesDirectory, plan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
@@ -414,7 +414,7 @@ describe('the gate audit and the run mutex', () => {
     expect(onlyRun(run.service, plan).state, JSON.stringify(eventsOf(run.events, 'job-failed'))).toBe('completed');
     const finding = run.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: 'cf-0001' });
     expect(finding?.ok && finding.view.kind === 'detail' ? finding.view.reports.items[0] : null)
-      .toMatchObject({ observation: { kind: 'audit-instability' }, source: { kind: 'tree', id: 'tree-01' } });
+      .toMatchObject({ observation: { kind: 'audit-instability', summary: expect.stringContaining('the note limit') }, source: { kind: 'tree', id: 'tree-01' } });
     expect(eventsOf(run.events, 'reconciliation-assessed')).toHaveLength(1);
     const prompt = run.agent!.sessions.find(session => session.spec.submission.name === 'submit_reconciliation')!.spec.prompt;
     expect(prompt).toContain('Original execution baseline for test origin:');
@@ -518,6 +518,66 @@ describe('the gate audit and the run mutex', () => {
     expect(eventsOf(twice, 'review-request-recorded')).toEqual(eventsOf(after, 'review-request-recorded'));
     expect(eventsOf(twice, 'gate-attempted')).toEqual(eventsOf(after, 'gate-attempted'));
     expect(eventsOf(twice, 'check-findings-recorded')).toEqual(eventsOf(after, 'check-findings-recorded'));
+  }, 60_000);
+
+  test.each(['iteration-candidate-prepared', 'gate-attempted'] as const)('restart after %s waits for a failed candidate review before repairing it', async freezeAt => {
+    const root = await reviewTarget(cleanups);
+    const crashed = gate(); const newReader = gate();
+    let frozen = false;
+    const audit = mappedAudit(({ context, check }) => context.attemptId === 'ga-0002' && check.kind === 'tests'
+      ? { outcome: { kind: 'completed', exitCode: 1 }, stdout: 'scripted failure' } : {});
+    const run = await reviewRun(root, cleanups, {
+      detached: true, configuredAudit: audit, engineer: engineers(),
+      reviewers: { 'rq-0001': [never()] },
+      afterWrite: async (write, runId) => {
+        if (frozen) return freeze();
+        if (freezeAt === 'iteration-candidate-prepared') {
+          if (write !== 'gate-committing' || !(await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'iteration-candidate-prepared')) return;
+        } else if (write !== freezeAt) return;
+        frozen = true;
+        crashed.open();
+        return freeze();
+      },
+    });
+    await crashed.opened;
+    const before = await runEventsOnDisk(root, plan, run.runId);
+    if (freezeAt === 'iteration-candidate-prepared') {
+      expect(eventsOf(before, 'review-request-recorded')).toHaveLength(0);
+      expect(eventsOf(before, 'gate-attempted').find(event => event.data.gate === 'ga-0002')).toBeUndefined();
+    }
+    expect(before.some(event => event.type === 'review-attempt-finished' && event.data.request === 'rq-0001')).toBe(false);
+    await staleCrashLock(root);
+    const recoveredGit = freezeAt === 'iteration-candidate-prepared' ? mockGit({
+      currentHead: async () => 'revision-01', changedPaths: async () => [],
+      findCommitByTrailers: async () => 'revision-01',
+      previewCandidateTree: async () => ({ repositoryRoot: root, head: 'revision-01', tree: 'tree-01' }),
+    }) : run.git.git;
+    const restarted = await openRuns(root, {
+      inputs: treeInputs(),
+      script: spec => spec.role === 'reviewer' ? [{ kind: 'await', until: () => newReader.opened }, ...clean(store)]
+        : spec.role === 'engineer' ? [never()] : [],
+      git: recoveredGit, candidates: scriptedCandidates(root, candidates()), configuredAudit: audit,
+      policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }),
+    });
+    cleanups.push(() => restarted.service.close());
+    await until(async () => (await runEventsOnDisk(root, plan, run.runId)).some(event =>
+      event.type === 'gate-attempted' && event.data.gate === 'ga-0002'), 5_000);
+    const held = await runEventsOnDisk(root, plan, run.runId);
+    const failed = held.find(event => event.type === 'gate-attempted' && event.data.gate === 'ga-0002')!;
+    expect(held.some(event => event.type === 'invocation-started' && event.data.role === 'engineer'
+      && event.sequence > failed.sequence)).toBe(false);
+    newReader.open();
+    await until(async () => (await runEventsOnDisk(root, plan, run.runId)).some(event =>
+      event.type === 'invocation-started' && event.data.role === 'engineer' && event.sequence > failed.sequence), 5_000);
+    const after = await runEventsOnDisk(root, plan, run.runId);
+    const reviewed = eventsOf(after, 'review-attempt-finished').find(event => event.data.request === 'rq-0001' && event.data.settles)!;
+    const repair = after.find(event => event.type === 'invocation-started' && event.data.role === 'engineer'
+      && event.sequence > failed.sequence)!;
+    expect(reviewed.sequence).toBeLessThan(repair.sequence);
+    await until(() => restarted.agent!.sessions.some(session => session.spec.role === 'engineer'), 5_000);
+    const handback = restarted.agent!.sessions.find(session => session.spec.role === 'engineer')!.spec.prompt;
+    expect(handback).toContain('review of candidate revision-01: complete');
+    expect(eventsOf(after, 'review-request-recorded').filter(event => event.data.candidate === 'revision-01')).toHaveLength(1);
   }, 60_000);
 
   test('a reader\'s result is committed while the next iteration\'s audit is still running', async () => {

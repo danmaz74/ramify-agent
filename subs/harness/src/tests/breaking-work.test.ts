@@ -16,6 +16,10 @@ import {
 } from './helpers/runs.js';
 
 import { gateGit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
+import { scriptedCandidates, testReviewPolicy } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
+import { passingAudit } from './helpers/direct-check-execution.js';
+import { testPolicy } from './helpers/runs.js';
+import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
 
 
 import { cleanups, plan, attribution, core, views, dirA, dirC, dirV, dirP, base, materialized, scenarios, unchanged, revision, broadRationale, target, run, gates, readAssignment, readResult, stagedOutline, broadScope, coreV2, coreTestV2, adaptersV2, adaptersTestV2, panelV2, panelTestV2, pureV2, pureTestV2 } from './breaking-work-fixture.js';
@@ -67,6 +71,44 @@ describe('the broad scope is a planned exception', () => {
 });
 
 describe('a break discovered during work', () => {
+  test('a breaking candidate requests review and records its audit instability before handback', async () => {
+    const root = await target();
+    const passing = passingAudit();
+    const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+      const result = await passing.run(input);
+      if (input.attemptId !== 'ga-0002') return result;
+      const provider = result.provider as { summary: Record<string, unknown> };
+      const entry = { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+        path: `${dirC}/src/tests/outcome.test.ts`, kind: 'test', testId: 'the structured reviewer carries a role' };
+      return { ...result, provider: { ...provider, summary: { ...provider.summary,
+        warningDispositions: [{ entry, basis: 'current-instability' }], flakinessPolicy: { onFailure: 'warning' },
+      } } };
+    } };
+    const candidate = scriptedCandidates(root, {
+      [materialized]: { tree: 'tree-scenarios', base: materialized, changes: [], files: {} },
+      'revision-01': { tree: 'tree-01', base: materialized,
+        changes: [{ status: 'M', path: `${dirC}/src/outcome.ts` }, { status: 'M', path: `${dirC}/src/tests/outcome.test.ts` }],
+        files: { [`${dirC}/src/outcome.ts`]: coreV2, [`${dirC}/src/tests/outcome.test.ts`]: coreTestV2 } },
+    });
+    const { runId, service } = await run(root, {
+      'initial-architect': [submit(analysis([entry('reviewer-identity', attribution)]))],
+      'local-architect': [
+        submit(assign(core, { kind: 'breaking', stage: 0, goal: 'Introduce the structured reviewer beside the plain field.',
+          scope: { base: { module: core, included: [] }, extra: [], read: [], rationale: 'The representation is defined here.' } }, stagedOutline())),
+        submit({ kind: 'unresolved', conflict: 'Stop after the first breaking checkpoint.', evidence: [] }),
+      ],
+      engineer: [submit(completionProposed('Introduced the structured reviewer.'),
+        write(join(root, dirC, 'src/outcome.ts'), coreV2), write(join(root, dirC, 'src/tests/outcome.test.ts'), coreTestV2))],
+      'global-fork': [submit({ kind: 'nothing-possible', reason: 'The test stops here.', evidence: [] })],
+    }, { commits: [scenarios, revision('revision-01', `${dirC}/src/outcome.ts`, `${dirC}/src/tests/outcome.test.ts`)] },
+    { candidates: candidate, configuredAudit: warningAudit, policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }) });
+    const events = await runEventsOnDisk(root, plan, runId);
+    expect(events.find(event => event.type === 'iteration-candidate-prepared')?.data).toMatchObject({ gate: 'ga-0002', candidate: 'revision-01' });
+    expect(events.some(event => event.type === 'review-request-recorded' && event.data.candidate === 'revision-01')).toBe(true);
+    expect(events.some(event => event.type === 'check-findings-recorded')).toBe(true);
+    expect((await gates(root, runId)).find(gate => gate.id === 'ga-0002')?.checkpoint).toBe('breaking-iteration');
+    expect(service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0001' })?.ok).toBe(true);
+  }, 60_000);
   test('break-discovered returns to the local architect, which restages, and the engineer widened nothing', async () => {
     const root = await target();
     const narrow = { base: { module: core, included: [] }, extra: [], read: [], rationale: 'The representation is defined here.' };

@@ -172,7 +172,7 @@ export interface ReconciliationContext {
   /** Actual unavailable advisory review results permit an explicit verification assignment without a finding. */
   readonly unavailableReviews?: boolean;
   readonly attention: ReadonlyMap<CheckFindingId, AttentionEntry>;
-  readonly unstableTests?: ReadonlyMap<CheckFindingId, { readonly observedTree: string }>;
+  readonly unstableTests?: ReadonlyMap<CheckFindingId, { readonly observedTree: string; readonly observedTrees?: readonly string[] }>;
   /** Every CheckFinding of the work item at its current revision, which a relation may name. */
   readonly held: ReadonlyMap<CheckFindingId, number>;
   readonly actor: CheckFindingActor;

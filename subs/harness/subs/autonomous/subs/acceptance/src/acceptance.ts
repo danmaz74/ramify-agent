@@ -1191,8 +1191,9 @@ export class Acceptance {
           attention,
           unstableTests: new Map([...attention.keys()].flatMap(id => {
             const finding = state.findings.get(id);
-            const observed = finding?.reports.find(report => report.observation.kind === 'audit-instability');
-            return observed?.source.kind === 'tree' ? [[id, { observedTree: observed.source.id }] as const] : [];
+            const trees = finding?.reports.filter(report => report.observation.kind === 'audit-instability' && report.source.kind === 'tree')
+              .map(report => report.source.id) ?? [];
+            return trees.length > 0 ? [[id, { observedTree: trees[0]!, observedTrees: trees }] as const] : [];
           })),
           unavailableReviews: basis.requests.some(request => request.result === 'not-verified'),
           held,

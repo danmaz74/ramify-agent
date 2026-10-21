@@ -329,7 +329,8 @@ export function configuredAuditInstability(provider: unknown): readonly string[]
 }
 
 /** One provider-established observation per test, with identity stable across audit receipts. */
-export function configuredAuditInstabilityObservations(provider: unknown): readonly { key: string; detail: string; path: string | null }[] {
+export function configuredAuditInstabilityObservations(provider: unknown): readonly { key: string; detail: string; path: string | null;
+  identity: { readonly projectRoot: string; readonly checkId: string | null; readonly project: string | null; readonly testId: string | null } }[] {
   if (typeof provider !== 'object' || provider === null || !('status' in provider)) return [];
   const result = provider as AuditResult;
   const projects = result.projects ?? [{ projectRoot: '.', result }];
@@ -351,12 +352,16 @@ export function configuredAuditInstabilityObservations(provider: unknown): reado
     for (const warning of evidence.summary.warningDispositions ?? []) collect(warning.entry, 'warnings', warning);
     for (const failure of evidence.flakiness?.failures ?? [])
       if (failure.classification === 'observed-instability' || failure.priorInstability) collect(failure.identity, 'failures', failure);
-    return [...grouped].map(([identity, observations]) => ({
-      key: createHash('sha256').update(identity).digest('hex'),
-      path: observations.path,
-      detail: JSON.stringify({ projectRoot: project.projectRoot, ...observations,
-        evidence: evidence.flakiness?.evidence, refs: evidence.refs, policy: evidence.summary.flakinessPolicy }),
-    }));
+    return [...grouped].map(([identity, observations]) => {
+      const record = JSON.parse(identity) as { checkId: string | null; project: string | null; testId: string | null };
+      return {
+        key: createHash('sha256').update(identity).digest('hex'),
+        path: observations.path,
+        identity: { projectRoot: project.projectRoot, checkId: record.checkId, project: record.project, testId: record.testId },
+        detail: JSON.stringify({ projectRoot: project.projectRoot, ...observations,
+          evidence: evidence.flakiness?.evidence, refs: evidence.refs, policy: evidence.summary.flakinessPolicy }),
+      };
+    });
   });
 }
 

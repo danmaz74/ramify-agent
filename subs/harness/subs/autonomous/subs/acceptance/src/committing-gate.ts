@@ -519,13 +519,16 @@ export class CommittingGates {
         }
         await this.host.afterWrite('gate-committing', this.host.identity.jobId);
         const sourceCommit = commit ?? identity.head;
-        if (prepared.checkpoint === 'iteration' && this.observe().policy.reviews !== undefined
+        if ((prepared.checkpoint === 'iteration' || prepared.checkpoint === 'breaking-iteration') && this.observe().policy.reviews !== undefined
           && identity.subject?.workItem !== undefined && identity.subject.iteration !== undefined) {
           const candidate = { gate: identity.id, workItem: identity.subject.workItem,
             iteration: identity.subject.iteration, commit: sourceCommit,
             tree: await this.host.candidates.commitTree(this.host.projectRoot, sourceCommit),
             base: acceptedCommit(this.observe().history.lines, this.host.identity.base) };
           await this.host.iterationCandidatePrepared?.(candidate);
+          // The prepared record is a recoverable cut inside gate committing:
+          // a crash here leaves a candidate but may leave no review request.
+          await this.host.afterWrite('gate-committing', this.host.identity.jobId);
           scheduling = this.host.scheduleIterationReviews?.(candidate).catch(error => { schedulingError = error; });
         }
         const attempt = await executeConfiguredGate(this.configuredGateAudit(), prepared, sourceCommit, commit,
@@ -556,7 +559,7 @@ export class CommittingGates {
     const settled = (await effect).attempt;
     await scheduling;
     if (schedulingError !== undefined) throw schedulingError;
-    if (settled.checkpoint === 'iteration') await this.host.reportInstability?.(settled);
+    if (settled.checkpoint === 'iteration' || settled.checkpoint === 'breaking-iteration') await this.host.reportInstability?.(settled);
     return settled;
   }
 

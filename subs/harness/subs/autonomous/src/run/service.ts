@@ -1732,7 +1732,7 @@ export class AutonomousRunService {
 
   /** Preserve one assessment question per unstable test, keyed across reused audit receipts. */
   private async reportGateInstability(run: Run, gate: GateAttempt): Promise<void> {
-    if (gate.checkpoint !== 'iteration' || gate.subject.workItem === undefined) return;
+    if ((gate.checkpoint !== 'iteration' && gate.checkpoint !== 'breaking-iteration') || gate.subject.workItem === undefined) return;
     const prepared = run.log.all('iteration-candidate-prepared').find(event => event.data.gate === gate.id);
     const observations = configuredAuditInstabilityObservations(gate.provider?.result);
     if (observations.length === 0) return;
@@ -1744,7 +1744,8 @@ export class AutonomousRunService {
       : await this.candidates.commitTree(this.projectRoot, gate.audited));
     if (tree === null) return;
     for (const observation of observations) {
-      const summary = `Audit established instability in ${observation.path ?? 'an unidentified test'}; determine this test's origin against the original execution baseline`;
+      const identity = observation.identity;
+      const summary = `Audit established instability in test ${JSON.stringify(identity.testId ?? 'unidentified test')} at ${observation.path ?? 'an unidentified path'} (project ${identity.projectRoot}, check ${identity.checkId ?? 'unidentified'}${identity.project === null ? '' : `, runner project ${identity.project}`}); determine this test's origin against the original execution baseline`;
       const report = reportCommand({
         producer: 'check:audit-instability', attempt: gate.id, reportKey: observation.key,
         owner: { kind: 'work-item', workItem: owner },
@@ -2928,6 +2929,10 @@ export class AutonomousRunService {
           && !run.log.all('contract-requested').some(contract => contract.data.requestedBy === assigned.data.iteration
             && !committedRecords(run.log.ledger.replay()).results.has(contract.data.iteration)))
         || run.log.all('gate-attempted').some(attempt => { const gate = gateAttemptSchema.safeParse(this.committedBody(run, runLayout.gate(attempt.data.gate))); return gate.success && gate.data.proposedBy === event.data.invocation && gate.data.verdict !== 'passed'; })))
+      && !(['engineer', 'contract-engineer'].includes(request.role) && run.log.all('gate-attempted').some(attempt => {
+        const gate = gateAttemptSchema.safeParse(this.committedBody(run, runLayout.gate(attempt.data.gate)));
+        return gate.success && gate.data.proposedBy === event.data.invocation;
+      }))
       && (request.originalInvocation !== undefined || !run.log.all('invocation-started').some(later => later.sequence > event.sequence
         && later.sequence <= (run.restorationSequence ?? run.log.version) && later.data.role === event.data.role && canonicalJson(later.data.work) === canonicalJson(event.data.work)))
       && (request.originalInvocation === undefined || event.data.invocation === request.originalInvocation)

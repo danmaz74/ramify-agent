@@ -5722,6 +5722,15 @@ export class WorkCoordination {
       return parsed.success && parsed.data.subject.iteration === assignment.id ? [parsed.data] : [];
     });
     for (const gate of priorGates) await this.ports.reportGateInstability(gate);
+    const priorFailedCandidate = [...priorGates].reverse().find(gate => gate.verdict !== 'passed');
+    if (priorFailedCandidate !== undefined) {
+      const prepared = this.events('iteration-candidate-prepared').find(event => event.data.gate === priorFailedCandidate.id);
+      if (prepared !== undefined) {
+        await this.ports.handling.requestReviews({ workItem: prepared.data.workItem, iteration: prepared.data.iteration,
+          gate: prepared.data.gate, commit: prepared.data.candidate, base: prepared.data.base });
+        if (!await this.ports.settleIterationReviews(assignment.id, prepared.data.candidate)) return null;
+      }
+    }
     let replay: InvocationResult<EngineerSubmission> | undefined;
     let resourceRestartPredecessor: string | undefined;
     const latestStart = priorStarts.at(-1);

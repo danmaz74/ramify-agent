@@ -67,6 +67,24 @@ describe('rounds', () => {
 });
 
 describe('validating a submission', () => {
+  test('an added test stays open on every tree where that same test was observed unstable', async () => {
+    const unstableTests = new Map([
+      ['cf-0001', { observedTree: 'tree-A', observedTrees: ['tree-A', 'tree-B'] }],
+      ['cf-0002', { observedTree: 'tree-D', observedTrees: ['tree-D'] }],
+    ]);
+    const input = { ...submission([
+      disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
+      disposition('cf-0002', { action: 'waive', uncertainty: 'This distinct test existed before the plan.' }),
+    ], { kind: 'complete' }), testOrigins: [
+      { checkFinding: 'cf-0001', origin: 'added', basis: 'The test was added by this plan.', coverageEvidence: 'Inspected the replacement assertions.' },
+      { checkFinding: 'cf-0002', origin: 'existing', basis: 'The test exists in the original baseline.' },
+    ] };
+    const onB = await validateReconciliation(input, context({ source: { kind: 'tree', id: 'tree-B' }, unstableTests }));
+    expect(messages(onB)).toContain('testOrigins: cf-0001 requires a later candidate without this test\'s provider-established instability and semantic evidence that reliable coverage was preserved');
+    const onD = await validateReconciliation(input, context({ source: { kind: 'tree', id: 'tree-D' }, unstableTests }));
+    expect(messages(onD)).toEqual([]);
+  });
+
   test('an unavailable advisory review permits continuation or relevant verification with no invented finding', async () => {
     const ctx = context({ attention: new Map(), held: new Map(), unavailableReviews: true });
     expect((await validateReconciliation(submission([], { kind: 'complete' }), ctx)).ok).toBe(true);

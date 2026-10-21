@@ -84,9 +84,21 @@ describe('a completed audit as a gate\'s answer', () => {
       evidence: { reportObject: 'report', artifactPath: 'flakiness.json' } } as Completed['flakiness'];
     const observations = configuredAuditInstabilityObservations(result);
     expect(observations).toHaveLength(1);
-    expect(observations[0]).toMatchObject({ path: entry.path });
+    expect(observations[0]).toMatchObject({ path: entry.path, identity: { projectRoot: '.', checkId: 'tests', project: 'node', testId: 'returns 2' } });
     expect(JSON.parse(observations[0]!.detail)).toMatchObject({ warnings: [{ basis: 'current-instability' }],
       failures: [{ classification: 'observed-instability' }] });
+  });
+  it('keeps distinct readable identities for unstable tests in one file', () => {
+    const result = completed();
+    const entry = { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+      path: 'src/tests/feature.test.ts', kind: 'test', testId: 'returns 2' };
+    result.summary.warningDispositions = [
+      { entry, basis: 'current-instability' },
+      { entry: { ...entry, testId: 'rejects bad input' }, basis: 'current-instability' },
+    ] as Completed['summary']['warningDispositions'];
+    const observations = configuredAuditInstabilityObservations(result);
+    expect(observations.map(observation => observation.identity.testId)).toEqual(['returns 2', 'rejects bad input']);
+    expect(new Set(observations.map(observation => observation.key)).size).toBe(2);
   });
   it('accepts a fresh record of the requested commit', () => {
     expect(refusal(completed())).toBeNull();
