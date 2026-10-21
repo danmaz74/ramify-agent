@@ -285,7 +285,7 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
   const workOrientationSchema = `${JSON.stringify(workOrientationJsonSchema, null, 2)}\n`;
   const loaded = await loadPackage({
     role: 'local-architect',
-    name: options.capabilityWorkflow === false ? 'local-architect/21' : localArchitectPackage,
+    name: localArchitectPackage,
     systemFile: localSystemFile,
     procedureFile: options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
     schema: options.capabilityWorkflow === false ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,

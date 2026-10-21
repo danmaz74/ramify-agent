@@ -563,7 +563,7 @@ describe('the prompt package', () => {
     expect(extractor.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const local = manifest.packages['local-architect']!;
-    expect(local.package).toBe('local-architect/21');
+    expect(local.package).toBe('local-architect/22');
     // The reconciliation fork's submission is the package's second.
     expect(local.submissionKinds).toEqual(['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved', 'reconciliation', 'work-orientation']);
 
@@ -573,7 +573,7 @@ describe('the prompt package', () => {
     expect(fork.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const engineer = manifest.packages['engineer']!;
-    expect(engineer.package).toBe('engineer/17');
+    expect(engineer.package).toBe('engineer/18');
     expect(engineer.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed']);
     expect(engineer.hash).toMatch(/^[0-9a-f]{64}$/);
 
@@ -607,7 +607,7 @@ describe('the prompt package', () => {
   test('new runs offer capability coordination without the retired contract package', async () => {
     const { manifest } = await loadPromptPackages();
     expect(manifest.packages['contract-engineer']).toBeUndefined();
-    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/9');
+    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/10');
     expect(manifest.packages['context-selector']?.package).toBe('context-selector/4');
     expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/5');
     expect(manifest.packages['engineer']?.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'capability-needed']);
@@ -628,8 +628,8 @@ describe('the prompt package', () => {
     expect(current.packages.get('local-architect')!.procedure).not.toContain('Keep source and tests with their owners');
     expect(section).toContain('A directory inside the owner, such as its `src/tests`, is already part of\n  the base and is refused');
     expect(section).toContain('An included child module brings its whole subtree:');
-    expect(current.packages.get('local-architect')!.package).toBe('local-architect/21');
-    expect(current.packages.get('engineer')!.package).toBe('engineer/16');
+    expect(current.packages.get('local-architect')!.package).toBe('local-architect/22');
+    expect(current.packages.get('engineer')!.package).toBe('engineer/19');
     expect(current.packages.get('engineer')!.procedure).toContain('`edit` and `write` refuse those files unless your');
   });
 
