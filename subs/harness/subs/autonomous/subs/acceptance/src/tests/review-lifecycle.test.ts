@@ -244,6 +244,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     expect(restarted.agent).toBeUndefined();
     expect(restarted.recovery.reviews).toEqual([]);
     const after = await runEventsOnDisk(root, plan, run.runId);
+    expect(eventsOf(after, 'iteration-candidate-prepared')).toEqual(eventsOf(before, 'iteration-candidate-prepared'));
     expect(after.slice(0, before.length)).toEqual(before);
     expect(after.slice(before.length).map(event => event.type)).toEqual(['invocation-ended']);
     expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'wi-001.i01', outcome: 'accepted' });
@@ -453,6 +454,70 @@ describe('the gate audit and the run mutex', () => {
     expect(events.find(event => event.type === 'gate-attempted' && event.data.gate === 'ga-0002')!.sequence).toBeGreaterThan(reviewed.sequence);
     expect(onlyRun(run.service, plan).state).toBe('completed');
     run.git.assertComplete();
+  }, 60_000);
+
+  test('restart reuses a reviewed committed candidate whose audit was unfinished', async () => {
+    const root = await reviewTarget(cleanups);
+    const auditing = gate(); const release = gate();
+    const passing = passingAudit();
+    const heldAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+      if (input.attemptId === 'ga-0002') { auditing.open(); await release.opened; }
+      return passing.run(input);
+    } };
+    const run = await reviewRun(root, cleanups, {
+      detached: true, configuredAudit: heldAudit, engineer: engineers(),
+      reviewers: { 'rq-0001': clean(store) },
+    });
+    cleanups.push(() => run.service.close());
+    await auditing.opened;
+    await until(async () => (await runEventsOnDisk(root, plan, run.runId)).some(event =>
+      event.type === 'review-attempt-finished' && event.data.request === 'rq-0001'), 5_000);
+    const before = await runEventsOnDisk(root, plan, run.runId);
+    expect(before.some(event => event.type === 'iteration-candidate-prepared' && event.data.gate === 'ga-0002')).toBe(true);
+    expect(before.some(event => event.type === 'gate-attempted' && event.data.gate === 'ga-0002')).toBe(false);
+    expect(before.some(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i01')).toBe(false);
+
+    await staleCrashLock(root);
+    const recoveredGit = mockGit({
+      currentHead: async () => 'revision-01',
+      changedPaths: async () => [],
+      findCommitByTrailers: async () => 'revision-01',
+      previewCandidateTree: async () => ({ repositoryRoot: root, head: 'revision-01', tree: 'tree-01' }),
+    });
+    const failedAudit = mappedAudit(({ context, check }) => context.attemptId === 'ga-0002' && check.kind === 'tests'
+      ? { outcome: { kind: 'completed', exitCode: 1 }, stdout: 'scripted recovered failure' } : {});
+    const restarted = await openRuns(root, {
+      git: recoveredGit, candidates: scriptedCandidates(root, candidates()), configuredAudit: failedAudit,
+      policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }),
+    });
+    cleanups.push(() => restarted.service.close());
+    release.open();
+    await until(async () => (await runEventsOnDisk(root, plan, run.runId)).some(event =>
+      event.type === 'gate-attempted' && event.data.gate === 'ga-0002'), 5_000);
+    const after = await runEventsOnDisk(root, plan, run.runId);
+    expect(eventsOf(after, 'iteration-candidate-prepared')).toEqual(eventsOf(before, 'iteration-candidate-prepared'));
+    expect(after.filter(event => event.type === 'review-request-recorded' && event.data.candidate === 'revision-01')).toEqual(
+      before.filter(event => event.type === 'review-request-recorded' && event.data.candidate === 'revision-01'));
+    expect(after.filter(event => event.type === 'review-attempt-finished' && event.data.request === 'rq-0001')).toEqual(
+      before.filter(event => event.type === 'review-attempt-finished' && event.data.request === 'rq-0001'));
+    expect(eventsOf(after, 'gate-attempted').find(event => event.data.gate === 'ga-0002')?.data.verdict).toBe('failed');
+    expect(after.some(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i01')).toBe(false);
+    expect(after.filter(event => event.type === 'check-findings-recorded')).toHaveLength(0);
+    expect(recoveredGit.findCommitByTrailers).toHaveBeenCalledTimes(1);
+    expect(recoveredGit.commitAccepted).not.toHaveBeenCalled();
+    await restarted.service.close();
+    cleanups.pop();
+    const again = await openRuns(root, {
+      git: mockGit({ currentHead: async () => 'revision-01', changedPaths: async () => [] }),
+      candidates: scriptedCandidates(root, candidates()), configuredAudit: failedAudit,
+      policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }),
+    });
+    cleanups.push(() => again.service.close());
+    const twice = await runEventsOnDisk(root, plan, run.runId);
+    expect(eventsOf(twice, 'iteration-candidate-prepared')).toEqual(eventsOf(after, 'iteration-candidate-prepared'));
+    expect(eventsOf(twice, 'review-request-recorded')).toEqual(eventsOf(after, 'review-request-recorded'));
+    expect(eventsOf(twice, 'gate-attempted')).toEqual(eventsOf(after, 'gate-attempted'));
+    expect(eventsOf(twice, 'check-findings-recorded')).toEqual(eventsOf(after, 'check-findings-recorded'));
   }, 60_000);
 
   test('a reader\'s result is committed while the next iteration\'s audit is still running', async () => {
