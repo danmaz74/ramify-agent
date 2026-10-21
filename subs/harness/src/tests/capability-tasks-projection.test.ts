@@ -201,7 +201,7 @@ test('CA23 CA24: HTTP serves only the requested committed version and reports un
   expect((await get(`/api/v1/plans/review-notes/runs/${runId}/capability-tasks`)).status).toBe(400);
   run = constructedRun([{ type: 'capability-requested', data: { request: 'need-001', parent: 'wi-001',
     assignment: 'wi-001.i01', invocation: 'inv-0001' }, records: [{ path: 'requests/need-001.json', body: {
-    ...fixtureRequest(), schema: 'ramify-agent.capability-request/2',
+    ...fixtureRequest(), schema: 'ramify-agent.capability-request/999',
   } }] }], constructedRecord(), root);
   expect(errorResponseSchema.parse((await get(protocolPaths.runCapabilityTasks('review-notes', runId, 1))).body).error.code)
     .toBe('unsupported-version');

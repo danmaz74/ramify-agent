@@ -356,8 +356,12 @@ export function workItemMessage(briefing: WorkItemBriefing, packages: readonly s
     '',
     '## What the plan asks',
     '',
-    `- Functional requirements: ${ids(item.schema.endsWith('/2') ? item.functionalRequirementIds ?? [] : item.requirementRefs)}`,
-    `- Functional acceptance: ${ids(item.schema.endsWith('/2') ? item.functionalAcceptanceIds ?? [] : item.acceptanceRefs)}`,
+    item.schema.endsWith('/2')
+      ? `- Functional requirements: ${ids(item.functionalRequirementIds ?? [])}`
+      : `- Requirement: ${ids(item.requirementRefs)}`,
+    item.schema.endsWith('/2')
+      ? `- Functional acceptance: ${ids(item.functionalAcceptanceIds ?? [])}`
+      : `- Acceptance: ${ids(item.acceptanceRefs)}`,
     `- Context: ${ids(item.schema.endsWith('/2') ? item.contextIds ?? [] : item.contextRefs)}`,
     '',
     briefing.package === undefined

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { outline, readDeclaredTree } from '../../../../../../src/tests/helpers/iterations.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, descriptiveContractJsonSchema, descriptiveContractIdentityErrors, validateContract } from '../contracts/submission.js';
+import { contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, descriptiveContractJsonSchema, descriptiveContractSubmissionSchema, descriptiveContractIdentityErrors, validateContract } from '../contracts/submission.js';
 import { fakeNamingViolations, isFakeFile } from '../contracts/naming.js';
 import { contractPublicationRefusal, registerContract, registrationNeeded } from '../contracts/accept.js';
 import { consumerRequirementSchema, contractRecordSchema, providerObligationSchema } from '../contracts/records.js';
@@ -69,6 +69,8 @@ describe('the contract submission', () => {
     expect(delivered).toContain('draft:contract:<descriptive-name>');
     expect(delivered).toContain('draft:provider-obligation:<descriptive-name>');
     expect(delivered).toContain('draft:consumer-requirement:<descriptive-name>');
+    expect(descriptiveContractSubmissionSchema.safeParse({ kind: 'incomplete', done: [],
+      unfinished: ['The provider conformance suite remains unfinished.'], findings: [] }).success).toBe(true);
     expect((await validateContract(proposal, await evidence(), 'descriptive')).ok).toBe(true);
     const wrong = await validateContract({ ...proposal, consumerRequirementKey: 'provider-obligation:provide-review-predecessor-resolution' }, await evidence(), 'descriptive');
     expect(wrong.ok).toBe(false);

@@ -19,6 +19,7 @@ expose-src runLayout, RunRecord, runRecordSchema, RecoveryBoundary, runDirectory
 expose-src RunEvent, RunEventInput, RunEventOf, RunWrite, RunLog, runEvent, runEventSchema from "run/log.ts" to descendants
 expose-src runSnapshot from "run/snapshot.ts" to descendants
 expose-src commitCapabilityTransition from "run/capability-transition.ts" to parent
+expose-sub descriptiveCapabilityEngineerSubmissionSchema, descriptiveQualificationActionSchema from work-coordination to parent
 expose-src AutonomousRunService, RunServiceOptions, RunRecoveryReport, AutonomousRunOptions from "run/service.ts" to parent
 expose-src restartWorkflowEntries, validateRestartImport, RestartImport, restartImportSchema from "run/restart-import.ts" to parent
 expose-src recoveryHash, RecoveryIdentity, externalRepairAdmissionSchema, recoveryIdentitySchema, RecoveryRuntime, recoveryRuntimeSchema from "run/recovery-admission.ts" to parent

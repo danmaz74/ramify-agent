@@ -18,6 +18,8 @@ expose-src isProjectLockError from "store/lock.ts" to parent
 // its receiver must be able to name.
 expose-sub runSessionCommand, SessionCommandOptions, SessionAgentChoice, SingleSessionResult, SessionSummary, SessionProgress, SessionGateResult, runStepCommand, StepCommandOptions, StepCommandResult from task-workflow to parent
 expose-sub EngineerSubmission, engineerSubmissionSchema, runConsultationsCommand, ConsultationCommandOptions, ConsultationCommandResult, runRepairExportCommand, RepairExportCommandOptions, RepairExportCommandResult, RepairExportConfiguration from autonomous to parent
+expose-sub descriptiveCapabilityEngineerSubmissionSchema from autonomous to parent
+expose-sub descriptiveCapabilityEngineerSubmissionSchema from autonomous to descendants
 expose-src HookFinding from "hooks/post-write.ts" to parent
 expose-sub InvocationOutcome, invocationOutcomeSchema from task-execution to parent
 

@@ -8,6 +8,8 @@ import { capabilityLayout, capabilityPlanSchema, capabilityRequestSchema, capabi
 import { committedRecords } from '../../../../src/run/committed-records.js';
 import { recordHash } from '../../../../../../src/jobs/committed-reader.js';
 import { capabilityFixtureIds, copyCapabilityFixture, fixturePlan, fixtureRequest, fixtureTask } from './helpers/capability.js';
+import { descriptiveCapabilityEngineerSubmissionSchema } from '../work/engineer.js';
+import { descriptiveQualificationActionSchema, qualificationActionSchema } from '../capability/submission.js';
 import { obligationsOf } from '../work/obligations.js';
 import { submissionHash } from './helpers/obligations.js';
 import { mockGit } from '../../../../../../src/tests/helpers/mock-git.js';
@@ -20,6 +22,25 @@ const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true }))); });
 
 describe('capability records', () => {
+  it('descriptive submission choices retain explicit qualification and unsuitable outcomes', () => {
+    expect(descriptiveCapabilityEngineerSubmissionSchema.safeParse({ kind: 'unsuitable', reason: 'scope',
+      detail: 'The provider owns the requested write.' }).success).toBe(true);
+    const request = 'capability-request:render-source-fact';
+    const invocation = 'inv-0001';
+    const choices = [
+      { kind: 'satisfy-with-existing', request, invocation,
+        api: { owner: 'capability-coordination/b', path: 'subs/b/src/fact.ts', symbol: 'readFact' },
+        guidance: 'Read the existing fact.', evidence: ['subs/b/src/fact.ts'] },
+      { kind: 'delegate-capability', request, invocation, provider: 'capability-coordination/b',
+        placementReason: 'B owns the fact.', constraints: [], requirementRefs: [], taskKey: 'draft:capability-task:provide-source-fact' },
+      { kind: 'request-placement', request, invocation, problem: 'The owner is unknown.', evidence: ['subs/b/module.ramify'] },
+      { kind: 'unresolved', request, invocation, problem: 'The source is unavailable.', evidence: ['subs/b/src/fact.ts'] },
+    ];
+    expect(choices.map(choice => descriptiveQualificationActionSchema.safeParse(choice).success)).toEqual([true, true, true, true]);
+    expect(choices.map(choice => qualificationActionSchema.safeParse(choice).success)).toEqual([true, true, true, true]);
+    expect(descriptiveQualificationActionSchema.safeParse({ ...choices[1], taskKey: undefined }).success).toBe(false);
+  });
+
   it('accepts descriptive request, example and task identities together and replays exact relationships', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'descriptive-capability-'));
     directories.push(directory);
@@ -35,6 +56,9 @@ describe('capability records', () => {
       examples: original.original.examples.map(example => ({ key: `draft:${exampleId}`, title: example.title,
         code: example.code, designation: example.designation })),
     });
+    expect(descriptiveCapabilityNeedInputSchema.safeParse({ ...input, examples: input.examples.map(example => ({
+      ...example, designation: 'executable',
+    })) }).success).toBe(true);
     const request = capabilityRequestSchema.parse({ ...original, schema: 'ramify-agent.capability-request/2', id: requestId,
       original: identifyCapabilityNeed(requestId, input) });
     const task = { ...fixtureTask(request), schema: 'ramify-agent.capability-task/2' as const, id: taskId };
@@ -53,7 +77,7 @@ describe('capability records', () => {
       .rejects.toThrow('example ID collides');
     expect(log.ledger.replay()).toHaveLength(afterRequest);
     const corrected = { ...colliding, original: { ...colliding.original, examples: [
-      { ...colliding.original.examples[0]!, id: 'capability-example:separate-review-predecessor' },
+      { ...colliding.original.examples[0]!, id: 'capability-example:separate-review-predecessor', designation: 'executable' as const },
     ] } };
     await commitCapabilityTransition(log, { type: 'capability-requested', data: {
       request: corrected.id, parent: corrected.parent.id, assignment: corrected.assignment, invocation: corrected.invocation,
@@ -73,11 +97,22 @@ describe('capability records', () => {
       { path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
       { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
     ]);
+    const exchange = { schema: 'ramify-agent.capability-exchange/2', id: 'cx-0001', task: task.id,
+      request: request.id, planRevision: 1, question: 'Which source must A show?', references: ['subs/a/src/caller.ts'], answer: null };
+    await commitCapabilityTransition(log, { type: 'capability-exchange-opened', data: {
+      task: task.id, exchange: exchange.id, invocation: 'inv-0002',
+    } }, [{ path: capabilityLayout.exchange(task.id, exchange.id, 1), id: exchange.id, revision: 1, body: exchange }]);
+    const answered = { ...exchange, answer: { invocation: 'inv-0005', text: 'Show B source metadata', objections: [] } };
+    await commitCapabilityTransition(log, { type: 'capability-exchange-answered', data: {
+      task: task.id, exchange: exchange.id, invocation: 'inv-0005',
+    } }, [{ path: capabilityLayout.exchange(task.id, exchange.id, 2), id: exchange.id, revision: 2, body: answered }]);
     const reopened = await RunLog.open(logPath, 'job-001');
     const records = committedRecords(reopened.ledger.replay());
     expect(records.capabilityRequests.get(requestId)?.original.examples[0]?.id).toBe(exampleId);
+    expect(records.capabilityRequests.get(corrected.id)?.original.examples[0]?.designation).toBe('executable');
     expect(records.capabilityTasks.get(taskId)?.request).toBe(requestId);
     expect(records.capabilityPlans.get(taskId)?.[0]?.originalExamples).toEqual([exampleId]);
+    expect(records.capabilityExchanges.get(exchange.id)?.at(-1)?.answer?.text).toBe('Show B source metadata');
     expect(capabilityLayout.task(taskId)).toContain('capability-task%3A');
   });
 

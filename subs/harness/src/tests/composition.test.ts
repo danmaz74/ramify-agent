@@ -21,6 +21,7 @@ import { resolveWriteScope } from '../work/scope.js';
 import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
 import { fixtureTask } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { contractSchemas } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
+import { capabilitySchemas } from '../../subs/autonomous/subs/work-coordination/src/capability/records.js';
 import { architectureSchemas } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
 import { reviewSchemas } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
 import { reconciliationSchemas } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
@@ -28,9 +29,10 @@ import { deviationSchemas } from '../../subs/autonomous/subs/acceptance/src/devi
 import { initialAnalysisSubmissionSchema } from '../../subs/autonomous/subs/planning/src/submission.js';
 import { checkSubmissionSchema, intakeSubmissionSchema, principleSubmissionSchema } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { localArchitectSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
-import { engineerSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import { descriptiveCapabilityEngineerSubmissionSchema, engineerSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { forkSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
-import { contractSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/contracts/submission.js';
+import { contractSubmissionSchema, descriptiveContractSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/contracts/submission.js';
+import { descriptiveQualificationActionSchema, qualificationActionSchema } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
 import { failureAnalysisSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/failure.js';
 import { shellInputSchema } from '../tools/shell.js';
 import {
@@ -457,7 +459,9 @@ describe('no query appends an event', () => {
 
 /** Every schema a durable record, a log line, a submission, a harness tool or a projection is written against. */
 function unionRoots(): Record<string, unknown> {
-  const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas, ...architectureSchemas, ...reviewSchemas, ...reconciliationSchemas, ...deviationSchemas };
+  const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas, ...architectureSchemas,
+    ...Object.fromEntries(Object.entries(capabilitySchemas).map(([key, value]) => [`capability-${key}`, value])),
+    ...reviewSchemas, ...reconciliationSchemas, ...deviationSchemas };
   return {
     'run log': runEventSchema,
     'observation log': observationSchema,
@@ -468,8 +472,12 @@ function unionRoots(): Record<string, unknown> {
     'submission catalog-check': checkSubmissionSchema,
     'submission local-architect': localArchitectSubmissionSchema,
     'submission engineer': engineerSubmissionSchema,
+    'submission engineer descriptive': descriptiveCapabilityEngineerSubmissionSchema,
+    'submission capability qualification': qualificationActionSchema,
+    'submission capability qualification descriptive': descriptiveQualificationActionSchema,
     'submission fork': forkSubmissionSchema,
     'submission contract': contractSubmissionSchema,
+    'submission contract descriptive': descriptiveContractSubmissionSchema,
     'submission failure-analysis': failureAnalysisSubmissionSchema,
     'tool shell': shellInputSchema,
     'command': runCommandSchema,
@@ -503,7 +511,9 @@ const submissionSchemas: Readonly<Record<string, unknown>> = {
 /** What the composed runs wrote, walked value by value against the schemas that describe it. */
 async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
   const observed = new Map<unknown, Set<string>>();
-  const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas, ...architectureSchemas, ...reviewSchemas, ...reconciliationSchemas, ...deviationSchemas };
+  const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas, ...architectureSchemas,
+    ...Object.fromEntries(Object.entries(capabilitySchemas).map(([key, value]) => [`capability-${key}`, value])),
+    ...reviewSchemas, ...reconciliationSchemas, ...deviationSchemas };
   const bySchema = new Map<string, unknown>(Object.values(registries).map(entry => [entry.schema, entry.body]));
   for (const run of finished.values()) {
     const directory = runDirectory(run.root, run.runId);
@@ -571,6 +581,32 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.hypothesis/1.schema', values: ['ramify-agent.hypothesis/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'ordinary acceptance resolves local references into one committed bundle' },
   { union: 'record ramify-agent.capability/1.schema', values: ['ramify-agent.capability/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'ordinary acceptance resolves local references into one committed bundle' },
   { union: 'record ramify-agent.work-item/1.schema', values: ['ramify-agent.work-item/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'ordinary acceptance resolves local references into one committed bundle' },
+  { union: 'record ramify-agent.contract/2.schema', values: ['ramify-agent.contract/3'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive agreement and obligation survive record serialization with their relationship' },
+  { union: 'record ramify-agent.provider-obligation/1.schema', values: ['ramify-agent.provider-obligation/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive agreement and obligation survive record serialization with their relationship' },
+  { union: 'record ramify-agent.consumer-requirement/1.schema', values: ['ramify-agent.consumer-requirement/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive agreement and obligation survive record serialization with their relationship' },
+  { union: 'record ramify-agent.placement-request/1.schema', values: ['ramify-agent.placement-request/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/placement.test.ts', test: 'descriptive placement IDs preserve their work and capability origin through accepted records' },
+  { union: 'record ramify-agent.placement-decision/1.schema', values: ['ramify-agent.placement-decision/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/placement.test.ts', test: 'descriptive placement IDs preserve their work and capability origin through accepted records' },
+  { union: 'record ramify-agent.capability-request/1.schema', values: ['ramify-agent.capability-request/1'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'CA01 keeps request evidence and admits delegation beyond a captured work-unit count' },
+  { union: 'record ramify-agent.capability-request/1.schema', values: ['ramify-agent.capability-request/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-request/1.original.examples[].designation', values: ['pseudocode', 'executable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-task/1.schema', values: ['ramify-agent.capability-task/1'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'CA01 keeps request evidence and admits delegation beyond a captured work-unit count' },
+  { union: 'record ramify-agent.capability-task/1.schema', values: ['ramify-agent.capability-task/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-request/1.parent.kind', values: ['work-item'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-request/1.parent.kind', values: ['capability-task'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-dependencies.test.ts', test: 'CA21 CA29 CA32: a nested request keeps its parent assignment and depth-first authority in the real ledger' },
+  { union: 'record ramify-agent.capability-plan/1.schema', values: ['ramify-agent.capability-plan/1'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'CA01 keeps request evidence and admits delegation beyond a captured work-unit count' },
+  { union: 'record ramify-agent.capability-plan/1.schema', values: ['ramify-agent.capability-plan/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-exchange/1.schema', values: ['ramify-agent.capability-exchange/1'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-consultation.test.ts', test: 'CA04 CA06 CA16: original A request consultation preserves its point or uses named recovery after actual loss (lost=%s)' },
+  { union: 'record ramify-agent.capability-exchange/1.schema', values: ['ramify-agent.capability-exchange/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-handback/1.schema', values: ['ramify-agent.capability-handback/1'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'CA08 CA11–CA15 CA17 CA25 CA30: scripted multi-owner migration, repair, handback and linked revision' },
+  { union: 'record ramify-agent.capability-handback/1.schema', values: ['ramify-agent.capability-handback/2'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'descriptive request, task and examples survive composed provider handback, consumer verification and reload' },
+  { union: 'submission engineer descriptive.kind', values: ['completion-proposed', 'partial', 'capability-needed'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'descriptive request, task and examples survive composed provider handback, consumer verification and reload' },
+  { union: 'submission engineer descriptive.kind', values: ['unsuitable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'descriptive submission choices retain explicit qualification and unsuitable outcomes' },
+  { union: 'submission engineer descriptive[capability-needed].request.examples[].designation', values: ['pseudocode'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'descriptive request, task and examples survive composed provider handback, consumer verification and reload' },
+  { union: 'submission engineer descriptive[capability-needed].request.examples[].designation', values: ['executable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'submission capability qualification.kind', values: ['satisfy-with-existing', 'delegate-capability', 'request-placement', 'unresolved'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'descriptive submission choices retain explicit qualification and unsuitable outcomes' },
+  { union: 'submission capability qualification descriptive.kind', values: ['satisfy-with-existing', 'delegate-capability', 'request-placement', 'unresolved'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'descriptive submission choices retain explicit qualification and unsuitable outcomes' },
+  { union: 'submission contract descriptive.kind', values: ['established'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive proposals are delivered in the tool schema and reject wrong namespaces at their fields' },
+  { union: 'submission contract descriptive.kind', values: ['incomplete'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive proposals are delivered in the tool schema and reject wrong namespaces at their fields' },
   { union: 'run log.type', values: ['job-continued'], file: 'subs/harness/src/tests/restart-service.test.ts', test: 'continuation preserves historical failure and accepted analysis without copying run history' },
   { union: 'run log.type', values: ['external-candidate-observed'], file: 'subs/harness/src/tests/recovery-readiness-source.test.ts', test: 'readiness retains observed source and operational corrections through one %s run-branch commit' },
 
@@ -611,7 +647,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.repair-incident/1.export.state', values: ['exported'], file: 'subs/harness/src/tests/repair-export-command.test.ts', test: 'manual export updates a retained terminal run through ledger without changing terminal or incident lifecycle' },
   { union: 'record ramify-agent.repair-incident/1.export.state', values: ['conflict'], file: 'subs/harness/src/tests/repair-export-command.test.ts', test: 'manual export retains conflicting tracker identities without changing incident lifecycle' },
   { union: 'query events.events[].refs[].kind', values: ['repair-incident'], file: 'subs/harness/subs/projections/src/tests/automatic-repair-incidents.test.ts', test: 'retains original obstruction and partial-result reference after verified handback and terminal completion' },
-  { union: 'submission engineer[capability-needed].request.usage[].prospective', values: ['false', 'true'], file: 'subs/harness/src/tests/revision-preview-submission-contracts.test.ts', test: 'prospective caller module is required structurally; actual usage may omit it' },
+  { union: 'record ramify-agent.capability-request/1.original.usage[].prospective', values: ['false', 'true'], file: 'subs/harness/src/tests/revision-preview-submission-contracts.test.ts', test: 'prospective caller module is required structurally; actual usage may omit it' },
   { union: 'query work-item.iterations[].invocations[].outsideScopeEvidence[].observations[].observedBy', values: ['tool'], file: 'subs/harness/src/tests/plan36-mutation-attribution.test.ts', test: 'candidate differences preserve recorded provenance across metrics and work projections without changing settlement (%j)' },
   { union: 'run log.type', values: ['consultation-started', 'consultation-finished'], file: 'subs/harness/src/tests/consultation-records.test.ts', test: 'start and outcome commit exact content references and completed replay is one exchange' },
   { union: 'run log.type', values: ['consultation-delivery-recorded'], file: 'subs/harness/src/tests/consultation-records.test.ts', test: 'answer acceptance and later caller-result observation preserve immutable outcome revisions' },
@@ -668,8 +704,8 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'run log[capability-assignment-settled].data.outcome', values: ['accepted'], file: 'subs/harness/src/tests/capability-assignments.test.ts', test: 'CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A receive task-owned scopes' },
   { union: 'run log[capability-assignment-settled].data.outcome', values: ['partial'], file: 'subs/harness/src/tests/capability-state.test.ts', test: 'refuses an active assignment but preserves partial history for the verifier' },
   { union: 'submission engineer.kind', values: ['capability-needed'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
-  { union: 'submission engineer[capability-needed].request.knownInterface.kind', values: ['none-known'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
-  { union: 'submission engineer[capability-needed].request.knownInterface.kind', values: ['insufficient'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'CA08 CA11–CA15 CA17 CA25 CA30: scripted multi-owner migration, repair, handback and linked revision' },
+  { union: 'record ramify-agent.capability-request/1.original.knownInterface.kind', values: ['none-known'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
+  { union: 'record ramify-agent.capability-request/1.original.knownInterface.kind', values: ['insufficient'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'CA08 CA11–CA15 CA17 CA25 CA30: scripted multi-owner migration, repair, handback and linked revision' },
   { union: 'submission engineer[capability-needed].request.examples[].designation', values: ['pseudocode'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
   { union: 'query events.events[].refs[].kind', values: ['capability-request', 'capability-task', 'capability-assignment'], file: 'subs/harness/src/tests/capability-tasks-projection.test.ts', test: 'CA23: capability event references identify requests, tasks and assignments' },
   { union: 'run log.type', values: ['obligation-registered', 'obligation-reported'], file: 'subs/harness/src/tests/local-architect-submission.test.ts', test: 'PB3-D01 PB3-D02 PB3-D04: an invalid report is refused before any effect; the accepted one records the test, the judgments and the where text as written' },

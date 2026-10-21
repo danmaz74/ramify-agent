@@ -106,10 +106,10 @@ export const engineerSubmissionSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('capability-needed'),
     summary: text,
-    request: z.union([capabilityNeedInputSchema, descriptiveCapabilityNeedInputSchema]),
+    request: capabilityNeedInputSchema,
   }).strict(),
 ]);
-export type EngineerSubmission = z.infer<typeof engineerSubmissionSchema>;
+export type EngineerSubmission = z.infer<typeof engineerSubmissionSchema> | z.infer<typeof descriptiveCapabilityEngineerSubmissionSchema>;
 
 /** The members this iteration's package offers the role. */
 export const engineerSubmissionKinds = ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'] as const;
@@ -218,7 +218,9 @@ export interface EngineerEvidence {
  * path.
  */
 export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}): SubmissionValidation<EngineerSubmission> {
-  const shape = validateAgainst(engineerSubmissionSchema, input);
+  const shape = evidence.identityContract === 'descriptive'
+    ? validateAgainst(descriptiveCapabilityEngineerSubmissionSchema, input)
+    : validateAgainst(engineerSubmissionSchema, input);
   if (!shape.ok) return shape;
   const errors: SubmissionError[] = [];
   const value = shape.value;
