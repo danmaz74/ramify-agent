@@ -252,7 +252,12 @@ export class AfterHandling {
       throw new Error(`Engineer ${proposalInvocation} has changed or missing submission bytes`);
     }
     const rawSubmission = submissionBytes === undefined ? null : JSON.parse(submissionBytes.toString('utf8')) as Record<string, unknown>;
-    const submitted = rawSubmission === null ? null : parseRecordedEngineerSubmission(rawSubmission);
+    // An iteration can close after a contract turn. Its accepted contract
+    // submission is not an engineer proposal; only engineer envelopes are
+    // decoded here, while an unknown engineer version remains an error.
+    const submitted = typeof rawSubmission?.schema === 'string'
+      && rawSubmission.schema.startsWith('ramify-agent.engineer-submission/')
+      ? parseRecordedEngineerSubmission(rawSubmission) : null;
     const startingPoints = submitted !== null && (submitted.kind === 'completion-proposed' || submitted.kind === 'partial')
       ? submitted.startingPoints : undefined;
     const corrects = assignment.coordination?.kind === 'capability-task'
