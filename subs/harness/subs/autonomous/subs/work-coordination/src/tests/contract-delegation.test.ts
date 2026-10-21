@@ -405,12 +405,15 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
 
 });
 
-test('descriptive registry delegation preserves agreement, obligation and requirement through handback and reload', async () => {
+test.each(['fake-backed', 'access-only'] as const)(
+  'descriptive registry delegation preserves agreement, obligation and requirement through %s handback and reload', async mode => {
+  const access = mode === 'access-only';
   const root = await target();
   const names = {
     work: 'work-item:review-notes', providerWork: 'work-item:provide-provide-note-limit',
     capability: 'capability:note-limit', contract: 'contract:review-note-limit',
     obligation: 'provider-obligation:provide-note-limit', requirement: 'consumer-requirement:review-notes-use-limit',
+    accessContract: 'contract:review-note-limit-access',
   };
   const placement = localDecision({
     question: 'Where does the note limit belong?', outcome: 'reuse', capability: names.capability,
@@ -434,6 +437,10 @@ test('descriptive registry delegation preserves agreement, obligation and requir
       submit(assign(provider, {}, outline({ changes: 'Implement the agreed note limit.' }))),
       submit(requestCompletion()),
       submit(assign(consumer, { kind: 'verification', goal: 'Use and verify the real note limit.' })),
+      ...(access ? [submit(assign(consumer, { kind: 'contract', revisesContract: names.contract,
+        goal: 'Replace the fulfilled fake-backed agreement with real-provider access.',
+        approach: 'The provider conformed and the consumer verified the real implementation.',
+        completionEvidence: 'The access-only agreement names the real provider exposure.' }))] : []),
       submit({ ...requestCompletion(), reports: [{ id: 'scenario:review-note-limit',
         judgment: 'done', basedOnRevision: 0 }] }),
     ],
@@ -448,13 +455,23 @@ test('descriptive registry delegation preserves agreement, obligation and requir
     'contract-engineer': [submit({ ...establishedContract,
       contractKey: `draft:${names.contract}`, providerObligationKey: `draft:${names.obligation}`,
       consumerRequirementKey: `draft:${names.requirement}`,
-    }, ...contractWrites)],
+    }, ...contractWrites), ...(access ? [submit({ ...establishedContract, mode: 'access-only',
+      contractKey: `draft:${names.accessContract}`,
+      artifacts: { ...establishedContract.artifacts, conformance: [], fake: [] }, fakeInjections: [],
+      scope: { consumerWorkItems: [names.work] },
+      retirements: [
+        { id: names.contract, kind: 'contract', replacementKeys: [`draft:${names.accessContract}`], reason: 'Use the real provider.' },
+        { id: names.obligation, kind: 'provider-obligation', replacementKeys: [`draft:${names.accessContract}`], reason: 'Real provider conformed.' },
+        { id: names.requirement, kind: 'consumer-requirement', replacementKeys: [`draft:${names.accessContract}`], reason: 'Consumer verified the real provider.' },
+      ],
+    }, write(`${providerDirectory}/src/interfaces/note-limit.ts`, `// Access-only real-provider contract.\n${contractFile}`))] : [])],
   });
   const commits: CommitResponse[] = [
     accepted(`${names.work}.i02`, 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
     accepted(`${names.providerWork}.i01`, 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
     unchanged(names.providerWork),
     accepted(`${names.work}.i03`, 'revision-03', modified(seam.consumer)),
+    ...(access ? [accepted(`${names.work}.i04`, 'revision-04', modified(seam.interface))] : []),
     unchanged(names.work),
     unchanged('final verification of plan "review-notes"'),
   ];
@@ -509,12 +526,26 @@ test('descriptive registry delegation preserves agreement, obligation and requir
   expect(reopened.service.events('review-notes', runId)?.filter(event => event.type === 'contract-registered')).toHaveLength(1);
   expect(reopened.service.committed('review-notes', runId)?.entries.flatMap(line => line.transaction.records)
     .some(record => record.path === contractsLayout.requirement(names.requirement, 1))).toBe(true);
+  if (access) {
+    expect(await readJson<ContractRecord>(root, runId, contractsLayout.contract(names.accessContract, 2)))
+      .toMatchObject({ id: names.accessContract, mode: 'access-only', revision: 2 });
+    const retired = [names.contract, names.obligation, names.requirement];
+    for (const id of retired) {
+      expect(await readJson<ExecutionRetirement>(root, runId, executionRetirementPath(id)))
+        .toMatchObject({ id, replacements: [names.accessContract] });
+      expect(reopened.service.committed('review-notes', runId)?.entries.flatMap(line => line.transaction.records)
+        .some(record => record.path === executionRetirementPath(id))).toBe(true);
+    }
+    expect(reopened.service.events('review-notes', runId)?.filter(event => event.type === 'evidence-reopened'))
+      .toMatchObject([{ data: { contract: names.accessContract, obligation: null, requirements: [] } }]);
+  }
   git.assertAnswered();
 }, 90_000);
 
-test.each(['split', 'replacement'] as const)(
+test.each(['split', 'replacement', 'merge'] as const)(
   'descriptive second consumer attaches and %s revision reopens both consumers with accepted IDs', async mode => {
   const replacement = mode === 'replacement';
+  const merging = mode === 'merge';
   const root = await target();
   const tags = 'collection-review/workspace/reviews/tags';
   const tagsDirectory = 'subs/workspace/subs/reviews/subs/tags';
@@ -534,6 +565,7 @@ test.each(['split', 'replacement'] as const)(
   const names = {
     notes: 'work-item:review-notes', tags: 'work-item:review-tags',
     provider: 'work-item:provide-provide-note-limit',
+    supersededProvider: 'work-item:reconcile-provider-obligation-provide-note-limit-revision-2',
     providerFollowUp: replacement
       ? 'work-item:reconcile-provider-obligation-trimmed-note-limit-revision-2'
       : 'work-item:reconcile-provider-obligation-provide-note-limit-revision-2',
@@ -545,6 +577,7 @@ test.each(['split', 'replacement'] as const)(
     tagsRequirement: 'consumer-requirement:review-tags-use-limit',
     tagsTrimRequirement: 'consumer-requirement:review-tags-trim-before-limit',
     tagsLimitRequirement: 'consumer-requirement:review-tags-enforce-trimmed-limit',
+    tagsMergedRequirement: 'consumer-requirement:review-tags-trimmed-limit',
   };
   const placement = localDecision({
     question: 'Where does the note limit belong?', outcome: 'reuse', capability: 'capability:note-limit',
@@ -552,8 +585,8 @@ test.each(['split', 'replacement'] as const)(
   }, [registryChange({ capability: 'capability:note-limit', owner: provider,
     behavior: 'A note of at most 500 characters is within the limit.' })]);
   const dependency = { capability: 'capability:note-limit', owner: provider, role: 'request' as const };
-  const reports = (scenario: string) => ({ ...requestCompletion(),
-    reports: [{ id: scenario, judgment: 'done', basedOnRevision: 0 }] });
+  const reports = (scenario: string, basedOnRevision = 0) => ({ ...requestCompletion(),
+    reports: [{ id: scenario, judgment: 'done', basedOnRevision }] });
   const request = (seam: Seam) => ({ ...seamContractNeeded(seam),
     need: { ...seamContractNeeded(seam).need, capability: 'capability:note-limit' } });
   const fresh = { ...seamEstablished(base), contractKey: `draft:${names.contract}`,
@@ -575,6 +608,29 @@ test.each(['split', 'replacement'] as const)(
       retirements: [{ id: names.tagsRequirement, kind: 'consumer-requirement',
         replacementKeys: [`draft:${names.tagsTrimRequirement}`, `draft:${names.tagsLimitRequirement}`],
         reason: 'Trimming and enforcing the limit are distinct requirements in the revised agreement.' }] };
+  const collidingReplacement = replacement ? {
+    ...revision, contractKey: `draft:${names.contract}`, providerObligationKey: `draft:${names.obligation}`,
+    retirements: [
+      { id: names.contract, kind: 'contract', replacementKeys: [`draft:${names.contract}`],
+        reason: 'The revised behavior changes the agreement kind.' },
+      { id: names.obligation, kind: 'provider-obligation', replacementKeys: [`draft:${names.obligation}`],
+        reason: 'The new agreement needs its own provider obligation.' },
+    ],
+  } : null;
+  const merged = { ...seamEstablished({ ...revised,
+    behavior: 'One requirement covers trimming a tag before applying the 500 character limit.' }),
+    contractId: names.contract, providerObligationId: names.obligation,
+    consumerRequirementKey: `draft:${names.tagsMergedRequirement}`,
+    scope: { consumerWorkItem: names.tags },
+    retirements: [names.tagsTrimRequirement, names.tagsLimitRequirement].map(id => ({
+      id, kind: 'consumer-requirement', replacementKeys: [`draft:${names.tagsMergedRequirement}`],
+      reason: 'One requirement now states the combined behavior.',
+    })) };
+  const retiredNameMerge = { ...merged, consumerRequirementKey: `draft:${names.tagsRequirement}`,
+    retirements: [names.tagsTrimRequirement, names.tagsLimitRequirement].map(id => ({
+      id, kind: 'consumer-requirement', replacementKeys: [`draft:${names.tagsRequirement}`],
+      reason: 'One requirement now states the combined behavior.',
+    })) };
   const scriptByWork: Record<string, readonly ReturnType<typeof submit>[]> = {
     [`local-architect:${names.notes}`]: [
       submit({ ...assign(consumer, { externalCapabilities: [dependency] }, outline({ reuse: [dependency] })),
@@ -599,8 +655,13 @@ test.each(['split', 'replacement'] as const)(
         goal: 'Revise the agreement to trim before measuring.',
         approach: 'The attached agreement lacks trimming that tags needs.',
         completionEvidence: 'The revised fake passes the conformance suite.' })),
+      ...(merging ? [submit(assign(tags, { kind: 'contract', revisesContract: names.contract,
+        goal: 'Merge the two tag requirements under one accepted identity.',
+        approach: 'Trimming and applying the limit form one consumer requirement.',
+        completionEvidence: 'The merged requirement is backed by the conformance suite.' }))] : []),
       submit({ kind: 'yield-for-providers', requirements: replacement
-        ? [names.tagsRequirement] : [names.tagsTrimRequirement, names.tagsLimitRequirement],
+        ? [names.tagsRequirement] : merging ? [names.tagsMergedRequirement]
+          : [names.tagsTrimRequirement, names.tagsLimitRequirement],
         summary: 'Waiting for the revised provider.' }),
       submit(assign(tags, { kind: 'verification', goal: 'Use the revised real limit.' })),
       submit(reports('scenario:review-tags')),
@@ -612,7 +673,11 @@ test.each(['split', 'replacement'] as const)(
     ],
     [`contract-engineer:${names.tags}`]: [
       submit(attached, write(tagPaths.consumer, consumerAgainstFake(second))),
-      submit(revision, ...seamContractWrites(revised)),
+      submit(revision, ...seamContractWrites(revised),
+        ...(collidingReplacement === null ? [] : [{ kind: 'submit' as const, input: collidingReplacement }])),
+      ...(merging ? [submit(merged, ...seamContractWrites({ ...revised,
+        behavior: 'One requirement covers trimming a tag before applying the 500 character limit.' }),
+        { kind: 'submit', input: retiredNameMerge })] : []),
     ],
     [`local-architect:${names.providerFollowUp}`]: [
       submit(assign(provider, {}, outline({ changes: 'Add trimming to the real limit.' }))),
@@ -628,6 +693,7 @@ test.each(['split', 'replacement'] as const)(
       write(join(root, paths.consumer), consumerAgainstReal({ ...base, trims: true })))],
   };
   const counts = new Map<string, number>();
+  const tagsTurns: Array<{ seen: number; reportLines: string[] }> = [];
   const fallback = byRole({});
   const script: Parameters<typeof openRuns>[1]['script'] = spec => {
     if (spec.submission.name === 'submit_intake') {
@@ -651,6 +717,8 @@ test.each(['split', 'replacement'] as const)(
         origin: { kind: 'architect' }, functionalAcceptanceKeys: [],
         gherkin: 'Scenario: Review tags\n  When a reviewer adds a tag\n  Then an overlong tag is refused' },
     ], integrationScenarios: [] });
+    if (spec.role === 'local-architect' && spec.submission.name !== 'submit_work_item_result')
+      return typeof fallback === 'function' ? fallback(spec) : fallback;
     const objective = [...spec.prompt.matchAll(/^Perform [^\n]+ for (\{[^\n]*\}); use the current evidence and designated submission\.$/gmu)].at(-1);
     const work = objective === undefined ? null : (JSON.parse(objective[1]!) as { workItem?: string }).workItem;
     const key = `${spec.role}:${work ?? ''}`;
@@ -658,6 +726,8 @@ test.each(['split', 'replacement'] as const)(
     if (turns === undefined) return typeof fallback === 'function' ? fallback(spec) : fallback;
     const seen = counts.get(key) ?? 0;
     counts.set(key, seen + 1);
+    if (merging && key === `local-architect:${names.tags}`) tagsTurns.push({ seen,
+      reportLines: spec.prompt.split('\n').filter(line => line.includes('scenario:review-tags') && line.includes('revision')) });
     return turns[Math.min(seen, turns.length - 1)]!;
   };
   const commits: CommitResponse[] = [
@@ -667,18 +737,37 @@ test.each(['split', 'replacement'] as const)(
     accepted(`${names.notes}.i03`, 'revision-03', modified(paths.consumer)), unchanged(names.notes),
     accepted(`${names.tags}.i02`, 'revision-04', modified(tagPaths.consumer)),
     accepted(`${names.tags}.i03`, 'revision-05', modified(paths.contract, paths.fake, paths.subjects, paths.conformance, tagPaths.consumer)),
-    accepted(`${names.providerFollowUp}.i01`, 'revision-06', modified(paths.real, paths.subjects)),
+    ...(merging ? [accepted(`${names.tags}.i04`, 'revision-06', modified(paths.contract))] : []),
+    accepted(`${names.providerFollowUp}.i01`, merging ? 'revision-07' : 'revision-06', modified(paths.real, paths.subjects)),
     unchanged(names.providerFollowUp),
-    accepted(`${names.tags}.i04`, 'revision-07', modified(tagPaths.consumer)), unchanged(names.tags),
-    accepted(`${names.notesFollowUp}.i01`, 'revision-08', modified(paths.consumer)), unchanged(names.notesFollowUp),
+    accepted(`${names.tags}.i0${merging ? '5' : '4'}`, merging ? 'revision-08' : 'revision-07', modified(tagPaths.consumer)), unchanged(names.tags),
+    accepted(`${names.notesFollowUp}.i01`, merging ? 'revision-09' : 'revision-08', modified(paths.consumer)), unchanged(names.notesFollowUp),
     unchanged('final verification of plan "review-notes"'),
   ];
   const { service, runId, git, agent } = await run(root, {}, commits, { identityContract: 'descriptive', script });
-  expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure,
-    sessions: agent?.sessions.map(session => ({ role: session.spec.role, verdicts: session.verdicts })) })).toBe('completed');
   const log = await events(root, runId);
+  expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure,
+    tagsTurns, progress: log.filter(event => ['evidence-reopened', 'work-item-yielded', 'work-item-resumed',
+      'provider-conformed', 'requirement-verified', 'iteration-assigned', 'iteration-closed', 'gate-attempted'].includes(event.type))
+      .slice(-18).map(event => [event.type, event.data]),
+    sessions: agent?.sessions.map(session => ({ role: session.spec.role, verdicts: session.verdicts })) })).toBe('completed');
   expect(log.filter(event => event.type === 'contract-registered').map(event => event.data.requirements))
     .toEqual([[names.notesRequirement], [names.tagsRequirement]]);
+  if (replacement) {
+    const correction = agent?.sessions.filter(session => session.spec.role === 'contract-engineer')[2];
+    const verdicts = correction?.verdicts as Array<{ accepted: boolean; errors?: unknown[] }> | undefined;
+    expect(verdicts?.map(verdict => verdict.accepted)).toEqual([false, true]);
+    expect(JSON.stringify(verdicts?.[0]?.errors)).toContain('contractKey');
+    expect(JSON.stringify(verdicts?.[0]?.errors)).toContain('providerObligationKey');
+    expect(log.filter(event => event.type === 'evidence-reopened')).toHaveLength(1);
+  }
+  if (merging) {
+    const correction = agent?.sessions.filter(session => session.spec.role === 'contract-engineer')[3];
+    const verdicts = correction?.verdicts as Array<{ accepted: boolean; errors?: unknown[] }> | undefined;
+    expect(verdicts?.map(verdict => verdict.accepted)).toEqual([false, true]);
+    expect(JSON.stringify(verdicts?.[0]?.errors)).toContain('consumerRequirementKey');
+    expect(JSON.stringify(verdicts?.[0]?.errors)).toContain('retired');
+  }
   const reopened = log.find(event => event.type === 'evidence-reopened')!;
   const revisedContract = replacement ? names.replacementContract : names.contract;
   const revisedObligation = replacement ? names.replacementObligation : names.obligation;
@@ -712,18 +801,43 @@ test.each(['split', 'replacement'] as const)(
     expect(await readJson<ConsumerRequirement>(root, runId, contractsLayout.requirement(names.tagsLimitRequirement, 2)))
       .toMatchObject({ id: names.tagsLimitRequirement, workItem: names.tags, contractRevision: 2 });
   }
-  expect(log.filter(event => event.type === 'provider-conformed').map(event => event.data.revision)).toEqual([1, 2]);
+  if (merging) {
+    expect(log.filter(event => event.type === 'evidence-reopened')[1]?.data).toMatchObject({
+      contract: names.contract, revision: 3, obligation: names.obligation,
+      requirements: [names.notesRequirement, names.tagsMergedRequirement],
+      retired: [names.tagsTrimRequirement, names.tagsLimitRequirement],
+    });
+    expect(await readJson<ConsumerRequirement>(root, runId,
+      contractsLayout.requirement(names.tagsMergedRequirement, 3))).toMatchObject({
+      id: names.tagsMergedRequirement, workItem: names.tags, contractRevision: 3,
+    });
+    for (const id of [names.tagsTrimRequirement, names.tagsLimitRequirement]) {
+      expect(await readJson<ExecutionRetirement>(root, runId, executionRetirementPath(id)))
+        .toMatchObject({ id, kind: 'consumer-requirement', replacements: [names.tagsMergedRequirement],
+          authority: { iteration: `${names.tags}.i04` } });
+    }
+  }
+  expect(log.filter(event => event.type === 'provider-conformed').map(event => event.data.revision))
+    .toEqual(merging ? [1, 3] : [1, 2]);
   expect(log.filter(event => event.type === 'requirement-verified').map(event => `${event.data.requirement}@${event.data.revision}`))
     .toEqual([`${names.notesRequirement}@1`, ...(replacement ? [`${names.tagsRequirement}@2`]
-      : [`${names.tagsTrimRequirement}@2`, `${names.tagsLimitRequirement}@2`]), `${names.notesRequirement}@2`]);
+      : merging ? [`${names.tagsMergedRequirement}@3`] : [`${names.tagsTrimRequirement}@2`, `${names.tagsLimitRequirement}@2`]),
+      `${names.notesRequirement}@${merging ? 3 : 2}`]);
   await service.close();
   const loaded = await openRuns(root, { identityContract: 'descriptive', script, inputs: treeInputs(), git });
   cleanups.push(() => loaded.service.close());
-  expect(loaded.service.events('review-notes', runId)?.filter(event => event.type === 'evidence-reopened')).toHaveLength(1);
+  expect(loaded.service.events('review-notes', runId)?.filter(event => event.type === 'evidence-reopened'))
+    .toHaveLength(merging ? 2 : 1);
   expect(loaded.service.committed('review-notes', runId)?.entries.flatMap(line => line.transaction.records)
     .some(record => record.path === contractsLayout.requirement(names.notesRequirement, 2))).toBe(true);
   expect(loaded.service.committed('review-notes', runId)?.entries.flatMap(line => line.transaction.records)
     .some(record => record.path === executionRetirementPath(retiredId))).toBe(true);
+  if (merging) {
+    expect(loaded.service.committed('review-notes', runId)?.entries.flatMap(line => line.transaction.records)
+      .some(record => record.path === contractsLayout.requirement(names.tagsMergedRequirement, 3))).toBe(true);
+    expect(loaded.service.events('review-notes', runId)?.filter(event => event.type === 'requirement-verified')
+      .some(event => event.data.requirement === names.tagsMergedRequirement && event.data.revision === 3)).toBe(true);
+  }
   git.assertAnswered();
 }, 120_000);
 

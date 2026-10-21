@@ -4837,15 +4837,37 @@ export class WorkCoordination {
         : identityRecords.contracts.get(assignment.revisesContract.id);
       const acceptedObligation = acceptedAgreement === undefined ? undefined
         : [...identityRecords.obligations.values()].find(record => record.contract.id === acceptedAgreement.id);
+      const agreementRequirements = acceptedObligation === undefined ? []
+        : [...identityRecords.requirements.values()].filter(record => record.obligation === acceptedObligation.id);
+      const currentBindings = this.bindingsOf();
       const ownAcceptedRequirement = acceptedAgreement === undefined || assignment.revisesContract === undefined ? undefined
-        : [...identityRecords.requirements.values()].find(record =>
-          record.obligation === acceptedObligation?.id &&
-          (this.bindingsOf().get(bindingKey(record.id, record.revision)) ?? record.workItem) === item.id);
+        : agreementRequirements.find(record =>
+          (currentBindings.get(bindingKey(record.id, record.revision)) ?? record.workItem) === item.id);
+      const conversionBlockers: string[] = [];
+      if (assignment.revisesContract !== undefined && acceptedAgreement?.mode === 'fake-backed') {
+        if (acceptedObligation === undefined || !this.events('provider-conformed').some(event =>
+          event.data.obligation === acceptedObligation.id && event.data.revision === acceptedObligation.revision))
+          conversionBlockers.push(`provider obligation ${acceptedObligation?.id ?? '<missing>'} has not conformed at its current revision`);
+        const providerWork = acceptedObligation === undefined ? undefined
+          : providerItemOf(identityRecords.workItems, acceptedObligation.id, acceptedObligation.revision, currentBindings);
+        if (providerWork === undefined) conversionBlockers.push('the current provider obligation has no bound provider work item');
+        else if (!this.events('work-item-completed').some(event => event.data.workItem === providerWork.id))
+          conversionBlockers.push(`provider work item ${providerWork.id} has not completed`);
+        for (const requirement of agreementRequirements) {
+          if (!this.events('requirement-verified').some(event =>
+            event.data.requirement === requirement.id && event.data.revision === requirement.revision))
+            conversionBlockers.push(`consumer requirement ${requirement.id} has not been verified at its current revision`);
+        }
+      }
       const identity: ContractIdentityContext = acceptedAgreement === undefined ? { kind: 'fresh' }
         : assignment.revisesContract === undefined
           ? { kind: 'attach', contractId: acceptedAgreement.id, providerObligationId: acceptedObligation?.id ?? null, provider: acceptedAgreement.provider }
           : { kind: 'revise', contractId: acceptedAgreement.id, providerObligationId: acceptedObligation?.id ?? null,
-            consumerRequirementId: ownAcceptedRequirement?.id ?? null, provider: acceptedAgreement.provider };
+            consumerRequirementId: ownAcceptedRequirement?.id ?? null, provider: acceptedAgreement.provider,
+            mode: acceptedAgreement.mode, consumerWorkItem: item.id,
+            consumerRequirements: agreementRequirements.map(record => ({ id: record.id,
+              workItem: currentBindings.get(bindingKey(record.id, record.revision)) ?? record.workItem })),
+            conversionBlockers };
       // The requester's assignment package reaches the session once.
       let assignmentPackage: string | undefined;
       try {
@@ -5148,14 +5170,28 @@ export class WorkCoordination {
         (bindings.get(bindingKey(requirement.id, requirement.revision)) ?? requirement.workItem) === item.id);
 
     const splitKeys = 'consumerRequirementKeys' in submission ? submission.consumerRequirementKeys : null;
+    const mergeSubmission = 'scope' in submission && submission.mode === 'fake-backed'
+      && 'consumerRequirementKey' in submission && 'retirements' in submission ? submission : null;
+    const mergeIds = mergeSubmission === null ? null : new Set(mergeSubmission.retirements.map(entry => entry.id));
+    const mergedKey = mergeSubmission?.consumerRequirementKey ?? null;
+    const mergeSources = mergeIds === null ? [] : attached.filter(requirement => mergeIds.has(requirement.id));
+    const mergeTests = mergeSources.length === 0 ? undefined : {
+      policy: mergeSources.some(requirement => requirement.evidence.tests.policy === 'all-project')
+        ? 'all-project' as const : 'owned-by-scope' as const,
+      exactOwners: [...new Set(mergeSources.flatMap(requirement => requirement.evidence.tests.exactOwners))],
+      subtrees: [...new Set(mergeSources.flatMap(requirement => requirement.evidence.tests.subtrees))],
+      extraSuites: [...new Set(mergeSources.flatMap(requirement => requirement.evidence.tests.extraSuites))],
+    };
     const consumer: AttachedConsumer = {
-      requirement: splitKeys !== null ? splitKeys[0]!.slice('draft:'.length) : mine?.id ?? ('consumerRequirementId' in submission ? submission.consumerRequirementId
+      requirement: splitKeys !== null ? splitKeys[0]!.slice('draft:'.length) : mergedKey !== null ? mergedKey.slice('draft:'.length)
+        : mine?.id ?? ('consumerRequirementId' in submission ? submission.consumerRequirementId
         : 'consumerRequirementKey' in submission ? submission.consumerRequirementKey.slice('draft:'.length) : requirementId(records.requirements.size + 1)),
       workItem: mine?.workItem ?? item.id,
       module: item.module,
       forCapability,
-      tests: mine?.evidence.tests ?? testPolicyOf('ordinary', { module: item.module, included: [] }, []),
-      fakeInjections: submission.fakeInjections,
+      tests: mergeTests ?? mine?.evidence.tests ?? testPolicyOf('ordinary', { module: item.module, included: [] }, []),
+      fakeInjections: mergeSources.length === 0 ? submission.fakeInjections
+        : [...new Set([...submission.fakeInjections, ...mergeSources.flatMap(requirement => requirement.evidence.fakeInjections)])],
     };
     // Every consumer of the agreement is reopened at the new revision; each
     // keeps its own identity, its own tests and its own injection sites,
@@ -5163,7 +5199,7 @@ export class WorkCoordination {
     const consumers: readonly AttachedConsumer[] = revises === undefined
       ? [consumer]
       : [
-        ...attached.filter(requirement => splitKeys === null || requirement.id !== mine?.id)
+        ...attached.filter(requirement => (splitKeys === null || requirement.id !== mine?.id) && !mergeIds?.has(requirement.id))
           .map(requirement => (requirement.id === consumer.requirement ? consumer : {
           requirement: requirement.id,
           workItem: requirement.workItem,
@@ -5173,6 +5209,7 @@ export class WorkCoordination {
           fakeInjections: requirement.evidence.fakeInjections,
         })),
         ...(splitKeys !== null ? splitKeys.map(key => ({ ...consumer, requirement: key.slice('draft:'.length) }))
+          : mergedKey !== null ? [consumer]
           : mine === undefined ? [consumer] : []),
       ];
 
@@ -5221,7 +5258,15 @@ export class WorkCoordination {
           : { kind: 'create', id: 'contractKey' in submission ? `work-item:provide-${obligation!.slice('provider-obligation:'.length)}` : workItemId(records.workItems.length + 1), goal: `Implement ${registryEntry.capability} in ${submission.provider} so that the agreed conformance suite passes against the real provider.`, startedFor: item.id },
     });
 
-    const retirementEntries = 'consumerRequirementKeys' in submission
+    const kindChangeSubmission = submission.mode === 'access-only' && 'contractKey' in submission
+      && 'retirements' in submission ? submission : null;
+    const retirementEntries = mergeSubmission !== null
+      ? mergeSubmission.retirements.map(entry => ({ id: entry.id, kind: 'consumer-requirement' as const,
+        replacements: [mergedKey!.slice('draft:'.length)] }))
+      : kindChangeSubmission !== null && revises !== undefined && existing !== undefined
+        ? kindChangeSubmission.retirements.map(entry => ({ id: entry.id, kind: entry.kind,
+          replacements: [contract] }))
+      : 'consumerRequirementKeys' in submission
       ? [{ id: mine!.id, kind: 'consumer-requirement' as const,
         replacements: submission.consumerRequirementKeys.map(key => key.slice('draft:'.length)) }]
       : revises !== undefined && 'contractKey' in submission && existing !== undefined

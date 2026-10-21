@@ -76,11 +76,20 @@ export function contractMessage(briefing: ContractBriefing): string {
     );
     else lines.push(
       `The accepted agreement is ${identity.contractId}; its provider obligation is ${identity.providerObligationId ?? 'absent (access-only)'}.`,
-      'Cite those exact accepted IDs in contractId and providerObligationId.',
+      identity.providerObligationId === null
+        ? 'For an access-only agreement, cite its exact accepted contractId.'
+        : 'Normally cite those exact accepted IDs in contractId and providerObligationId; an authorized replacement instead proposes draft keys and retires both IDs.',
       identity.kind === 'revise' && identity.consumerRequirementId !== null
-        ? `This revision normally retains ${identity.consumerRequirementId}; cite it in consumerRequirementId. If the authorized revision splits this requirement, use consumerRequirementKeys for the new requirements and retirements with that exact old ID, matching replacementKeys and a reason. If it replaces the agreement and provider obligation, propose new contractKey and providerObligationKey and retire both accepted IDs with matching replacementKeys; retain consumerRequirementId if its behavior stays the same.`
-        : 'The attaching consumer proposes draft:consumer-requirement:<name> in consumerRequirementKey.',
-      'For an access-only agreement cite contractId only; it has no provider obligation or consumer requirement.',
+        ? `This revision normally retains ${identity.consumerRequirementId}; cite it in consumerRequirementId. If the authorized revision splits this requirement, use consumerRequirementKeys for the new requirements and retirements with that exact old ID, matching replacementKeys and a reason. To merge two or more requirements owned by this same consumer work item, propose one consumerRequirementKey, name scope.consumerWorkItem, and retire every merged accepted requirement into that key. If it replaces the agreement and provider obligation, propose new contractKey and providerObligationKey and retire both accepted IDs with matching replacementKeys; retain consumerRequirementId if its behavior stays the same.`
+        : identity.providerObligationId === null ? 'An access-only agreement has no provider obligation or consumer requirement.'
+          : 'The attaching consumer proposes draft:consumer-requirement:<name> in consumerRequirementKey.',
+    );
+    if (identity.kind === 'revise' && identity.mode === 'fake-backed') lines.push(
+      `Current consumer requirements: ${(identity.consumerRequirements ?? []).map(entry => `${entry.id} (${entry.workItem})`).join(', ') || 'none'}.`,
+      'A change to access-only needs a new contractKey and an explicit retirement of the accepted contract, provider obligation and every current consumer requirement into that new contract. Name every affected work item in scope.consumerWorkItems and give each retirement a reason.',
+      (identity.conversionBlockers ?? []).length === 0
+        ? 'The current real-provider and consumer evidence is complete, so an access-only conversion may be proposed.'
+        : `Access-only conversion is not yet authorized: ${identity.conversionBlockers!.join('; ')}. Keep the fake-backed agreement and its actionable evidence until those obligations are met.`,
     );
     lines.push('Use lowercase kebab-case names that describe the behavior. Incorrect IDs and collisions return field-specific correction in this task.', '');
   }

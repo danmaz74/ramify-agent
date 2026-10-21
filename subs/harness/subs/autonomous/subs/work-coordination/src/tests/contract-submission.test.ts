@@ -85,7 +85,7 @@ describe('the contract submission', () => {
     expect(descriptiveContractIdentityErrors(accepted.value, occupied).map(error => error.path))
       .toEqual(['contractKey', 'consumerRequirementKey']);
     expect(descriptiveContractIdentityErrors(accepted.value, occupied, new Set(['contract:review-predecessor-resolution']))
-      .map(error => error.path)).toEqual(['consumerRequirementKey']);
+      .map(error => error.path)).toEqual(['contractKey', 'consumerRequirementKey']);
   });
   test('attachment and revision cite the accepted agreement before the gate', async () => {
     const current = { contractId: 'contract:review-predecessor-resolution',
@@ -131,6 +131,24 @@ describe('the contract submission', () => {
           reason: 'The provider obligation follows the replacement agreement.' },
       ] };
     expect((await validateContract(replacement, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    const replacementAccepted = await validateContract(replacement, await evidence(), 'descriptive', revision);
+    if (!replacementAccepted.ok || replacementAccepted.value.kind !== 'established') throw new Error('replacement was rejected');
+    const occupied = new Map([
+      ['contract:review-predecessor-routing', 'has an accepted agreement'],
+      ['provider-obligation:provide-review-predecessor-routing', 'has a retired obligation'],
+    ]);
+    expect(descriptiveContractIdentityErrors(replacementAccepted.value, occupied,
+      new Set([current.contractId, current.providerObligationId])).map(error => error.path))
+      .toEqual(['contractKey', 'providerObligationKey']);
+    const corrected = { ...replacementAccepted.value,
+      contractKey: 'draft:contract:review-predecessor-routing-v2',
+      providerObligationKey: 'draft:provider-obligation:provide-review-predecessor-routing-v2',
+      retirements: [
+        { ...replacement.retirements[0], replacementKeys: ['draft:contract:review-predecessor-routing-v2'] },
+        { ...replacement.retirements[1], replacementKeys: ['draft:provider-obligation:provide-review-predecessor-routing-v2'] },
+      ] };
+    expect(descriptiveContractIdentityErrors(corrected, occupied).map(error => error.path)).toEqual([]);
+    expect((await validateContract(corrected, await evidence(), 'descriptive', revision)).ok).toBe(true);
     const foreignAgreement = await validateContract({ ...replacement, retirements: [
       { ...replacement.retirements[0], id: 'contract:foreign' }, replacement.retirements[1],
     ] }, await evidence(), 'descriptive', revision);
@@ -153,6 +171,59 @@ describe('the contract submission', () => {
       await evidence(), 'descriptive', { kind: 'attach', ...current })).ok).toBe(false);
     expect(JSON.stringify(contractAuthorJsonSchema('descriptive', { kind: 'attach', ...current })))
       .toContain('contractId');
+  });
+  test('a requirement merge stays with one consumer and preserves every named source', async () => {
+    const current = { contractId: 'contract:review-predecessor-resolution',
+      providerObligationId: 'provider-obligation:provide-review-predecessor-resolution' };
+    const first = 'consumer-requirement:preview-reads-parent';
+    const second = 'consumer-requirement:preview-reads-sibling';
+    const revision = { kind: 'revise' as const, ...current, consumerRequirementId: first,
+      consumerWorkItem: 'work-item:review-preview',
+      consumerRequirements: [{ id: first, workItem: 'work-item:review-preview' },
+        { id: second, workItem: 'work-item:review-preview' }] };
+    const key = 'draft:consumer-requirement:preview-resolves-predecessors';
+    const merged = { ...established(), ...current, consumerRequirementKey: key,
+      scope: { consumerWorkItem: 'work-item:review-preview' },
+      retirements: [first, second].map(id => ({ id, kind: 'consumer-requirement', replacementKeys: [key],
+        reason: 'The same preview verification now covers both predecessor paths.' })) };
+    expect((await validateContract(merged, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    const foreign = await validateContract({ ...merged, retirements: [merged.retirements[0],
+      { ...merged.retirements[1], id: 'consumer-requirement:foreign' }] }, await evidence(), 'descriptive', revision);
+    expect(foreign.ok).toBe(false);
+    if (!foreign.ok) expect(foreign.errors.map(error => error.path)).toContain('retirements.1.id');
+    const wrongScope = await validateContract({ ...merged, scope: { consumerWorkItem: 'work-item:another' } },
+      await evidence(), 'descriptive', revision);
+    expect(wrongScope.ok).toBe(false);
+    if (!wrongScope.ok) expect(wrongScope.errors.map(error => error.path)).toContain('scope.consumerWorkItem');
+  });
+  test('a kind change must retire all current identities after provider and consumers settle', async () => {
+    const contractId = 'contract:review-predecessor-resolution';
+    const providerObligationId = 'provider-obligation:provide-review-predecessor-resolution';
+    const requirementId = 'consumer-requirement:preview-resolves-review-predecessors';
+    const key = 'draft:contract:expose-review-predecessors';
+    const revision = { kind: 'revise' as const, contractId, providerObligationId, consumerRequirementId: requirementId,
+      consumerWorkItem: 'work-item:review-preview', mode: 'fake-backed' as const,
+      consumerRequirements: [{ id: requirementId, workItem: 'work-item:review-preview' }],
+      conversionBlockers: [] };
+    const changed = { ...established({ mode: 'access-only',
+      artifacts: { ...established().artifacts, fake: [], conformance: [] }, fakeInjections: [] }),
+      contractKey: key, scope: { consumerWorkItems: ['work-item:review-preview'] },
+      retirements: [
+        { id: contractId, kind: 'contract', replacementKeys: [key], reason: 'Existing behavior is exposed directly.' },
+        { id: providerObligationId, kind: 'provider-obligation', replacementKeys: [key], reason: 'The real provider conformed.' },
+        { id: requirementId, kind: 'consumer-requirement', replacementKeys: [key], reason: 'The consumer verified the existing behavior.' },
+      ] };
+    expect((await validateContract(changed, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    const blocked = await validateContract(changed, await evidence(), 'descriptive', { ...revision,
+      conversionBlockers: [`consumer requirement ${requirementId} has not been verified at its current revision`] });
+    expect(blocked.ok).toBe(false);
+    if (!blocked.ok) expect(blocked.errors.map(error => error.path)).toContain('scope');
+    const omitted = await validateContract({ ...changed, retirements: changed.retirements.slice(0, 2) },
+      await evidence(), 'descriptive', revision);
+    expect(omitted.ok).toBe(false);
+    const bypass = await validateContract({ ...changed, providerObligationKey: 'draft:provider-obligation:unexpected',
+      consumerRequirementId: requirementId }, await evidence(), 'descriptive', revision);
+    expect(bypass.ok).toBe(false);
   });
   test('it is a union discriminated on kind, and has no field for an ID the harness knows', () => {
     const union = (contractJsonSchema as { anyOf?: unknown[]; oneOf?: unknown[] });
