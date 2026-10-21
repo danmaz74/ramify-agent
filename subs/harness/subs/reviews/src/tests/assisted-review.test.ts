@@ -23,6 +23,8 @@ describe('assisted review preparation', () => {
           conclusion: 'Feature complete; exact protection authority remains pending.', remaining: ['Protected contract change requires authority.'], evidenceRefs: [accepted] }] } } });
     expect(diff).not.toHaveBeenCalled();
     expect(prepared.message).toContain('Final plan review');
+    expect(prepared.message).toContain('Tests added in earlier plan iterations remain this implementation');
+    expect(prepared.message).toContain('required repair, not waive it as optional quality work');
     expect(prepared.message).not.toContain('huge cumulative patch');
     expect(prepared.message).not.toContain('Combined code and scope review');
     for (const phrase of ['whole-plan completeness', 'cross-iteration integration', 'fixed and nonfunctional', 'architectural quality',

@@ -1,3 +1,4 @@
+import { configuredAuditInstability } from '../../audit/src/check-execution.js';
 import { finalIterationContext } from './final-context.js';
 import { verifiedCandidateSource } from '../../evidence/src/git-text.js';
 import { createHash } from 'node:crypto';
@@ -104,6 +105,8 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
           artifact: await context.retainEvidence(audit) } satisfies AuditEvidenceReference : audit;
       await record('audit', retained);
     }
+    const instability = configuredAuditInstability(audit.result?.provider);
+    const testingContext = `Original plan/execution baseline: ${baseline}. This remains the origin boundary across iterations and repairs. Read original files with assessment_evidence ref baseline:<path>. Retained audit: assessment_evidence ref assessments/${assessment.id}/stages/audit.json (includes raw provider evidence and verdict).\nProvider-established instability (not test origin):\n${instability.length ? instability.join('\n') : 'None reported in the supplied provider result.'}`;
     if (audit.state === 'unavailable') gaps.push(`Audit evidence unavailable: ${audit.detail}`);
 
     const protection = stages<ProtectionComparison>('protection') ?? await (dependencies.protection ?? compareProtection)({
@@ -204,7 +207,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     const prior = priorReview?.evidence as ReviewEvidence | undefined;
     if (request.kind === 'iteration' && previous && !request.reviewReason && prior?.result.status === 'submitted'
       && prior.result.value.requirements.every(answer => answer.outcome === 'met') && !substantiveGaps(previous).length
-      && !findingDetails(context.findingState()).some(detail => detail.summary.standing === 'open') && !protection.violations.length && !gaps.length && audit.state === 'passed') {
+      && !findingDetails(context.findingState()).some(detail => detail.summary.standing === 'open') && !protection.violations.length && !gaps.length && audit.state === 'passed' && instability.length === 0) {
       await record('review-policy', { mode: 'not-run', reason: 'Selected correction verified by configured checks; no remaining semantic repair selected.', previousAssessment: previous.id });
       return compactOutcome({ gate: 'clear', summary: 'Repair candidate verified; broad review deliberately not repeated.',
         repairs: [], decisions: [], gaps: [], evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`) });
@@ -269,7 +272,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     if (reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
         briefing: { id: assessment.id, kind: request.kind, finalContext, iteration: assessment.id, snapshot, outcome: (focused ? 'Focused repair follow-up: inspect the selected repairs and relevant surrounding behavior. Do not repeat the broad iteration review or unchanged discretionary issues. Verify previously unmet requirements affected by the repair.\n' : '') + intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
-          requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
+          testingContext, requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
       const operations = await dependencies.operations();
       const result = await scheduledReview(async () => (dependencies.review ?? runAssistedPiReview)({
@@ -319,7 +322,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       const message = reconciliationFactsMessage({ id, owner: 'assisted execution', round: 1, source: { commit: snapshot.commit, tree: snapshot.tree },
         introduction: `Reconcile concerns for assisted job ${job.jobId}, assessment ${assessment.id}. Investigate uncertain claims using the candidate tools. Deduplicate by the same behavior or obligation, never just location. Do not edit source.`,
         authority: 'You may plan repairs, replace disproved judgments, or verify semantic fixes after inspection. You cannot waive or defer obligations, change protected commitments, or dismiss factual required failures. Leave unresolved material decisions for the coordinator. Do not promote stylistic nits or speculative optional work.',
-        context: `Audit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\n${request.kind === 'final' && !focused ? `Captured plan:\n${context.planMarkdown}\n` : 'Original plan available with assessment_evidence ref captured-plan.\n'}Iteration: ${intendedOutcome}`,
+        context: `${testingContext}\nAudit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\n${request.kind === 'final' && !focused ? `Captured plan:\n${context.planMarkdown}\n` : 'Original plan available with assessment_evidence ref captured-plan.\n'}Iteration: ${intendedOutcome}`,
         requests: [{ request: assessment.id, kind: 'code/scope/design', iteration: assessment.id, candidate: snapshot.commit,
           attempt: reviewed.result.operationId, result: reviewed.result.status === 'submitted' ? (gaps.length ? 'partial; see assessment gaps' : 'complete') : `not verified: ${reviewed.result.reason}` }],
         attention, others: details.filter(detail => !entries.has(detail.summary.id)).map(detail => detail.summary),

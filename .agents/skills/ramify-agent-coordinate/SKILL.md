@@ -67,6 +67,27 @@ When waiting for native workers, use `wait_agent` with `timeout_ms: 900000` wher
 | `action-required` | Give native workers the concise repair brief; resolve only remaining decisions that need authority. Assess the repaired candidate. |
 | `incomplete` | Investigate the missing evidence or failed stage, while also handling established repairs. It is not an acceptance. |
 
+For test flakiness, use the audit provider's current or retained instability
+evidence, including native retries; a failure alone or an arbitrary focused pass
+does not establish flakiness. Tests added by this implementation or plan must
+provide reliable verification. Give workers unresolved added-test flakiness as
+required repair or deterministic replacement preserving coverage, even after a
+passing audit with warnings. Do not use discretionary finding decisions to waive
+this obligation, or accept weaker assertions, skipped cases, increased retries or
+rerunning until green as repair.
+
+Determine origin per individual test against the original registered execution
+baseline, including additions to existing files. Supply that baseline and the
+specific audit evidence in repair briefs. Moving, renaming or editing existing
+tests preserves their origin; tests added earlier in the plan remain implementation
+responsibility across iterations and repair attempts. Audit history proves
+instability, not origin. Unknown origin calls for a focused baseline/source
+comparison; keep uncertainty when evidence cannot decide and never assume newness.
+Once a test is established as existing, its flakiness creates no repair
+investigation, reruns or assignment. Preserve raw evidence and the audit verdict.
+Strict `flakiness.onFailure="failure"` remains a blocker, authorizing neither an
+existing-test repair nor an audit waiver.
+
 Correctly repaired issues need no separate approval or historical-incident notification. Pi investigates and reconciles; do not manually repeat its reviews in Astra. If an unavailable diagnostic blocks Pi, arrange the needed investigation with a native worker and provide concrete evidence references on reassessment. Preserve genuine evidence gaps.
 
 Use `finding_list` for pending choices. `finding_answer` records an actual authorized user choice; `protection_accept` records explicit acceptance of one exact protected change from a completed assessment. Read the usage guide for their arguments when needed. Neither command edits source or authorizes itself. Required audit failures cannot be waived. Complete the applicable assessment, including the cumulative final assessment when the plan is ready, before asking the user to approve, or while they consider the exact proposed diff shown inline. Make approval the final ordinary step. On an unchanged candidate with retained readiness evidence, `protection_accept` atomically derives its effective result from the verified stages and typed authority dependencies without rerunning audit or Pi. Read `assessment_result` for the effective gate and `assessment_detail` for the original outcome and derived provenance. Every protected difference needs exact authorization; unrelated failures, repairs and gaps remain blocking. Historical assessments without readiness evidence or typed dependencies require an ordinary fresh assessment; do not interpret arbitrary review prose as an authority dependency. A changed candidate always requires fresh assessment. Avoid turning optional observations into tracker tickets.
@@ -88,8 +109,9 @@ behavior. Read `review-policy` stage evidence when the distinction matters.
 Use `finding_decide` with `action: "fix"`, `"leave"` or `"defer"` and a short
 `rationale` for discretionary concerns. This records coordinator judgment rather
 than user approval. Read the effective result afterward; unmet requirements and
-required checks still need repair. A failed configured audit returns diagnostics
-directly without semantic review; send those diagnostics to the engineer.
+required checks retain their obligations. A failed configured audit returns diagnostics
+directly without semantic review; apply the test-origin rules above before assigning
+repairs and preserve blockers that do not authorize implementation work.
 
 An unavailable advisory review calls for ordinary judgment. Investigate useful
 missing evidence or record `review_continue` with a rationale when continuing is

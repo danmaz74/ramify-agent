@@ -311,6 +311,22 @@ export function configuredFullRecovery(provider: unknown): 'timeout' | 'infrastr
   return null;
 }
 
+/** Project the provider's established instability for prompts without deciding test origin or changing its verdict. */
+export function configuredAuditInstability(provider: unknown): readonly string[] {
+  if (typeof provider !== 'object' || provider === null || !('status' in provider)) return [];
+  const result = provider as AuditResult;
+  const projects = result.projects ?? [{ projectRoot: '.', result }];
+  return projects.flatMap(project => {
+    const evidence = project.result;
+    if (evidence.status !== 'completed') return [];
+    const warnings = evidence.summary.warningDispositions ?? [];
+    const failures = evidence.flakiness?.failures.filter(failure => failure.classification === 'observed-instability' || failure.priorInstability) ?? [];
+    return warnings.length || failures.length ? [JSON.stringify({ projectRoot: project.projectRoot,
+      warnings, failures, evidence: evidence.flakiness?.evidence, refs: evidence.refs,
+      policy: evidence.summary.flakinessPolicy })] : [];
+  });
+}
+
 /** One configured audit, as readiness and every committing gate ask for it. */
 export interface ConfiguredAuditInput {
   readonly projectRoot: string;

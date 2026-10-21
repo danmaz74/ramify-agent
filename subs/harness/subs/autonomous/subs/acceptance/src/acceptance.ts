@@ -485,7 +485,11 @@ export class Acceptance {
         .map(module => posix.join(module.directory, 'src/tests')),
     } : null;
     const checkFindings = knownFindingSummary({ ...this.observe().findings, findings: new Map([...this.observe().findings.findings].filter(([, entry]) => sameWorkItem(entry.owner, request.workItem))) });
-    const setup = kind === 'design' ? undefined : await this.ports.coordination.checkInputSection(snapshot);
+    const auditConfiguration = this.input.record.auditConfiguration;
+    const originalBaseline = auditConfiguration && 'config' in auditConfiguration ? auditConfiguration.config.sourceCommit : null;
+    const setup = [kind === 'design' ? '' : await this.ports.coordination.checkInputSection(snapshot),
+      `Original plan/execution baseline: ${originalBaseline ?? 'unavailable; preserve uncertainty about test origin'}. The iteration diff base is not the origin boundary. Inspect relevant original test source with Git through shell when needed.`,
+      `Retained gate/audit evidence: ${this.path(runLayout.gate(request.gate))}. Read the receipt and its provider evidence references for warning dispositions and current or retained instability; preserve the recorded verdict.`].filter(Boolean).join('\n');
     const planDocument = snapshot.entries.get(planPath(this.input.record.planId))?.kind === 'file' ? planPath(this.input.record.planId) : null;
     let prepared: PreparedReview;
     const preparation = new AbortController();

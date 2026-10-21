@@ -1,3 +1,4 @@
+import { testReliabilityGuidance } from './test-reliability.js';
 import { z } from 'zod';
 import type { CandidateSource } from '../../evidence/src/git.js';
 import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../task-execution/src/submissions.js';
@@ -48,6 +49,7 @@ export interface AssistedReviewBriefing {
   readonly snapshot: CandidateSnapshot;
   readonly outcome: string;
   readonly audit: { readonly status: 'passed' | 'failed' | 'pending' | 'unavailable'; readonly detail?: string };
+  readonly testingContext?: string;
   readonly requirements: readonly AssistedRequirement[];
   readonly principles: readonly { readonly path: string; readonly note: string }[];
   readonly protectionPaths?: readonly string[];
@@ -61,6 +63,7 @@ export function assistedReviewMessage(input: AssistedReviewBriefing, diffPayload
   const lines = [
     `Combined code and scope review ${input.id} for iteration ${input.iteration}.`, '',
     `Candidate commit: ${snapshot.commit}; tree: ${snapshot.tree}; base commit: ${snapshot.base}.`,
+    testReliabilityGuidance, '', input.testingContext ?? 'Inspect retained audit and original baseline evidence when test reliability is in question.', '',
     `Audit: ${input.audit.status}${input.audit.detail ? ` — ${input.audit.detail}` : ''}.`, '',
     '## Intended outcome', '', input.outcome, '',
     '## Acceptance references', '',
@@ -145,6 +148,7 @@ function assistedFinalReviewMessage(input: AssistedReviewBriefing, diffPayload: 
   return [
     `Final plan review ${input.id}.`, '',
     `Candidate commit: ${snapshot.commit}; tree: ${snapshot.tree}; base commit: ${snapshot.base}.`,
+    testReliabilityGuidance, '', input.testingContext ?? 'Inspect retained audit and original baseline evidence when test reliability is in question.', '',
     `Audit: ${input.audit.status}${input.audit.detail ? ` — ${input.audit.detail}` : ''}.`,
     `Final protection: ${finalContext?.protection ?? 'See retained protection evidence.'}`, '',
     'Assess whole-plan completeness, cross-iteration integration, remaining fixed and nonfunctional obligations, unresolved findings and meaningful limitations. Assess architectural quality: avoid unnecessary complexity and preserve clean modularity. This is a final plan assessment, not another broad iteration code/scope pass.',

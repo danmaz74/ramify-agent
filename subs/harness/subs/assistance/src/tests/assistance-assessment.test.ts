@@ -155,6 +155,9 @@ describe('assisted assessment pipeline with real service records', () => {
         return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: `script-${visits.length}`, eventCount: 1 };
       },
       reconcile: async input => {
+        expect(input.message).toContain(`Original plan/execution baseline: ${baseline}`);
+        expect(input.message).toContain('required repair, not waive it as optional quality work');
+        expect(input.message).toContain('its flakiness creates no repair investigation, reruns or assignment');
         const isRepair = input.candidate === first;
         if (!isRepair) await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.ts' }, new AbortController().signal);
         const submission = { relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: isRepair ? 'Behavior needs correction.' : 'Fresh candidate returns 2.',
@@ -729,6 +732,38 @@ describe('assisted assessment pipeline with real service records', () => {
     const effective = service.assessmentResult('sample', job.jobId, initial.id)!;
     expect(effective.gate).toBe('action-required');
     expect(effective.repairs.join(' ')).toContain('acceptance-1');
+  });
+
+  it.each(['warning', 'native-retry', 'retained'] as const)('reviews %s instability after a passing audit against the original baseline', async kind => {
+    const identity = { checkId: 'tests', command: 'vitest run', runner: 'vitest', project: 'node', path: 'src/feature.test.ts', testId: 'returns 2 reliably' };
+    const provider = { status: 'completed', summary: { warningDispositions: kind === 'warning' ? [{ entry: identity, basis: 'current-instability' }] : [], flakinessPolicy: { onFailure: 'warning' } },
+      refs: { runRef: 'refs/audits/reliability' }, flakiness: { evidence: { reportObject: 'report-object', artifactPath: 'flakiness.json' }, failures: kind === 'warning' ? [] : [{ identity,
+        classification: kind === 'native-retry' ? 'observed-instability' : 'reproduced', nativeRetry: kind === 'native-retry',
+        ...(kind === 'retained' ? { priorInstability: { sourceRevision: first, evidence: { reportObject: 'prior-report', artifactPath: 'observations.json' } } } : {}) }] } };
+    const review = vi.fn(async (input: Parameters<NonNullable<AssessmentDependencies['review']>>[0]) => {
+      const value = reviewReport(input.candidate);
+      if (input.candidate === repaired) {
+        expect(input.prepared.message).toContain(`Original plan/execution baseline: ${baseline}`);
+        expect(input.prepared.message).toContain(`base commit: ${first}`);
+        expect(input.prepared.message).toContain('returns 2 reliably');
+        expect(input.prepared.message).toContain('not test origin');
+        expect(input.prepared.message).toContain('including additions to existing files');
+        expect(input.prepared.message).toContain('its flakiness creates no repair investigation, reruns or assignment');
+        const evidence = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
+        expect(evidence).toBeDefined();
+        value.requirements[0] = { ...value.requirements[0]!, outcome: 'unmet', explanation: 'The test added in the earlier plan iteration still needs deterministic verification preserving its coverage.' };
+      }
+      return { status: 'submitted' as const, value, operationId: input.operationId, sessionId: 'script', eventCount: 1 };
+    });
+    const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline), [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
+      operations: unusedOperations, audit: async input => ({ ...audit(input.candidateCommit),
+        result: { ...audit(input.candidateCommit).result, provider: input.candidateCommit === repaired ? provider : undefined } }), review });
+    const initial = await assess(first, baseline, 'initial');
+    expect(initial.outcome.gate).toBe('clear');
+    const followUp = await assess(repaired, first, 'follow-up', { previousAssessment: initial.id });
+    expect(review).toHaveBeenCalledTimes(2);
+    expect(followUp.outcome.gate).toBe('action-required');
+    expect(followUp.outcome.repairs.join(' ')).toContain('deterministic verification');
   });
 
   it.each(['leave', 'defer'] as const)('records coordinator %s and verifies a correction without repeating broad review', async action => {

@@ -1,3 +1,4 @@
+import { testReliabilityGuidance } from './test-reliability.js';
 import { deviationNotice } from '../../plan-evidence/src/interfaces/catalog.js';
 import type { CapturedInput } from './inputs.js';
 import type { CandidateSnapshot } from './snapshot.js';
@@ -78,6 +79,8 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     '',
     'The request\'s assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.',
     '',
+    testReliabilityGuidance, '',
+    'Inspect the retained audit evidence for this candidate, including warning dispositions and current or retained instability; a passing gate can still report unstable tests. Use original baseline/source evidence to determine origin.', '',
     '## The iteration',
     '',
     ...(assignment === null

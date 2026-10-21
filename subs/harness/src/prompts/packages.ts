@@ -160,11 +160,11 @@ export interface PromptPackageOptions {
 export const initialArchitectPackage = 'initial-architect/7';
 export const catalogExtractorPackage = 'catalog-extractor/2';
 export const globalForkPackage = 'global-fork/8';
-export const localArchitectPackage = 'local-architect/21';
+export const localArchitectPackage = 'local-architect/22';
 export const contextSelectorPackage = 'context-selector/4';
-export const engineerPackage = 'engineer/17';
-export const capabilityEngineerPackage = 'engineer/16';
-export const capabilityArchitectPackage = 'capability-architect/9';
+export const engineerPackage = 'engineer/18';
+export const capabilityEngineerPackage = 'engineer/19';
+export const capabilityArchitectPackage = 'capability-architect/10';
 export const contractEngineerPackage = 'contract-engineer/5';
 export const reviewerPackage = 'reviewer/5';
 export const failureAnalystPackage = 'failure-analyst/2';

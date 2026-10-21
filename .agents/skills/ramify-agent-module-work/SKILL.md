@@ -31,6 +31,28 @@ Consult the coordinator when design uncertainty needs a decision, another worker
 
 Preserve behavioral contracts and Ramify importability. Verify consumer/provider behavior together where it matters; local mocks alone do not demonstrate integration. When repairing an RA finding, use its evidence and acceptance to address the cause and relevant regressions, rather than changing the requirement or merely removing the reported symptom. Run checks appropriate to the change; RA performs the iteration audit.
 
+## Reliable tests
+
+Tests added by this implementation or plan must provide reliable verification.
+When the audit establishes flakiness in an added test, repair or replace it with
+a deterministic test preserving its intended coverage. Do not weaken assertions,
+skip cases, increase retries or merely rerun until green. Unresolved added-test
+flakiness remains required work even when the audit passes with warnings.
+
+Determine origin per individual test against the original registered execution
+baseline, including additions to existing files. Moves, renames and edits preserve
+existing origin; tests added in earlier plan iterations remain implementation
+responsibility across repairs. Audit history proves instability, not origin.
+If origin is unknown, compare relevant baseline and current source; preserve
+uncertainty if the evidence cannot decide rather than assuming the test is new.
+
+Use provider current or retained instability evidence, including native retries.
+A failure alone or a focused passing run does not establish flakiness. Existing-test
+flakiness creates no repair investigation, reruns or assignment. Preserve raw audit
+evidence and the verdict. Strict `flakiness.onFailure="failure"` remains a blocker;
+report it to the coordinator without repairing an existing flaky test or waiving
+the audit.
+
 ## Delegate bounded work
 
 A Sol worker assigned directly by Astra may use Sol subagents for bounded investigation, implementation or verification without asking permission again. Choose separable work whose benefit justifies briefing, repeated orientation and integration. This permits one additional delegation level: children of a Sol worker may not spawn further subagents. Honor explicit user restrictions and available agent capacity; continue locally when delegation is unavailable.

@@ -103,6 +103,11 @@ describe('precollected candidate patches in actual review invocations', () => {
       expect(diff).toContain(`--- a/${store}\n+++ b/${store}`);
       expect(diff).toContain('+export export const store = new Map(); // v1');
       expect(packet.message.split('+export export const store = new Map(); // v1')).toHaveLength(2);
+      expect(packet.message).toContain('Original plan/execution baseline:');
+      expect(packet.message).toContain('The iteration diff base is not the origin boundary');
+      expect(packet.message).toContain('Retained gate/audit evidence:');
+      expect(packet.message).toContain('its flakiness creates no repair investigation, reruns or assignment');
+      expect(packet.message).toContain('require repair or replacement with a deterministic test preserving its intended coverage');
       expect(attempt).toMatchObject({ requestedStart: request === 'rq-0001' ? 'fresh' : 'fork', result: { result: 'complete' } });
     }
     expect(run.source.calls).toContain(`diffPatch revision-01 ${store}`);

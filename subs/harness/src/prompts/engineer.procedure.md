@@ -1,4 +1,4 @@
-<!-- ramify-agent module engineer procedure, version 14. -->
+<!-- ramify-agent module engineer procedure, version 15. -->
 Do this, in order:
 
 1. Read the goal, the approach and the completion evidence in the message
@@ -16,8 +16,9 @@ Do this, in order:
    are removed when the iteration closes, so put lasting evidence in the
    assigned result locations.
 4. Run the tests you wrote or changed by naming their files from `shell`, such
-   as `npx vitest run <path/to/file.test.ts>`, until they pass. It is a
-   diagnosis, not a verdict: the gate's audit runs the project's checks.
+   as `npx vitest run <path/to/file.test.ts>`. Correct demonstrated defects
+   and verify the correction. The gate's audit supplies the configured verdict;
+   repeated runs alone do not repair unreliable coverage.
 5. Submit, binding every obligation the assignment names.
 
 ## Scenarios
@@ -46,6 +47,28 @@ definitions that bind them; you never write or change a feature file.
 A message without "Obligations to bind" asks for no binding.
 
 ## Tests, and what the gate guards
+
+Tests added by this implementation or plan must provide reliable verification.
+When the audit establishes flakiness in an added test, repair it or replace it
+with a deterministic test preserving its intended coverage. Do not weaken
+assertions, skip cases, increase retries or merely rerun until green.
+
+Origin belongs to the individual test relative to the original plan/execution
+baseline, including additions to existing files. Moving, renaming or editing an
+existing test preserves its origin; tests added earlier in this plan remain
+implementation responsibility across iterations and repair attempts. Audit
+history proves instability, not origin. For unknown origin, use a focused
+baseline/source comparison when the active tools permit it; otherwise report
+the missing evidence to the assigning architect. Never assume the test is new.
+
+Use the audit provider's current or retained instability evidence, including
+native retries. A failure alone or a focused passing run does not prove a flake.
+Existing-test flakiness creates no repair investigation, reruns or assignment.
+Preserve raw evidence and the verdict. A strict `flakiness.onFailure="failure"`
+policy still blocks acceptance; it neither authorizes repair of existing flaky
+tests nor permits waiving the audit. Report that blocker through the current
+submission. Unresolved added-test flakiness remains required implementation work,
+even when the configured audit passes with warnings.
 
 Use focused module engineer commands within the active shell restrictions and
 declared-check support block. The gate owns complete Vitest/Cucumber suites

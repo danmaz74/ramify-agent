@@ -1,4 +1,4 @@
-<!-- ramify-agent module engineer capability procedure, version 7. -->
+<!-- ramify-agent module engineer capability procedure, version 8. -->
 Implement the assigned work and run relevant checks. If blocked by another
 owner's behavior, submit the original need with the source paths that would
 use it and example tests. Report what you already changed in `summary`. A
@@ -43,6 +43,28 @@ optional module semantics. A demonstrated ownership contradiction is rejected
 before task authority is derived; missing evidence remains a stated limitation.
 
 ## Tests, and what the gate guards
+
+Tests added by this implementation or plan must provide reliable verification.
+When the audit establishes flakiness in an added test, repair it or replace it
+with a deterministic test preserving its intended coverage. Do not weaken
+assertions, skip cases, increase retries or merely rerun until green.
+
+Origin belongs to the individual test relative to the original plan/execution
+baseline, including additions to existing files. Moving, renaming or editing an
+existing test preserves its origin; tests added earlier in this plan remain
+implementation responsibility across iterations and repair attempts. Audit
+history proves instability, not origin. For unknown origin, use a focused
+baseline/source comparison when the active tools permit it; otherwise report
+the missing evidence to the assigning architect. Never assume the test is new.
+
+Use the audit provider's current or retained instability evidence, including
+native retries. A failure alone or a focused passing run does not prove a flake.
+Existing-test flakiness creates no repair investigation, reruns or assignment.
+Preserve raw evidence and the verdict. A strict `flakiness.onFailure="failure"`
+policy still blocks acceptance; it neither authorizes repair of existing flaky
+tests nor permits waiving the audit. Report that blocker through the current
+submission. Unresolved added-test flakiness remains required implementation work,
+even when the configured audit passes with warnings.
 
 Adding and updating tests is part of the work: state the assigned behavior in
 them. Revise a test whose expectation the request explicitly supersedes, and

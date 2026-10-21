@@ -470,9 +470,25 @@ describe('S01: every engineer invocation of a run is the engineer step its recor
     const repair = deliveries[1]!;
     expect(repair.delivered.packet.additions.some(item => item.kind === 'role-instructions')).toBe(false);
     expect(repair.inputs.failedGate?.id).toBe('ga-0002');
+    expect(repair.delivered.packet.message).toContain('existing-test flakiness creates no repair investigation, reruns or assignment');
+    expect(repair.delivered.packet.message).toContain('deterministic repair preserving coverage');
   }, 300_000);
 });
 
+
+describe('test reliability instructions reach engineering tasks', () => {
+  test.each([true, false])('delivers original test origin and repair policy with capability workflow %s', capability => {
+    const loaded = (capability ? current : ordinary).get('engineer')!;
+    const packet = buildTaskPacket(input(loaded, 'engineering'));
+    const delivered = [packet.roleInstructions, packet.message].join('\n');
+    expect(delivered).toContain('original plan/execution');
+    expect(delivered).toContain('including additions to existing files');
+    expect(delivered).toContain('deterministic test preserving its intended coverage');
+    expect(delivered).toContain('Existing-test flakiness creates no repair investigation, reruns or assignment');
+    expect(delivered).toContain('flakiness.onFailure="failure"');
+    expect(delivered).not.toContain('until they pass');
+  });
+});
 
 describe('assignment command policy delivery', () => {
   test.each([['local-architect', 'assignment'], ['local-architect', 'completion'], ['local-architect', 'repair'], ['capability-architect', 'capability']] as const)('%s/%s receives current default and ceiling without a shell', (role, kind) => {

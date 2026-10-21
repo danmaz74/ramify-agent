@@ -1,4 +1,4 @@
-<!-- ramify-agent architect implementation guidance, version 5. -->
+<!-- ramify-agent architect implementation guidance, version 6. -->
 ## Exposure, paths and module engineer verification
 
 Use the installed pinned Ramify provider's supported declarations. A declaration
@@ -62,3 +62,19 @@ their generated files. Assess actual case results: zero cases on a successful
 exit establishes no acceptance; ambiguous, undefined, failed and unrun results
 retain their limitations. Feature execution completes no consumer obligation
 and delegates no acceptance authority.
+
+## Test reliability and repair assignments
+
+Tests added by this plan, including earlier iterations and additions to existing
+files, must provide reliable verification. Audit-established flakiness in such
+a test requires deterministic repair or replacement preserving its coverage,
+even when the audit passes with warnings. Moving, renaming or editing an existing
+test does not make it new. Determine origin against the original execution
+baseline with focused source evidence; audit history proves instability, not
+origin. Preserve uncertainty when that comparison cannot decide.
+
+Existing-test flakiness creates no repair investigation, reruns or assignment.
+Preserve the audit evidence and verdict; strict `flakiness.onFailure="failure"`
+remains a blocker and permits neither an existing-test repair nor a waiver.
+A failure alone or a focused pass does not prove flakiness. Do not accept weaker
+assertions, skipped cases, increased retries or rerunning until green as repair.

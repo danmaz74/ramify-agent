@@ -1,3 +1,4 @@
+import { testReliabilityGuidance } from './test-reliability.js';
 import type { CheckFindingDetailView, CheckFindingSummary } from '../../check-findings/src/interfaces/check-findings.js';
 
 /** How many reports and decisions of one CheckFinding the packet shows, newest last. */
@@ -50,6 +51,7 @@ export function reconciliationFactsMessage(packet: ReconciliationFacts): string 
     '## This round',
     '',
     'Discretionary suggestions may be waived or deferred with a short rationale; no user approval is needed for ordinary architect decisions. Actual unmet requirements and failed required checks retain their meaning. A correction may be planned for any signal. Reconsider repeated attempts against the latest evidence: change an ineffective approach, continue useful work, or end refinement when the requirements are satisfied and further benefit is too small.',
+    testReliabilityGuidance,
     packet.authority,
     '',
     '## Review coverage',
