@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { scriptedCandidates } from '../../../autonomous/subs/acceptance/src/tests/helpers/candidates.js';
-import { prepareAssistedReview } from '../assisted.js';
+import { z } from 'zod';
+import { assistedReviewDeclarationSchema, prepareAssistedReview } from '../assisted.js';
 import { openCandidateSnapshot } from '../snapshot.js';
 
 const root = '/scripted/project';
@@ -38,7 +39,19 @@ describe('assisted review preparation', () => {
         principles: [], requirements: [{ ref: 'plan', text: 'Implement feature.' }] } });
     expect(diff).toHaveBeenCalled();
     expect(ordinary.message).toContain('Combined code and scope review');
-    expect(ordinary.validate(report).ok).toBe(false);
+    expect(ordinary.validate(report)).toMatchObject({ ok: false, errors: expect.arrayContaining([{ path: 'requirements.0.evidenceRefs', message: 'evidenceRefs applies only to a final assessment; omit it and cite candidate evidencePaths' }]) });
+    const iterationAnswer = { ref: 'plan', outcome: 'met', explanation: 'The candidate implements the feature.', evidencePaths: ['src/feature.ts'] };
+    expect(ordinary.validate({ ...report, requirements: [iterationAnswer] }).ok).toBe(true);
+  });
+
+  it('declares evidenceRefs only to the final review', () => {
+    const final = z.toJSONSchema(assistedReviewDeclarationSchema('final'), { io: 'input' });
+    const iteration = z.toJSONSchema(assistedReviewDeclarationSchema('iteration'), { io: 'input' });
+    const answer = (schema: unknown) => (schema as { properties: { requirements: { items: { properties: Record<string, { description?: string }> } } } }).properties.requirements.items.properties;
+    expect(answer(final).evidenceRefs?.description).toContain('Accepted iteration review references');
+    expect(answer(iteration)).not.toHaveProperty('evidenceRefs');
+    expect(Object.keys(answer(iteration))).toEqual(['ref', 'outcome', 'explanation', 'evidencePaths', 'pendingProtection']);
+    expect(JSON.stringify(z.toJSONSchema(assistedReviewDeclarationSchema(undefined), { io: 'input' }))).toBe(JSON.stringify(iteration));
   });
 
   it('renders factual audit state and requires answers for behavior absent from the diff', async () => {
