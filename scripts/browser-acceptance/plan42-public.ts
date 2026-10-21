@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { checkFindingDetailSchema } from '../../subs/harness/src/interfaces/protocol/check-findings.js';
+import { protocolPaths } from '../../subs/harness/src/interfaces/protocol/paths.js';
 
 /*
  * Browser witness for accepted Plan 42 identities. The fixture runs real
@@ -27,7 +29,7 @@ try {
     while (Date.now() < deadline) {
       if (fixture.exitCode !== null) throw new Error(`The public fixture exited with ${fixture.exitCode}`);
       if (existsSync(out)) {
-        try { return JSON.parse(await readFile(out, 'utf8')) as { origin: string; page: string; runId: string }; }
+        try { return JSON.parse(await readFile(out, 'utf8')) as { origin: string; page: string; planId: string; runId: string }; }
         catch { /* The fixture is still writing. */ }
       }
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -64,6 +66,22 @@ try {
   assert.equal(await accept.isChecked(), true);
   await finding.getByLabel('Your name').fill('Browser reviewer');
   assert.equal(await finding.getByRole('button', { name: 'Answer' }).isEnabled(), true);
+  await finding.getByRole('button', { name: 'Answer' }).click();
+  await finding.getByRole('status').getByText('The answer was accepted;', { exact: false }).waitFor();
+  const decisionResponse = await fetch(`${served.origin}${protocolPaths.runCheckFinding(served.planId, served.runId, 'finding:reviewer-notes-1')}`);
+  assert.equal(decisionResponse.status, 200);
+  const recorded = checkFindingDetailSchema.parse(await decisionResponse.json());
+  assert.equal(recorded.summary.id, 'finding:reviewer-notes-1');
+  assert.equal(recorded.summary.reason, 'waived');
+  assert.equal(recorded.summary.planDeviation?.id, 'plan-deviation:move-reviewer-notes');
+  assert.ok(recorded.decisions.items.some(decision => decision.action.action === 'waive'
+    && decision.action.authority.startsWith('user-decision ')
+    && decision.by.kind === 'user' && decision.by.name === 'Browser reviewer'));
+  await page.reload({ waitUntil: 'networkidle' });
+  const reloaded = page.getByLabel('CheckFinding finding:reviewer-notes-1');
+  await reloaded.getByLabel('Standing').getByText('Waived', { exact: true }).waitFor();
+  assert.match(await reloaded.getByRole('group', { name: 'Waiver' }).innerText(), /Browser reviewer/);
+  assert.match(await reloaded.innerText(), /plan-deviation:move-reviewer-notes/);
   assert.deepEqual(errors, []);
   process.stdout.write(`Plan 42 public browser witness passed for ${served.runId}\n`);
 } finally {
