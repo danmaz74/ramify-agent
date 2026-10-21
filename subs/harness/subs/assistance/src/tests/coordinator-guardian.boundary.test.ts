@@ -18,6 +18,36 @@ async function connect(endpoint: string, token: string) { const client = new Cli
 const baseline = 'a'.repeat(40);
 const assistance = { registrationProtection: async () => ({ baselineCommit: baseline, rules: { explicitPaths: [], excludedPaths: [], guardedPaths: [], additions: 'protect' as const }, gaps: [], unavailable: null }), resolveCommit: async (_root: string, revision: string) => revision === 'HEAD' ? baseline : revision, currentHead: async () => baseline, isCleanRepository: async () => true };
 
+test('a live host guardian reaps adopted completed descendants and keeps the host exit status', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-live-reaping-'));
+  const marker = join(root, 'adopted.pid');
+  const finish = join(root, 'finish');
+  const receipt = join(root, 'guardian.json');
+  const hostScript = [
+    'import os, subprocess, sys, time',
+    'subprocess.run(["bash", "-c", "sleep 0.1 & echo $! > $1", "_", sys.argv[1]], check=True)',
+    'while not os.path.exists(sys.argv[2]): time.sleep(0.01)',
+    'sys.exit(23)',
+  ].join('\n');
+  const guardian = spawn('python3', [fileURLToPath(new URL('../coordinator-guardian.py', import.meta.url)),
+    ownedTreeKernelPath(), receipt, randomUUID(), 'python3', '-c', hostScript, marker, finish],
+  { stdio: 'ignore', env: { ...process.env, RAMIFY_COORDINATOR_GUARDIAN_RECORD: receipt } });
+  const closed = once(guardian, 'close');
+  try {
+    let adopted = 0;
+    await vi.waitFor(async () => { adopted = Number(await readFile(marker, 'utf8')); expect(adopted).toBeGreaterThan(0); }, { timeout: 5000 });
+    await vi.waitFor(() => expect(() => process.kill(adopted, 0)).toThrow(), { timeout: 5000 });
+    expect(JSON.parse(await readFile(receipt, 'utf8'))).toMatchObject({ state: 'running' });
+    await writeFile(finish, 'done');
+    const [code] = await closed;
+    expect(code).toBe(23);
+    expect(JSON.parse(await readFile(receipt, 'utf8'))).toMatchObject({ state: 'settled' });
+  } finally {
+    if (guardian.exitCode === null && guardian.signalCode === null) { guardian.kill('SIGTERM'); await closed; }
+    await rm(root, { recursive: true, force: true });
+  }
+}, 15000);
+
 test('host guardian settles actual assessor and provider orphans after host death while retained assessment waits for explicit resume', async () => {
   const root = await mkdtemp(join(tmpdir(), 'coordinator-assessor-crash-')); let host: CoordinatorHost | undefined; let first: Client | undefined; let second: Client | undefined;
   const unrelated = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
@@ -28,7 +58,7 @@ test('host guardian settles actual assessor and provider orphans after host deat
     const options = coordinatorStartSchema.parse({ projectRoot: root, planId: 'sample', commandId: 'guardian-launch', skill, codexExecutable: fileURLToPath(new URL('./native-provider.py', import.meta.url)), replaceMcp: ['old-stdio'] });
     const descriptor = { path: join(root, 'guardian.json'), generation: randomUUID() }; const request = join(root, 'launch.json');
     await writeFile(request, JSON.stringify({ options, guardian: descriptor }), { mode: 0o600 });
-    guardian = spawn('python3', [fileURLToPath(new URL('../coordinator-guardian.py', import.meta.url)), ownedTreeKernelPath(), descriptor.path, descriptor.generation, process.execPath, '--import', import.meta.resolve('tsx'), fileURLToPath(new URL('./native-recovery-host.ts', import.meta.url)), request], { cwd: root, stdio: 'ignore' });
+    guardian = spawn('python3', [fileURLToPath(new URL('../coordinator-guardian.py', import.meta.url)), ownedTreeKernelPath(), descriptor.path, descriptor.generation, process.execPath, '--import', import.meta.resolve('tsx'), fileURLToPath(new URL('./native-recovery-host.ts', import.meta.url)), request], { cwd: root, env: { ...process.env, RAMIFY_COORDINATOR_GUARDIAN_RECORD: descriptor.path }, stdio: 'ignore' });
     guardianClosed = once(guardian, 'close');
     await vi.waitFor(async () => expect((await coordinatorStatus(root)).record.phase).toBe('ready'), { timeout: 10000 });
     const previous = (await readCoordinator(root)).record; const runtime = (await readCoordinator(root)).runtime!; ownerPid = previous.owner.pid;

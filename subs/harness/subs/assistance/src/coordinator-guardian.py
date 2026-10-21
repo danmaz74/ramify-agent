@@ -57,6 +57,8 @@ try:
             retain('running')
             retained_written = True
         code = host.poll()
+        if code is None:
+            kernel.reap_adopted((host.pid,))
         time.sleep(0.02)
     kernel.settle(5, lambda: retain('unsettled', 'Owned host descendants did not settle within the bound'))
     retain('settled')

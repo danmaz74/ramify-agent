@@ -43,6 +43,22 @@ def children():
         owned.update(discovered)
 
 
+def reap_adopted(excluding=()):
+    # The supervisor owns its host's exit status. Reap only other direct
+    # children adopted by the subreaper while that host is still running.
+    pid = os.getpid()
+    with open('/proc/%d/task/%d/children' % (pid, pid)) as source:
+        direct = [int(child) for child in source.read().split()]
+    for child in direct:
+        if child in excluding:
+            continue
+        try:
+            os.waitpid(child, os.WNOHANG)
+        except ChildProcessError:
+            # The child may have been reaped between the proc read and wait.
+            pass
+
+
 def settle(timeout=5, on_timeout=lambda: None):
     deadline = time.monotonic() + timeout
     while True:

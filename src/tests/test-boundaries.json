@@ -657,9 +657,10 @@
     },
     {
       "file": "subs/harness/subs/assistance/src/tests/coordinator-guardian.boundary.test.ts",
-      "boundary": "Real detached host guardian, actual assistance service and HTTP MCP, separate provider/assessor setsid orphan trees and explicit interrupted-assessment continuation",
-      "whyFakeCannotProve": "Scripted transports cannot establish that an assessor orphan outside the Codex supervisor tree is adopted and killed after actual host death, while an unrelated process survives and the same assessment requires explicit resume. Git, provider protocol and assessor outcomes are scripted without model inference.",
+      "boundary": "Real detached host guardian, actual assistance service and HTTP MCP, live adoption/reaping, separate provider/assessor setsid orphan trees and explicit interrupted-assessment continuation",
+      "whyFakeCannotProve": "Scripted transports cannot establish that an adopted child is reaped while its host remains live, or that an assessor orphan outside the Codex supervisor tree is adopted and killed after actual host death, while an unrelated process survives and the same assessment requires explicit resume. Git, provider protocol and assessor outcomes are scripted without model inference.",
       "owningCases": [
+        "a live host guardian reaps adopted completed descendants and keeps the host exit status",
         "host guardian settles actual assessor and provider orphans after host death while retained assessment waits for explicit resume"
       ]
     },
