@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AuditResult } from 'ramify-audit';
 
 import {
-  configuredProjectResult, configuredResultRefusal, nestedInvocationRefusal, sameAuditPolicy, type CommittedAuditConfiguration,
+  configuredAuditInstabilityObservations, configuredProjectResult, configuredResultRefusal, nestedInvocationRefusal, sameAuditPolicy, type CommittedAuditConfiguration,
 } from '../check-execution.js';
 
 /*
@@ -74,6 +74,20 @@ function completed(shape: Shape = {}): Completed {
 const refusal = (result: Completed, mode: 'project-default' | 'full' = 'project-default') => configuredResultRefusal(result, configuration, mode, made);
 
 describe('a completed audit as a gate\'s answer', () => {
+  it('groups warning ledger entries and retry failures by canonical test identity', () => {
+    const result = completed();
+    const entry = { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+      path: 'src/tests/feature.test.ts', kind: 'test', testId: 'returns 2' };
+    result.summary.warningDispositions = [{ entry, basis: 'current-instability' }] as Completed['summary']['warningDispositions'];
+    result.flakiness = { failures: [{ identity: { testId: entry.testId, path: entry.path, project: entry.project,
+      runner: entry.runner, command: entry.command, checkId: entry.checkId }, classification: 'observed-instability' }],
+      evidence: { reportObject: 'report', artifactPath: 'flakiness.json' } } as Completed['flakiness'];
+    const observations = configuredAuditInstabilityObservations(result);
+    expect(observations).toHaveLength(1);
+    expect(observations[0]).toMatchObject({ path: entry.path });
+    expect(JSON.parse(observations[0]!.detail)).toMatchObject({ warnings: [{ basis: 'current-instability' }],
+      failures: [{ classification: 'observed-instability' }] });
+  });
   it('accepts a fresh record of the requested commit', () => {
     expect(refusal(completed())).toBeNull();
     expect(refusal(completed(), 'full')).toBeNull();

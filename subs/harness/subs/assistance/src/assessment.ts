@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { JsonSchema } from '../../agent/src/interfaces/port.js';
 import type { SessionOperations } from '../../agent/src/interfaces/session-operations.js';
 import { decideCheckFindingChange } from '../../check-findings/src/decide.js';
+import type { CheckFindingCommand, CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
 import { gitCandidateSource, type CandidateSource } from '../../evidence/src/git.js';
 import { openCandidateSnapshot, snapshotTools, verifySnapshotEvidence, resolveSnapshotPath, type CandidateSnapshot } from '../../reviews/src/snapshot.js';
 import { prepareAssistedReview, type AssistedReviewSubmission } from '../../reviews/src/assisted.js';
@@ -24,6 +25,10 @@ import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindi
 
 const digest = (value: unknown): string => `sha256:${createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex')}`;
 const errorText = (error: unknown): string => error instanceof Error ? error.message : String(error);
+const semanticFindingSummary = (state: CheckFindingState) => knownFindingSummary({ ...state, findings: new Map(
+  [...state.findings].filter(([, entry]) => entry.verification.kind === 'assessment'
+    && !entry.reports.some(report => report.producer === 'review:test-reliability')),
+) });
 
 export interface AssessmentDependencies {
   readonly operations: () => Promise<SessionOperations>;
@@ -108,6 +113,9 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         await record('audit', retained);
         return result;
       })();
+    // Observe both branches immediately: evidence retention and checkpointing
+    // can reject while a concurrent reviewer is still draining on cancellation.
+    const auditOutcome = auditWork.then(value => ({ ok: true as const, value }), error => ({ ok: false as const, error }));
 
     try {
 
@@ -125,8 +133,9 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         const historical = await openCandidateSnapshot(source, projectRoot, { commit: retained.request.candidate,
           base: retained.request.kind === 'final' ? baseline : retained.request.base });
         const review = (retained.stages.find(stage => stage.name === 'review-accepted') ?? retained.stages.find(stage => stage.name === 'review'))?.evidence as ReviewEvidence | undefined;
-        if (review?.result.status !== 'submitted') throw new Error('Historical settlement has no retained accepted review');
-        await verifyRetainedReview(review, { snapshot: historical, source, projectRoot, signal });
+        const deliberatelyOmitted = (retained.stages.find(stage => stage.name === 'review-policy')?.evidence as { mode?: string } | undefined)?.mode === 'not-run';
+        if (review?.result.status === 'submitted') await verifyRetainedReview(review, { snapshot: historical, source, projectRoot, signal });
+        else if (!deliberatelyOmitted) throw new Error('Historical settlement has no retained accepted review');
         await verifyReconciliationSource(cached, { snapshot: historical, source, projectRoot, job, planMarkdown: context.planMarkdown, signal });
       } catch (error) {
         signal.throwIfAborted();
@@ -183,18 +192,19 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       ...request.requirementDocuments.map((document, index) => ({ ref: `requirement-document-${index + 1}`,
         text: `Selected guidance: ${document.path} at ${document.revision}. Read exact original on demand with assessment_evidence ref requirement-document-${index + 1}; determine its applicability and adoption status.` })),
     ];
-    const priorReview = previous?.stages.find(stage => stage.name === 'review-accepted') ?? previous?.stages.find(stage => stage.name === 'review');
+    const priorReview = reviewBasis?.stages.find(stage => stage.name === 'review-accepted') ?? reviewBasis?.stages.find(stage => stage.name === 'review');
     const prior = priorReview?.evidence as ReviewEvidence | undefined;
     const skipReview = request.kind === 'iteration' && previous && !request.reviewReason && prior?.result.status === 'submitted'
       && prior.result.value.requirements.every(answer => answer.outcome === 'met') && !substantiveGaps(previous).length
-      && !findingDetails(context.findingState()).some(detail => detail.summary.standing === 'open') && !protection.violations.length && !gaps.length;
+      && !findingDetails(context.findingState()).some(detail => detail.summary.standing === 'open' && detail.summary.verification.kind === 'assessment'
+        && !detail.reports.items.some(report => report.producer === 'review:test-reliability')) && !protection.violations.length && !gaps.length;
     if (!stages('review-policy')) await record('review-policy', { mode: skipReview ? 'not-run' : focused ? 'focused-follow-up' : request.kind === 'final' ? 'final-plan' : 'broad',
       reason: skipReview ? 'Selected semantic correction has no remaining semantic repair; configured checks are evaluated separately.'
         : request.reviewReason ?? (focused ? 'Verify selected repairs and relevant surrounding behavior.' : request.kind === 'final' ? 'Assess whole-plan completeness, integration and architectural quality using retained iteration evidence.' : 'Initial assessment.'), previousAssessment: previous?.id ?? null });
     const intendedOutcome = request.brief
       + (request.focusModule === undefined ? '' : `\nDeclared module focus: ${request.focusModule ?? 'broader assignment'}. Focus is advisory; cross-module changes are allowed.`)
       + (request.additionalContext === undefined ? '' : `\nAdditional context:\n${request.additionalContext}`);
-    const followUp = previous === undefined || request.kind === 'final' && !focused ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Prior outcome: ${previous.outcome?.gate ?? previous.status}.\n${previous.outcome?.repairs.join('\n') ?? ''}\nRetained requirement judgments: ${JSON.stringify(retainedRequirementAnswers(previous, context.assessments()))}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Earlier conclusions retain their original provenance; explain why they still apply or inspect behavior affected by the repair.`;
+    const followUp = previous === undefined || request.kind === 'final' && !focused ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Retained requirement judgments: ${JSON.stringify(retainedRequirementAnswers(previous, context.assessments()))}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Earlier conclusions retain their original provenance; explain why they still apply or inspect behavior affected by the repair.`;
     // The immutable candidate makes both unchanged dependencies and changed files inspectable.
     const principles = request.requirementDocuments.map(document => ({ path: document.path, note: `Selected by the coordinator at ${document.revision}; filename alone does not establish adoption.` }));
     const baselineEntries = await source.treeEntries(projectRoot, baseline);
@@ -249,7 +259,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     if (!skipReview && reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
         briefing: { id: assessment.id, kind: request.kind, finalContext, iteration: assessment.id, snapshot, outcome: (focused ? 'Focused repair follow-up: inspect the selected repairs and relevant surrounding behavior. Do not repeat the broad iteration review or unchanged discretionary issues. Verify previously unmet requirements affected by the repair.\n' : '') + intendedOutcome + followUp,
-          requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
+          requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: semanticFindingSummary(context.findingState()) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
       const operations = await dependencies.operations();
       if (!stages('review-started')) await record('review-started', { candidate: snapshot.commit, startedAt: new Date().toISOString() });
@@ -278,7 +288,9 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       if (reports.length) await context.recordFindings(reports, 'review-reports');
     }
 
-    const audit = await auditWork;
+    const audited = await auditOutcome;
+    if (!audited.ok) throw audited.error;
+    const audit = audited.value;
     const instability = configuredAuditInstabilityObservations(audit.result?.provider);
     const testingContext = `Original plan/execution baseline: ${baseline}. This remains the origin boundary across iterations and repairs. Read original files with assessment_evidence ref baseline:<path>. Retained audit: assessment_evidence ref assessments/${assessment.id}/stages/audit.json (includes raw provider evidence and verdict).\nProvider-established instability (not test origin):\n${instability.length ? instability.map(item => item.detail).join('\n') : 'None reported in the supplied provider result.'}`;
     if (audit.state === 'unavailable') gaps.push(`Audit evidence unavailable: ${audit.detail}`);
@@ -290,8 +302,10 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       protectionSelection: digest({ baseline, rules: job.protection!.rules }), evidence: factualEvidence,
       protectionEvidence: { kind: 'protection-comparison', ref: `assessments/${assessment.id}/stages/protection.json`, hash: digest(protection) } });
     if (factual.length) await context.recordFindings(factual);
-    if (instability.length) await context.recordFindings(reportAuditInstability({ state: context.findingState(), assessment: assessment.id, tree: snapshot.tree,
-      observations: instability, evidence: factualEvidence }), 'audit-instability');
+    const instabilityReports = stages<CheckFindingCommand[]>('audit-instability-reports') ?? reportAuditInstability({ state: context.findingState(), assessment: assessment.id, tree: snapshot.tree,
+      observations: instability, evidence: factualEvidence });
+    if (!stages('audit-instability-reports')) await record('audit-instability-reports', instabilityReports);
+    if (instabilityReports.length) await context.recordFindings(instabilityReports, 'audit-instability');
 
     let reconciliation = stages<ReconciliationEvidence>('reconciliation-accepted') ?? stages<ReconciliationEvidence>('reconciliation');
     if (reconciliation?.status === 'submitted') {
@@ -326,7 +340,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       const operations = await dependencies.operations();
       reconciliation = await (dependencies.reconcile ?? runPiAssessment)({ operations, runId: job.jobId,
         operationId: `${assessment.id}-reconciliation-${assessment.revision}`, projectRoot, candidate: snapshot.commit, tree: snapshot.tree,
-        message, systemPrompt: 'Investigate and reconcile the supplied findings using the pinned candidate evidence. Submit one disposition for each requested finding and evidence-backed relations. Inspect relevant code, tests and consumers before fixing or superseding a concern. Required checks and protection conflicts remain factual obligations. Use submit_reconciliation.',
+        message, systemPrompt: 'Investigate and reconcile the supplied findings using the pinned candidate evidence. Submit one disposition for each requested finding and evidence-backed relations. Inspect relevant code, tests and consumers before fixing or superseding a concern. For an added unstable test, a fixed disposition requires inspected repaired test source, equivalent reliable coverage, and no current provider instability for that test; an unrelated warning does not veto the repair. Required checks and protection conflicts remain factual obligations. Use submit_reconciliation.',
         tools: [...tools.definitions, retainedEvidence], signal,
         onSubmitted: async (value, evidence) => record('reconciliation-accepted', { status: 'submitted', value, ...evidence, exactSourceReads: [...tools.read().keys()] }),
         submission: { name: 'submit_reconciliation', description: 'Submit the reconciled judgments and remaining action brief.',
@@ -355,8 +369,14 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
                 .some(report => report.producer === 'review:test-reliability');
               if (reliability && (item.action.action === 'waive' || item.action.action === 'request-user-decision'))
                 return [{ path: `dispositions.${index}.action`, message: 'Provider-established instability needs test-origin judgment; preserve a new-test repair or unresolved origin.' }];
-              if (reliability && item.action.action === 'fixed' && instability.length)
+              const held = details.find(detail => detail.summary.id === item.checkFinding);
+              const currentInstability = held?.reports.items.some(report => report.producer === 'review:test-reliability'
+                && instability.some(observation => report.issueKey === `audit-instability-${observation.key}`));
+              if (reliability && item.action.action === 'fixed' && currentInstability)
                 return [{ path: `dispositions.${index}.action`, message: 'The current provider still reports instability; a passing audit verdict alone cannot verify reliable coverage.' }];
+              if (reliability && item.action.action === 'fixed' && held?.reports.items.some(report => report.producer === 'review:test-reliability'
+                && report.observation.locations.some(location => !tools.read().has(location.path))))
+                return [{ path: `dispositions.${index}.action`, message: 'Inspect the repaired test source and establish equivalent reliable coverage before closing its finding.' }];
               if ((item.action.action === 'fixed' || item.action.action === 'supersede') && tools.read().size === 0)
                 return [{ path: `dispositions.${index}.action`, message: 'Inspect candidate source before closing a semantic concern.' }];
               return [];
@@ -407,7 +427,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       ...remaining, gaps, evidence: [...new Set([...evidence, ...context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`)])] });
     } finally {
       // An interrupted review does not abandon a check already running on this candidate.
-      await auditWork.catch(() => undefined);
+      await auditOutcome;
     }
   };
 }

@@ -329,17 +329,22 @@ export function configuredAuditInstability(provider: unknown): readonly string[]
 }
 
 /** One provider-established observation per test, with identity stable across audit receipts. */
-export function configuredAuditInstabilityObservations(provider: unknown): readonly { key: string; detail: string }[] {
+export function configuredAuditInstabilityObservations(provider: unknown): readonly { key: string; detail: string; path: string | null }[] {
   if (typeof provider !== 'object' || provider === null || !('status' in provider)) return [];
   const result = provider as AuditResult;
   const projects = result.projects ?? [{ projectRoot: '.', result }];
   return projects.flatMap(project => {
     const evidence = project.result;
     if (evidence.status !== 'completed') return [];
-    const grouped = new Map<string, { warnings: unknown[]; failures: unknown[] }>();
+    const grouped = new Map<string, { warnings: unknown[]; failures: unknown[]; path: string | null }>();
     const collect = (identity: unknown, kind: 'warnings' | 'failures', item: unknown) => {
-      const key = JSON.stringify({ projectRoot: project.projectRoot, identity });
-      const held = grouped.get(key) ?? { warnings: [], failures: [] };
+      const record = typeof identity === 'object' && identity !== null ? identity as Record<string, unknown> : {};
+      // Ledger entries contain `kind`; flakiness identities do not. Both
+      // describe the same test using this documented identity tuple.
+      const key = JSON.stringify({ projectRoot: project.projectRoot, checkId: record.checkId ?? null,
+        command: record.command ?? null, runner: record.runner ?? null, project: record.project ?? null,
+        path: record.path ?? null, testId: record.testId ?? null });
+      const held = grouped.get(key) ?? { warnings: [], failures: [], path: typeof record.path === 'string' ? record.path : null };
       held[kind].push(item);
       grouped.set(key, held);
     };
@@ -348,6 +353,7 @@ export function configuredAuditInstabilityObservations(provider: unknown): reado
       if (failure.classification === 'observed-instability' || failure.priorInstability) collect(failure.identity, 'failures', failure);
     return [...grouped].map(([identity, observations]) => ({
       key: createHash('sha256').update(identity).digest('hex'),
+      path: observations.path,
       detail: JSON.stringify({ projectRoot: project.projectRoot, ...observations,
         evidence: evidence.flakiness?.evidence, refs: evidence.refs, policy: evidence.summary.flakinessPolicy }),
     }));

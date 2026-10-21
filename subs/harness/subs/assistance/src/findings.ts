@@ -61,7 +61,7 @@ export function reportReviewConcerns(input: {
 /** Provider instability is an observed reliability question, independent of review coverage. */
 export function reportAuditInstability(input: {
   state: CheckFindingState; assessment: string; tree: string;
-  observations: readonly { key: string; detail: string }[]; evidence: CheckFindingEvidence;
+  observations: readonly { key: string; detail: string; path?: string | null }[]; evidence: CheckFindingEvidence;
 }): CheckFindingCommand[] {
   return input.observations.flatMap((observation, index) => {
     const issueKey = `audit-instability-${observation.key}`;
@@ -74,7 +74,7 @@ export function reportAuditInstability(input: {
       owner: { kind: 'run' }, source: { kind: 'tree', id: input.tree }, issueKey,
       verification: { kind: 'assessment' },
       observation: { kind: 'review-concern', summary,
-        evidence: [input.evidence], locations: [] },
+        evidence: [input.evidence], locations: observation.path ? [{ path: observation.path, startLine: null, endLine: null }] : [] },
       judgment: { actor: { kind: 'harness', reason: 'Provider evidence requires plan-origin judgment' },
         consequence: 'Determine whether this unstable test was added by the plan; added tests require reliable verification.',
         rationale: 'The audit provider established instability, but it did not determine test origin.',
@@ -207,5 +207,5 @@ export function retainedRequirementAnswers(assessment: AssistedAssessment, asses
 }
 
 export function substantiveGaps(assessment: AssistedAssessment | undefined): string[] {
-  return assessment?.outcome?.gaps.filter(gap => !/^(Required review|Reconciliation) unavailable:/u.test(gap)) ?? [];
+  return assessment?.outcome?.gaps.filter(gap => !/^(Required review|Reconciliation|Audit evidence) unavailable:/u.test(gap)) ?? [];
 }

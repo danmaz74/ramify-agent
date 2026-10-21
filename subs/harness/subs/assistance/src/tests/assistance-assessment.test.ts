@@ -99,6 +99,27 @@ describe('assisted assessment pipeline with real service records', () => {
     expect((await outcome(service, job.jobId, admitted.assessmentId)).gate).toBe('clear');
   });
 
+  it('observes an audit checkpoint rejection while a cancelled review is still draining', async () => {
+    let releaseAudit!: () => void, releaseReview!: () => void;
+    const auditHeld = new Promise<void>(resolve => { releaseAudit = resolve; });
+    const reviewHeld = new Promise<void>(resolve => { releaseReview = resolve; });
+    const started: string[] = [];
+    const { service, job } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline) }, {
+      operations: unusedOperations,
+      audit: async input => { started.push('audit'); await auditHeld; return audit(input.candidateCommit); },
+      review: async input => { started.push('review'); await reviewHeld; return { status: 'submitted', value: reviewReport(input.candidate),
+        operationId: input.operationId, sessionId: 'draining-review', eventCount: 1 }; },
+    });
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'cancel-concurrent' });
+    await vi.waitFor(() => expect(started).toEqual(['audit', 'review']));
+    await service.assessmentCancel('sample', job.jobId, admitted.assessmentId);
+    releaseAudit();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(service.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('cancelled');
+    releaseReview();
+  });
+
   it.each(['stale-decision', 'stale-relation', 'committed'] as const)('resumes accepted reconciliation without replaying a %s on a later revision', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'assistance-reconciliation-resume-')); roots.push(root);
     await mkdir(join(root, 'plans/sample'), { recursive: true });
@@ -795,6 +816,85 @@ describe('assisted assessment pipeline with real service records', () => {
       checkFinding: 'cf-0001', action: 'leave', rationale: 'Treat as optional.', commandId: `dismiss-${kind}` })).rejects.toThrow('cannot be waived or deferred');
   });
 
+  it('replays the retained instability report batch after reconciliation interruption', async () => {
+    const provider = { status: 'completed', summary: { warningDispositions: [{ entry: { path: 'src/feature.test.ts', testId: 'returns 2' },
+      basis: 'current-instability' }] } };
+    let attempts = 0;
+    const deps: Omit<AssessmentDependencies, 'candidates'> = {
+      operations: unusedOperations, audit: async input => ({ ...audit(input.candidateCommit), result: {
+        ...audit(input.candidateCommit).result, provider } }),
+      review: async input => ({ status: 'submitted', value: reviewReport(input.candidate), operationId: input.operationId,
+        sessionId: 'review', eventCount: 1 }),
+      reconcile: async input => {
+        if (++attempts === 1) throw new Error('Interrupted after the instability finding was ingested');
+        await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.test.ts' }, new AbortController().signal);
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001',
+          rationale: 'The test is present in the execution baseline.', communication: { mode: 'quiet' },
+          action: { action: 'supersede', reassessed: ['cfr-0001'], replacement: 'Existing test.' } }],
+          next: { kind: 'complete' }, brief: 'Existing instability retained.' });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'reconciliation', eventCount: 1 };
+      },
+    };
+    const testFile = 'src/feature.test.ts';
+    const existing = (value: string, base: string) => ({ ...source(value, base), files: { ...source(value, base).files,
+      [testFile]: 'it("returns 2", () => expect(feature).toBe(2));\n' } });
+    const { service, job, candidates } = await setup({ [baseline]: existing('0', baseline), [first]: existing('2', baseline) }, deps);
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'interrupted-instability' });
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    const staged = service.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages;
+    expect(staged.find(stage => stage.name === 'audit-instability-reports')).toBeDefined();
+    expect(service.findings('sample', job.jobId)).toHaveLength(1);
+    await service.close();
+    const resumed = await AssistanceService.open({ projectRoot: service.projectRoot,
+      assessor: createAssessor({ ...deps, candidates }) });
+    services.push(resumed);
+    await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(resumed.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('completed'));
+    expect((await outcome(resumed, job.jobId, admitted.assessmentId)).gate).toBe('clear');
+    expect(resumed.findings('sample', job.jobId)).toHaveLength(1);
+  });
+
+  it('verifies an added test repair while an unrelated existing test remains unstable', async () => {
+    const added = 'src/added.test.ts', existing = 'src/existing.test.ts';
+    const warning = (path: string) => ({ entry: { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node', path, testId: 'returns 2' }, basis: 'current-instability' });
+    const commits = {
+      [baseline]: { ...source('0', baseline), files: { ...source('0', baseline).files, [existing]: 'existing test\n' } },
+      [first]: { ...source('2', baseline), files: { ...source('2', baseline).files, [existing]: 'existing test\n', [added]: 'unstable test\n' } },
+      [repaired]: { ...source('2', first), tree: 'tree-repaired', files: { ...source('2', first).files, [existing]: 'existing test\n', [added]: 'reliable equivalent test\n' },
+        comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }, { status: 'A', path: added }] } } },
+    };
+    let reconciliations = 0;
+    const { service, job, assess } = await setup(commits, { operations: unusedOperations,
+      audit: async input => ({ ...audit(input.candidateCommit), result: { ...audit(input.candidateCommit).result,
+        provider: { status: 'completed', summary: { warningDispositions: input.candidateCommit === first
+          ? [warning(added), warning(existing)] : [warning(existing)] } } } }),
+      review: async input => ({ status: 'submitted', value: reviewReport(input.candidate), operationId: input.operationId, sessionId: 'review', eventCount: 1 }),
+      reconcile: async input => {
+        reconciliations++;
+        const read = input.tools.find(tool => tool.name === 'snapshot_read')!;
+        await read.execute({ path: added }, new AbortController().signal);
+        await read.execute({ path: existing }, new AbortController().signal);
+        const dispositions = reconciliations === 1 ? [
+          { checkFinding: 'cf-0001', rationale: 'The plan added this test and must repair its flakiness.', communication: { mode: 'quiet' }, action: { action: 'repair' } },
+          { checkFinding: 'cf-0002', rationale: 'This exact test exists in the original baseline.', communication: { mode: 'quiet' },
+            action: { action: 'supersede', reassessed: ['cfr-0002'], replacement: 'Existing test instability.' } },
+        ] : [{ checkFinding: 'cf-0001', rationale: 'The repaired added test has equivalent reliable coverage and is stable in this audit.',
+          communication: { mode: 'quiet' }, action: { action: 'fixed', reassessed: ['cfr-0001'] } }];
+        const validated = await input.submission.validate({ relations: [], dispositions,
+          next: reconciliations === 1 ? { kind: 'correct', goal: 'Repair the added test.' } : { kind: 'complete' }, brief: 'Test origin and reliability verified.' });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'reconciliation', eventCount: 1 };
+      },
+    });
+    const initial = await assess(first, baseline, 'two-warnings');
+    expect(initial.outcome.gate).toBe('action-required');
+    const followUp = await assess(repaired, first, 'repair-added', { previousAssessment: initial.id });
+    expect(followUp.outcome.gate).toBe('clear');
+    expect(service.findings('sample', job.jobId)).toHaveLength(2);
+  });
+
   it.each(['existing', 'unknown'] as const)('keeps %s test origin judgment in reconciliation without asking the reviewer', async origin => {
     const testFile = 'src/feature.test.ts';
     const withTest = (value: string, base: string) => ({ ...source(value, base), files: { ...source(value, base).files,
@@ -834,6 +934,10 @@ describe('assisted assessment pipeline with real service records', () => {
       expect(repeated.outcome.gate).toBe('clear');
       expect(service.findings('sample', job.jobId)).toHaveLength(1);
       expect(review).toHaveBeenCalledTimes(1);
+      const third = await assess(repaired, first, 'origin-third', { previousAssessment: repeated.id });
+      expect(third.outcome.gate).toBe('clear');
+      expect(service.findings('sample', job.jobId)[0]?.standing).toBe('closed');
+      expect(review).toHaveBeenCalledTimes(1);
     } else expect(firstAssessment.outcome.gaps.join(' ')).toContain('Test origin');
   });
 
@@ -870,6 +974,38 @@ describe('assisted assessment pipeline with real service records', () => {
     const reopened = await AssistanceService.open({ projectRoot: service.projectRoot }); services.push(reopened);
     expect(await reopened.findingDecide(request)).toEqual(receipt);
     expect(reopened.findings('sample', job.jobId)[0]!.decisions.some(decision => decision.rationale === request.rationale)).toBe(true);
+  });
+
+  it('closes a corrected audit failure without repeating semantic review', async () => {
+    const review = vi.fn(async (input: Parameters<NonNullable<AssessmentDependencies['review']>>[0]) => ({
+      status: 'submitted' as const, value: reviewReport(input.candidate), operationId: input.operationId, sessionId: 'review', eventCount: 1 }));
+    const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline),
+      [repaired]: source('2', first, { tree: 'tree-repaired', comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, { operations: unusedOperations,
+      audit: async input => audit(input.candidateCommit, input.candidateCommit === first ? 'failed' : 'passed'), review });
+    const initial = await assess(first, baseline, 'audit-failed');
+    expect(initial.outcome.gate).toBe('action-required');
+    const corrected = await assess(repaired, first, 'audit-corrected', { previousAssessment: initial.id });
+    expect(corrected.outcome.gate).toBe('clear');
+    expect(review).toHaveBeenCalledTimes(1);
+    expect(service.assessmentDetail('sample', job.jobId, corrected.id).stages.find(stage => stage.name === 'review-policy')?.evidence)
+      .toMatchObject({ mode: 'not-run' });
+  });
+
+  it('keeps factual audit history out of a requested semantic follow-up briefing', async () => {
+    const review = vi.fn(async (input: Parameters<NonNullable<AssessmentDependencies['review']>>[0]) => {
+      if (input.candidate === repaired) {
+        expect(input.prepared.message).not.toContain('configured audit failed');
+        expect(input.prepared.message).not.toContain('configured-audit');
+      }
+      return { status: 'submitted' as const, value: reviewReport(input.candidate), operationId: input.operationId,
+        sessionId: 'review', eventCount: 1 };
+    });
+    const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline),
+      [repaired]: source('2', first, { tree: 'tree-repaired', comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) },
+    { operations: unusedOperations, audit: async input => audit(input.candidateCommit, input.candidateCommit === first ? 'failed' : 'passed'), review });
+    const initial = await assess(first, baseline, 'audit-only');
+    await assess(repaired, first, 'semantic-follow-up', { previousAssessment: initial.id, reviewReason: 'Inspect relevant behavior.' });
+    expect(review).toHaveBeenCalledTimes(2);
   });
 
   it('keeps an audit failure and original-baseline protected edit actionable across a later candidate', async () => {
