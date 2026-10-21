@@ -23,6 +23,8 @@ import { commandIdSchema, jobVersionSchema } from './jobs.js';
  */
 
 export const checkFindingProtocolVersion = 'check-findings/1';
+export const descriptiveCheckFindingProtocolVersion = 'check-findings/2';
+const checkFindingProtocolSchema = z.union([z.literal(checkFindingProtocolVersion), z.literal(descriptiveCheckFindingProtocolVersion)]);
 
 /** The bounds of every list and detail. */
 export const checkFindingWireLimits = { defaultLimit: 50, maxLimit: 100, detailHistory: 200 } as const;
@@ -31,8 +33,11 @@ const text = z.string().min(1);
 const count = z.int().nonnegative();
 const version = z.int().nonnegative();
 
-/** A CheckFinding's ID, `cf-0001`. */
-export const checkFindingWireIdSchema = z.string().regex(/^cf-\d{4,}$/);
+/** An accepted CheckFinding ID: legacy `cf-0001` or descriptive `finding:<name>`. */
+export const checkFindingWireIdSchema = z.union([
+  z.string().regex(/^cf-\d{4,}$/),
+  z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+]);
 /** A CheckFinding decision's ID, `cfd-0001`. */
 export const checkFindingDecisionWireIdSchema = z.string().regex(/^cfd-\d{4,}$/);
 
@@ -271,7 +276,7 @@ export const checkFindingOrderSchema = z.enum(['attention', 'id']);
 
 /** A page of a run's CheckFindings. `total` counts what the query selects and `shown` what the page holds. */
 export const checkFindingListResponseSchema = z.object({
-  protocol: z.literal(checkFindingProtocolVersion),
+  protocol: checkFindingProtocolSchema,
   runId: jobIdSchema,
   version,
   coverage: reviewCoverageSchema,
@@ -296,7 +301,7 @@ export type CheckFindingListResponse = z.infer<typeof checkFindingListResponseSc
  * counts.
  */
 export const checkFindingModuleCountsSchema = z.object({
-  protocol: z.literal(checkFindingProtocolVersion),
+  protocol: checkFindingProtocolSchema,
   runId: jobIdSchema,
   version,
   coverage: reviewCoverageSchema,
@@ -413,7 +418,7 @@ export type CheckFindingRepairLink = z.infer<typeof checkFindingRepairLinkSchema
 
 /** One CheckFinding with its bounded history and what it links to. */
 export const checkFindingDetailSchema = z.object({
-  protocol: z.literal(checkFindingProtocolVersion),
+  protocol: checkFindingProtocolSchema,
   runId: jobIdSchema,
   version,
   summary: checkFindingSummarySchema,
@@ -466,7 +471,7 @@ export const reviewRequestViewSchema = z.object({
 export type ReviewRequestView = z.infer<typeof reviewRequestViewSchema>;
 
 export const reviewListResponseSchema = z.object({
-  protocol: z.literal(checkFindingProtocolVersion),
+  protocol: checkFindingProtocolSchema,
   runId: jobIdSchema,
   version,
   coverage: reviewCoverageSchema,

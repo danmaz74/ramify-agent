@@ -208,6 +208,7 @@ describe('a person\'s CheckFinding commands', () => {
     const listed = await get(origin, protocolPaths.runCheckFindings(plan, runId, { version, workItem: 'wi-001', select: 'all' }));
     expect(listed.status).toBe(200);
     const list = checkFindingListResponseSchema.parse(listed.body);
+    expect(list.protocol).toBe('check-findings/1');
     expect(list).toMatchObject({ version, total: 4, shown: 4, next: null, coverage: { state: 'unavailable', reason: 'no-review-policy' } });
     expect(list.items[0]).toMatchObject({ id: 'cf-0003', risk: 'high', credibility: 'objective', required: true, userCommands: [] });
     const page = checkFindingListResponseSchema.parse((await get(origin, protocolPaths.runCheckFindings(plan, runId, { select: 'all', limit: 2 }))).body);
@@ -234,6 +235,7 @@ describe('a person\'s CheckFinding commands', () => {
     expect((await get(origin, protocolPaths.runCheckFindings(plan, 'no-such-run'))).status).toBe(404);
 
     const detail = checkFindingDetailSchema.parse((await get(origin, protocolPaths.runCheckFinding(plan, runId, 'cf-0001', version))).body);
+    expect(detail.protocol).toBe('check-findings/1');
     expect(detail.summary).toMatchObject({ pendingUserDecision: { request: 'cfd-0001', options: [{ id: 'keep' }, { id: 'list' }] }, userCommands: ['respond'] });
     expect(detail.decisions.items[0]!.action).toMatchObject({ action: 'request-user-decision', conflicts: [{ text: 'The API returns a list.' }] });
     const modules = checkFindingModuleCountsSchema.parse((await get(origin, protocolPaths.runCheckFindingModules(plan, runId, version))).body);

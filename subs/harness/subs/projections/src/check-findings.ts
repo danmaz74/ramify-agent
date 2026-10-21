@@ -5,7 +5,7 @@ import type {
 } from '../../check-findings/src/interfaces/check-findings.js';
 import { replayCheckFindingState } from '../../../src/check-findings/state.js';
 import {
-  checkFindingDetailSchema, checkFindingListResponseSchema, checkFindingModuleCountsSchema, checkFindingProtocolVersion,
+  checkFindingDetailSchema, checkFindingListResponseSchema, checkFindingModuleCountsSchema, checkFindingProtocolVersion, descriptiveCheckFindingProtocolVersion,
   checkFindingWireLimits, reviewListResponseSchema,
   type CheckFindingActorView, type CheckFindingAttemptLink, type CheckFindingCountsView, type CheckFindingDecisionView,
   type CheckFindingDetail, type CheckFindingListResponse, type CheckFindingModuleCounts, type CheckFindingRepairLink,
@@ -72,6 +72,10 @@ interface ReviewRecords {
 /** The version a query was read at: the run's last committed sequence. */
 export function runVersionOf(view: RunView): number {
   return view.entries.at(-1)?.sequence ?? 0;
+}
+
+function protocolOf(view: RunView): typeof checkFindingProtocolVersion | typeof descriptiveCheckFindingProtocolVersion {
+  return view.record.identityContract === 'descriptive' ? descriptiveCheckFindingProtocolVersion : checkFindingProtocolVersion;
 }
 
 function basisOf(view: RunView): Basis {
@@ -182,7 +186,7 @@ export function checkFindingListOf(view: RunView, query: CheckFindingListQuery):
   const remaining = selected.filter(summary => all.findIndex(entry => entry.id === summary.id) >= start);
   const page = remaining.slice(0, query.limit);
   return checkFindingListResponseSchema.parse({
-    protocol: checkFindingProtocolVersion,
+    protocol: protocolOf(view),
     runId: view.record.jobId,
     version: basis.version,
     coverage: coverageOf(basis, query.workItem),
@@ -236,7 +240,7 @@ export function checkFindingModulesOf(view: RunView): CheckFindingModuleCounts {
     }
   }
   return checkFindingModuleCountsSchema.parse({
-    protocol: checkFindingProtocolVersion,
+    protocol: protocolOf(view),
     runId: view.record.jobId,
     version: basis.version,
     coverage: coverageOf(basis, null),
@@ -252,7 +256,7 @@ export function checkFindingDetailOf(view: RunView, checkFinding: string): Check
   const detail = selected.view;
   const entry = basis.state.findings.get(detail.summary.id)!;
   return checkFindingDetailSchema.parse({
-    protocol: checkFindingProtocolVersion,
+    protocol: protocolOf(view),
     runId: view.record.jobId,
     version: basis.version,
     summary: summaryView(basis, detail.summary),
@@ -314,7 +318,7 @@ export function reviewListOf(view: RunView, query: { readonly workItem: string |
     };
   });
   return reviewListResponseSchema.parse({
-    protocol: checkFindingProtocolVersion,
+    protocol: protocolOf(view),
     runId: view.record.jobId,
     version: basis.version,
     coverage: coverageOf(basis, query.workItem),

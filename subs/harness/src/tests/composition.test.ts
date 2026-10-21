@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { CommittingGates } from '../../subs/autonomous/subs/acceptance/src/committing-gate.js';
 import { runEventSchema } from '../../subs/autonomous/src/run/log.js';
@@ -42,6 +43,9 @@ import {
   workItemResponseSchema,
 } from '../interfaces/protocol/runs.js';
 import { errorResponseSchema } from '../interfaces/protocol/errors.js';
+import { checkFindingDetailSchema, checkFindingListResponseSchema, reviewListResponseSchema } from '../interfaces/protocol/check-findings.js';
+import { protocolPaths } from '../interfaces/protocol/paths.js';
+import { createApp } from '../http/app.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { ObservationLog } from '../../subs/task-execution/src/observations.js';
@@ -443,7 +447,12 @@ describe('no query appends an event', () => {
         await queries.capabilities(plan, run.runId);
         await queries.scenarios(plan, run.runId);
         await queries.metrics(plan, run.runId);
-        await queries.checkFindings(plan, run.runId, { workItem: null, module: null, select: 'all', order: 'attention', after: null, limit: 100 });
+        const findings = await queries.checkFindings(plan, run.runId, { workItem: null, module: null, select: 'all', order: 'attention', after: null, limit: 100 });
+        if (name === 'name-rejection') {
+          expect(findings.protocol).toBe('check-findings/2');
+          expect(findings.items.map(item => item.id)).toEqual(expect.arrayContaining(['finding:reviewer-notes-1', 'finding:reviewer-notes-3']));
+          expect((await queries.checkFinding(plan, run.runId, 'finding:reviewer-notes-1')).summary.id).toBe('finding:reviewer-notes-1');
+        }
         await queries.checkFindingModules(plan, run.runId);
         await queries.reviews(plan, run.runId, { workItem: null, after: null, limit: 100 });
         const page = await queries.events(plan, run.runId, 0);
@@ -1490,5 +1499,48 @@ describe('the acceptance matrix, composed', () => {
       if (entry.tests === undefined && entry.trial === undefined && entry.document === undefined) problems.push(`${entry.case}: no evidence named`);
     }
     expect(problems).toEqual([]);
+  });
+  test('the HTTP list, cursor, detail and review projections serve a completed descriptive finding', async () => {
+    const run = finished.get('name-rejection')!;
+    const app = createApp({ projectRoot: run.root, runs: run.service });
+    const server = await new Promise<ReturnType<typeof app.listen>>(resolve => {
+      const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
+    });
+    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const get = async (path: string) => {
+      const response = await fetch(`${origin}${path}`);
+      return { status: response.status, body: await response.json() as unknown };
+    };
+    try {
+      const list = await get(protocolPaths.runCheckFindings(plan, run.runId, { select: 'all', limit: 1 }));
+      expect(list.status).toBe(200);
+      const parsed = checkFindingListResponseSchema.parse(list.body);
+      expect(parsed.protocol).toBe('check-findings/2');
+      expect(parsed.total).toBe(2);
+      expect(parsed.items[0]?.id).toBe('finding:reviewer-notes-3');
+      expect(parsed.next).toBe('finding:reviewer-notes-3');
+      const cursor = await get(protocolPaths.runCheckFindings(plan, run.runId, { select: 'all', limit: 1, after: parsed.next! }));
+      expect(cursor.status).toBe(200);
+      expect(checkFindingListResponseSchema.parse(cursor.body).items.map(item => item.id)).toEqual(['finding:reviewer-notes-1']);
+      const detail = await get(protocolPaths.runCheckFinding(plan, run.runId, 'finding:reviewer-notes-1'));
+      expect(detail.status).toBe(200);
+      expect(checkFindingDetailSchema.parse(detail.body)).toMatchObject({ protocol: 'check-findings/2', summary: { id: 'finding:reviewer-notes-1' } });
+      const reviews = await get(protocolPaths.runReviews(plan, run.runId));
+      expect(reviews.status).toBe(200);
+      expect(reviewListResponseSchema.parse(reviews.body).protocol).toBe('check-findings/2');
+      const foreign = await get(protocolPaths.runCheckFinding(plan, run.runId, 'finding:foreign-review'));
+      expect(foreign.status).toBe(404);
+      const draft = await get(protocolPaths.runCheckFinding(plan, run.runId, 'draft:finding:reviewer-notes-1'));
+      expect(draft.status).toBe(404);
+      expect(errorResponseSchema.parse(draft.body).error.message).toContain('submission-local finding key');
+      const wrongFamily = await get(protocolPaths.runCheckFinding(plan, run.runId, 'plan-deviation:move-reviewer-notes'));
+      expect(wrongFamily.status).toBe(404);
+      expect(errorResponseSchema.parse(wrongFamily.body).error.message).toContain('not an accepted CheckFinding ID');
+      const unknownCursor = await get(protocolPaths.runCheckFindings(plan, run.runId, { after: 'finding:foreign-review' }));
+      expect(unknownCursor.status).toBe(400);
+      expect(errorResponseSchema.parse(unknownCursor.body).error.code).toBe('invalid-request');
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
   });
 });
