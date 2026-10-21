@@ -9,6 +9,14 @@ import { projectEvent } from '../events.js';
     }
   });
 
+test('a committed descriptive close projects the whole batch and its coordinator invocation', () => {
+  const event = runEventSchema.parse({ sequence: 7, jobId: 'j', at: '2026-09-20T10:15:00.000Z',
+    type: 'nonfunctional-deviations-recorded', data: sampleData('nonfunctional-deviations-recorded') });
+  expect(projectEvent(event)).toMatchObject({ transition: 'nonfunctional-deviations-recorded',
+    summary: '2 non-functional deviations recorded for assessment nfa-001',
+    refs: [{ kind: 'invocation', id: 'inv-0006' }] });
+});
+
 /** The smallest data each event type's schema accepts, for the projection's exhaustiveness. */
 function sampleData(type: RunEvent['type']): unknown {
   const hash64 = 'a'.repeat(64);
@@ -40,6 +48,11 @@ function sampleData(type: RunEvent['type']): unknown {
     'nonfunctional-repair-committed': { round: 1, invocation: 'inv-0006', assignment: 'repair-001' },
     'nonfunctional-round-closed': { round: 1, record: 'round-001', outcome: 'exhausted' },
     'nonfunctional-deviation-recorded': { deviation: 'pd-001', nfr: 'nfr-001', assessment: 'nfa-001', checkFinding: 'cf-0001', checkFindings: [] },
+    'nonfunctional-deviations-recorded': { assessment: 'nfa-001', actionInvocation: 'inv-0006',
+      deviations: [
+        { deviation: 'nonfunctional-deviation:performance', nfr: 'nonfunctional-requirement:performance', checkFinding: 'finding:performance' },
+        { deviation: 'nonfunctional-deviation:accessibility', nfr: 'nonfunctional-requirement:accessibility', checkFinding: 'finding:accessibility' },
+      ], checkFindings: [] },
     'candidate-bound-to-gate': { candidate: 'cand-001', assessment: 'nfa-001', gate: 'ga-0004', commit: 'c', tree: 'a'.repeat(40) },
     'capability-requested': { request: 'need-001', parent: 'wi-001', assignment: 'wi-001.i01', invocation: 'inv-0003' },
     'capability-qualified': { request: 'need-001', invocation: 'inv-0004', outcome: 'satisfied', evidence: ['existing API'] },
