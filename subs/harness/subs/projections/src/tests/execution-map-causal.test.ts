@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { contractRecordSchema } from '../../../autonomous/subs/work-coordination/src/contracts/records.js';
+import { contractRecordSchema, providerObligationSchema, consumerRequirementSchema } from '../../../autonomous/subs/work-coordination/src/contracts/records.js';
 import { executionCoreOf } from '../execution-map.js';
 import { runView } from '../inputs.js';
 import { entryAssignmentsSchema } from '../../../autonomous/subs/planning/src/records.js';
 import { gateAttemptSchema } from '../../../autonomous/subs/acceptance/src/gate-records.js';
-import { at, constructedRun, hash, item, obligation, registered, requirement, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
+import { at, constructedRecord, constructedRun, hash, item, obligation, registered, requirement, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 const provider = 'shared-provider';
 const first = 'first-consumer';
@@ -66,6 +66,50 @@ function node(index: ReturnType<typeof projected>, key: string) {
 }
 
 describe('execution map causal projection', () => {
+  it('projects a descriptive contract through its recorded obligation relationship after reload', () => {
+    const providerId = 'capability:provide-preview';
+    const consumerId = 'capability:use-preview';
+    const agreementId = 'contract:preview-resolution';
+    const obligationId = 'provider-obligation:provide-preview';
+    const requirementId = 'consumer-requirement:use-preview';
+    const descriptiveEntries = entryAssignmentsSchema.parse({ schema: 'ramify-agent.entry-assignments/2',
+      view: { status: 'placeholder' }, entries: [providerId, consumerId].map(capability => ({
+        capability, capabilityId: capability, description: capability, owner: reviews,
+        requirementRefs: [], acceptanceRefs: [], contextRefs: [],
+        functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], citations: [],
+      })) });
+    const agreement = contractRecordSchema.parse({ ...contract(1), schema: 'ramify-agent.contract/3', id: agreementId,
+      capability: { id: providerId, revision: 1, hash } });
+    const providerObligation = providerObligationSchema.parse({ schema: 'ramify-agent.provider-obligation/2',
+      id: obligationId, revision: 1, contract: { id: agreementId, revision: 1, hash }, capability: providerId,
+      provider: reviews, behavior: 'Provide preview resolution.', evidence: { conformance: [], against: 'real' } });
+    const consumerRequirement = consumerRequirementSchema.parse({ schema: 'ramify-agent.consumer-requirement/2',
+      id: requirementId, revision: 1, workItem: 'work-item:use-preview', consumer: reviews,
+      forCapability: consumerId, obligation: obligationId, contractRevision: 1, behavior: 'Use preview resolution.',
+      evidence: { tests: { policy: 'owned-by-scope', exactOwners: [reviews], subtrees: [], extraSuites: [] }, fakeInjections: [] } });
+    const run = constructedRun([
+      { type: 'analysis-accepted', data: {}, records: [
+        { path: 'analysis/entries.json', body: descriptiveEntries },
+        { path: at('registry', providerId), body: registered(providerId, { schema: 'ramify-agent.capability/2' }) },
+        { path: at('registry', consumerId), body: registered(consumerId, { schema: 'ramify-agent.capability/2' }) },
+      ] },
+      { type: 'contract-registered', data: { contract: agreementId, revision: 1, mode: 'fake-backed',
+        iteration: 'it-contract', obligation: obligationId, requirements: [requirementId], providerWorkItem: null },
+      records: [{ path: at('contracts', agreementId), body: agreement },
+        { path: at('obligations', obligationId), body: providerObligation },
+        { path: at('requirements', requirementId), body: consumerRequirement }] },
+    ], constructedRecord({ identityContract: 'descriptive' }));
+    const index = executionCoreOf(runView(run));
+    expect(index.gaps).toEqual([]);
+    expect(node(index, `contract:${agreementId}`)).toMatchObject({ state: 'working' });
+    expect(node(index, `requirement:${requirementId}`)).toMatchObject({
+      contract: `contract:${agreementId}`, provider: `capability:${providerId}`, state: 'working',
+    });
+    expect(index.links).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'verification-of',
+      from: { coverage: 'shown', key: `requirement:${requirementId}` },
+      to: { coverage: 'shown', key: `contract:${agreementId}` } })]));
+  });
+
   it('closes an access-only agreement at registration without inventing provider work', () => {
     const run = constructedRun([
       { type: 'analysis-accepted', data: {}, records: [

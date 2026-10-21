@@ -379,7 +379,9 @@ export function PlanAndEntries({ client, planId, runId, version, run, onApproved
                           <td><code>{entry.owner}</code>{entry.proposed && <span className="proposed">proposed under {entry.proposed.parent}</span>}</td>
                           <td>{entry.workItem ?? '—'}</td>
                           <td>{entry.description}</td>
-                          <td>{[...entry.requirementRefs, ...entry.acceptanceRefs.filter(id => !entry.requirementRefs.includes(id)), ...entry.contextRefs].join(', ') || '—'}</td>
+                          <td>{('functionalRequirementIds' in entry
+                            ? [...entry.functionalRequirementIds, ...entry.functionalAcceptanceIds.filter(id => !entry.functionalRequirementIds.includes(id)), ...entry.contextIds]
+                            : [...entry.requirementRefs, ...entry.acceptanceRefs.filter(id => !entry.requirementRefs.includes(id)), ...entry.contextRefs]).join(', ') || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -558,6 +560,16 @@ function WorkItemDetail({ client, planId, runId, version, workItem, onOpenGate }
         {(data: WorkItemResponse) => (
           <>
             <h2>{data.workItem.id}: {data.workItem.goal}</h2>
+            {data.acceptedReferences && <section aria-label="Accepted work item references">
+              <h3>Accepted plan references</h3>
+              <p>Requirements: {data.acceptedReferences.functionalRequirementIds.join(', ') || 'none'}; acceptance: {data.acceptedReferences.functionalAcceptanceIds.join(', ') || 'none'}; context: {data.acceptedReferences.contextIds.join(', ') || 'none'}.</p>
+              {data.acceptedReferences.unavailable && <p role="status">{data.acceptedReferences.unavailable}</p>}
+              <ul>{data.acceptedReferences.elements.map(element => <li key={element.id}>
+                <strong>{element.id}</strong> from document <code>{element.document}</code> at <code>{element.path}</code>{element.locator && ` (${element.locator})`}: {element.text}
+                {element.conditions.map((condition, index) => <p key={index}>{condition.source} condition: {condition.text}</p>)}
+                {element.uncertainty && <p>Uncertainty: {element.uncertainty}</p>}
+              </li>)}</ul>
+            </section>}
             <h3>Outline revisions</h3>
             <ol>
               {data.outlines.map(outline => (

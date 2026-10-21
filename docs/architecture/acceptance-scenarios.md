@@ -126,7 +126,7 @@ They are defined in the [glossary](../glossary.md).
 | Step definition | The TypeScript that Cucumber matches a step's text to. Agents write step definitions; they never write scenarios. |
 | Binding | The set of step definitions a run matched to a scenario's steps, read from the Cucumber run a gate's audit published. |
 | Scenario harness | The target project's world, driver, hooks and the configured Cucumber check of its committed audit definition that runs its scenarios. |
-| Identity tag | `@ramify-sc-NNN`, the tag that names one tracked scenario in the source. |
+| Identity tag | `@ramify-sc-NNN` on a legacy run or `@ramify-scenario-<name>` on a descriptive run; the tag names one tracked scenario in the source. |
 | Pending tag | `@ramify-pending`, the tag the harness keeps on a `pending` scenario, which the project's committed Cucumber profile excludes. |
 
 ## What v1 leaves out
@@ -357,7 +357,7 @@ rule broken:
    dry run, and readiness has not verified the runner yet. Such a step is
    picked verbatim into a sub-scenario, and its existing definition binds it
    there.
-6. Every `acceptanceRefs` entry of every entry is cited by at least one
+6. Every legacy `acceptanceRefs` entry, or descriptive `functionalAcceptanceIds` entry, of every entry is cited by at least one
    scenario, through `origin.planScenario` or an explicit `refs` list on an
    architect scenario. The analysis lists this rule with the others.
 
@@ -367,9 +367,10 @@ view records; a sub-scenario none of whose steps came from its integration
 scenario; more than one architect scenario per entry with identical steps.
 
 **Acceptance.** `analysis-accepted` commits, beside the entries, hypotheses,
-registry and work items, one `ScenarioRecord` per scenario with a sequential
-ID `sc-001`, `sc-002`, and so on, in submission order, and the integration
-scenarios after the entry scenarios. Each record holds its kind, entry, owner,
+registry and work items, one `ScenarioRecord` per scenario. A legacy run assigns
+sequential IDs `sc-001`, `sc-002`, and so on, in submission order, with the integration
+scenarios after the entry scenarios. A descriptive run accepts `scenario:<name>` IDs
+derived from the submitted scenario keys. Each record holds its kind, entry, owner,
 origin, sub-scenarios or parent, name, source lines and a hash of those lines.
 An integration scenario's owner is the lowest common ancestor of its
 sub-scenarios' owners. Text is frozen from here on.

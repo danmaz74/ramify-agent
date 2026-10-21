@@ -44,6 +44,13 @@ export async function main(argv: readonly string[]): Promise<number> {
     if (result.stderr !== '') process.stderr.write(result.stderr);
     return result.exitStatus;
   }
+  if (commandLine.command === 'inspect') {
+    const { runInspectCommand } = await import('./inspect-client.js');
+    const result = await runInspectCommand(commandLine.inspect);
+    if (result.stdout !== '') process.stdout.write(result.stdout);
+    if (result.stderr !== '') process.stderr.write(result.stderr);
+    return result.exitStatus;
+  }
   if (commandLine.command === 'session') return session(commandLine);
   if (commandLine.command === 'step') return step(commandLine);
   if (commandLine.command === 'restart') {

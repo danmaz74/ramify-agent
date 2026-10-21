@@ -30,6 +30,7 @@ export type CommandLine =
   | { readonly command: 'mcp'; readonly projectRoot: string; readonly model: string | undefined }
   | { readonly command: 'repair-export'; readonly run: string; readonly executable: string; readonly workspace: string; readonly incident?: string; readonly json: boolean }
   | { readonly command: 'consultations'; readonly run: string; readonly session: string | undefined; readonly id: string | undefined; readonly format: 'text' | 'json' }
+  | { readonly command: 'inspect'; readonly inspect: InspectOptions }
   | { readonly command: 'recovery'; readonly recovery: RecoveryOptions }
   | { readonly command: 'restart'; readonly restart: RestartOptions }
   | { readonly command: 'debug'; readonly debug: DebugOptions }
@@ -57,6 +58,15 @@ export type CommandLine =
     }
   | { readonly command: 'help' };
 
+/** Select one accepted planning record from a served run. */
+export interface InspectOptions {
+  readonly server: string;
+  readonly planId: string;
+  readonly runId: string;
+  readonly selection: { readonly kind: 'work-item' | 'finding' | 'deviation'; readonly id: string };
+  readonly json: boolean;
+}
+
 /** The checkpoints `step gate` runs. */
 export const stepGateCheckpoints = ['iteration', 'work-item', 'readiness', 'final'] as const;
 export type StepGateCheckpoint = typeof stepGateCheckpoints[number];
@@ -82,6 +92,8 @@ export const usage = [
   '  ramify-agent consultations --run <run-directory> [--session <session-id>] [--format text|json]',
   '  ramify-agent consultations --run <run-directory> --id <consultation-id> [--format text|json]',
   '                       Reads retained exchanges, child investigations and caller result positions without changing run state.',
+  '  ramify-agent inspect --server <url> --plan <id> --run <id> (--work-item <id> | --finding <id> | --deviation <id>) [--json]',
+  '                       Reads one accepted work item, finding or plan deviation with its public details and disposition.',
   '  ramify-agent restart <inspect|prepare> --server <url> --plan <id> --run <source-run> [--json] [--timeout-ms <n>]',
   '                       prepare: --expected-version <source-cursor> --command-id <stable-id>. Continues unfinished work in the same run.',
   '  ramify-agent recovery <inspect|resume> --server <url> --plan <id> --run <id> [--json] [--timeout-ms <n>]',
@@ -162,6 +174,7 @@ export function parseCommandLine(argv: readonly string[]): CommandLine {
   const [command, ...rest] = argv;
   if (command === undefined || command === 'help' || command === '--help' || command === '-h') return { command: 'help' };
   if (command === 'consultations') return parseConsultations(rest);
+  if (command === 'inspect') return { command: 'inspect', inspect: parseInspect(rest) };
   if (command === 'mcp') return parseMcp(rest);
   if (command === 'repair') return parseRepairExport(rest);
   if (command === 'serve') return parseServe(rest);
@@ -552,4 +565,26 @@ function parseConsultations(rest: readonly string[]): CommandLine {
   if (run === undefined) throw new UsageError('consultations needs --run <run-directory>');
   if (session !== undefined && id !== undefined) throw new UsageError('Choose --session or --id, not both');
   return { command: 'consultations', run, session, id, format };
+}
+
+function parseInspect(rest: readonly string[]): InspectOptions {
+  const values: Record<string, string> = {};
+  let json = false;
+  options(rest, (flag, value, inline, argument) => {
+    if (flag === '--json' && inline === undefined) {
+      if (json) throw new UsageError('Give --json once');
+      json = true;
+    } else if (['--server', '--plan', '--run', '--work-item', '--finding', '--deviation'].includes(flag)) {
+      if (values[flag] !== undefined) throw new UsageError(`Give ${flag} once`);
+      const supplied = value();
+      if (supplied.trim() === '' || supplied.startsWith('--')) throw new UsageError(`${flag} needs a value`);
+      values[flag] = supplied;
+    } else throw new UsageError(`Unknown option "${argument}"`);
+  });
+  for (const flag of ['--server', '--plan', '--run']) if (values[flag] === undefined) throw new UsageError(`inspect needs ${flag}`);
+  const selections = (['--work-item', '--finding', '--deviation'] as const).filter(flag => values[flag] !== undefined);
+  if (selections.length !== 1) throw new UsageError('inspect needs exactly one of --work-item, --finding or --deviation');
+  const flag = selections[0]!;
+  return { server: values['--server']!, planId: values['--plan']!, runId: values['--run']!,
+    selection: { kind: flag.slice(2) as InspectOptions['selection']['kind'], id: values[flag]! }, json };
 }

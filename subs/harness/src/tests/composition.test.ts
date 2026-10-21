@@ -1529,6 +1529,44 @@ describe('the acceptance matrix, composed', () => {
       const detail = await get(protocolPaths.runCheckFinding(plan, run.runId, 'finding:reviewer-notes-1'));
       expect(detail.status).toBe(200);
       expect(checkFindingDetailSchema.parse(detail.body)).toMatchObject({ protocol: 'check-findings/2', summary: { id: 'finding:reviewer-notes-1' } });
+      // The CLI selects the same accepted committed records that this public
+      // query source serves. No CLI response is substituted by a test payload.
+      const { main } = await import('../../../../src/tests/helpers/inspect-cli.js');
+      const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+      const inspect = async (kind: 'work-item' | 'finding' | 'deviation', id: string) => {
+        stdout.mockClear();
+        stderr.mockClear();
+        const status = await main(['inspect', '--server', origin, '--plan', plan, '--run', run.runId, `--${kind}`, id, '--json']);
+        return { status, body: status === 0 ? JSON.parse(stdout.mock.calls.map(call => call[0]).join('')) as unknown : undefined,
+          error: stderr.mock.calls.map(call => call[0]).join('') };
+      };
+      try {
+        const analysis = analysisResponseSchema.parse((await get(protocolPaths.runAnalysis(plan, run.runId))).body);
+        expect(analysis.analysis.status).toBe('accepted');
+        if (analysis.analysis.status !== 'accepted' || analysis.analysis.planEvidence?.status !== 'available') throw new Error('Accepted catalog unavailable');
+        expect(analysis.analysis.entries[0]).toMatchObject({ capabilityId: 'capability:reviewer-notes',
+          functionalRequirementIds: ['functional-requirement:retain-reviewer-notes'],
+          functionalAcceptanceIds: ['functional-requirement:retain-reviewer-notes'], contextIds: [] });
+        expect(analysis.analysis.entries[0]).not.toHaveProperty('requirementRefs');
+        const catalogElement = analysis.analysis.planEvidence.elements.find(element => element.id === 'functional-requirement:retain-reviewer-notes');
+        expect(catalogElement).toMatchObject({ text: 'Retain reviewer notes.', conditions: [], uncertainty: '',
+          document: expect.stringMatching(/^document:/), path: expect.stringContaining('plans/review-notes/plan.md') });
+        const work = await inspect('work-item', 'work-item:reviewer-notes');
+        expect(work.status).toBe(0);
+        expect(work.body).toMatchObject({ workItem: { id: 'work-item:reviewer-notes' }, acceptedReferences: {
+          functionalRequirementIds: ['functional-requirement:retain-reviewer-notes'],
+          elements: [{ id: 'functional-requirement:retain-reviewer-notes', text: 'Retain reviewer notes.' }],
+        } });
+        expect((work.body as { acceptedReferences: { elements: unknown[] } }).acceptedReferences.elements).toContainEqual(catalogElement);
+        expect((await inspect('finding', 'finding:reviewer-notes-1')).body)
+          .toMatchObject({ summary: { id: 'finding:reviewer-notes-1', planDeviation: { id: 'plan-deviation:move-reviewer-notes' } } });
+        expect((await inspect('deviation', 'plan-deviation:move-reviewer-notes')).body)
+          .toMatchObject({ deviation: { id: 'plan-deviation:move-reviewer-notes' }, finding: { summary: { id: 'finding:reviewer-notes-1' } } });
+        const missing = await inspect('deviation', 'plan-deviation:unknown');
+        expect(missing.status).toBe(2);
+        expect(missing.error).toContain('No accepted plan deviation plan-deviation:unknown');
+      } finally { stdout.mockRestore(); stderr.mockRestore(); }
       const reviews = await get(protocolPaths.runReviews(plan, run.runId));
       expect(reviews.status).toBe(200);
       expect(reviewListResponseSchema.parse(reviews.body).protocol).toBe('check-findings/2');
@@ -1566,6 +1604,29 @@ describe('the acceptance matrix, composed', () => {
       expect((await loaded.mergeReadiness(plan, run.runId, reopened.service.getRun(plan, run.runId)!.version)).readiness.status).toBe('ready');
     } finally {
       await reopened.service.close();
+    }
+  });
+  test('the CLI inspects a supported legacy work item without changing its committed records', async () => {
+    const run = finished.get('iteration')!;
+    const directory = runDirectory(run.root, run.runId);
+    const before = await fileHashes(directory);
+    const app = createApp({ projectRoot: run.root, runs: run.service });
+    const server = await new Promise<ReturnType<typeof app.listen>>(resolve => {
+      const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
+    });
+    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      const { main } = await import('../../../../src/tests/helpers/inspect-cli.js');
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        stdout.mockClear();
+        expect(await main(['inspect', '--server', origin, '--plan', plan, '--run', run.runId, '--work-item', 'wi-001', '--json'])).toBe(0);
+        expect(JSON.parse(stdout.mock.calls.map(call => call[0]).join(''))).toMatchObject({ workItem: { id: 'wi-001' } });
+      }
+      expect(await fileHashes(directory)).toEqual(before);
+    } finally {
+      stdout.mockRestore();
+      await new Promise<void>(resolve => server.close(() => resolve()));
     }
   });
 });

@@ -76,6 +76,16 @@ Record paths encode their IDs. Legacy agreements retain their original
 submission `/2`, contract `/2`, provider obligation `/1`, consumer requirement
 `/1` and work item `/1` shapes and IDs.
 
+Public analysis entries expose `functionalRequirementIds`,
+`functionalAcceptanceIds` and `contextIds` for descriptive runs; legacy entries
+expose `requirementRefs`, `acceptanceRefs` and `contextRefs`. A descriptive work
+item detail resolves those accepted IDs against the frozen catalog and includes
+each selected element's full text, conditions, source document and uncertainty.
+Public work, scenario, contract and finding readers use the run's recorded
+identity contract and accept both supported record versions. Their selection
+uses the exact accepted ID, including the namespace, while HTTP paths encode
+it as one segment.
+
 On descriptive runs, an engineer proposes capability request and example draft
 keys in submission `/2`; qualification proposes a task draft key. Acceptance
 records request, task, plan, exchange and handback `/2` with the same accepted

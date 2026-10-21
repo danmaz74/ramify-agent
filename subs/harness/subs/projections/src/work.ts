@@ -157,7 +157,7 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
   const decisionOfRequest = new Map([...view.records.decisions.values()].filter(decision => decision.request !== null).map(decision => [decision.request!, decision.id]));
   const assignments = [...view.records.assignments.values()].filter(assignment => assignment.workItem === id);
   const iterationIds = new Set(assignments.map(assignment => assignment.id));
-  const evidence = assignments.some(assignment => assignment.source !== undefined)
+  const evidence = assignments.some(assignment => assignment.source !== undefined) || item.schema === 'ramify-agent.work-item/2'
     ? await readAcceptedEvidence(view.directory, view.record.manifest, acceptedAnalysisReferences(view.events))
     : { status: 'unavailable' as const, reason: 'No assignment cites a package' };
   const planDeviations = planDeviationsOf(view);
@@ -171,6 +171,22 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
 
   return {
     workItem: summaryOf(view, item, states),
+    ...(item.schema === 'ramify-agent.work-item/2' ? { acceptedReferences: (() => {
+      const functionalRequirementIds = [...item.functionalRequirementIds!];
+      const functionalAcceptanceIds = [...item.functionalAcceptanceIds!];
+      const contextIds = [...item.contextIds!];
+      if (evidence.status === 'unavailable') return { functionalRequirementIds, functionalAcceptanceIds, contextIds, elements: [], unavailable: evidence.reason };
+      const cited = new Set([...functionalRequirementIds, ...functionalAcceptanceIds, ...contextIds]);
+      const paths = new Map(evidence.manifest.documents.map(document => [document.id, document.path]));
+      const elements = evidence.catalog.elements.filter(element => cited.has(element.id)).map(element => ({
+        id: element.id, kind: element.kind, document: element.document, path: paths.get(element.document) ?? 'unknown',
+        text: element.text, locator: element.locator ?? null,
+        conditions: element.conditions.map(condition => ({ ...condition })), uncertainty: element.uncertainty,
+      }));
+      const missing = [...cited].filter(id => !elements.some(element => element.id === id));
+      return { functionalRequirementIds, functionalAcceptanceIds, contextIds, elements,
+        unavailable: missing.length === 0 ? null : `Accepted catalog elements unavailable: ${missing.join(', ')}` };
+    })() } : {}),
     outlines: (view.records.outlines.get(id) ?? []).map(outline => ({
       revision: outline.revision,
       invocation: outline.invocation,

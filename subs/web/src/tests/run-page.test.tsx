@@ -601,6 +601,30 @@ test('CM19: a failed run says failed at run level only; a capability keeps its l
   expect(history.textContent).toContain('ga-0005 failed');
 });
 
+test('descriptive accepted references display their full catalog evidence in work item details', async () => {
+  const id = 'work-item:add-revision-preview';
+  const requirement = 'functional-requirement:preview-missing-predecessor';
+  const summary = { ...workItemSummary, id, capability: 'capability:add-revision-preview', goal: 'Add revision preview.' };
+  const run: StubRun = {
+    ...stubRun(),
+    workItems: workItemListResponseSchema.parse({ workItems: [summary], total: 1 }),
+    workItem: { [id]: workItemResponseSchema.parse({ workItem: summary, outlines: [], iterations: [], gates: [], requirements: [], requests: [],
+      acceptedReferences: { functionalRequirementIds: [requirement], functionalAcceptanceIds: [requirement], contextIds: [],
+        unavailable: null, elements: [{ id: requirement, kind: 'functional', document: 'document:preview-plan',
+          path: 'plans/review-notes/plan.md', text: 'Reject a preview when its predecessor is missing.', locator: 'Acceptance',
+          conditions: [{ source: 'stated', text: 'The predecessor cannot be resolved.' }], uncertainty: 'The lookup cache may be stale.' }] } }) },
+  };
+  render(<RunPage client={clientWith(run)} planId="review-notes" runId={runId} interval={60_000} />);
+  fireEvent.click(screen.getByRole('tab', { name: 'Work items' }));
+  fireEvent.click(await screen.findByRole('button', { name: id }));
+  const references = await screen.findByLabelText('Accepted work item references');
+  expect(references.textContent).toContain(requirement);
+  expect(references.textContent).toContain('Reject a preview when its predecessor is missing.');
+  expect(references.textContent).toContain('plans/review-notes/plan.md');
+  expect(references.textContent).toContain('stated condition: The predecessor cannot be resolved.');
+  expect(references.textContent).toContain('Uncertainty: The lookup cache may be stale.');
+});
+
 test('an iteration whose engineer ended without a result shows the digest and the analysis its architect read', async () => {
   const run: StubRun = {
     ...stubRun(),

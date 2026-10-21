@@ -4,7 +4,7 @@ import {
   type InitialAssociation, type ModuleCapabilities, type ModuleCapabilityComparisonResponse, type ModuleCapabilityRow,
 } from '../../../src/interfaces/protocol/runs.js';
 import type { ModuleProposal } from '../../autonomous/subs/planning/src/records.js';
-import type { RunView } from './inputs.js';
+import { acceptedEntryCapability, type RunView } from './inputs.js';
 import { capabilityProgressOf } from './progress.js';
 
 /*
@@ -21,7 +21,7 @@ import { capabilityProgressOf } from './progress.js';
  *   registered, currently `completed` capability is implemented, at its
  *   current owner. A reopened capability is `working`, and a forecast never
  *   completes.
- * - Identical slugs are one capability (`exact-capability-slug/1`).
+ * - Identical accepted IDs are one capability under the run's identity contract.
  * - Where a module is drawn is decided here and nowhere else, and so is
  *   every statement of coverage. An unknown is a gap, never a zero.
  */
@@ -44,7 +44,8 @@ export function moduleCapabilityComparisonOf(
   analysisLimits: AnalysisCoverageLimits,
 ): ModuleCapabilityComparisonResponse {
   const runVersion = view.entries.at(-1)?.sequence ?? 0;
-  const base = { identityPolicy: 'exact-capability-slug/1' as const, runVersion, tree };
+  const base = { identityPolicy: view.record.identityContract === 'descriptive'
+    ? 'exact-accepted-capability-id/2' as const : 'exact-capability-slug/1' as const, runVersion, tree };
   const assignments = view.entryAssignments;
   if (assignments === null) {
     const accepted = view.events.some(event => event.type === 'analysis-accepted');
@@ -71,11 +72,12 @@ export function moduleCapabilityComparisonOf(
   const proposals = new Map<string, ModuleProposal[]>();
   const proposing = new Map<string, string[]>();
   for (const entry of assignments.entries) {
-    discover(entry.capability);
-    associations.push({ capability: entry.capability, module: entry.owner, association: { role: 'entry-owner', hypothesis: null } });
+    const capability = acceptedEntryCapability(assignments, entry);
+    discover(capability);
+    associations.push({ capability, module: entry.owner, association: { role: 'entry-owner', hypothesis: null } });
     if (entry.proposed !== undefined) {
       proposals.set(entry.owner, [...(proposals.get(entry.owner) ?? []), entry.proposed]);
-      proposing.set(entry.owner, [...(proposing.get(entry.owner) ?? []), entry.capability]);
+      proposing.set(entry.owner, [...(proposing.get(entry.owner) ?? []), capability]);
     }
   }
   for (const { body: hypothesis } of view.hypothesisRevisions) {

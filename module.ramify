@@ -177,6 +177,7 @@ expose-sub StandaloneSessionResponse from harness to descendants
 // Automatic ordinary-test boundary and isolated recorder controls.
 expose-test SpawnAttempt, ProcessSpawnGuardError, ChildProcess, ProcessGuardRecorder, createProcessGuard from "helpers/process-guard.ts" to descendants
 expose-test guardedChildProcess, spawnAttempts from "helpers/process-guard.ts" to descendants
+expose-test main from "helpers/inspect-cli.ts" to descendants
 
 // Plain observation/metric projections owned by harness protocol/runs.ts.
 expose-sub operationIdentitySchema, OperationIdentity from harness to descendants
