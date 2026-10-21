@@ -34,6 +34,28 @@ describe('assisted configured audit', () => {
     expect((await auditAssistedCandidate({ ...input, configuredAudit: port(answer({ status: 'refused', verdict: null })) })).state).toBe('unavailable');
   });
 
+  it('uses the composed verdict and retains raw failures and flakiness warnings', async () => {
+    const entry = { checkId: 'tests', command: 'vitest', runner: 'vitest', project: '',
+      path: 'src/tests/existing.test.ts', kind: 'test', testId: 'existing intermittent test' };
+    const provider = { status: 'completed', summary: { evidenceSchemaVersion: 6, overall: 'pass',
+      flakinessPolicy: { onFailure: 'warning' },
+      checks: { tests: { passed: false, status: 'fail' } },
+      failureLedger: { entries: [entry] },
+      warningDispositions: [{ entry, basis: 'retained-instability' }] },
+      composition: { verdict: 'pass', outstandingFailures: 1, outstandingWarnings: 1 } };
+    const audit = answer({ provider, checks: provider.summary.checks });
+    const port: ConfiguredAuditPort = { async read() { return configuration; }, async run() { return audit; } };
+    const result = await auditAssistedCandidate({ projectRoot: '/project', baselineCommit: 'original',
+      candidateCommit: 'candidate', jobId: 'job-1', attemptId: 'assessment-1', configuredAudit: port });
+    expect(result.state).toBe('passed');
+    expect(result.result?.provider).toEqual(provider);
+    expect(result.result?.checks).toEqual(provider.summary.checks);
+
+    const blocked: ConfiguredAuditPort = { ...port, async run() { return { ...audit, verdict: 'fail' }; } };
+    expect((await auditAssistedCandidate({ projectRoot: '/project', baselineCommit: 'original',
+      candidateCommit: 'candidate', jobId: 'job-1', attemptId: 'assessment-2', configuredAudit: blocked })).state).toBe('failed');
+  });
+
   it('reports a candidate configuration conflict without asserting an audit passed', async () => {
     const port: ConfiguredAuditPort = {
       async read() { return configuration; },

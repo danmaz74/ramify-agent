@@ -49,10 +49,12 @@ function completed(shape: Shape = {}): Completed {
     requestId: 'run:ga-0001',
     runId: 'provider-run',
     summary: {
-      evidenceSchemaVersion: shape.schema ?? 5,
-      producer: { name: shape.producer ?? 'ramify-audit', version: '0.8.0' },
+      evidenceSchemaVersion: shape.schema ?? 6,
+      producer: { name: shape.producer ?? 'ramify-audit', version: '0.12.0' },
       sourceCommit: shape.sourceCommit ?? made,
       overall: 'pass',
+      flakinessPolicy: { onFailure: 'warning' },
+      warningDispositions: [],
       mode: { requestedMode: partial ? 'ramify-partial' : 'full', resolution: 'defaulted', executedMode: shape.executedMode ?? 'full' },
       coverage: {
         projectRoot: shape.projectRoot ?? '.',
@@ -77,6 +79,26 @@ describe('a completed audit as a gate\'s answer', () => {
     expect(refusal(completed(), 'full')).toBeNull();
   });
 
+  it('accepts the provider verdict with retained flaky failures in full and partial evidence', () => {
+    for (const executedMode of ['full', 'ramify-partial'] as const) {
+      const result = completed({ executedMode });
+      const entry = { checkId: 'tests', command: 'vitest', runner: 'vitest' as const, project: '',
+        path: 'src/tests/existing.test.ts', kind: 'test' as const, testId: 'existing intermittent test' };
+      result.summary.checks.tests = { passed: false, status: 'fail', summary: 'One flaky test failed' };
+      result.summary.failureLedger = { completeness: 'complete', entries: [entry], witness: [{
+        checkId: 'tests', command: 'vitest', requestedTargets: [{ kind: 'suite' }], summaryRead: true,
+        endReason: 'failed', exitCode: 1, unhandledErrorsWithoutFile: [], carriedFilesNotRun: [],
+      }] };
+      result.summary.warningDispositions = [{ entry, basis: 'retained-instability' }];
+      result.composition.outstandingFailures = 1;
+      result.composition.outstandingWarnings = 1;
+      expect(refusal(result)).toBeNull();
+      const project = configuredProjectResult({ projectRoot: '.', verdict: 'pass', execution: 'ran', failures: [], result },
+        '.', 'project-default', made);
+      expect(project).toMatchObject({ status: 'completed', verdict: 'pass', counts: { checks: { failed: 1 } } });
+    }
+  });
+
   it('accepts the provider\'s reuse of applicable evidence of an earlier commit, with both source identities and no new receipt', () => {
     const reused = completed({ sourceCommit: earlier, records: ['tests', 'scenarios'],
       reused: { sourceCommit: made, auditedCommit: earlier, ignoredChangedPaths: ['docs/guide.md'], versionOnlyChangedPaths: [], requestedMode: 'full', resolution: 'defaulted' } });
@@ -98,9 +120,10 @@ describe('a completed audit as a gate\'s answer', () => {
   });
 
   it('refuses old-schema or foreign evidence, so it never stands as a passing answer or baseline', () => {
-    expect(refusal(completed({ schema: 4 }))).toBe('the result is not schema-5 ramify-audit evidence');
-    expect(refusal(completed({ schema: 3 }))).toBe('the result is not schema-5 ramify-audit evidence');
-    expect(refusal(completed({ producer: 'other-auditor' }))).toBe('the result is not schema-5 ramify-audit evidence');
+    expect(refusal(completed({ schema: 5 }))).toBe('the result is not schema-6 ramify-audit evidence');
+    expect(refusal(completed({ schema: 4 }))).toBe('the result is not schema-6 ramify-audit evidence');
+    expect(refusal(completed({ schema: 3 }))).toBe('the result is not schema-6 ramify-audit evidence');
+    expect(refusal(completed({ producer: 'other-auditor' }))).toBe('the result is not schema-6 ramify-audit evidence');
   });
 
   it('refuses evidence of another project, definition or check universe', () => {
@@ -174,7 +197,7 @@ describe('a nested invocation as a gate\'s answer', () => {
     expect(accounted(invocation([project('.', completed()), project('engine', nestedRecord({ sourceCommit: earlier }))])))
       .toBe(`nested project engine: the result does not answer source ${made}`);
     expect(accounted(invocation([project('.', completed()), project('engine', nestedRecord({ schema: 4 }))])))
-      .toBe('nested project engine: the result is not schema-5 ramify-audit evidence');
+      .toBe('nested project engine: the result is not schema-6 ramify-audit evidence');
   });
 
   it('keeps a root pass beside a composed nested failure, so the invocation verdict, not the root\'s, decides', () => {

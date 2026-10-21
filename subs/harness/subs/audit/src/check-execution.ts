@@ -646,7 +646,7 @@ function nestedProjectRefusal(
   mode: ConfiguredAuditMode,
   sourceCommit: string,
 ): string | null {
-  if (answer.summary.evidenceSchemaVersion !== 5 || answer.summary.producer.name !== 'ramify-audit') return 'the result is not schema-5 ramify-audit evidence';
+  if (answer.summary.evidenceSchemaVersion !== 6 || answer.summary.producer.name !== 'ramify-audit') return 'the result is not schema-6 ramify-audit evidence';
   if (answer.summary.coverage.projectRoot !== projectRoot) return `the result audited project ${answer.summary.coverage.projectRoot}, not ${projectRoot}`;
   if (answer.reused === undefined ? answer.summary.sourceCommit !== sourceCommit
     : answer.reused.sourceCommit !== sourceCommit || answer.reused.auditedCommit !== answer.summary.sourceCommit) {
@@ -697,7 +697,7 @@ function invocationDetail(verdict: 'pass' | 'fail' | 'indeterminate', projects: 
 
 /**
  * Why a completed provider result does not answer this request, or null
- * when it does. Its record must be schema-5 ramify-audit evidence of the
+ * when it does. Its record must be schema-6 ramify-audit evidence of the
  * same project, definition and check universe, for the requested commit or,
  * when reused, applicable to it. A full request is answered only by an
  * executed full record; a partial chain never stands in for one.
@@ -711,7 +711,7 @@ export function configuredResultRefusal(
   const claim = result.summary.coverage.claim['configuration'];
   const identity = typeof claim === 'object' && claim !== null && !Array.isArray(claim) ? claim as Record<string, unknown> : {};
   const expected = configuration.checks.flatMap(check => typeof check === 'object' && check !== null && 'id' in check && typeof check.id === 'string' ? [check.id] : []);
-  if (result.summary.evidenceSchemaVersion !== 5 || result.summary.producer.name !== 'ramify-audit') return 'the result is not schema-5 ramify-audit evidence';
+  if (result.summary.evidenceSchemaVersion !== 6 || result.summary.producer.name !== 'ramify-audit') return 'the result is not schema-6 ramify-audit evidence';
   if (result.summary.coverage.projectRoot !== configuration.projectRoot) return `the result audited project ${result.summary.coverage.projectRoot}, not ${configuration.projectRoot}`;
   if (identity['path'] !== configuration.path || identity['blob'] !== configuration.blob) return `the result was not produced under the captured definition ${configuration.path} blob ${configuration.blob}`;
   if (expected.length !== configuration.checks.length ||

@@ -123,7 +123,7 @@ it('binds the F2 configured discovery reports and rejects partial or mismatched 
     expect(sourceFiles).toContain('src/tests/new-root.check.ts');
     expect(sourceFiles).not.toContain('src/tests/excluded.check.ts');
     expect(sourceFiles).not.toContain('src/tests/excluded.test.ts');
-    // These retained provider receipts are schema 4; the current gate requires schema 5.
+    // These retained provider receipts are schema 4; the current gate requires schema 6.
     expect(full.summary.evidenceSchemaVersion).toBe(4);
     expect(configuredFullResultMatches(full, captured)).toBe(false);
     expect(configuredFullResultMatches(partial, captured)).toBe(false);

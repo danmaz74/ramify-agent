@@ -1,7 +1,7 @@
 # audit
 
 Implements the harness's in-process adapter to `ramify-audit`, pinned at
-version 0.11.0. It hides the library, its evidence model, repository lease,
+version 0.12.0. It hides the library, its evidence model, repository lease,
 isolated worktree, publication refs and Git environment from the rest of
 the harness. The harness owns gate policy and durable run state; this child
 reads the project's committed audit definition, asks the installed provider
@@ -57,7 +57,7 @@ Neither mode forces a fresh run. Where the provider returns applicable
 evidence of an earlier commit, every later change ignored by that record's
 policy, the result keeps both source identities, the report refs and the
 ignored changed paths. A completed result that does not answer the request
-is `refused` and never a pass: evidence that is not schema-5 ramify-audit
+is `refused` and never a pass: evidence that is not schema-6 ramify-audit
 evidence, of another project, definition or check universe, of another
 commit, a partial chain for a full request, or a selected check without its
 record. `configuredFullRecovery` names the provider failures that qualify a
@@ -95,13 +95,13 @@ the gate and every durable record.
 
 ## Dependency
 
-`ramify-audit` is pinned to the exact version 0.11.0 from the private proxy
+`ramify-audit` is pinned to the exact version 0.12.0 from the private proxy
 registry this package's `.npmrc` names, which also serves the other
 dependencies. It is MIT-licensed. No other module imports it. The existing
 `legacy-peer-deps=true` setting remains necessary for npm 10.9's Vitest peer
 set resolver and does not remove or replace any runtime or test dependency.
 
-The provider retains schema-5 evidence and the existing public audit service.
+The provider writes schema-6 evidence and retains the existing public audit service.
 Its current selection contracts support configured Cucumber feature files and
 known shared-test consumers. The provider requires a compatible full baseline
 before composing partial audits under those contracts; older selection records
@@ -112,7 +112,13 @@ history diff in the audited project; the harness passes both through without
 interpreting them. From 0.11.0 a committed change to the root `package.json`
 or `package-lock.json` that alters only the package's own version keeps an
 earlier full audit applicable and never widens a partial audit; the reuse
-result lists such paths as `versionOnlyChangedPaths`.
+result lists such paths as `versionOnlyChangedPaths`. From 0.12.0 the committed
+`flakiness.onFailure` policy defaults to `warning`; `failure` retains strict
+blocking behavior. Verified current or retained Vitest instability can produce
+a composed pass with warnings while the original failed checks, counts and
+failure ledger remain intact. The harness follows that composed verdict and
+preserves the provider's warning dispositions with its evidence. Older schemas
+are refused, and the first audit with this release establishes a full baseline.
 
 ## Tests
 
