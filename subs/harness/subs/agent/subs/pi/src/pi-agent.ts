@@ -3,6 +3,7 @@ import type { SessionStore } from '../../../src/interfaces/session-operations.js
 import { type DefaultResourceLoader, getAgentDir, ModelRuntime, resolveCliModel } from '@earendil-works/pi-coding-agent';
 import { join } from 'node:path';
 import type { AgentPort, ExecutorSupport, JsonSchema, ToolAction } from '../../../src/interfaces/port.js';
+import { supportedPreservingModel } from './preservation.js';
 
 /**
  * The Pi-owned preserving driver binds native requests to generic durable
@@ -39,7 +40,8 @@ export interface PiAgentOptions {
   /**
    * The model as pi's `--model` accepts it, such as `anthropic/claude-opus-4-5`,
    * optionally with a thinking level, such as `openai-codex/gpt-6.1-sol:high`.
-   * Default: the first model pi has credentials for, at pi's default level.
+   * Default: the first credentialed model that supports native preservation,
+   * at pi's default level.
    */
   readonly model?: string | undefined;
   /** pi's agent directory, which holds its credentials (`auth.json`) and model settings. Default: pi's own, `~/.pi/agent` or `PI_CODING_AGENT_DIR`. */
@@ -78,6 +80,8 @@ export async function piReadiness(options: PiAgentOptions = {}): Promise<{ reado
   try {
     const runtime = await ModelRuntime.create({ authPath: join(agentDirectory, 'auth.json'), modelsPath: join(agentDirectory, 'models.json') });
     const { model, thinkingLevel } = await chooseModel(runtime, options.model);
+    const unsupported = supportedPreservingModel(model);
+    if (unsupported) throw new Error(`${model.provider}/${model.id}: ${unsupported}`);
     return { ready: true, model: `${model.provider}/${model.id}${thinkingLevel === undefined ? '' : `:${thinkingLevel}`}` };
   } catch (error) {
     return { ready: false, reason: message(error) };
@@ -110,8 +114,9 @@ export async function chooseModel(runtime: ModelRuntime, requested: string | und
     return { model: resolved.model, thinkingLevel: resolved.thinkingLevel };
   }
   const available = await runtime.getAvailable();
-  const model = available[0];
-  if (!model) throw new Error('pi has no model with credentials. Log in with `npx pi` and /login, or pass a model.');
+  if (available.length === 0) throw new Error('pi has no model with credentials. Log in with `npx pi` and /login, or pass a model.');
+  const model = available.find(candidate => supportedPreservingModel(candidate) === null);
+  if (!model) throw new Error('pi has no credentialed model supporting native appended tools and later system messages; pass a compatible model with --model or --assessment-model.');
   return { model, thinkingLevel: undefined };
 }
 
