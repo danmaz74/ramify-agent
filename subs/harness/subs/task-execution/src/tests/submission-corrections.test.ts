@@ -41,6 +41,32 @@ test('submission corrections retain all diagnostics and accept after the former 
   expect(log.observations.filter(item => item.type === 'rejection')).toHaveLength(4);
 });
 
+test('overlapping distinct submissions cannot both consume one invocation authority', async () => {
+  const log = await observations();
+  let enter!: () => void;
+  let release!: () => void;
+  const entered = new Promise<void>(resolve => { enter = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const proposals = [
+    { key: 'draft:functional-requirement:preview-input', text: 'The preview accepts a valid input.' },
+    { key: 'draft:functional-requirement:preview-input', text: 'A distinct archived input is accepted.' },
+  ];
+  const accepted: typeof proposals = [];
+  const judge = new SubmissionJudge({ target: 'submit_analysis', observations: log,
+    validate: input => ({ ok: true, value: input as (typeof proposals)[number] }),
+    accept: async value => { enter(); await held; accepted.push(value); },
+  });
+  const first = judge.judge(proposals[0], 'call-a');
+  await entered;
+  const second = judge.judge(proposals[1], 'call-b');
+  release();
+  expect(await first).toEqual({ accepted: true });
+  expect(await second).toEqual({ accepted: false, final: true,
+    errors: ['This invocation has already submitted a result.'] });
+  expect(accepted).toEqual([proposals[0]]);
+  expect(judge.attempts).toBe(1);
+});
+
 test('invalid harness tool inputs remain correctable after the former limit', async () => {
   const log = await observations();
   const judge = new ToolInputJudge({

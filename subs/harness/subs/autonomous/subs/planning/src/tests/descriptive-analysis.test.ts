@@ -115,6 +115,27 @@ describe('descriptive initial analysis', () => {
     expect(catalog).toEqual(intake.catalog);
   });
 
+  test('a later authorized catalog proposal collides with an accepted descriptive name and a qualifier succeeds', () => {
+    const first = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(descriptiveInitialAnalysisSubmissionSchema.parse(submission)));
+    const proposed = { key: 'draft:functional-requirement:preview-missing-predecessor', kind: 'functional' as const,
+      document: manifest.root, text: 'A different obligation wants the same name.', conditions: [], uncertainty: '' };
+    const colliding = applyCheck({ catalog: first.catalog, analysis: first.analysis }, manifest.root, 'inv-0002',
+      normalizeDescriptiveCheck({ corrections: [{ action: 'add', reason: 'A second obligation is present.', elements: [proposed] }],
+        entries: [], scenarios: [] }), evidence);
+    expect(colliding).toMatchObject({ ok: false, errors: [expect.objectContaining({
+      message: expect.stringContaining('collides with accepted or retired functional-requirement:preview-missing-predecessor'),
+    })] });
+    expect(first.catalog.elements.find(element => element.id === 'functional-requirement:preview-missing-predecessor')?.text)
+      .toBe('A preview rejects a missing predecessor.');
+    const qualified = applyCheck({ catalog: first.catalog, analysis: first.analysis }, manifest.root, 'inv-0002',
+      normalizeDescriptiveCheck({ corrections: [{ action: 'add', reason: 'A separate obligation needs its own name.',
+        elements: [{ ...proposed, key: 'draft:functional-requirement:preview-missing-predecessor-in-archive' }] }],
+        entries: [], scenarios: [] }), evidence);
+    expect(qualified).toMatchObject({ ok: true, catalog: { elements: expect.arrayContaining([
+      expect.objectContaining({ id: 'functional-requirement:preview-missing-predecessor-in-archive' }),
+    ]) } });
+  });
+
   test('tool schema names the draft fields rather than legacy ambiguous fields', () => {
     const shape = descriptiveInitialAnalysisSubmissionSchema.safeParse(submission);
     expect(shape.success).toBe(true);
