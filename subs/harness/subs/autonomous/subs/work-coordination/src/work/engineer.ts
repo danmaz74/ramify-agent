@@ -130,6 +130,20 @@ export const descriptiveCapabilityEngineerSubmissionSchema = z.discriminatedUnio
 ]);
 export const descriptiveCapabilityEngineerJsonSchema = z.toJSONSchema(descriptiveCapabilityEngineerSubmissionSchema) as JsonSchema;
 
+/** Authenticate the recorded tool contract before interpreting accepted engineer bytes. */
+export function parseRecordedEngineerSubmission(raw: unknown, identityContract?: 'legacy' | 'descriptive'): EngineerSubmission {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Recorded engineer submission is not an object');
+  const { schema, ...body } = raw as Record<string, unknown>;
+  const expected = identityContract === undefined ? undefined
+    : identityContract === 'descriptive' ? 'ramify-agent.engineer-submission/2' : 'ramify-agent.engineer-submission/1';
+  if (schema !== 'ramify-agent.engineer-submission/1' && schema !== 'ramify-agent.engineer-submission/2')
+    throw new Error(`Unsupported recorded engineer submission schema ${String(schema)}`);
+  if (expected !== undefined && schema !== expected)
+    throw new Error(`Recorded engineer submission schema ${schema} does not match the run identity contract ${identityContract}`);
+  return (schema === 'ramify-agent.engineer-submission/2'
+    ? descriptiveCapabilityEngineerSubmissionSchema : engineerSubmissionSchema).parse(body);
+}
+
 export const engineerToolName = 'submit_iteration_result';
 
 /**

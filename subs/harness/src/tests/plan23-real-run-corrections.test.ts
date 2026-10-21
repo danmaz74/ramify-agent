@@ -314,9 +314,11 @@ test('reconstructed equipment retains genuine provider findings and continues lo
 
 
 test('pending-tag attribution requires the exact candidate rendering and accepted producer bytes', () => {
-  const bytes = new TextEncoder().encode(JSON.stringify({ schema: 'ramify-agent.engineer-submission/1', ...completionProposed('Bound.', { bindings: [{ id: 'sc-001' }] }) }));
-  const hash = createHash('sha256').update(bytes).digest('hex'); const candidate = '# tracked sc-001\nScenario: one\n';
-  const input = { path: 'src/tests/one.feature', scenario: 'sc-001', invocation: 'inv-accepted', submission: hash, submissionBytes: bytes, candidateBytes: candidate, expectedBytes: candidate };
-  expect(pendingBindingEvidence(input)).toEqual({ path: input.path, scenario: 'sc-001', invocation: 'inv-accepted', submission: hash, sha256: createHash('sha256').update(candidate).digest('hex') });
-  for (const changed of [{ candidateBytes: candidate + 'unexpected patch' }, { expectedBytes: undefined }, { submission: '0'.repeat(64) }, { scenario: 'sc-unbound' }, { submissionBytes: new TextEncoder().encode('{}') }]) expect(pendingBindingEvidence({ ...input, ...changed })).toBeNull();
+  for (const schema of ['ramify-agent.engineer-submission/1', 'ramify-agent.engineer-submission/2']) {
+    const bytes = new TextEncoder().encode(JSON.stringify({ schema, ...completionProposed('Bound.', { bindings: [{ id: 'sc-001' }] }) }));
+    const hash = createHash('sha256').update(bytes).digest('hex'); const candidate = '# tracked sc-001\nScenario: one\n';
+    const input = { path: 'src/tests/one.feature', scenario: 'sc-001', invocation: 'inv-accepted', submission: hash, submissionBytes: bytes, candidateBytes: candidate, expectedBytes: candidate };
+    expect(pendingBindingEvidence(input)).toEqual({ path: input.path, scenario: 'sc-001', invocation: 'inv-accepted', submission: hash, sha256: createHash('sha256').update(candidate).digest('hex') });
+    for (const changed of [{ candidateBytes: candidate + 'unexpected patch' }, { expectedBytes: undefined }, { submission: '0'.repeat(64) }, { scenario: 'sc-unbound' }, { submissionBytes: new TextEncoder().encode('{}') }]) expect(pendingBindingEvidence({ ...input, ...changed })).toBeNull();
+  }
 });

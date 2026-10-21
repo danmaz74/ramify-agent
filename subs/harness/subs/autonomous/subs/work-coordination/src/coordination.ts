@@ -250,7 +250,7 @@ import { type ShellCallRecord } from './work/engineer-equipment.js';
 
 
 import { engineerWorkingDirectory } from './work/engineer-directory.js';
-import { descriptiveCapabilityNameErrors, engineerSubmissionSchema, iterationAcceptance, type AssignedObligation, validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews } from './work/engineer.js';
+import { descriptiveCapabilityNameErrors, iterationAcceptance, parseRecordedEngineerSubmission, type AssignedObligation, validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews } from './work/engineer.js';
 import { iterationAssignmentSchema, iterationLayout, type FailureDigest } from './work/iterations.js';
 
 import { digestLines, failureAnalysisJsonSchema, failureAnalysisMessage, failureAnalysisSubmissionDescription, failureAnalysisToolName, failureDigest, validateFailureAnalysis, type AnalysisEvidence as FailureEvidence, type DigestShellCall, type FailureAnalysisSubmission } from './work/failure.js';
@@ -1402,13 +1402,18 @@ export class WorkCoordination {
         const assignment = saved.assignments.get(unqualified.assignment);
         const raw = await readIfExists(this.path(runLayout.submission(unqualified.invocation)));
         const submitted = raw === undefined ? null : JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
-        const parsed = submitted === null ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(submitted));
-        if (assignment === undefined || !parsed?.success || parsed.data.kind !== 'capability-needed') {
+        let parsed: EngineerSubmission | undefined;
+        try { if (submitted !== null) parsed = parseRecordedEngineerSubmission(submitted, this.input.record.identityContract ?? 'legacy'); }
+        catch (error) {
+          await this.ports.fail('recovery-exhausted', `Pending request ${unqualified.id} has an invalid recorded engineer submission: ${message(error)}`);
+          return null;
+        }
+        if (assignment === undefined || parsed?.kind !== 'capability-needed') {
           await this.ports.fail('recovery-exhausted', `Pending request ${unqualified.id} cannot recover its original module engineer submission`);
           return null;
         }
-        const suspended: SuspendedCapabilityOutcome = { kind: 'capability-needed', summary: parsed.data.summary,
-          need: parsed.data.request, invocation: unqualified.invocation,
+        const suspended: SuspendedCapabilityOutcome = { kind: 'capability-needed', summary: parsed.summary,
+          need: parsed.request, invocation: unqualified.invocation,
           session: unqualified.continuation.session, point: unqualified.continuation.point ?? '' };
         const answer = await this.coordinateCapabilityNeed(agent, packages, baseline, item, assignment, suspended,
           undefined, { session: undefined, point: undefined, workingDirectory }, unqualified);
@@ -4437,13 +4442,18 @@ export class WorkCoordination {
           this.observe().history.events.findIndex(event => event.type === 'invocation-started' && event.data.invocation === request.invocation)));
       if (pending !== undefined) {
         const raw = await readIfExists(this.path(runLayout.submission(pending.invocation)));
-        const parsed = raw === undefined ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(JSON.parse(raw.toString('utf8')) as Record<string, unknown>));
-        if (!parsed?.success || parsed.data.kind !== 'capability-needed') {
+        let parsed: EngineerSubmission | undefined;
+        try { if (raw !== undefined) parsed = parseRecordedEngineerSubmission(JSON.parse(raw.toString('utf8')), this.input.record.identityContract ?? 'legacy'); }
+        catch (error) {
+          await this.ports.fail('recovery-exhausted', `Nested request ${pending.id} has an invalid recorded engineer submission: ${message(error)}`);
+          return null;
+        }
+        if (parsed?.kind !== 'capability-needed') {
           await this.ports.fail('recovery-exhausted', `Nested request ${pending.id} cannot recover its engineer continuation`);
           return null;
         }
         const suspended: InvocationResult<EngineerSubmission> = {
-          id: pending.invocation, ended: 'submitted', value: parsed.data,
+          id: pending.invocation, ended: 'submitted', value: parsed,
           ref: pending.continuation.point ?? '', session: pending.continuation.session, kept: true, outcomeKind: 'submitted',
         };
         const childId = replayCapabilityState(this.observe().history.events).requests.get(pending.id)?.task;
@@ -5664,9 +5674,8 @@ export class WorkCoordination {
       const bytes = await readIfExists(this.path(runLayout.submission(invocation))).catch(() => undefined);
       if (bytes !== undefined && outcome?.submission?.hash === sha256(bytes)) {
         try {
-          const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-          const proposal = schema === 'ramify-agent.engineer-submission/1' ? engineerSubmissionSchema.safeParse(body) : undefined;
-          if (proposal?.success && proposal.data.kind === 'completion-proposed') points = proposal.data.startingPoints;
+          const proposal = parseRecordedEngineerSubmission(JSON.parse(bytes.toString('utf8')), this.input.record.identityContract ?? 'legacy');
+          if (proposal.kind === 'completion-proposed') points = proposal.startingPoints;
         } catch { /* An unavailable optional hint leaves the ordinary review intact. */ }
       }
     }
@@ -5946,9 +5955,7 @@ export class WorkCoordination {
         if (!outcome.submission) continue;
         const bytes = await readIfExists(this.path(runLayout.submission(invocation)));
         if (!bytes || sha256(bytes) !== outcome.submission.hash) throw new Error('Original iteration destination changed');
-        const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-        if (schema !== 'ramify-agent.engineer-submission/1') throw new Error('Original iteration destination schema changed');
-        const parsed = engineerSubmissionSchema.parse(body);
+        const parsed = parseRecordedEngineerSubmission(JSON.parse(bytes.toString('utf8')), this.input.record.identityContract ?? 'legacy');
         if (parsed.kind === 'contract-needed') return { kind: 'closed', result: savedResult, need: { need: parsed.need, suggestedProvider: parsed.suggestedProvider, injectionSites: parsed.injectionSites, invocation } };
       }
       return { kind: 'closed', result: savedResult };
@@ -5998,8 +6005,13 @@ export class WorkCoordination {
           return null;
         }
         const raw = bytes === undefined ? null : JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-        const parsed = raw === null ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(raw));
-        if (recorded.ended === 'submitted' && (raw?.schema !== 'ramify-agent.engineer-submission/1' || !parsed?.success)) {
+        let parsed: EngineerSubmission | undefined;
+        try { if (raw !== null) parsed = parseRecordedEngineerSubmission(raw, this.input.record.identityContract ?? 'legacy'); }
+        catch (error) {
+          await this.ports.fail('recovery-exhausted', `Engineer ${latestStart.data.invocation} has an invalid committed submission: ${message(error)}`);
+          return null;
+        }
+        if (recorded.ended === 'submitted' && parsed === undefined) {
           await this.ports.fail('recovery-exhausted', `Engineer ${latestStart.data.invocation} has no valid committed submission`);
           return null;
         }
@@ -6007,7 +6019,7 @@ export class WorkCoordination {
           && (['stopped', 'resource-pending', 'context-budget-reached'].includes(recorded.ended) || recorded.ended === 'failed' && recorded.interruption !== undefined);
         if (resourceRestart) resourceRestartPredecessor = latestStart.data.invocation;
         else replay = { id: latestStart.data.invocation, ended: recorded.ended,
-          value: parsed?.success ? parsed.data : undefined,
+          value: parsed,
           ref: recorded.session?.ref ?? '', session: latestStart.data.session, kept: ended.data.kept,
           outcomeKind: recorded.ended, ...(recorded.interruption === undefined ? {} : { interruption: recorded.interruption }),
           ...(recorded.error === undefined ? {} : { error: recorded.error }), elapsedMs: recorded.elapsedMs,

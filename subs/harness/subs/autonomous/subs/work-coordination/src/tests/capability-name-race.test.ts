@@ -12,6 +12,7 @@ import { capabilityLayout, descriptiveCapabilityNeedInputSchema, identifyCapabil
 import { captureProvisionalSource } from '../capability/source.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { recordHash } from '../../../../../../src/jobs/committed-reader.js';
+import { parseRecordedEngineerSubmission } from '../work/engineer.js';
 
 const boundary = vi.hoisted(() => ({ beforeDelegation: null as null | ((log: unknown) => Promise<void>) }));
 vi.mock('../../../../src/run/capability-transition.js', async original => {
@@ -40,13 +41,24 @@ const provider = 'capability-coordination/b';
 const firstRequest = 'capability-request:render-source-fact';
 const firstExample = 'capability-example:render-source-fact';
 
-test.each(['request', 'example'] as const)(
-  'an intervening accepted %s name returns to the same engineer task with precise correction', async collision => {
+test('recorded engineer replay binds the schema to its captured identity contract', () => {
+  const body = { kind: 'unsuitable', reason: 'scope', detail: 'The assignment does not include the source owner' };
+  expect(parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/1', ...body }, 'legacy')).toEqual(body);
+  expect(parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/2', ...body }, 'descriptive')).toEqual(body);
+  expect(() => parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/2', ...body }, 'legacy'))
+    .toThrow('does not match the run identity contract legacy');
+  expect(() => parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/3', ...body }, 'descriptive'))
+    .toThrow('Unsupported recorded engineer submission schema');
+});
+
+test.each(['request', 'example', 'none'] as const)(
+  'descriptive %s collision/recovery keeps the accepted engineer task and source', async collision => {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   const answers = acceptanceBoundaries(fixture.root, 'descriptive');
   cleanups.push(async () => answers.assertAnswered());
   let service: Awaited<ReturnType<typeof openCapabilityRuns>>['service'] | undefined;
   let interleaved = false;
+  let restarted = false;
   let engineerTurns = 0;
   const original = { kind: 'capability-needed', summary: 'A needs the source fact', request: {
     requestKey: `draft:${firstRequest}`, need: 'Render a B fact with its source in A',
@@ -60,7 +72,7 @@ test.each(['request', 'example'] as const)(
     requestKey: collision === 'request' ? 'draft:capability-request:render-source-fact-in-a' : original.request.requestKey,
     examples: [{ ...original.request.examples[0]!, key: collision === 'example'
       ? 'draft:capability-example:render-source-fact-in-a' : original.request.examples[0]!.key }] } };
-  const opened = await openCapabilityRuns(fixture.root, {
+  const options: Parameters<typeof openCapabilityRuns>[1] = {
     git: answers.git, candidates: answers.candidates, ramify: answers.ramify,
     provisionalSourceGit: answers.sourceGit, configuredAudit: answers.audit,
     identityContract: 'descriptive', inputs: treeInputs(),
@@ -89,18 +101,26 @@ test.each(['request', 'example'] as const)(
       if (spec.submission.name === 'submit_work_item_result') return submit(assign(consumer, {}, outline()));
       if (spec.role === 'engineer') {
         engineerTurns += 1;
-        if (engineerTurns === 2) expect(spec.prompt).toContain(`request.${collision === 'request' ? 'requestKey' : 'examples.0.key'}`);
+        if (engineerTurns === 2 && collision !== 'none') expect(spec.prompt).toContain(`request.${collision === 'request' ? 'requestKey' : 'examples.0.key'}`);
+        if (engineerTurns > (collision === 'none' ? 1 : 2)) return [{ kind: 'wait', ms: 60_000 }] as const;
         if (engineerTurns === 1) { answers.stage('suspended'); return submit(original,
           edit('caller.ts', 'Fact: ${value}', 'Fresh fact: ${value}'),
           write('extra.ts', "export const sourceHint = 'B';\n"),
           edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('unfinished')")); }
         return submit(corrected);
       }
-      if (spec.submission.name === 'submit_capability_qualification') return [{ kind: 'wait', ms: 60_000 }];
+      if (spec.submission.name === 'submit_capability_qualification') {
+        if (!restarted) return [{ kind: 'wait', ms: 60_000 }] as const;
+        const basis = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gmu)].at(-1);
+        if (basis === undefined) throw new Error('Recovered qualification lost the accepted request basis');
+        return submit({ kind: 'satisfy-with-existing', request: basis[1], invocation: basis[2],
+          api: { owner: provider, path: 'subs/b/src/fact.ts', symbol: 'readFact' },
+          guidance: 'Use the existing source-bearing fact', evidence: ['B exposes readFact with the source'] });
+      }
       return [];
     },
     afterWrite: async (write, runId) => {
-      if (write !== 'capability-source-captured' || interleaved) return;
+      if (write !== 'capability-source-captured' || interleaved || collision === 'none') return;
       interleaved = true;
       const active = service!['runs'].get(`need/${runId}`)!;
       const started = active.log.events.flatMap(event => event.type === 'invocation-started' && event.data.role === 'engineer' ? [event] : []).at(-1)!;
@@ -125,28 +145,36 @@ test.each(['request', 'example'] as const)(
         request: competitor.id, parent: competitor.parent.id, assignment: competitor.assignment,
         invocation: competitor.invocation,
       } }, [{ path: capabilityLayout.request(competitor.id), id: competitor.id, revision: 1, body: competitor }]);
+      await commitCapabilityTransition(active.log, { type: 'capability-qualified', data: {
+        request: competitor.id, invocation: 'inv-competing-qualification', outcome: 'satisfied',
+        evidence: ['The competing author found the source-bearing B API'],
+      } }, []);
     },
-  });
+  };
+  const opened = await openCapabilityRuns(fixture.root, options);
   service = opened.service; cleanups.push(() => service!.close());
   const receipt = await service.execute(startRun('need'));
-  await until(() => (service!.events('need', receipt.jobId) ?? []).filter(event => event.type === 'capability-requested').length >= 2
+  const expectedRequests = collision === 'none' ? 1 : 2;
+  await until(() => (service!.events('need', receipt.jobId) ?? []).filter(event => event.type === 'capability-requested').length >= expectedRequests
     || (service!.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
   const events = service.events('need', receipt.jobId) ?? [];
   expect(events.some(event => event.type === 'job-failed'), JSON.stringify(events.filter(event => event.type === 'job-failed'))).toBe(false);
-  expect(engineerTurns).toBe(2);
-  expect(events.filter(event => event.type === 'capability-requested')).toHaveLength(2);
+  expect(engineerTurns).toBe(expectedRequests);
+  expect(events.filter(event => event.type === 'capability-requested')).toHaveLength(expectedRequests);
   const correctedId = collision === 'request' ? 'capability-request:render-source-fact-in-a' : firstRequest;
   await until(async () => stat(runPath(fixture.root, 'need', receipt.jobId, capabilityLayout.request(correctedId)))
     .then(() => true, () => false), 30_000);
   const stored = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, capabilityLayout.request(correctedId)), 'utf8')) as CapabilityRequest;
   expect(stored.original.examples[0]?.id).toBe(collision === 'example' ? 'capability-example:render-source-fact-in-a' : firstExample);
   const starts = events.flatMap(event => event.type === 'invocation-started' && event.data.role === 'engineer' ? [event] : []);
-  expect(starts).toHaveLength(2);
-  expect(starts[1]?.data.work.iteration).toBe(starts[0]?.data.work.iteration);
-  expect(starts[1]?.data.session).toBe(starts[0]?.data.session);
-  const rejectedSnapshot = runPath(fixture.root, 'need', receipt.jobId,
-    `capabilities/snapshots/${encodeURIComponent(firstRequest)}.${encodeURIComponent(starts[0]!.data.invocation)}.json`);
-  await expect(stat(rejectedSnapshot)).rejects.toMatchObject({ code: 'ENOENT' });
+  expect(starts).toHaveLength(expectedRequests);
+  if (collision !== 'none') {
+    expect(starts[1]?.data.work.iteration).toBe(starts[0]?.data.work.iteration);
+    expect(starts[1]?.data.session).toBe(starts[0]?.data.session);
+    const rejectedSnapshot = runPath(fixture.root, 'need', receipt.jobId,
+      `capabilities/snapshots/${encodeURIComponent(firstRequest)}.${encodeURIComponent(starts[0]!.data.invocation)}.json`);
+    await expect(stat(rejectedSnapshot)).rejects.toMatchObject({ code: 'ENOENT' });
+  }
   expect(await stat(runPath(fixture.root, 'need', receipt.jobId, stored.source.snapshot))).toBeDefined();
   const retry = service['runs'].get(`need/${receipt.jobId}`)!;
   const requestCount = retry.log.ledger.replay().filter(line => line.transaction.event.type === 'capability-requested').length;
@@ -158,6 +186,141 @@ test.each(['request', 'example'] as const)(
   } }, accepted.transaction.records);
   expect(repeated).toEqual(accepted.transaction.event);
   expect(retry.log.ledger.replay().filter(line => line.transaction.event.type === 'capability-requested')).toHaveLength(requestCount);
+  const acceptedInvocation = starts.at(-1)!.data.invocation;
+  const acceptedBytes = await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.submission(acceptedInvocation)));
+  await service.close();
+  restarted = true;
+  const reloaded = await openCapabilityRuns(fixture.root, options);
+  service = reloaded.service;
+  await until(() => (service!.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-started'
+    && event.data.role === 'engineer').length > expectedRequests
+    || (service!.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
+  const afterReload = service.events('need', receipt.jobId) ?? [];
+  expect(afterReload.filter(event => event.type === 'job-failed'), JSON.stringify(afterReload.slice(-10))).toEqual([]);
+  expect(afterReload.filter(event => event.type === 'capability-requested')).toHaveLength(expectedRequests);
+  expect(afterReload.some(event => event.type === 'capability-qualified' && event.data.request === correctedId)).toBe(true);
+  expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.submission(acceptedInvocation)))).toEqual(acceptedBytes);
+  const resumed = afterReload.flatMap(event => event.type === 'invocation-started' && event.data.role === 'engineer' ? [event] : []);
+  expect(resumed.at(-1)?.data.work.iteration).toBe(starts[0]?.data.work.iteration);
+  let stopped = false;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const version = service.getRun('need', receipt.jobId)!.version;
+    try { await service.execute(stopRun('need', receipt.jobId, version)); stopped = true; break; }
+    catch (error) { if (!String(error).includes('at version')) throw error; }
+  }
+  expect(stopped).toBe(true);
+  await service.settled('need', receipt.jobId);
+}, 60_000);
+
+test('a nested descriptive request resumes its accepted provider assignment after reload', async () => {
+  const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
+  const answers = acceptanceBoundaries(fixture.root, 'descriptive');
+  cleanups.push(async () => answers.assertAnswered());
+  let service: Awaited<ReturnType<typeof openCapabilityRuns>>['service'] | undefined;
+  let restarted = false;
+  let engineerTurns = 0;
+  const nestedId = 'capability-request:normalize-source-fact';
+  const parentTask = 'capability-task:provide-source-fact';
+  const options: Parameters<typeof openCapabilityRuns>[1] = {
+    git: answers.git, candidates: answers.candidates, ramify: answers.ramify,
+    provisionalSourceGit: answers.sourceGit, configuredAudit: answers.audit,
+    identityContract: 'descriptive', inputs: treeInputs(),
+    script: spec => {
+      if (spec.submission.name === 'submit_intake') {
+        const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
+        return submit({ goal: 'Render the B source fact in A.', elements: [], incorporation: {
+          documents: documents.map(document => ({ document, scenarios: true, uncertainty: '' })), missing: [],
+        } });
+      }
+      if (spec.submission.name === 'submit_principle_elements') return submit({ elements: [] });
+      if (spec.submission.name === 'submit_catalog_check') return submit({ corrections: [], entries: [], scenarios: [] });
+      if (spec.role === 'initial-architect') return submit({ elements: [], entries: [
+        { capabilityKey: 'draft:capability:richer-a-fact', description: 'A renders the source fact.', owner: consumer,
+          functionalRequirementKeys: [], functionalAcceptanceKeys: [], contextKeys: [], citations: [] },
+        { capabilityKey: 'draft:capability:b-entry', description: 'B provides the source fact.', owner: provider,
+          functionalRequirementKeys: [], functionalAcceptanceKeys: [], contextKeys: [], citations: [] },
+      ], hypotheses: [], coverageLimits: [], scenarios: [
+        { scenarioKey: 'draft:scenario:review-source', entryCapabilityKey: 'draft:capability:richer-a-fact',
+          origin: { kind: 'architect' }, functionalAcceptanceKeys: [],
+          gherkin: 'Scenario: Review source\n  When A renders the B fact\n  Then the source is shown' },
+        { scenarioKey: 'draft:scenario:provide-source', entryCapabilityKey: 'draft:capability:b-entry',
+          origin: { kind: 'architect' }, functionalAcceptanceKeys: [],
+          gherkin: 'Scenario: Provide source\n  When B provides a fact\n  Then its source is present' },
+      ], integrationScenarios: [] });
+      if (spec.submission.name === 'submit_work_item_result') return submit(assign(consumer, {}, outline()));
+      if (spec.role === 'engineer') {
+        engineerTurns += 1;
+        if (engineerTurns === 1) {
+          answers.stage('suspended');
+          return submit({ kind: 'capability-needed', summary: 'A needs B source', request: {
+            requestKey: `draft:${firstRequest}`, need: 'Render the B fact with its source in A',
+            usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Render B source', prospective: false }],
+            constraints: [], knownInterface: { kind: 'none-known' },
+            examples: [{ key: `draft:${firstExample}`, title: 'shows source',
+              code: "expect(renderA()).toContain('B')", designation: 'pseudocode' }],
+          } }, edit('caller.ts', 'Fact: ${value}', 'Fresh fact: ${value}'),
+          write('extra.ts', "export const sourceHint = 'B';\n"),
+          edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('unfinished')"));
+        }
+        if (engineerTurns === 2) return submit({ kind: 'capability-needed', summary: 'B needs normalized source', request: {
+          requestKey: `draft:${nestedId}`, need: 'Normalize B source before handing it to A',
+          usage: [{ path: 'subs/b/src/fact.ts', symbol: 'readFact', use: 'Normalize source', prospective: false }],
+          constraints: [], knownInterface: { kind: 'none-known' },
+          examples: [{ key: 'draft:capability-example:normalize-source-fact', title: 'normalizes source',
+            code: "expect(readFact()).toContain('B')", designation: 'pseudocode' }],
+        } });
+        return [{ kind: 'wait', ms: 60_000 }] as const;
+      }
+      if (spec.submission.name === 'submit_capability_qualification') {
+        const basis = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gmu)].at(-1);
+        if (basis === undefined) throw new Error('Qualification lost the accepted request basis');
+        if (basis[1] === firstRequest) return submit({ kind: 'delegate-capability', request: basis[1],
+          invocation: basis[2], provider, placementReason: 'B owns the source fact', constraints: [],
+          requirementRefs: [], taskKey: `draft:${parentTask}` });
+        if (!restarted) return [{ kind: 'wait', ms: 60_000 }] as const;
+        return submit({ kind: 'satisfy-with-existing', request: basis[1], invocation: basis[2],
+          api: { owner: provider, path: 'subs/b/src/fact.ts', symbol: 'readFact' },
+          guidance: 'Use the existing B fact reader', evidence: ['B readFact preserves the source'] });
+      }
+      if (spec.role === 'capability-architect') {
+        const basis = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gmu)].at(-1);
+        if (basis === undefined) throw new Error('Parent coordinator lost its task basis');
+        return submit({ task: basis[1], planRevision: Number(basis[2]), invocation: basis[3], kind: 'assign',
+          assignment: assign(provider, { goal: 'Supply B source', approach: 'Inspect the source',
+            completionEvidence: 'B returns source' }).assignment });
+      }
+      return [];
+    },
+  };
+  const first = await openCapabilityRuns(fixture.root, options);
+  service = first.service; cleanups.push(() => service!.close());
+  const receipt = await service.execute(startRun('need'));
+  await until(() => (service!.events('need', receipt.jobId) ?? []).some(event => event.type === 'capability-requested'
+    && event.data.request === nestedId) || (service!.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
+  const before = service.events('need', receipt.jobId) ?? [];
+  expect(before.filter(event => event.type === 'job-failed'), JSON.stringify(before.slice(-12))).toEqual([]);
+  const nested = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, capabilityLayout.request(nestedId)), 'utf8')) as CapabilityRequest;
+  const acceptedBytes = await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.submission(nested.invocation)));
+  const snapshotBytes = await readFile(runPath(fixture.root, 'need', receipt.jobId, nested.source.snapshot));
+  await service.close();
+  restarted = true;
+  service = (await openCapabilityRuns(fixture.root, options)).service;
+  await until(() => (service!.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-started'
+    && event.data.role === 'engineer' && event.data.work.iteration === nested.assignment).length >= 2
+    || (service!.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
+  const after = service.events('need', receipt.jobId) ?? [];
+  expect(after.filter(event => event.type === 'job-failed'), JSON.stringify(after.slice(-12))).toEqual([]);
+  expect(after.filter(event => event.type === 'capability-requested').map(event => event.data.request))
+    .toEqual([firstRequest, nestedId]);
+  expect(after.filter(event => event.type === 'capability-delegated').map(event => event.data.task))
+    .toEqual([parentTask]);
+  expect(after.some(event => event.type === 'capability-qualified' && event.data.request === nestedId)).toBe(true);
+  expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.submission(nested.invocation)))).toEqual(acceptedBytes);
+  expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, nested.source.snapshot))).toEqual(snapshotBytes);
+  const nestedStarts = after.flatMap(event => event.type === 'invocation-started' && event.data.role === 'engineer'
+    && event.data.work.iteration === nested.assignment ? [event] : []);
+  expect(nestedStarts).toHaveLength(2);
+  expect(nestedStarts[1]?.data.work.iteration).toBe(nested.assignment);
   let stopped = false;
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const version = service.getRun('need', receipt.jobId)!.version;
