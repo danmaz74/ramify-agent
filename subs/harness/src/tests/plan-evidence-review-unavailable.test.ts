@@ -10,8 +10,8 @@ const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
 
 /*
- * The frozen catalog is unreadable while the first iteration's reviews are
- * requested, and whole again at the run's next write: the scope review
+ * The frozen catalog is unreadable as the first candidate is committed,
+ * and whole again at the run's next write: the scope review
  * cannot cite its assignment package, so it is recorded as unavailable.
  */
 test('an assignment package that cannot be cited leaves a scope review explicitly not verified', async () => {
@@ -22,7 +22,7 @@ test('an assignment package that cannot be cited leaves a scope review explicitl
   const run = await reviewRun(root, cleanups, {
     policy: { kinds: ['scope'] },
     afterWrite: async (write, runId) => {
-      if (catalog === undefined && write === 'iteration-closed') {
+      if (catalog === undefined && write === 'gate-committing') {
         const accepted = (await runEventsOnDisk(root, plan, runId)).find(event => event.type === 'analysis-accepted');
         if (accepted?.type !== 'analysis-accepted' || accepted.data.evidence === undefined) throw new Error('The run has no accepted catalog');
         const path = runPath(root, plan, runId, accepted.data.evidence.catalog.path);

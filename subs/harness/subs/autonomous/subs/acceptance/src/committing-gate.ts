@@ -519,7 +519,8 @@ export class CommittingGates {
         }
         await this.host.afterWrite('gate-committing', this.host.identity.jobId);
         const sourceCommit = commit ?? identity.head;
-        if (prepared.checkpoint === 'iteration' && identity.subject?.workItem !== undefined && identity.subject.iteration !== undefined) {
+        if (prepared.checkpoint === 'iteration' && this.observe().policy.reviews !== undefined
+          && identity.subject?.workItem !== undefined && identity.subject.iteration !== undefined) {
           const candidate = { gate: identity.id, workItem: identity.subject.workItem,
             iteration: identity.subject.iteration, commit: sourceCommit,
             tree: await this.host.candidates.commitTree(this.host.projectRoot, sourceCommit),
@@ -527,9 +528,6 @@ export class CommittingGates {
           await this.host.iterationCandidatePrepared?.(candidate);
           scheduling = this.host.scheduleIterationReviews?.(candidate).catch(error => { schedulingError = error; });
         }
-        await this.host.write({ type: 'gate-audit-started', data: {
-          gate: identity.id, checkpoint: prepared.checkpoint, candidate: sourceCommit,
-        } });
         const attempt = await executeConfiguredGate(this.configuredGateAudit(), prepared, sourceCommit, commit,
           this.commandStarted(identity.id, prepared.checkpoint), this.commandWaiting(identity.id, prepared.checkpoint));
         if (attempt.audited !== null && attempt.audited !== sourceCommit) {

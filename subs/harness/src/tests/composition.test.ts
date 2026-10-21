@@ -562,6 +562,8 @@ async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
  * becoming a second copy of the test that owns them.
  */
 const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values: readonly string[]; readonly file: string; readonly test: string }> = [
+  { union: 'run log.type', values: ['iteration-candidate-prepared'], file: 'subs/harness/subs/autonomous/subs/acceptance/src/tests/review-lifecycle.test.ts', test: 'the first candidate starts review while its own audit is still running' },
+  { union: 'record ramify-agent.reconciliation-assessment/1.submission.testOrigins[].origin', values: ['existing'], file: 'subs/harness/subs/autonomous/subs/acceptance/src/tests/review-lifecycle.test.ts', test: 'a passing audit warning reaches reconciliation after a clean candidate review' },
   { union: 'run log.type', values: ['job-continued'], file: 'subs/harness/src/tests/restart-service.test.ts', test: 'continuation preserves historical failure and accepted analysis without copying run history' },
   { union: 'run log.type', values: ['external-candidate-observed'], file: 'subs/harness/src/tests/recovery-readiness-source.test.ts', test: 'readiness retains observed source and operational corrections through one %s run-branch commit' },
 
@@ -984,6 +986,14 @@ const projections: ReadonlyArray<readonly [query: string, record: string]> = [
  * a producer, so the list can neither hide a new gap nor outlive a closed one.
  */
 const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: readonly string[]; readonly reason: string }> = [
+  {
+    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['audit-instability'],
+    reason: 'The nonfunctional-deviation carrier reports deviations only. Provider instability uses check-findings-recorded; the shared report schema admits that observation kind here without this carrier emitting it.',
+  },
+  {
+    union: 'record ramify-agent.reconciliation-assessment/1.submission.testOrigins[].origin', values: ['added', 'unknown'],
+    reason: 'The provider-instability integration run records an existing-test decision; added and unknown origin remain legal reconciliation judgments, but no current composed run accepts either into a durable assessment.',
+  },
   {
     union: 'record ramify-agent.review-request/1.forkPoint.kind', values: ['unavailable'],
     reason: 'Retained for unavailable assignment points or guidance acquisition. Missing initial guidance now starts an ordinary fresh review; current driven fixtures retain their assignment points and readable selected guidance.',

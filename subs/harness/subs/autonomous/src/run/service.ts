@@ -1734,14 +1734,21 @@ export class AutonomousRunService {
   private async reportGateInstability(run: Run, gate: GateAttempt): Promise<void> {
     if (gate.checkpoint !== 'iteration' || gate.subject.workItem === undefined) return;
     const prepared = run.log.all('iteration-candidate-prepared').find(event => event.data.gate === gate.id);
-    if (prepared === undefined) return;
     const observations = configuredAuditInstabilityObservations(gate.provider?.result);
+    if (observations.length === 0) return;
+    const assignment = gate.subject.iteration === undefined ? undefined
+      : committedRecords(coordinationHistory(run.log).lines).assignments.get(gate.subject.iteration);
+    const owner = prepared?.data.workItem ?? (assignment?.coordination?.kind === 'capability-task'
+      ? assignment.coordination.id : gate.subject.workItem);
+    const tree = prepared?.data.tree ?? (gate.audited === null ? null
+      : await this.candidates.commitTree(this.projectRoot, gate.audited));
+    if (tree === null) return;
     for (const observation of observations) {
       const summary = `Audit established instability in ${observation.path ?? 'an unidentified test'}; determine this test's origin against the original execution baseline`;
       const report = reportCommand({
         producer: 'check:audit-instability', attempt: gate.id, reportKey: observation.key,
-        owner: { kind: 'work-item', workItem: prepared.data.workItem },
-        source: { kind: 'tree', id: prepared.data.tree }, issueKey: `test-instability:${observation.key}`,
+        owner: { kind: 'work-item', workItem: owner },
+        source: { kind: 'tree', id: tree }, issueKey: `test-instability:${observation.key}`,
         verification: { kind: 'assessment' },
         observation: { kind: 'audit-instability', summary,
           evidence: [{ kind: 'gate-audit', ref: runLayout.gate(gate.id), hash: null },

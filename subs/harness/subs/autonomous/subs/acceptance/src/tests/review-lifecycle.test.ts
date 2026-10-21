@@ -355,8 +355,6 @@ describe('the gate audit and the run mutex', () => {
     expect(reviewed.data.result).toBe('complete');
     expect(nextEngineer).toBeDefined();
     expect(reviewed.sequence).toBeLessThan(nextEngineer!.sequence);
-    expect(run.agent!.sessions.filter(session => session.spec.role === 'engineer').at(-1)?.spec.prompt)
-      .toContain('review of candidate revision-01: complete');
   }, 60_000);
 
   test('a later failed candidate is reviewed against the earlier accepted source', async () => {

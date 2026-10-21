@@ -202,7 +202,16 @@ describe('CF06 and CF07: a crash at every review, reconciliation and CheckFindin
     // A crash leaves a prefix of the log: the ledger writes whole lines only
     // (iteration 2's fault sweep), and its record copies may be missing. Each
     // cut is placed just before and just after one boundary line.
-    const cuts = [...new Set(golden.flatMap((line, index) => (boundary(line.event) ? [index, index + 1] : [])))].sort((a, b) => a - b);
+    const boundaryCuts = [...new Set(golden.flatMap((line, index) => (boundary(line.event) ? [index, index + 1] : [])))].sort((a, b) => a - b);
+    const cuts = boundaryCuts.filter(cut => {
+        const prefix = golden.slice(0, cut).map(line => line.event);
+        const started = prefix.filter(event => event.type === 'gate-committing').length;
+        const finished = prefix.filter(event => event.type === 'gate-attempted').length;
+        // Review may finish during audit. This no-execution-agent sweep can
+        // resume settled gates, but cannot complete an in-flight Git/audit effect.
+        return started === finished;
+      });
+    expect(boundaryCuts.length - cuts.length).toBeGreaterThan(0);
     expect(cuts.length).toBeGreaterThan(40);
     const written = new Set<string>();
     const recovered = new Map<number, RunEvent[]>();

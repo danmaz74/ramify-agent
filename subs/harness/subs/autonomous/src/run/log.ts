@@ -616,7 +616,6 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('gate-committing', z.object({ gate: text, checkpoint: text }).strict()),
   event('iteration-candidate-prepared', z.object({ gate: text, workItem: text, iteration: text,
     candidate: text, tree: text, base: text }).strict()),
-  event('gate-audit-started', z.object({ gate: text, checkpoint: text, candidate: text }).strict()),
   /**
    * One command of a running gate started, readiness's included: its kind
    * and its place among the gate's commands, counted from one, so a reader

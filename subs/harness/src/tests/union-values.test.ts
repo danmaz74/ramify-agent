@@ -117,7 +117,7 @@ describe('the run log', () => {
       'evidence-reopened', 'revision-needed', 'dependency-cycle-detected',
       'work-item-completed',
       'writer-acquired', 'writer-process-registered', 'writer-released',
-      'gate-started', 'final-correction-planned', 'compaction-review-started', 'compaction-reviewed', 'gate-committing', 'gate-command-started', 'gate-command-waiting', 'gate-attempted', 'check-findings-recorded',
+      'gate-started', 'final-correction-planned', 'compaction-review-started', 'compaction-reviewed', 'gate-committing', 'iteration-candidate-prepared', 'gate-command-started', 'gate-command-waiting', 'gate-attempted', 'check-findings-recorded',
       'review-request-recorded', 'review-attempt-started', 'review-orientation-recorded', 'review-attempt-finished',
       'reconciliation-started', 'reconciliation-assessed', 'reconciliation-brief-appended', 'reconciliation-refused',
       'unresolved-requested', 'plan-deviation-recorded', 'environment-reported', 'scenarios-rewording', 'scenarios-reworded', 'stop-requested',
