@@ -169,10 +169,24 @@ export function incorporatedScenarios(evidence: Pick<AnalysisEvidence, 'incorpor
 export function incorporatedExtraction(evidence: Pick<AnalysisEvidence, 'incorporation' | 'documents' | 'planScenarios'>): PlanScenarioExtraction {
   const { documents, incorporation } = evidence;
   if (documents === undefined || incorporation === undefined) return { scenarios: [...evidence.planScenarios ?? []], limitations: [] };
-  return extractDocumentScenarios(documents.manifest.documents
-    .filter(document => document.kind === 'plan' && incorporation.documents.some(choice => choice.document === document.id && choice.scenarios))
+  const selected = new Set(incorporation.documents.filter(choice => choice.scenarios).map(choice => choice.document));
+  const descriptive = documents.manifest.schema.endsWith('/2');
+  const extracted = extractDocumentScenarios(documents.manifest.documents
+    .filter(document => document.kind === 'plan' && (descriptive || selected.has(document.id)))
     .map(document => ({ id: document.id, text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(documents.bytes.get(document.id)!) })),
-    documents.manifest.schema.endsWith('/2') ? 'descriptive' : 'legacy');
+    descriptive ? 'descriptive' : 'legacy');
+  if (!descriptive) return extracted;
+  // A root origin was already named in job.json before incorporation. Keep
+  // that immutable identity even when a companion later repeats its name.
+  // Other plan origins are named against the whole captured document set, so
+  // selecting fewer documents never changes their source discriminator.
+  const originKey = (scenario: PlanScenario) => `${scenario.document ?? documents.manifest.root}:${scenario.lines.join(':')}:${scenario.source.join('\n')}`;
+  const captured = new Map((evidence.planScenarios ?? []).map(scenario => [originKey(scenario), scenario.id]));
+  return { schema: 'ramify-agent.plan-scenario-extraction/2',
+    scenarios: extracted.scenarios.filter(scenario => selected.has(scenario.document!))
+      .map(scenario => ({ ...scenario, id: captured.get(originKey(scenario)) ?? scenario.id })),
+    limitations: extracted.limitations.filter(limitation => selected.has(limitation.document!)),
+  };
 }
 
 /** The kinds each citation of an analysis must name. */

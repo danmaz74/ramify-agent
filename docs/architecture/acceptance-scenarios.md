@@ -376,7 +376,11 @@ sub-scenarios' owners. Text is frozen from here on.
 
 Under the descriptive identity contract, capture assigns each plan origin a
 `plan-scenario:<name>` ID from its scenario name. Equal names in distinct
-source locations receive stable source discriminators. The extraction records
+source locations receive stable source discriminators. Incorporation derives
+companion discriminators from all captured plan documents, regardless of which
+ones it selects, and retains each root origin ID already recorded at capture.
+The discriminator uses the captured document ID and scenario line range, so
+selecting a companion with the same name cannot rename a root origin. The extraction records
 `ramify-agent.plan-scenario-extraction/2`; historical extractions retain their
 original shape. Initial analysis uses
 `scenarioKey: draft:scenario:<name>` and

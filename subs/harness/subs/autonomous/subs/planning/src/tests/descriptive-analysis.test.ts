@@ -19,6 +19,9 @@ import { renderFeatureFiles } from '../../../../../scenarios/src/rendering.js';
 import { extractPlanScenarios } from '../../../../../scenarios/src/extraction.js';
 import { scenariosCommit } from '../../../../../../src/tests/helpers/scripted-git.js';
 import { requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { assignedFeaturePaths } from '../../../work-coordination/src/work/feature-selection.js';
+import { incorporatedExtraction } from '../submission.js';
+import { extractDocumentScenarios } from '../../../../../scenarios/src/extraction.js';
 
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 vi.mock('node:child_process', async original =>
@@ -374,6 +377,105 @@ describe('descriptive initial analysis', () => {
     expect(JSON.parse(await readFile(join(directory, runLayout.scenario('scenario:note-shown-2')), 'utf8'))).toMatchObject({
       id: 'scenario:note-shown-2', origin: { planScenario: origins[1]!.id },
     });
+  }, 180_000);
+
+  test('a companion with the root scenario name preserves captured origins and distinct focused targets', async () => {
+    const fixture = await copyFixture();
+    cleanups.push(fixture.remove);
+    await installTestRunner(fixture.root);
+    const planPath = join(fixture.root, 'plans', 'review-notes', 'plan.md');
+    const plan = [await readFile(planPath, 'utf8'), '', '[Companion plan](companion.md)', '', '```gherkin',
+      'Scenario: A note is shown', '  When the reviewer opens the review', '  Then the note is shown', '```', ''].join('\n');
+    const companion = ['# Companion', '', '```gherkin', 'Scenario: A note is shown',
+      '  When the reviewer opens the archive', '  Then the note is shown', '```', ''].join('\n');
+    await writeFile(planPath, plan);
+    await writeFile(join(fixture.root, 'plans', 'review-notes', 'companion.md'), companion);
+    let root = '';
+    let companionId = '';
+    let origins: ReturnType<typeof extractPlanScenarios>['scenarios'] = [];
+    const { service, agent } = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive',
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:add-revision-preview',
+        'work-item:archive-revision-preview', 'final verification of plan "review-notes"'],
+      script: spec => {
+        if (spec.submission.name === intakeToolName) {
+          const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
+          [root, companionId] = documents;
+          const namedTogether = extractDocumentScenarios([{ id: root, text: plan }, { id: companionId, text: companion }], 'descriptive').scenarios;
+          origins = [{ ...namedTogether[0]!, id: extractPlanScenarios(plan, root, 'descriptive').scenarios[0]!.id }, namedTogether[1]!];
+          return [{ kind: 'submit', input: { goal: 'Show notes in review and archive.', elements: [], incorporation: {
+            documents: documents.map(document => ({ document, scenarios: true, uncertainty: '' })), missing: [],
+          } } }];
+        }
+        if (spec.submission.name === principleToolName) return [{ kind: 'submit', input: { elements: [] } }];
+        if (spec.submission.name === checkToolName) return [{ kind: 'submit', input: { corrections: [], entries: [], scenarios: [] } }];
+        if (spec.submission.name === initialAnalysisToolName) return [{ kind: 'submit', input: { ...submission,
+          elements: submission.elements.map(element => ({ ...element, document: root })),
+          entries: [{ ...submission.entries[0]!, owner: 'collection-review/workspace/reviews' }, {
+            ...submission.entries[0]!, capabilityKey: 'draft:capability:archive-revision-preview',
+            description: 'Archive revision preview.', owner: 'collection-review/workspace/reviews',
+          }],
+          scenarios: origins.map((origin, index) => ({ scenarioKey: `draft:scenario:note-shown-${index + 1}`,
+            entryCapabilityKey: index === 0 ? 'draft:capability:add-revision-preview' : 'draft:capability:archive-revision-preview',
+            origin: { kind: 'plan' as const, planScenarioId: origin.id },
+            functionalAcceptanceKeys: ['draft:functional-requirement:reject-unknown-predecessor'],
+            gherkin: origin.source.join('\n') })),
+        } }];
+        const matched = spec.prompt.includes('scenario:note-shown-1') ? 'scenario:note-shown-1' : 'scenario:note-shown-2';
+        return [{ kind: 'submit', input: { ...requestCompletion(), reports: [{ id: matched, judgment: 'done' as const, basedOnRevision: 0 }] } }];
+      },
+    });
+    cleanups.push(() => service.close());
+    const command = startRun('review-notes');
+    const receipt = await service.execute(command);
+    await service.settled('review-notes', receipt.jobId);
+    expect(onlyRun(service, 'review-notes').state,
+      JSON.stringify(agent?.sessions.map(session => session.verdicts))).toBe('completed');
+    expect(origins.map(origin => origin.id)).toEqual([
+      'plan-scenario:a-note-is-shown', expect.stringMatching(/^plan-scenario:a-note-is-shown-[a-f0-9]{8}$/),
+    ]);
+    const directory = runPath(fixture.root, 'review-notes', receipt.jobId, '');
+    const record = JSON.parse(await readFile(join(directory, runLayout.record), 'utf8')) as { planScenarios: { scenarios: typeof origins } };
+    expect(record.planScenarios.scenarios).toMatchObject([origins[0]]);
+    const manifestOnDisk = documentManifestSchema.parse(JSON.parse(await readFile(join(directory, runLayout.documentManifest), 'utf8')));
+    const incorporation = { schema: 'ramify-agent.document-incorporation/3' as const,
+      documents: [root, companionId].map(document => ({ document, scenarios: true, uncertainty: '' })), missing: [] };
+    const capturedDocuments = { manifest: manifestOnDisk,
+      bytes: new Map([[root, Buffer.from(plan)], [companionId, Buffer.from(companion)]]) };
+    const incorporated = incorporatedExtraction({ planScenarios: record.planScenarios.scenarios, incorporation,
+      documents: capturedDocuments });
+    expect(incorporated.scenarios.map(origin => [origin.id, origin.document, origin.source])).toEqual(
+      origins.map(origin => [origin.id, origin.document, origin.source]));
+    const rootOnly = incorporatedExtraction({ planScenarios: record.planScenarios.scenarios,
+      incorporation: { ...incorporation, documents: incorporation.documents.map(choice => ({
+        ...choice, scenarios: choice.document === root,
+      })) }, documents: capturedDocuments });
+    const companionOnly = incorporatedExtraction({ planScenarios: record.planScenarios.scenarios,
+      incorporation: { ...incorporation, documents: incorporation.documents.map(choice => ({
+        ...choice, scenarios: choice.document === companionId,
+      })) }, documents: capturedDocuments });
+    expect(rootOnly.scenarios.map(origin => origin.id)).toEqual([origins[0]!.id]);
+    expect(companionOnly.scenarios.map(origin => origin.id)).toEqual([origins[1]!.id]);
+    const accepted = await Promise.all(origins.map(async (_, index) => JSON.parse(await readFile(join(directory,
+      runLayout.scenario(`scenario:note-shown-${index + 1}`)), 'utf8')) as {
+        id: string; file: string; origin: { planScenario: string; ref: { document: string; lines: [number, number] } }; source: string[];
+      }));
+    expect(accepted.map(scenario => [scenario.origin.planScenario, scenario.origin.ref.document,
+      scenario.origin.ref.lines, scenario.source])).toEqual(
+      origins.map(origin => [origin.id, origin.document, origin.lines, origin.source]));
+    expect(accepted[0]!.file).not.toBe(accepted[1]!.file);
+    for (const [index, scenario] of accepted.entries()) {
+      const feature = await readFile(join(fixture.root, scenario.file), 'utf8');
+      expect(feature).toContain(`@ramify-scenario-note-shown-${index + 1}`);
+      expect(feature).toContain(origins[index]!.source.at(-1)!);
+      expect(assignedFeaturePaths({ obligations: [scenario.id] }, accepted)).toEqual([scenario.file]);
+    }
+    await service.close();
+    const reopened = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive' });
+    cleanups.push(() => reopened.service.close());
+    expect(await reopened.service.execute(command)).toEqual(receipt);
+    expect(reopened.service.events('review-notes', receipt.jobId)?.filter(event => event.type === 'analysis-accepted')).toHaveLength(1);
+    for (const [index, scenario] of accepted.entries()) expect(JSON.parse(await readFile(join(directory,
+      runLayout.scenario(scenario.id)), 'utf8'))).toMatchObject({ id: scenario.id, origin: { planScenario: origins[index]!.id } });
   }, 180_000);
 
   test('an acceptance-boundary interruption replays one complete nonempty descriptive bundle and its lost command reply', async () => {
