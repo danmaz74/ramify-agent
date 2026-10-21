@@ -256,3 +256,4 @@ expose-sub ScriptedCodexFrame, ScriptedCodex, testThread, testTurn, testSession 
 
 // Dedicated provider and host supervisors share only Linux descendant settlement.
 expose-src ownedTreeKernelPath from "owned-tree-kernel.ts" to descendants
+expose-sub ExecutionRetirement, executionRetirementSchema from autonomous to descendants

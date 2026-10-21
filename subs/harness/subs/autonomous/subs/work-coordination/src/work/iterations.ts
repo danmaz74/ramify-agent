@@ -21,6 +21,7 @@ import type { WorkItemId } from './records.js';
  */
 
 const text = z.string().min(1);
+const assignedCapabilitySchema = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 
 /** `wi-001.i02`, from the count of committed assignments of that work item. */
 export type IterationId = string;
@@ -72,7 +73,7 @@ export const assignedBoundsSchema = z.object({
 export type AssignedBounds = z.infer<typeof assignedBoundsSchema>;
 
 export const iterationAssignmentSchema = z.object({
-  schema: z.literal('ramify-agent.iteration-assignment/1'),
+  schema: z.enum(['ramify-agent.iteration-assignment/1', 'ramify-agent.iteration-assignment/2']),
   id: text,
   workItem: text,
   outline: recordRefSchema,
@@ -96,7 +97,7 @@ export const iterationAssignmentSchema = z.object({
    */
   source: packageCitationSchema.optional(),
   externalCapabilities: z.array(z.object({
-    capability: slugSchema,
+    capability: assignedCapabilitySchema,
     owner: modulePathSchema,
     role: z.enum(['use', 'request']),
     contract: recordRefSchema.optional(),
@@ -136,7 +137,10 @@ export const iterationAssignmentSchema = z.object({
   featureSelection: featureSelectionSchema.optional(),
   /** The bounds the module architect raised for this iteration's engineers; absent, the policy's. */
   bounds: assignedBoundsSchema.optional(),
-}).strict();
+}).strict().superRefine((assignment, context) => {
+  if (assignment.schema.endsWith('/1') && assignment.externalCapabilities.some(entry => entry.capability.startsWith('capability:')))
+    context.addIssue({ code: 'custom', path: ['externalCapabilities'], message: 'Legacy assignments cannot cite descriptive capability IDs' });
+});
 export type IterationAssignment = z.infer<typeof iterationAssignmentSchema>;
 
 /**

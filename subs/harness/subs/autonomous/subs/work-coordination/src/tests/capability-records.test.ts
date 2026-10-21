@@ -17,11 +17,85 @@ import { FakeRamifyCli } from '../../../../../../src/tests/helpers/fake-ramify.j
 import { openRuns, runPath } from '../../../../../../src/tests/helpers/runs.js';
 import { RunQueries } from '../../../../../projections/src/queries.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
+import { executionRetirementPath, executionRetirementSchema } from '../contracts/records.js';
 
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true }))); });
 
 describe('capability records', () => {
+  it('atomically retires a corrected descriptive request and task with their accepted replacements across reload', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'capability-correction-')); directories.push(directory);
+    const path = join(directory, 'events.jsonl');
+    const log = await RunLog.open(path, 'job-001');
+    const first = capabilityRequestSchema.parse({ ...fixtureRequest(), schema: 'ramify-agent.capability-request/2',
+      id: 'capability-request:render-source', original: { ...fixtureRequest().original,
+        examples: [{ ...fixtureRequest().original.examples[0]!, id: 'capability-example:render-source' }] } });
+    const task = { ...fixtureTask(first), schema: 'ramify-agent.capability-task/2' as const, id: 'capability-task:provide-source' };
+    const plan = { ...fixturePlan(first, task), schema: 'ramify-agent.capability-plan/2' as const };
+    const firstRequestEvent = { type: 'capability-requested', data: {
+      request: first.id, parent: first.parent.id, assignment: first.assignment, invocation: first.invocation,
+    } } as const;
+    const firstRequestRecords = [{ path: capabilityLayout.request(first.id), id: first.id, revision: 1, body: first }];
+    const acceptedRequest = await commitCapabilityTransition(log, firstRequestEvent, firstRequestRecords);
+    const requestLines = log.ledger.replay().length;
+    // A lost materialized file after the durable line is repaired by the same logical retry.
+    await rm(join(directory, capabilityLayout.request(first.id)));
+    expect(await commitCapabilityTransition(log, firstRequestEvent, firstRequestRecords)).toEqual(acceptedRequest);
+    expect(log.ledger.replay()).toHaveLength(requestLines);
+    expect(JSON.parse(await readFile(join(directory, capabilityLayout.request(first.id)), 'utf8'))).toEqual(first);
+    await expect(commitCapabilityTransition(log, firstRequestEvent, [{ ...firstRequestRecords[0]!, body: {
+      ...first, summary: 'A changed answer under the same accepted request ID' } }])).rejects.toThrow('different submission');
+    const firstTaskEvent = { type: 'capability-delegated', data: {
+      task: task.id, request: first.id, parent: first.parent.id, invocation: 'inv-0002', planRevision: 1,
+    } } as const;
+    const firstTaskRecords = [{ path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
+      { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan }];
+    const acceptedTask = await commitCapabilityTransition(log, firstTaskEvent, firstTaskRecords);
+    const taskLines = log.ledger.replay().length;
+    expect(await commitCapabilityTransition(log, firstTaskEvent, firstTaskRecords)).toEqual(acceptedTask);
+    expect(log.ledger.replay()).toHaveLength(taskLines);
+    const handback = { schema: 'ramify-agent.capability-handback/2', task: task.id, request: first.id,
+      plan: { id: task.id, revision: 1, hash: recordHash(plan) }, sourceRevision: 'source-1', returnedTree: 'b'.repeat(64),
+      deltaFromSuspension: [], summary: 'A uses B source', interfaces: [{ path: 'subs/b/src/result.ts', symbols: ['readResult'], use: 'A formats B' }],
+      compatibility: [], checks: [{ id: 'gate-1', revision: 1, hash: 'c'.repeat(64) }], reviews: [], limitations: [] };
+    await commitCapabilityTransition(log, { type: 'capability-verification-started', data: { task: task.id, invocation: 'inv-0002' } }, []);
+    await commitCapabilityTransition(log, { type: 'capability-handed-back', data: { task: task.id, handback: task.id, invocation: 'inv-0002' } },
+      [{ path: capabilityLayout.handback(task.id), id: task.id, revision: 1, body: handback }]);
+    const next = capabilityRequestSchema.parse({ ...first, id: 'capability-request:render-source-with-origin', invocation: 'inv-0003',
+      original: { ...first.original, examples: [{ ...first.original.examples[0]!, id: 'capability-example:render-origin' }],
+        revises: { task: task.id, reason: 'The original behavior splits to include origin' } } });
+    const retiredRequest = executionRetirementSchema.parse({ schema: 'ramify-agent.execution-retirement/1', id: first.id,
+      kind: 'capability-request', replacements: [next.id], authority: { iteration: next.assignment, reason: next.original.revises!.reason } });
+    const requestBodies = [{ path: capabilityLayout.request(next.id), id: next.id, revision: 1, body: next },
+      { path: executionRetirementPath(first.id), id: first.id, revision: 1, body: retiredRequest }];
+    const before = log.ledger.replay().length;
+    await expect(commitCapabilityTransition(log, { type: 'capability-requested', data: { request: next.id, parent: next.parent.id,
+      assignment: next.assignment, invocation: next.invocation, retiredRequest: first.id } }, [requestBodies[0]!,
+      { ...requestBodies[1]!, body: { ...retiredRequest, replacements: ['capability-request:foreign'] } }])).rejects.toThrow();
+    expect(log.ledger.replay()).toHaveLength(before);
+    await commitCapabilityTransition(log, { type: 'capability-requested', data: { request: next.id, parent: next.parent.id,
+      assignment: next.assignment, invocation: next.invocation, retiredRequest: first.id } }, requestBodies);
+    const replacement = { ...fixtureTask(next), schema: 'ramify-agent.capability-task/2' as const,
+      id: 'capability-task:provide-source-with-origin', revises: {
+        handback: { id: task.id, revision: 1, hash: recordHash(handback) }, sourceRevision: handback.sourceRevision,
+        reason: next.original.revises!.reason } };
+    const replacementPlan = { ...fixturePlan(next, replacement), schema: 'ramify-agent.capability-plan/2' as const };
+    const retiredTask = executionRetirementSchema.parse({ schema: 'ramify-agent.execution-retirement/1', id: task.id,
+      kind: 'capability-task', replacements: [replacement.id], authority: { iteration: replacement.originatingAssignment,
+        reason: next.original.revises!.reason } });
+    await commitCapabilityTransition(log, { type: 'capability-delegated', data: { task: replacement.id, request: next.id,
+      parent: next.parent.id, invocation: 'inv-0004', planRevision: 1, retiredTask: task.id } }, [
+      { path: capabilityLayout.task(replacement.id), id: replacement.id, revision: 1, body: replacement },
+      { path: capabilityLayout.plan(replacement.id, 1), id: replacement.id, revision: 1, body: replacementPlan },
+      { path: executionRetirementPath(task.id), id: task.id, revision: 1, body: retiredTask },
+    ]);
+    const reopened = await RunLog.open(path, 'job-001');
+    const current = committedRecords(reopened.ledger.replay());
+    expect(current.retirements.get(first.id)?.replacements).toEqual([next.id]);
+    expect(current.retirements.get(task.id)?.replacements).toEqual([replacement.id]);
+    expect(current.capabilityRequests.get(first.id)).toEqual(first);
+    expect(current.capabilityTasks.get(replacement.id)?.revises?.handback.id).toBe(task.id);
+  });
   it('descriptive submission choices retain explicit qualification and unsuitable outcomes', () => {
     expect(descriptiveCapabilityEngineerSubmissionSchema.safeParse({ kind: 'unsuitable', reason: 'scope',
       detail: 'The provider owns the requested write.' }).success).toBe(true);
@@ -63,12 +137,12 @@ describe('capability records', () => {
       original: identifyCapabilityNeed(requestId, input) });
     const task = { ...fixtureTask(request), schema: 'ramify-agent.capability-task/2' as const, id: taskId };
     const plan = { ...fixturePlan(request, task), schema: 'ramify-agent.capability-plan/2' as const };
-    await commitCapabilityTransition(log, { type: 'capability-requested', data: {
+    const accepted = await commitCapabilityTransition(log, { type: 'capability-requested', data: {
       request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: request.invocation,
     } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
-    await expect(commitCapabilityTransition(log, { type: 'capability-requested', data: {
+    expect(await commitCapabilityTransition(log, { type: 'capability-requested', data: {
       request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: request.invocation,
-    } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }])).rejects.toThrow();
+    } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }])).toEqual(accepted);
     const afterRequest = log.ledger.replay().length;
     const colliding = { ...request, id: 'capability-request:separate-review-predecessor', invocation: 'inv-0003' };
     await expect(commitCapabilityTransition(log, { type: 'capability-requested', data: {

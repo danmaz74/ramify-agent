@@ -4,7 +4,7 @@ import { workItemOutlineSchema, workItemSchema, type WorkItem, type WorkItemOutl
 import { iterationAssignmentSchema, iterationResultSchema, type IterationAssignment, type IterationResult } from './iterations.js';
 
 import { placementDecisionSchema, placementRequestSchema, type PlacementDecision, type PlacementRequest } from '../architecture/records.js';
-import { consumerRequirementSchema, contractRecordSchema, providerObligationSchema, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../contracts/records.js';
+import { consumerRequirementSchema, contractRecordSchema, providerObligationSchema, executionRetirementSchema, type ConsumerRequirement, type ContractRecord, type ProviderObligation, type ExecutionRetirement } from '../contracts/records.js';
 import { capabilityExchangeSchema, capabilityHandbackSchema, capabilityPlanSchema, capabilityRequestSchema, capabilityTaskSchema, type CapabilityExchange, type CapabilityHandback, type CapabilityPlan, type CapabilityRequest, type CapabilityTask } from '../capability/records.js';
 
 export interface CoordinationRecords {
@@ -25,6 +25,7 @@ export interface CoordinationRecords {
   readonly obligations: ReadonlyMap<string, ProviderObligation>;
   /** Every consumer requirement at its highest committed revision. */
   readonly requirements: ReadonlyMap<string, ConsumerRequirement>;
+  readonly retirements: ReadonlyMap<string, ExecutionRetirement>;
   readonly capabilityRequests: ReadonlyMap<string, CapabilityRequest>;
   readonly capabilityTasks: ReadonlyMap<string, CapabilityTask>;
   readonly capabilityPlans: ReadonlyMap<string, readonly CapabilityPlan[]>;
@@ -42,6 +43,7 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
   const contracts = new Map<string, ContractRecord>();
   const obligations = new Map<string, ProviderObligation>();
   const requirements = new Map<string, ConsumerRequirement>();
+  const retirements = new Map<string, ExecutionRetirement>();
   const capabilityRequests = new Map<string, CapabilityRequest>();
   const capabilityTasks = new Map<string, CapabilityTask>();
   const capabilityPlans = new Map<string, CapabilityPlan[]>();
@@ -60,14 +62,16 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
           workItems.set(value.id, value);
           break;
         }
-        case 'ramify-agent.work-item-outline/1': {
+        case 'ramify-agent.work-item-outline/1':
+        case 'ramify-agent.work-item-outline/2': {
           const value = parseCommittedRecord(workItemOutlineSchema, record.body, record.path);
           const list = outlines.get(value.workItem) ?? [];
           list.push(value);
           outlines.set(value.workItem, list);
           break;
         }
-        case 'ramify-agent.iteration-assignment/1': {
+        case 'ramify-agent.iteration-assignment/1':
+        case 'ramify-agent.iteration-assignment/2': {
           const value = parseCommittedRecord(iterationAssignmentSchema, record.body, record.path);
           assignments.set(value.id, value);
           break;
@@ -108,6 +112,17 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
           const value = parseCommittedRecord(consumerRequirementSchema, record.body, record.path);
           const current = requirements.get(value.id);
           if (current === undefined || value.revision >= current.revision) requirements.set(value.id, value);
+          break;
+        }
+        case 'ramify-agent.execution-retirement/1': {
+          const value = parseCommittedRecord(executionRetirementSchema, record.body, record.path);
+          if (retirements.has(value.id)) throw new CommittedRecordError(record.path, ['An execution identity is retired at most once']);
+          retirements.set(value.id, value);
+          // Current consumers resolve the replacements; the old immutable
+          // requirement remains in the committed line for historical reads.
+          if (value.kind === 'consumer-requirement') requirements.delete(value.id);
+          if (value.kind === 'contract') contracts.delete(value.id);
+          if (value.kind === 'provider-obligation') obligations.delete(value.id);
           break;
         }
         case 'ramify-agent.capability-request/1':
@@ -167,6 +182,7 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
     contracts,
     obligations,
     requirements,
+    retirements,
     capabilityRequests,
     capabilityTasks,
     capabilityPlans,

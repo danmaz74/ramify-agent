@@ -5,6 +5,7 @@ import { committedRecords } from '../../../../src/run/committed-records.js';
 import { recordHash } from '../../../../../../src/jobs/committed-reader.js';
 import type { RecordBody } from '../../../../../ledger/src/ledger.js';
 import { capabilityExchangeSchema, capabilityHandbackSchema, capabilityLayout, capabilityPlanSchema, capabilityRequestSchema, capabilityTaskSchema } from './records.js';
+import { executionRetirementPath, executionRetirementSchema } from '../contracts/records.js';
 import { capabilityCompletionBlockers, capabilityDependencyCycle, capabilityHandbackReadiness, isCapabilityEvent, replayCapabilityState, transitionCapabilityState } from './state.js';
 
 export type CapabilityInput = Extract<RunEventInput, { type: `capability-${string}` }>;
@@ -40,9 +41,21 @@ export function validateCapabilityTransition(
     }
     if (request.schema.endsWith('/2')) {
       const ids = request.original.examples.map(example => example.id);
+      if ((request.original.revises === undefined) !== (event.data.retiredRequest === undefined))
+        throw new Error('Request correction must retire its accepted prior request');
       if (new Set(ids).size !== ids.length || committed.capabilityRequests.has(request.id) ||
         [...committed.capabilityRequests.values()].some(existing => existing.original.examples.some(example => ids.includes(example.id)))) {
         throw new Error('Capability request or example ID collides with an accepted identity');
+      }
+      if (event.data.retiredRequest !== undefined) {
+        const retirement = executionRetirementSchema.parse(records[1]!.body);
+        const old = committed.capabilityRequests.get(event.data.retiredRequest);
+        const oldTask = request.original.revises === undefined ? undefined : committed.capabilityTasks.get(request.original.revises.task);
+        if (!old || !oldTask || !committed.capabilityHandbacks.has(oldTask.id) || oldTask.request !== old.id || oldTask.parent.kind !== request.parent.kind
+          || oldTask.parent.id !== request.parent.id || committed.retirements.has(old.id)
+          || retirement.id !== old.id || retirement.kind !== 'capability-request' || retirement.replacements.length !== 1
+          || retirement.replacements[0] !== request.id || retirement.authority.iteration !== request.assignment)
+          throw new Error('Request correction must retire its own accepted prior request for this new request');
       }
     }
     if (request.parent.kind === 'capability-task' && request.original.revises !== undefined) {
@@ -60,12 +73,24 @@ export function validateCapabilityTransition(
       throw new Error('Delegation must retain its original request, parent, source and examples');
     }
     const revises = request.original.revises;
+    if (task.schema.endsWith('/2') && (revises === undefined) !== (event.data.retiredTask === undefined))
+      throw new Error('Task correction must retire its accepted prior task');
     const earlier = revises === undefined ? undefined : committed.capabilityHandbacks.get(revises.task);
     if ((revises === undefined) !== (task.revises === undefined) ||
       (revises !== undefined && (earlier === undefined || task.revises?.handback.id !== revises.task ||
         task.revises.handback.hash !== recordHash(earlier) || task.revises.sourceRevision !== earlier.sourceRevision ||
         task.revises.reason !== revises.reason))) {
       throw new Error('Revision task must link its immutable accepted handback and source');
+    }
+    if (event.data.retiredTask !== undefined) {
+      const retirement = executionRetirementSchema.parse(records[2]!.body);
+      const oldTask = committed.capabilityTasks.get(event.data.retiredTask);
+      if (revises?.task !== event.data.retiredTask || !oldTask || oldTask.parent.kind !== task.parent.kind
+        || oldTask.parent.id !== task.parent.id || committed.retirements.has(retirement.id)
+        || retirement.id !== revises.task || retirement.kind !== 'capability-task'
+        || retirement.replacements.length !== 1 || retirement.replacements[0] !== task.id
+        || retirement.authority.iteration !== task.originatingAssignment)
+        throw new Error('Task correction must retire its accepted prior task for this new task');
     }
   }
   if (event.type === 'capability-plan-revised') {
@@ -106,10 +131,16 @@ export function validateCapabilityTransition(
 
 function specifications(event: Extract<RunEvent, { type: `capability-${string}` }>): readonly RecordSpecification[] {
   switch (event.type) {
-    case 'capability-requested': return [{ path: capabilityLayout.request(event.data.request), schema: capabilityRequestSchema, id: event.data.request, revision: 1 }];
+    case 'capability-requested': return [
+      { path: capabilityLayout.request(event.data.request), schema: capabilityRequestSchema, id: event.data.request, revision: 1 },
+      ...(event.data.retiredRequest === undefined ? [] : [{ path: executionRetirementPath(event.data.retiredRequest),
+        schema: executionRetirementSchema, id: event.data.retiredRequest, revision: 1 }]),
+    ];
     case 'capability-delegated': return [
       { path: capabilityLayout.task(event.data.task), schema: capabilityTaskSchema, id: event.data.task, revision: 1 },
       { path: capabilityLayout.plan(event.data.task, 1), schema: capabilityPlanSchema, id: event.data.task, revision: 1 },
+      ...(event.data.retiredTask === undefined ? [] : [{ path: executionRetirementPath(event.data.retiredTask),
+        schema: executionRetirementSchema, id: event.data.retiredTask, revision: 1 }]),
     ];
     case 'capability-plan-revised': return [{ path: capabilityLayout.plan(event.data.task, event.data.revision), schema: capabilityPlanSchema, id: event.data.task, revision: event.data.revision }];
     case 'capability-exchange-opened': return [{ path: capabilityLayout.exchange(event.data.task, event.data.exchange, 1), schema: capabilityExchangeSchema, id: event.data.exchange, revision: 1 }];

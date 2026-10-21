@@ -238,10 +238,12 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('candidate-bound-to-gate', z.object({ candidate: text, assessment: text, gate: text, commit: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/) }).strict()),
   /** Plan 16 coordination records are committed with these events. The
    * original request and each revision remain separate immutable records. */
-  event('capability-requested', z.object({ request: text, parent: text, assignment: text, invocation: text }).strict()),
+  event('capability-requested', z.object({ request: text, parent: text, assignment: text, invocation: text,
+    retiredRequest: text.optional() }).strict()),
   event('capability-qualified', z.object({ request: text, invocation: text,
     outcome: z.enum(['satisfied', 'request-placement', 'unresolved']), evidence: z.array(text) }).strict()),
-  event('capability-delegated', z.object({ task: text, request: text, parent: text, invocation: text, planRevision: z.literal(1) }).strict()),
+  event('capability-delegated', z.object({ task: text, request: text, parent: text, invocation: text, planRevision: z.literal(1),
+    retiredTask: text.optional() }).strict()),
   event('capability-plan-revised', z.object({ task: text, revision: z.int().positive(), basedOn: z.int().positive(), invocation: text }).strict()),
   event('capability-coordinator-resumed', z.object({ task: text, invocation: text, session: sessionIdSchema }).strict()),
   event('capability-exchange-opened', z.object({ task: text, exchange: text, invocation: text }).strict()),
@@ -565,6 +567,8 @@ export const runEventSchema = z.discriminatedUnion('type', [
     followUps: z.array(z.object({ workItem: text, follows: text }).strict()),
     /** Iterations closed as `superseded` because they were bound to the previous revision. */
     superseded: z.array(text),
+    /** Accepted identities retired by this same atomic correction and their new replacements. */
+    retired: z.array(text).optional(),
   }).strict()),
   /**
    * An ordinary provider engineer reported that it cannot conform to the

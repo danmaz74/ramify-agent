@@ -236,7 +236,10 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
       workingDirectory,
       scopeRevision: assignment.scope.revision,
       commandTimeoutMs: bounds.commandTimeoutMs,
-      submissions: { legalOutcomes: capability ? ['completion-proposed', 'partial', 'unsuitable', 'capability-needed'] : ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'],
+      submissions: { legalOutcomes: capability ? inputs.identityContract === 'descriptive'
+        ? ['completion-proposed', 'partial', 'unsuitable', 'capability-needed', 'contract-needed']
+        : ['completion-proposed', 'partial', 'unsuitable', 'capability-needed']
+        : ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'],
         completionOutcome: 'completion-proposed' },
       focusedCommands: focused.command.kind === 'available' ? [{ shellCommand: focused.command.shellCommand, selection: focused.command.selection,
         environment: focused.command.environment, sourceFiles: focused.sourceFiles }] : [],

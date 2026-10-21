@@ -3,13 +3,13 @@ import type { ArchitectIndex } from '../../../../../evidence/src/views.js';
 import { citationSchema, modulePathSchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import type { JsonSchema } from '../../../../../agent/src/interfaces/port.js';
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
-import { slugSchema, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
+import { type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
 import type { PlacementDecision } from '../architecture/records.js';
 import {
   localDecisionErrors, localDecisionSchema, placementRequestBodySchema, placementRequestErrors,
   type PlacementEvidence,
 } from '../architecture/submission.js';
-import { assignmentBodySchema, assignmentErrors, type AssignmentBody } from './assignment.js';
+import { assignedCapabilitySchema, assignmentBodySchema, assignmentErrors, type AssignmentBody } from './assignment.js';
 import type { IntegrationScope } from './integration.js';
 import { decompositionSchema } from './records.js';
 import type { EngineerBounds } from '../../../../../../src/run/policy.js';
@@ -76,7 +76,7 @@ export const outlineBodySchema = z.object({
   /** The analysis, concise. */
   changes: text,
   decomposition: decompositionSchema,
-  reuse: z.array(z.object({ capability: slugSchema, owner: modulePathSchema, role: text }).strict()),
+  reuse: z.array(z.object({ capability: assignedCapabilitySchema, owner: modulePathSchema, role: text }).strict()),
   breakingChanges: z.array(z.object({
     guarantee: text,
     reason: text,
@@ -387,6 +387,11 @@ function outlineErrors(
   outline.reuse.forEach((entry, index) => {
     known(entry.owner, `outline.reuse.${index}.owner`);
     const registered = registryReferences.get(entry.capability);
+    if (registered === undefined) {
+      errors.push({ path: `outline.reuse.${index}.capability`, message: `The registry has no entry for "${entry.capability}"`,
+        expected: 'an accepted capability of this run or a registration in this submission' });
+      return;
+    }
     if (registered !== undefined && registered.owner !== entry.owner) {
       errors.push({
         path: `outline.reuse.${index}.owner`,

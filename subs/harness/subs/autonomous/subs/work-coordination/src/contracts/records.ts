@@ -197,3 +197,21 @@ export const descriptiveContractSchemas = {
   obligation: { schema: 'ramify-agent.provider-obligation/2', body: providerObligationSchema },
   requirement: { schema: 'ramify-agent.consumer-requirement/2', body: consumerRequirementSchema },
 } as const;
+
+/** An immutable authorization to retire one accepted execution identity. */
+export const executionRetirementSchema = z.object({
+  schema: z.literal('ramify-agent.execution-retirement/1'),
+  id: z.string().regex(/^(?:contract|provider-obligation|consumer-requirement|capability-request|capability-task):[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  kind: z.enum(['contract', 'provider-obligation', 'consumer-requirement', 'capability-request', 'capability-task']),
+  replacements: z.array(z.string().regex(/^(?:contract|provider-obligation|consumer-requirement|capability-request|capability-task):[a-z0-9]+(?:-[a-z0-9]+)*$/)).min(1),
+  authority: z.object({ iteration: text, reason: text }).strict(),
+}).strict().superRefine((record, ctx) => {
+  if (!record.id.startsWith(`${record.kind}:`))
+    ctx.addIssue({ code: 'custom', path: ['kind'], message: `kind must match ${record.id}` });
+  if (new Set(record.replacements).size !== record.replacements.length)
+    ctx.addIssue({ code: 'custom', path: ['replacements'], message: 'each replacement is named once' });
+  if (record.replacements.includes(record.id))
+    ctx.addIssue({ code: 'custom', path: ['replacements'], message: 'a retired ID cannot replace itself' });
+});
+export type ExecutionRetirement = z.infer<typeof executionRetirementSchema>;
+export const executionRetirementPath = (id: string): string => join('retirements', `${encodeURIComponent(id)}.json`);

@@ -22,6 +22,7 @@ import { slugSchema } from '../../../planning/src/records.js';
 
 const text = z.string().min(1);
 const capabilityName = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const placementSubject = z.union([capabilityName, z.string().regex(/^capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 
 /** `pr-003`, the count of committed placement requests. */
 export const requestId = (count: number): string => `pr-${String(count).padStart(3, '0')}`;
@@ -69,7 +70,7 @@ export const placementRequestSchema = z.object({
   workItem: text,
   requester: modulePathSchema,
   /** The consumer capability being implemented, which this request is made for. */
-  forCapability: capabilityName,
+  forCapability: placementSubject,
   question: text,
   requiredBehavior: text,
   findings: z.array(z.object({ text, citations: z.array(citationSchema) }).strict()),
@@ -87,6 +88,7 @@ export const placementRequestSchema = z.object({
   globalSource: globalForkSourceSchema.optional(),
 }).strict().superRefine((request, context) => {
   if (request.schema.endsWith('/2') !== request.id.startsWith('placement-request:')) context.addIssue({ code: 'custom', path: ['id'], message: 'placement request ID disagrees with contract version' });
+  if (request.schema.endsWith('/1') && request.forCapability.includes(':')) context.addIssue({ code: 'custom', path: ['forCapability'], message: 'Legacy placement cannot cite a descriptive subject' });
 });
 export type PlacementRequest = z.infer<typeof placementRequestSchema>;
 

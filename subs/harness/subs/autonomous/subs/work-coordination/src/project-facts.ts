@@ -151,11 +151,12 @@ export async function iterationAssignmentOf(projectRoot: string, input: {
   readonly guardedPaths: readonly string[];
   readonly externalCapabilities?: IterationAssignment['externalCapabilities'] | undefined;
   readonly revisesContract?: RecordRef | undefined;
+  readonly identityContract?: 'legacy' | 'descriptive' | undefined;
 }, guarding: { readonly scenarioFiles: GuardedScenarioFiles; readonly preparationPaths: readonly string[] }): Promise<IterationAssignment> {
   const { id, item, basis, coordination, body, scope, source, evidenceObligations, authorizations,
     guardedPaths, externalCapabilities, revisesContract } = input;
   return iterationAssignmentSchema.parse({
-    schema: 'ramify-agent.iteration-assignment/1', id, workItem: item.id, outline: basis, coordination,
+    schema: input.identityContract === 'descriptive' ? 'ramify-agent.iteration-assignment/2' : 'ramify-agent.iteration-assignment/1', id, workItem: item.id, outline: basis, coordination,
     stage: body.stage, kind: body.kind, goal: body.goal, approach: body.approach, scope,
     ...(body.startingPoints === undefined ? {} : { startingPoints: body.startingPoints }),
     ...(source === undefined ? {} : { source }),

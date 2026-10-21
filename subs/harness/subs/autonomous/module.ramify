@@ -35,4 +35,6 @@ expose-src RepairExportConfiguration, createRepairExportPayload, exportRepairInc
 expose-src recoveryHash, externalRepairAdmissionSchema from "run/recovery-admission.ts" to descendants
 expose-sub recordConsultationStart, recordConsultationOutcome, ConsultationJournal, ConsultationReading from work-coordination to descendants
 expose-sub ConsultationJournal, ConsultationReading from work-coordination to parent
+expose-sub ContractIdentityContext, descriptiveAttachedContractSubmissionSchema, descriptiveRevisedContractSubmissionSchema, ExecutionRetirement, executionRetirementSchema from work-coordination to parent
+expose-sub ContractIdentityContext, descriptiveAttachedContractSubmissionSchema, descriptiveRevisedContractSubmissionSchema from work-coordination to descendants
 expose-sub producerBoundary, nonfunctionalSourceBoundary, ProducerBoundary, NonfunctionalSourceBoundary from acceptance to parent

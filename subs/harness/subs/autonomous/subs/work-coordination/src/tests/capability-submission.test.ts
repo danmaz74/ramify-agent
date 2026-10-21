@@ -43,6 +43,30 @@ const basis: CapabilityActionBasis = {
   openAssignment: null, openChild: null,
 };
 
+it('descriptive request and example collisions return the author to the exact draft fields', () => {
+  const request = { requestKey: 'draft:capability-request:render-source', need: 'Render a source',
+    usage: [{ path: 'subs/a/src/caller.ts', use: 'Show source', prospective: false }], constraints: [],
+    knownInterface: { kind: 'none-known' }, examples: [
+      { key: 'draft:capability-example:source', title: 'Source appears', code: 'expect(source).toBeDefined()', designation: 'pseudocode' },
+      { key: 'draft:capability-example:source', title: 'Source remains', code: 'expect(source).toBeTruthy()', designation: 'pseudocode' },
+    ] };
+  const evidence = { identityContract: 'descriptive' as const, capabilityWorkflow: true,
+    occupiedCapabilityNames: { requests: new Set(['capability-request:render-source']),
+      examples: new Set(['capability-example:source']) } };
+  const collision = validateEngineer({ kind: 'capability-needed', summary: 'Need source', request }, evidence);
+  expect(collision.ok).toBe(false);
+  if (!collision.ok) expect(collision.errors.map(error => error.path)).toEqual([
+    'request.requestKey', 'request.examples.0.key', 'request.examples.1.key',
+  ]);
+  const corrected = validateEngineer({ kind: 'capability-needed', summary: 'Need source', request: {
+    ...request, requestKey: 'draft:capability-request:render-source-for-card', examples: [
+      { ...request.examples[0], key: 'draft:capability-example:source-for-card' },
+      { ...request.examples[1], key: 'draft:capability-example:source-for-preview' },
+    ],
+  } }, evidence);
+  expect(corrected.ok).toBe(true);
+});
+
 describe('capability submission', () => {
   it('CA16 returns structural field errors and keeps preview pure', () => {
     const malformed = { task: 'cap-001', planRevision: 2, invocation: 'inv-0003', kind: 'assign',

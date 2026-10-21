@@ -36,14 +36,21 @@ function literalValues(schema: unknown): string[] | undefined {
 }
 
 /** The discriminator values of each option, where the union is discriminated. */
-function discriminated(def: Def): { key: string; options: Array<{ values: string[]; option: unknown }> } | undefined {
-  const key = def.discriminator as string | undefined;
+function discriminated(def: Def): { key: string; options: Array<{ values: string[]; option: unknown }>; inferred: boolean } | undefined {
+  const options = def.options as unknown[];
+  const explicit = def.discriminator as string | undefined;
+  // Mode-specific contracts have two established branches with different
+  // required fields. Their ordinary union still has a closed kind choice.
+  const inferred = explicit === undefined && options.every(option =>
+    literalValues((defOf(option)?.shape as Record<string, unknown> | undefined)?.kind) !== undefined)
+    && new Set(options.flatMap(option => literalValues((defOf(option)?.shape as Record<string, unknown>).kind) ?? [])).size < options.length;
+  const key = explicit ?? (inferred ? 'kind' : undefined);
   if (key === undefined) return undefined;
-  const options = (def.options as unknown[]).map(option => {
+  const variants = options.map(option => {
     const shape = defOf(option)?.shape as Record<string, unknown> | undefined;
     return { values: literalValues(shape?.[key]) ?? [], option };
   });
-  return { key, options };
+  return { key, options: variants, inferred };
 }
 
 const wrappers = new Set(['optional', 'nullable', 'default', 'readonly', 'catch', 'nonoptional', 'prefault', 'success']);
@@ -85,7 +92,7 @@ export function unionInventory(roots: Readonly<Record<string, unknown>>): Map<un
       case 'union': {
         const byKey = discriminated(def);
         if (byKey !== undefined) {
-          sites.set(schema, { name: `${path}.${byKey.key}`, values: byKey.options.flatMap(option => option.values) });
+          sites.set(schema, { name: `${path}.${byKey.key}`, values: [...new Set(byKey.options.flatMap(option => option.values))] });
           for (const option of byKey.options) walk(option.option, `${path}[${option.values.join('|')}]`, depth + 1);
           return;
         }
@@ -145,7 +152,8 @@ export function observeValues(schema: unknown, value: unknown, observed: Map<unk
       const byKey = discriminated(def);
       if (byKey !== undefined) {
         const tag = typeof value === 'object' ? (value as Record<string, unknown>)[byKey.key] : undefined;
-        const option = byKey.options.find(candidate => candidate.values.includes(String(tag)));
+        const option = byKey.options.find(candidate => candidate.values.includes(String(tag))
+          && (!byKey.inferred || (candidate.option as Schema).safeParse(value).success));
         if (option === undefined) return;
         add(schema, String(tag));
         observeValues(option.option, value, observed);

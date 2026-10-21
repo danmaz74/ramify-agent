@@ -392,6 +392,7 @@ export class AfterHandling {
     readonly hypothesesSeen: readonly RecordRef[];
     /** The architect's pinned point a completion request records with its revision; absent for an assignment's. */
     readonly architectRef?: ArchitectRef | null | undefined;
+    readonly identityContract?: 'legacy' | 'descriptive' | undefined;
   }): Promise<{ readonly outline: WorkItemOutline; readonly written: boolean; readonly unchanged: boolean } | null> {
     const { transition, ...result } = prepareOutlinePublication(this.observe().history, input);
     if (transition === undefined) return result;

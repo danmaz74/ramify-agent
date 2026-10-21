@@ -29,6 +29,8 @@ import { startingPointsSchema } from './starting-points.js';
  */
 
 const text = z.string().min(1);
+/** An assignment cites an accepted registration, never a draft name. */
+export const assignedCapabilitySchema = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 
 /**
  * The kinds a module architect may assign. `integration` arrives with a later
@@ -135,7 +137,7 @@ export const assignmentBodySchema = z.object({
     + 'Plan deviations are supplied separately by the harness.',
   ),
   externalCapabilities: z.array(z.object({
-    capability: slugSchema,
+    capability: assignedCapabilitySchema,
     owner: modulePathSchema,
     role: z.enum(['use', 'request']),
   }).strict()).describe(

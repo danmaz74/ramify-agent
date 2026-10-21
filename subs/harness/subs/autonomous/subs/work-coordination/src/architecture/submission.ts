@@ -32,6 +32,7 @@ import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '
 
 const text = z.string().min(1);
 const capabilityName = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const placementSubject = z.union([capabilityName, z.string().regex(/^capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 
 /** A `PlacementDecision` without the fields the harness assigns. */
 export const decisionBodySchema = z.object({
@@ -117,7 +118,7 @@ export type LocalDecisionBody = z.infer<typeof localDecisionSchema>;
 
 /** A `PlacementRequest` without the fields the harness assigns. */
 export const placementRequestBodySchema = z.object({
-  forCapability: capabilityName,
+  forCapability: placementSubject,
   question: text,
   requiredBehavior: text,
   findings: z.array(z.object({ text, citations: z.array(citationSchema) }).strict()),

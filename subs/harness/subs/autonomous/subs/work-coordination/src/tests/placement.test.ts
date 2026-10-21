@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type ScriptedAgent } from '../../../../../agent/src/scripted.js';
 import type { ArchitectIndex } from '../../../../../evidence/src/views.js';
 import { analysisLayout, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
-import { architectureLayout, descriptiveLocalDecisionId, descriptivePlacementRequestId, globalDecisionId, type PlacementDecision, type PlacementRequest } from '../architecture/records.js';
+import { architectureLayout, descriptiveLocalDecisionId, descriptivePlacementRequestId, globalDecisionId, placementRequestSchema, type PlacementDecision, type PlacementRequest } from '../architecture/records.js';
 import { acceptDecision } from '../architecture/accept.js';
 import type { RunInputs } from '../../../../src/run/inputs.js';
 import { runLayout } from '../../../../src/run/records.js';
@@ -65,6 +65,18 @@ test('descriptive placement IDs preserve their work and capability origin throug
   expect(accepted.records[0]?.path).toContain('placement-decision%3A');
   expect(descriptiveLocalDecisionId('work-item:add-revision-preview', 'capability:resolve-review-predecessors', 1))
     .toMatch(/^placement-decision:/);
+});
+
+test('a descriptive task is an exact placement subject, while the legacy version keeps its historical field contract', () => {
+  const task = 'capability-task:provide-review-source';
+  const id = descriptivePlacementRequestId('work-item:review-source', task, 1);
+  const request = { schema: 'ramify-agent.placement-request/2', id, workItem: 'work-item:review-source',
+    requester: panel, forCapability: task, question: 'Where does source reading belong?',
+    requiredBehavior: 'Provide source reading', findings: [], candidates: [], unresolved: [],
+    hypotheses: [], localDecisions: [] };
+  expect(placementRequestSchema.safeParse(request).success).toBe(true);
+  expect(placementRequestSchema.safeParse({ ...request, forCapability: 'consumer-requirement:foreign' }).success).toBe(false);
+  expect(placementRequestSchema.safeParse({ ...request, schema: 'ramify-agent.placement-request/1', id: 'pr-001' }).success).toBe(false);
 });
 
 /** A copy of the fixture project, made a git repository with the runner readiness looks for. */

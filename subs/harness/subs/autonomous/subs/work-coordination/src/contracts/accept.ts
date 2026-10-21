@@ -4,7 +4,8 @@ import type { TestSelectionPolicy } from '../../../acceptance/src/checks/records
 import { refOf } from '../../../../../../src/jobs/committed-reader.js';
 import { workLayout, workItemSchema, type WorkItem, type WorkItemId } from '../work/records.js';
 import {
-  consumerRequirementSchema, contractRecordSchema, contractsLayout, obligationId, providerObligationSchema,
+  consumerRequirementSchema, contractRecordSchema, contractsLayout, executionRetirementPath, executionRetirementSchema,
+  obligationId, providerObligationSchema,
   type ConsumerRequirement, type ContractId, type ContractRecord, type ProviderObligation, type RequirementId,
 } from './records.js';
 import type { EstablishedContract } from './submission.js';
@@ -69,15 +70,30 @@ export interface Registration {
 /** The records one accepted contract submission commits, derived from committed state. */
 export function registerContract(request: RegistrationRequest): Registration {
   const { submission } = request;
-  const descriptive = 'contractKey' in submission;
-  if (descriptive && request.contract !== submission.contractKey.slice('draft:'.length))
-    throw new Error(`Contract ${request.contract} does not resolve ${submission.contractKey}`);
-  if (descriptive && submission.mode === 'fake-backed' && request.obligation !== submission.providerObligationKey.slice('draft:'.length))
-    throw new Error(`Provider obligation ${request.obligation ?? '<missing>'} does not resolve ${submission.providerObligationKey}`);
-  if (descriptive && submission.mode === 'fake-backed' && request.consumers.some(consumer =>
-    consumer.requirement !== submission.consumerRequirementKey.slice('draft:'.length)
-    && request.revision === 1))
-    throw new Error(`A new consumer requirement must resolve ${submission.consumerRequirementKey}`);
+  const descriptive = 'contractKey' in submission || 'contractId' in submission;
+  const proposedContract = 'contractKey' in submission ? submission.contractKey.slice('draft:'.length)
+    : 'contractId' in submission ? submission.contractId : request.contract;
+  if (request.contract !== proposedContract)
+    throw new ContractPublicationError('contractKey' in submission ? 'contractKey' : 'contractId',
+      `the agreement in force is ${request.contract}; ${proposedContract} does not identify it`);
+  const proposedObligation = 'providerObligationKey' in submission ? submission.providerObligationKey.slice('draft:'.length)
+    : 'providerObligationId' in submission ? submission.providerObligationId : request.obligation;
+  if (descriptive && submission.mode === 'fake-backed' && request.obligation !== proposedObligation)
+    throw new ContractPublicationError('providerObligationKey' in submission ? 'providerObligationKey' : 'providerObligationId',
+      `the provider obligation in force is ${request.obligation ?? '<missing>'}; ${proposedObligation ?? '<none>'} does not identify it`);
+  if ('consumerRequirementId' in submission && !request.consumers.some(consumer => consumer.requirement === submission.consumerRequirementId))
+    throw new ContractPublicationError('consumerRequirementId', `the revising consumer does not own ${submission.consumerRequirementId}`);
+  if ('consumerRequirementKey' in submission && submission.mode === 'fake-backed'
+    && !request.consumers.some(consumer => consumer.requirement === submission.consumerRequirementKey.slice('draft:'.length)))
+    throw new ContractPublicationError('consumerRequirementKey', `the new consumer requirement does not resolve ${submission.consumerRequirementKey}`);
+  if ('consumerRequirementKeys' in submission) {
+    for (const [index, key] of submission.consumerRequirementKeys.entries()) {
+      if (!request.consumers.some(consumer => consumer.requirement === key.slice('draft:'.length)))
+        throw new ContractPublicationError(`consumerRequirementKeys.${index}`, `the replacement consumer requirement does not resolve ${key}`);
+    }
+    if (request.consumers.some(consumer => consumer.requirement === submission.retirements[0]?.id))
+      throw new ContractPublicationError('retirements.0.id', `the retired requirement ${submission.retirements[0]?.id} cannot be carried to the new revision`);
+  }
   const hash = (path: string): string => {
     const found = request.hashes.get(path);
     if (found === undefined) throw new Error(`The contract artifact ${path} was not hashed`);
@@ -220,6 +236,38 @@ export class ContractPublicationError extends Error {
   }
 }
 
+export interface ExecutionRetirementRequest {
+  readonly retirements: readonly { readonly id: string; readonly kind: 'contract' | 'provider-obligation' | 'consumer-requirement' | 'capability-request' | 'capability-task'; readonly replacements: readonly string[] }[];
+  readonly authority: { readonly iteration: string; readonly reason: string };
+  /** Accepted and retired IDs of this run, never another run's names. */
+  readonly accepted: ReadonlySet<string>;
+  readonly retired: ReadonlySet<string>;
+  /** Replacement entities in the same atomic publication. */
+  readonly published: readonly CommitRecord[];
+}
+
+/** Build retirement records only when the same transaction publishes every replacement. */
+export function executionRetirements(request: ExecutionRetirementRequest): CommitRecord[] {
+  const seen = new Set<string>();
+  const fresh = new Set(request.published.filter(descriptiveRecord).map(record => record.id));
+  return request.retirements.map((entry, index) => {
+    const field = `retirements.${index}`;
+    if (seen.has(entry.id)) throw new ContractPublicationError(`${field}.id`, `${entry.id} is retired twice`);
+    seen.add(entry.id);
+    if (!request.accepted.has(entry.id) || request.retired.has(entry.id))
+      throw new ContractPublicationError(`${field}.id`, `${entry.id} is not an active accepted identity of this run`);
+    for (const replacement of entry.replacements) {
+      if (!fresh.has(replacement)) throw new ContractPublicationError(`${field}.replacements`,
+        `${replacement} must be published as a new accepted entity in this transaction`);
+      if (request.accepted.has(replacement) || request.retired.has(replacement))
+        throw new ContractPublicationError(`${field}.replacements`, `${replacement} is already accepted or retired in this run`);
+    }
+    const body = executionRetirementSchema.parse({ ...entry, replacements: [...entry.replacements],
+      authority: request.authority, schema: 'ramify-agent.execution-retirement/1' });
+    return { path: executionRetirementPath(body.id), id: body.id, revision: 1, body };
+  });
+}
+
 export type PublicationRecord = { readonly path: string; readonly id: string; readonly revision: number; readonly body: unknown };
 export type PublicationEvent = { readonly type: string; readonly data: unknown };
 export type PublicationLine = { readonly transaction: { readonly event: PublicationEvent; readonly records: readonly PublicationRecord[] } };
@@ -245,12 +293,15 @@ const proposalField = (record: PublicationRecord): string => {
 export function contractPublicationRefusal(
   lines: readonly PublicationLine[], event: PublicationEvent, records: readonly PublicationRecord[],
 ): ContractPublicationError | null {
-  if (event.type !== 'contract-registered' && event.type !== 'evidence-reopened') return null;
-  if (!records.some(descriptiveRecord)) return null;
+  if (event.type !== 'contract-registered' && event.type !== 'evidence-reopened' && event.type !== 'execution-identities-retired') return null;
+  if (!records.some(descriptiveRecord) && !records.some(record =>
+    (record.body as { schema?: unknown } | null)?.schema === 'ramify-agent.execution-retirement/1')) return null;
   const iteration = (event.data as { iteration?: unknown } | null)?.iteration;
   const prior = lines.filter(line => line.transaction.event.type === 'contract-registered'
-    || line.transaction.event.type === 'evidence-reopened');
-  const sameIteration = prior.find(line => (line.transaction.event.data as { iteration?: unknown } | null)?.iteration === iteration);
+    || line.transaction.event.type === 'evidence-reopened'
+    || line.transaction.event.type === 'execution-identities-retired');
+  const sameIteration = prior.find(line => line.transaction.event.type === event.type
+    && (line.transaction.event.data as { iteration?: unknown } | null)?.iteration === iteration);
   if (sameIteration !== undefined) {
     const previous = sameIteration.transaction;
     if (previous.event.type === event.type && JSON.stringify(previous.event.data) === JSON.stringify(event.data)
@@ -259,18 +310,43 @@ export function contractPublicationRefusal(
   }
 
   const accepted = lines.flatMap(line => line.transaction.records);
+  const retired = new Set(accepted.filter(record => (record.body as { schema?: unknown } | null)?.schema === 'ramify-agent.execution-retirement/1')
+    .map(record => record.id));
+  const retirements = records.filter(record => (record.body as { schema?: unknown } | null)?.schema === 'ramify-agent.execution-retirement/1');
+  for (const [index, record] of retirements.entries()) {
+    const parsed = executionRetirementSchema.safeParse(record.body);
+    if (!parsed.success) return new ContractPublicationError(`retirements.${index}`, 'the retirement record is invalid');
+    const retirement = parsed.data;
+    if (record.id !== retirement.id || record.path !== executionRetirementPath(retirement.id) || record.revision !== 1)
+      return new ContractPublicationError(`retirements.${index}.id`, `the retirement record for ${retirement.id} has an inconsistent identity or path`);
+    if (!accepted.some(candidate => candidate.id === retirement.id) || retired.has(retirement.id))
+      return new ContractPublicationError(`retirements.${index}.id`, `${retirement.id} is not an active accepted identity of this run`);
+    for (const replacement of retirement.replacements) {
+      if (!records.some(candidate => candidate.id === replacement && descriptiveRecord(candidate))
+        || accepted.some(candidate => candidate.id === replacement))
+        return new ContractPublicationError(`retirements.${index}.replacements`,
+          `${replacement} must be newly accepted in the same atomic transaction`);
+    }
+  }
   for (const record of records.filter(descriptiveRecord)) {
+    if (retired.has(record.id)) return new ContractPublicationError(proposalField(record),
+      `"${record.id}" is retired in this run and cannot be reused`);
     const earlier = accepted.filter(candidate => candidate.id === record.id);
     if (earlier.length === 0) continue;
     const priorRevision = earlier.reduce((latest, candidate) => candidate.revision > latest.revision ? candidate : latest);
     const revision = event.type === 'evidence-reopened' && record.revision === priorRevision.revision + 1;
     const body = record.body as { schema?: unknown; contract?: { id?: unknown }; workItem?: unknown; obligation?: unknown };
     const previous = priorRevision.body as typeof body;
+    const replacedObligation = records.some(candidate => {
+      const retirement = executionRetirementSchema.safeParse(candidate.body);
+      return retirement.success && retirement.data.id === previous.obligation
+        && retirement.data.replacements.includes(String(body.obligation));
+    });
     const sameSubject = body.schema === previous.schema
       && (body.schema === 'ramify-agent.contract/3'
         || body.schema === 'ramify-agent.provider-obligation/2' && body.contract?.id === previous.contract?.id
         || body.schema === 'ramify-agent.consumer-requirement/2'
-          && body.workItem === previous.workItem && body.obligation === previous.obligation);
+          && body.workItem === previous.workItem && (body.obligation === previous.obligation || replacedObligation));
     if (revision && sameSubject) continue;
     return new ContractPublicationError(proposalField(record),
       `"${record.id}" is already accepted at revision ${priorRevision.revision}; propose an unused descriptive name or cite the existing agreement through its revision authority`);

@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { outline, readDeclaredTree } from '../../../../../../src/tests/helpers/iterations.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, descriptiveContractJsonSchema, descriptiveContractSubmissionSchema, descriptiveContractIdentityErrors, validateContract } from '../contracts/submission.js';
+import { contractAuthorJsonSchema, contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, descriptiveContractJsonSchema, descriptiveContractSubmissionSchema, descriptiveContractIdentityErrors, validateContract } from '../contracts/submission.js';
 import { fakeNamingViolations, isFakeFile } from '../contracts/naming.js';
-import { contractPublicationRefusal, registerContract, registrationNeeded } from '../contracts/accept.js';
-import { consumerRequirementSchema, contractRecordSchema, providerObligationSchema } from '../contracts/records.js';
+import { contractPublicationRefusal, executionRetirements, registerContract, registrationNeeded } from '../contracts/accept.js';
+import { consumerRequirementSchema, contractRecordSchema, executionRetirementSchema, providerObligationSchema } from '../contracts/records.js';
 import { cycleClosedBy, cycleIdentity } from '../contracts/graph.js';
 import { depthOf, nextWorkItem } from '../contracts/schedule.js';
 import { integrationWorkItem } from '../work/integration.js';
@@ -86,6 +86,73 @@ describe('the contract submission', () => {
       .toEqual(['contractKey', 'consumerRequirementKey']);
     expect(descriptiveContractIdentityErrors(accepted.value, occupied, new Set(['contract:review-predecessor-resolution']))
       .map(error => error.path)).toEqual(['consumerRequirementKey']);
+  });
+  test('attachment and revision cite the accepted agreement before the gate', async () => {
+    const current = { contractId: 'contract:review-predecessor-resolution',
+      providerObligationId: 'provider-obligation:provide-review-predecessor-resolution' };
+    const attached = { ...established(), ...current,
+      consumerRequirementKey: 'draft:consumer-requirement:preview-resolves-review-predecessors' };
+    const attachment = { kind: 'attach' as const, ...current };
+    const delivered = JSON.stringify(contractAuthorJsonSchema('descriptive', attachment));
+    expect(delivered).toContain('contractId');
+    expect(delivered).not.toContain('contractKey');
+    expect((await validateContract(attached, await evidence(), 'descriptive', attachment)).ok).toBe(true);
+    const wrong = await validateContract({ ...attached, contractId: 'contract:another-agreement' }, await evidence(), 'descriptive', attachment);
+    expect(wrong.ok).toBe(false);
+    if (!wrong.ok) expect(wrong.errors.map(error => error.path)).toContain('contractId');
+    const revision = { kind: 'revise' as const, ...current,
+      consumerRequirementId: 'consumer-requirement:preview-resolves-review-predecessors' };
+    const revised = { ...established(), ...current, consumerRequirementId: revision.consumerRequirementId };
+    expect((await validateContract(revised, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    const redirected = await validateContract({ ...revised, consumerRequirementId: 'consumer-requirement:other' },
+      await evidence(), 'descriptive', revision);
+    expect(redirected.ok).toBe(false);
+    if (!redirected.ok) expect(redirected.errors.map(error => error.path)).toContain('consumerRequirementId');
+    const keys = ['draft:consumer-requirement:preview-reads-parent', 'draft:consumer-requirement:preview-reads-sibling'];
+    const split = { ...established(), ...current, consumerRequirementKeys: keys,
+      retirements: [{ id: revision.consumerRequirementId, kind: 'consumer-requirement', replacementKeys: keys,
+        reason: 'The two predecessor behaviors need separate verification.' }] };
+    expect((await validateContract(split, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    const wrongSource = await validateContract({ ...split, retirements: [{ ...split.retirements[0],
+      id: 'consumer-requirement:foreign' }] }, await evidence(), 'descriptive', revision);
+    expect(wrongSource.ok).toBe(false);
+    if (!wrongSource.ok) expect(wrongSource.errors.map(error => error.path)).toContain('retirements.0.id');
+    const missing = await validateContract({ ...split, retirements: [{ ...split.retirements[0],
+      replacementKeys: keys.slice(0, 1) }] }, await evidence(), 'descriptive', revision);
+    expect(missing.ok).toBe(false);
+    const replacement = { ...established(), contractKey: 'draft:contract:review-predecessor-routing',
+      providerObligationKey: 'draft:provider-obligation:provide-review-predecessor-routing',
+      consumerRequirementId: revision.consumerRequirementId,
+      retirements: [
+        { id: current.contractId, kind: 'contract', replacementKeys: ['draft:contract:review-predecessor-routing'],
+          reason: 'The agreement changes kind under this revision.' },
+        { id: current.providerObligationId, kind: 'provider-obligation',
+          replacementKeys: ['draft:provider-obligation:provide-review-predecessor-routing'],
+          reason: 'The provider obligation follows the replacement agreement.' },
+      ] };
+    expect((await validateContract(replacement, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    const foreignAgreement = await validateContract({ ...replacement, retirements: [
+      { ...replacement.retirements[0], id: 'contract:foreign' }, replacement.retirements[1],
+    ] }, await evidence(), 'descriptive', revision);
+    expect(foreignAgreement.ok).toBe(false);
+    if (!foreignAgreement.ok) expect(foreignAgreement.errors.map(error => error.path)).toContain('retirements.0.id');
+  });
+  test('access-only descriptive agreements ask for only the contract identity', async () => {
+    const access = established({ mode: 'access-only',
+      artifacts: { ...established().artifacts as object, fake: [], conformance: [] }, fakeInjections: [] });
+    const fresh = { ...access, contractKey: 'draft:contract:expose-review-predecessors' };
+    expect((await validateContract(fresh, await evidence(), 'descriptive')).ok).toBe(true);
+    expect((await validateContract({ ...fresh, providerObligationKey: 'draft:provider-obligation:unused' },
+      await evidence(), 'descriptive')).ok).toBe(false);
+    const current = { contractId: 'contract:expose-review-predecessors', providerObligationId: null };
+    const attached = { ...access, contractId: current.contractId };
+    expect((await validateContract(attached, await evidence(), 'descriptive', { kind: 'attach', ...current })).ok).toBe(true);
+    expect((await validateContract(attached, await evidence(), 'descriptive',
+      { kind: 'revise', ...current, consumerRequirementId: null })).ok).toBe(true);
+    expect((await validateContract({ ...attached, consumerRequirementKey: 'draft:consumer-requirement:unused' },
+      await evidence(), 'descriptive', { kind: 'attach', ...current })).ok).toBe(false);
+    expect(JSON.stringify(contractAuthorJsonSchema('descriptive', { kind: 'attach', ...current })))
+      .toContain('contractId');
   });
   test('it is a union discriminated on kind, and has no field for an ID the harness knows', () => {
     const union = (contractJsonSchema as { anyOf?: unknown[]; oneOf?: unknown[] });
@@ -441,6 +508,90 @@ test('serialized contract publication rejects collisions and changed retries wit
   const redirected = next.map(record => record.id === requirement.id
     ? { ...record, body: { ...record.body, workItem: 'work-item:other' } } : record);
   expect(contractPublicationRefusal(accepted, revised, redirected)?.path).toBe('consumerRequirementKey');
+});
+
+test('authorized execution retirement publishes replacements atomically and never reuses the old name', () => {
+  const old = 'consumer-requirement:preview-resolves-predecessors';
+  const replacements = ['consumer-requirement:preview-resolves-review-parent', 'consumer-requirement:preview-resolves-review-sibling'];
+  const published = replacements.map(id => ({ path: `requirements/${encodeURIComponent(id)}/2.json`, id, revision: 2,
+    body: { schema: 'ramify-agent.consumer-requirement/2', id } }));
+  const request = { retirements: [{ id: old, kind: 'consumer-requirement' as const, replacements }],
+    authority: { iteration: 'it-009', reason: 'The review predecessor behavior split into two separately verified obligations.' },
+    accepted: new Set([old]), retired: new Set<string>(), published };
+  const retirement = executionRetirements(request);
+  expect(retirement).toHaveLength(1);
+  expect(executionRetirementSchema.parse(JSON.parse(JSON.stringify(retirement[0]!.body)))).toMatchObject({
+    id: old, replacements, authority: request.authority,
+  });
+  expect(() => executionRetirements({ ...request, published: published.slice(0, 1) })).toThrow('must be published');
+  const lines = [{ transaction: { event: { type: 'execution-identities-retired', data: { iteration: 'it-009' } },
+    records: [...published, ...retirement] } }];
+  const prior = [{ transaction: { event: { type: 'contract-registered', data: { iteration: 'it-001' } },
+    records: [{ path: `requirements/${encodeURIComponent(old)}/1.json`, id: old, revision: 1,
+      body: { schema: 'ramify-agent.consumer-requirement/2', id: old } }] } }];
+  expect(contractPublicationRefusal(prior, lines[0]!.transaction.event, lines[0]!.transaction.records)).toBeNull();
+  expect(contractPublicationRefusal(prior, lines[0]!.transaction.event, retirement)?.path)
+    .toBe('retirements.0.replacements');
+  expect(contractPublicationRefusal(lines, { type: 'contract-registered', data: { iteration: 'it-010' } },
+    [{ path: `requirements/${encodeURIComponent(old)}/2.json`, id: old, revision: 2,
+      body: { schema: 'ramify-agent.consumer-requirement/2', id: old } }])?.message).toContain('retired');
+  expect(contractPublicationRefusal(JSON.parse(JSON.stringify(lines)), lines[0]!.transaction.event,
+    JSON.parse(JSON.stringify(lines[0]!.transaction.records)))).toBeNull();
+  expect(() => executionRetirements({ ...request, retired: new Set([old]) })).toThrow('not an active accepted identity');
+});
+
+test('a merge or change of kind records every retired source against one published replacement', () => {
+  const old = ['consumer-requirement:preview-reads-parent', 'consumer-requirement:preview-reads-sibling'];
+  const replacement = 'provider-obligation:provide-review-predecessors';
+  const published = [{ path: `obligations/${encodeURIComponent(replacement)}/1.json`, id: replacement, revision: 1,
+    body: { schema: 'ramify-agent.provider-obligation/2', id: replacement } }];
+  const result = executionRetirements({
+    retirements: old.map(id => ({ id, kind: 'consumer-requirement' as const, replacements: [replacement] })),
+    authority: { iteration: 'it-010', reason: 'The authorized correction consolidates the obligation.' },
+    accepted: new Set(old), retired: new Set(), published,
+  });
+  expect(result.map(record => record.path)).toEqual(old.map(id => `retirements/${encodeURIComponent(id)}.json`));
+  expect(result.map(record => (record.body as { replacements: string[] }).replacements)).toEqual([[replacement], [replacement]]);
+  expect(() => executionRetirements({ retirements: [{ id: old[0]!, kind: 'consumer-requirement', replacements: [replacement] },
+    { id: old[0]!, kind: 'consumer-requirement', replacements: [replacement] }],
+    authority: { iteration: 'it-010', reason: 'Duplicate' }, accepted: new Set(old), retired: new Set(), published }))
+    .toThrow('retired twice');
+});
+
+test('a replacement agreement rebinds a stable consumer requirement in one revision transaction', () => {
+  const oldContract = 'contract:review-predecessor-resolution';
+  const oldObligation = 'provider-obligation:provide-review-predecessor-resolution';
+  const requirement = 'consumer-requirement:preview-resolves-review-predecessors';
+  const newContract = 'contract:review-predecessor-routing';
+  const newObligation = 'provider-obligation:provide-review-predecessor-routing';
+  const priorRecords = [
+    { path: 'old-contract', id: oldContract, revision: 1, body: { schema: 'ramify-agent.contract/3', id: oldContract } },
+    { path: 'old-obligation', id: oldObligation, revision: 1,
+      body: { schema: 'ramify-agent.provider-obligation/2', id: oldObligation, contract: { id: oldContract } } },
+    { path: 'old-requirement', id: requirement, revision: 1,
+      body: { schema: 'ramify-agent.consumer-requirement/2', id: requirement,
+        workItem: 'work-item:preview', obligation: oldObligation } },
+  ];
+  const published = [
+    { path: 'new-contract', id: newContract, revision: 2, body: { schema: 'ramify-agent.contract/3', id: newContract } },
+    { path: 'new-obligation', id: newObligation, revision: 2,
+      body: { schema: 'ramify-agent.provider-obligation/2', id: newObligation, contract: { id: newContract } } },
+    { path: 'new-requirement', id: requirement, revision: 2,
+      body: { schema: 'ramify-agent.consumer-requirement/2', id: requirement,
+        workItem: 'work-item:preview', obligation: newObligation } },
+  ];
+  const retirement = executionRetirements({
+    retirements: [
+      { id: oldContract, kind: 'contract', replacements: [newContract] },
+      { id: oldObligation, kind: 'provider-obligation', replacements: [newObligation] },
+    ],
+    authority: { iteration: 'it-002', reason: 'The revision replaces the agreement and provider obligation.' },
+    accepted: new Set([oldContract, oldObligation, requirement]), retired: new Set(), published,
+  });
+  const prior = [{ transaction: { event: { type: 'contract-registered', data: { iteration: 'it-001' } }, records: priorRecords } }];
+  const event = { type: 'evidence-reopened', data: { iteration: 'it-002', contract: newContract } };
+  expect(contractPublicationRefusal(prior, event, [...published, ...retirement])).toBeNull();
+  expect(contractPublicationRefusal(prior, event, published)?.path).toBe('consumerRequirementKey');
 });
 
 describe('the dependency graph has capabilities for nodes', () => {

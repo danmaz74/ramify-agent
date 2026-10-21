@@ -17,6 +17,7 @@ export interface OutlinePublicationInput {
   readonly outline: OutlineBody;
   readonly hypothesesSeen: readonly RecordRef[];
   readonly architectRef?: ArchitectRef | null | undefined;
+  readonly identityContract?: 'legacy' | 'descriptive' | undefined;
 }
 export interface AssignmentPublicationInput {
   readonly item: WorkItem;
@@ -58,7 +59,8 @@ export function prepareOutlinePublication(history: CoordinationHistory, input: O
     } };
   }
   const revision = committed.length + 1;
-  const outline = workItemOutlineSchema.parse({ schema: 'ramify-agent.work-item-outline/1', workItem: item.id, revision, invocation, ...input.outline,
+  const outline = workItemOutlineSchema.parse({ schema: input.identityContract === 'descriptive'
+    ? 'ramify-agent.work-item-outline/2' : 'ramify-agent.work-item-outline/1', workItem: item.id, revision, invocation, ...input.outline,
     hypothesesSeen: input.hypothesesSeen.map(ref => ({ ...ref })),
   } satisfies WorkItemOutline);
   return { outline, written: true, unchanged: false, transition: {

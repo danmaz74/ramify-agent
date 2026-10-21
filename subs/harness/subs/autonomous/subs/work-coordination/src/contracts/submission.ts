@@ -75,16 +75,74 @@ const name = '[a-z0-9]+(?:-[a-z0-9]+)*';
 const draftKey = (family: string) => z.string().regex(new RegExp(`^draft:${family}:${name}$`))
   .describe(`A proposed draft:${family}:<descriptive-name> key; an accepted ID or another namespace is invalid.`);
 
-/** Names proposed in the ordinary agreement submission. Acceptance resolves them atomically. */
-export const descriptiveContractSubmissionSchema = z.discriminatedUnion('kind', [
-  contractSubmissionSchema.options[0].extend({
-    contractKey: draftKey('contract'),
-    providerObligationKey: draftKey('provider-obligation'),
-    consumerRequirementKey: draftKey('consumer-requirement'),
-  }).strict(),
-  contractSubmissionSchema.options[1],
+const acceptedId = (family: string) => z.string().regex(new RegExp(`^${family}:${name}$`))
+  .describe(`An accepted ${family}:<descriptive-name> ID from this run; a draft key or another namespace is invalid.`);
+const establishedBody = contractSubmissionSchema.options[0];
+const incompleteBody = contractSubmissionSchema.options[1];
+const fakeBacked = establishedBody.extend({ mode: z.literal('fake-backed') });
+const accessOnly = establishedBody.extend({ mode: z.literal('access-only') });
+
+/** Access-only agreements publish only the contract; fake-backed ones publish three identities. */
+export const descriptiveContractSubmissionSchema = z.union([
+  fakeBacked.extend({ contractKey: draftKey('contract'), providerObligationKey: draftKey('provider-obligation'),
+    consumerRequirementKey: draftKey('consumer-requirement') }).strict(),
+  accessOnly.extend({ contractKey: draftKey('contract') }).strict(),
+  incompleteBody,
 ]);
-export type ContractSubmission = z.infer<typeof contractSubmissionSchema> | z.infer<typeof descriptiveContractSubmissionSchema>;
+
+/** An agreement already in force is cited by accepted ID when another consumer attaches. */
+export const descriptiveAttachedContractSubmissionSchema = z.union([
+  fakeBacked.extend({ contractId: acceptedId('contract'), providerObligationId: acceptedId('provider-obligation'),
+    consumerRequirementKey: draftKey('consumer-requirement') }).strict(),
+  accessOnly.extend({ contractId: acceptedId('contract') }).strict(),
+  incompleteBody,
+]);
+
+/** A revising consumer retains its accepted requirement; a new consumer proposes one. */
+const revisedAgreement = fakeBacked.extend({ contractId: acceptedId('contract'),
+  providerObligationId: acceptedId('provider-obligation') });
+const revisedAccess = accessOnly.extend({ contractId: acceptedId('contract') }).strict();
+const splitRequirement = revisedAgreement.extend({
+  consumerRequirementKeys: z.array(draftKey('consumer-requirement')).min(2)
+    .describe('New requirement keys replacing the accepted requirement in this authorized revision.'),
+  retirements: z.array(z.object({ id: acceptedId('consumer-requirement'), kind: z.literal('consumer-requirement'),
+    replacementKeys: z.array(draftKey('consumer-requirement')).min(2), reason: text }).strict()).length(1),
+}).strict().superRefine((value, ctx) => {
+  const keys = value.consumerRequirementKeys;
+  if (new Set(keys).size !== keys.length) ctx.addIssue({ code: 'custom', path: ['consumerRequirementKeys'], message: 'each replacement key is unique' });
+  const replacements = value.retirements[0]?.replacementKeys ?? [];
+  if (keys.length !== replacements.length || !keys.every(key => replacements.includes(key)))
+    ctx.addIssue({ code: 'custom', path: ['retirements', 0, 'replacementKeys'], message: 'replacement keys must match consumerRequirementKeys exactly' });
+});
+const replaceAgreement = establishedBody.extend({
+  contractKey: draftKey('contract'),
+  providerObligationKey: draftKey('provider-obligation'),
+  consumerRequirementId: acceptedId('consumer-requirement'),
+  retirements: z.tuple([
+    z.object({ id: acceptedId('contract'), kind: z.literal('contract'),
+      replacementKeys: z.tuple([draftKey('contract')]), reason: text }).strict(),
+    z.object({ id: acceptedId('provider-obligation'), kind: z.literal('provider-obligation'),
+      replacementKeys: z.tuple([draftKey('provider-obligation')]), reason: text }).strict(),
+  ]),
+}).strict().superRefine((value, ctx) => {
+  if (value.retirements[0].replacementKeys[0] !== value.contractKey)
+    ctx.addIssue({ code: 'custom', path: ['retirements', 0, 'replacementKeys'], message: 'the contract replacement key must match contractKey' });
+  if (value.retirements[1].replacementKeys[0] !== value.providerObligationKey)
+    ctx.addIssue({ code: 'custom', path: ['retirements', 1, 'replacementKeys'], message: 'the provider obligation replacement key must match providerObligationKey' });
+});
+export const descriptiveRevisedContractSubmissionSchema = (existingRequirement: boolean) => existingRequirement
+  ? z.union([revisedAgreement.extend({ consumerRequirementId: acceptedId('consumer-requirement') }).strict(), splitRequirement,
+    replaceAgreement, revisedAccess, incompleteBody])
+  : z.union([revisedAgreement.extend({ consumerRequirementKey: draftKey('consumer-requirement') }).strict(), revisedAccess, incompleteBody]);
+
+export type ContractIdentityContext =
+  | { readonly kind: 'fresh' }
+  | { readonly kind: 'attach'; readonly contractId: string; readonly providerObligationId: string | null; readonly provider?: string }
+  | { readonly kind: 'revise'; readonly contractId: string; readonly providerObligationId: string | null; readonly consumerRequirementId: string | null; readonly provider?: string };
+
+export type ContractSubmission = z.infer<typeof contractSubmissionSchema> | z.infer<typeof descriptiveContractSubmissionSchema>
+  | z.infer<typeof descriptiveAttachedContractSubmissionSchema>
+  | z.infer<ReturnType<typeof descriptiveRevisedContractSubmissionSchema>>;
 export type EstablishedContract = Extract<ContractSubmission, { kind: 'established' }>;
 
 /** The members this iteration's package offers the role. */
@@ -93,6 +151,14 @@ export const contractSubmissionKinds = ['established', 'incomplete'] as const;
 /** The schema the agent's tool is given, taken from the same definition that validates. */
 export const contractJsonSchema = z.toJSONSchema(contractSubmissionSchema) as JsonSchema;
 export const descriptiveContractJsonSchema = z.toJSONSchema(descriptiveContractSubmissionSchema) as JsonSchema;
+export function contractAuthorSchema(identityContract: 'legacy' | 'descriptive', context: ContractIdentityContext = { kind: 'fresh' }) {
+  if (identityContract === 'legacy') return contractSubmissionSchema;
+  if (context.kind === 'attach') return descriptiveAttachedContractSubmissionSchema;
+  if (context.kind === 'revise') return descriptiveRevisedContractSubmissionSchema(context.consumerRequirementId !== null);
+  return descriptiveContractSubmissionSchema;
+}
+export const contractAuthorJsonSchema = (identityContract: 'legacy' | 'descriptive', context: ContractIdentityContext = { kind: 'fresh' }): JsonSchema =>
+  z.toJSONSchema(contractAuthorSchema(identityContract, context)) as JsonSchema;
 
 /** Resolve proposals against the run's accepted and retired names at the acceptance boundary. */
 export function descriptiveContractIdentityErrors(
@@ -100,14 +166,15 @@ export function descriptiveContractIdentityErrors(
   occupied: ReadonlyMap<string, string>,
   retained: ReadonlySet<string> = new Set(),
 ): SubmissionError[] {
-  if (!('contractKey' in submission)) return [];
-  const proposals = submission.mode === 'access-only'
-    ? [['contractKey', submission.contractKey]] as const
-    : [
-      ['contractKey', submission.contractKey],
-      ['providerObligationKey', submission.providerObligationKey],
-      ['consumerRequirementKey', submission.consumerRequirementKey],
-    ] as const;
+  if (!('contractKey' in submission) && !('consumerRequirementKey' in submission) && !('consumerRequirementKeys' in submission)) return [];
+  const proposals = 'contractKey' in submission ? [
+    ['contractKey', submission.contractKey],
+    ...('providerObligationKey' in submission && submission.mode !== 'access-only'
+      ? [['providerObligationKey', submission.providerObligationKey]] as const : []),
+    ...('consumerRequirementKey' in submission ? [['consumerRequirementKey', submission.consumerRequirementKey]] as const : []),
+  ] as const : 'consumerRequirementKeys' in submission
+      ? submission.consumerRequirementKeys.map((key, index) => [`consumerRequirementKeys.${index}`, key] as const)
+      : [['consumerRequirementKey', submission.consumerRequirementKey]] as const;
   return proposals.flatMap(([path, key]) => {
     const id = key.slice('draft:'.length);
     const conflict = occupied.get(id);
@@ -139,12 +206,49 @@ const trailerLine = /^\s*Ramify-[A-Za-z-]*\s*:/m;
  * schema cannot hold. Nothing changes on a failure and every error names its
  * path.
  */
-export async function validateContract(input: unknown, evidence: ContractEvidence, identityContract: 'legacy' | 'descriptive' = 'legacy'): Promise<SubmissionValidation<ContractSubmission>> {
-  const shape = validateAgainst(identityContract === 'descriptive' ? descriptiveContractSubmissionSchema : contractSubmissionSchema, input);
+export async function validateContract(input: unknown, evidence: ContractEvidence, identityContract: 'legacy' | 'descriptive' = 'legacy',
+  identity: ContractIdentityContext = { kind: 'fresh' }): Promise<SubmissionValidation<ContractSubmission>> {
+  const shape = validateAgainst(contractAuthorSchema(identityContract, identity), input);
   if (!shape.ok) return shape;
   if (shape.value.kind === 'incomplete') return shape;
-  const errors = await establishedErrors(shape.value, evidence);
+  const errors = [...identityErrors(shape.value, identity), ...await establishedErrors(shape.value, evidence)];
   return errors.length === 0 ? shape : { ok: false, errors };
+}
+
+function identityErrors(value: EstablishedContract, identity: ContractIdentityContext): SubmissionError[] {
+  if (identity.kind === 'fresh' || !('contractId' in value) && !('contractKey' in value)) return [];
+  const errors: SubmissionError[] = [];
+  const replacement = 'contractKey' in value && 'retirements' in value && !('consumerRequirementKeys' in value);
+  if (!replacement && identity.provider !== undefined && value.provider !== identity.provider)
+    errors.push({ path: 'provider', message: `${value.provider} differs from the provider of ${identity.contractId}`,
+      expected: identity.provider });
+  const expected = [
+    ...(replacement ? [] : [
+    ['contractId', identity.contractId],
+    ...(value.mode === 'access-only' ? [] : [['providerObligationId', identity.providerObligationId]] as const),
+    ] as const),
+    ...(value.mode !== 'access-only' && identity.kind === 'revise' && identity.consumerRequirementId !== null && !('consumerRequirementKeys' in value)
+      ? [['consumerRequirementId', identity.consumerRequirementId]] as const : []),
+  ] as const;
+  for (const [path, id] of expected) {
+    if (value[path as keyof typeof value] === id) continue;
+    errors.push({ path, message: `This agreement retains ${id ?? 'no provider obligation'}; ${String(value[path as keyof typeof value])} does not identify it`,
+      expected: id === null ? 'null for this access-only agreement' : `the accepted ID ${id} from the agreement in force` });
+  }
+  if (replacement && identity.kind === 'revise') {
+    const retirements = value.retirements as readonly { id: string }[];
+    if (retirements[0]?.id !== identity.contractId)
+      errors.push({ path: 'retirements.0.id', message: 'the replacement must retire the agreement being revised', expected: identity.contractId });
+    if (retirements[1]?.id !== identity.providerObligationId)
+      errors.push({ path: 'retirements.1.id', message: 'the replacement must retire the provider obligation being revised',
+        expected: identity.providerObligationId ?? 'an existing provider obligation' });
+  }
+  if (identity.kind === 'revise' && 'consumerRequirementKeys' in value
+    && value.retirements[0]?.id !== identity.consumerRequirementId)
+    errors.push({ path: 'retirements.0.id',
+      message: `${value.retirements[0]?.id ?? '<missing>'} is not the revising consumer's accepted requirement`,
+      expected: identity.consumerRequirementId ?? 'an existing accepted consumer requirement' });
+  return errors;
 }
 
 async function establishedErrors(value: EstablishedContract, evidence: ContractEvidence): Promise<SubmissionError[]> {

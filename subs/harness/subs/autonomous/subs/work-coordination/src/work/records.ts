@@ -90,14 +90,14 @@ export const decompositionSchema = z.object({
 }).strict();
 
 export const workItemOutlineSchema = z.object({
-  schema: z.literal('ramify-agent.work-item-outline/1'),
+  schema: z.enum(['ramify-agent.work-item-outline/1', 'ramify-agent.work-item-outline/2']),
   workItem: text,
   revision: z.int().positive(),
   invocation: text,
   /** The analysis, concise. */
   changes: text,
   decomposition: decompositionSchema,
-  reuse: z.array(z.object({ capability: slugSchema, owner: modulePathSchema, role: text }).strict()),
+  reuse: z.array(z.object({ capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]), owner: modulePathSchema, role: text }).strict()),
   breakingChanges: z.array(z.object({
     guarantee: text,
     reason: text,
@@ -114,7 +114,10 @@ export const workItemOutlineSchema = z.object({
   hypothesesSeen: z.array(recordRefSchema),
   /** Why this revision differs from the last; empty on revision 1. */
   revisionReason: z.string(),
-}).strict();
+}).strict().superRefine((outline, context) => {
+  if (outline.schema.endsWith('/1') && outline.reuse.some(entry => entry.capability.startsWith('capability:')))
+    context.addIssue({ code: 'custom', path: ['reuse'], message: 'Legacy outlines cannot cite descriptive capability IDs' });
+});
 export type WorkItemOutline = z.infer<typeof workItemOutlineSchema>;
 
 /** Where a work item's records are materialized, relative to the run's directory. */

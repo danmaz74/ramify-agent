@@ -117,7 +117,7 @@ export const capabilityEngineerSubmissionKinds = ['completion-proposed', 'partia
 
 /** The schema the agent's tool is given, taken from the same definition that validates. */
 export const engineerJsonSchema = z.toJSONSchema(engineerSubmissionSchema) as JsonSchema;
-/** New-run tool surface excludes the historical contract request. */
+/** Legacy capability runs retain the capability-request-only tool surface. */
 export const capabilityEngineerSubmissionSchema = z.discriminatedUnion('kind', [
   engineerSubmissionSchema.options[0]!, engineerSubmissionSchema.options[1]!,
   engineerSubmissionSchema.options[2]!, engineerSubmissionSchema.options[4]!,
@@ -125,7 +125,8 @@ export const capabilityEngineerSubmissionSchema = z.discriminatedUnion('kind', [
 export const capabilityEngineerJsonSchema = z.toJSONSchema(capabilityEngineerSubmissionSchema) as JsonSchema;
 export const descriptiveCapabilityEngineerSubmissionSchema = z.discriminatedUnion('kind', [
   engineerSubmissionSchema.options[0]!, engineerSubmissionSchema.options[1]!,
-  engineerSubmissionSchema.options[2]!, engineerSubmissionSchema.options[4]!.extend({ request: descriptiveCapabilityNeedInputSchema }),
+  engineerSubmissionSchema.options[2]!, engineerSubmissionSchema.options[3]!,
+  engineerSubmissionSchema.options[4]!.extend({ request: descriptiveCapabilityNeedInputSchema }),
 ]);
 export const descriptiveCapabilityEngineerJsonSchema = z.toJSONSchema(descriptiveCapabilityEngineerSubmissionSchema) as JsonSchema;
 
@@ -175,6 +176,8 @@ const trailerLine = /^\s*Ramify-[A-Za-z-]*\s*:/m;
 /** What the rules beyond the schema are checked against. */
 export interface EngineerEvidence {
   readonly identityContract?: 'legacy' | 'descriptive';
+  /** Accepted names at the author boundary; publication checks them again under the run lock. */
+  readonly occupiedCapabilityNames?: { readonly requests: ReadonlySet<string>; readonly examples: ReadonlySet<string> };
   /** Only the internal test workflow may offer the new submission before rollout. */
   readonly capabilityWorkflow?: boolean;
   /** Refreshed ownership and accepted creation authority for new usage declarations. Historical requests are never revalidated. */
@@ -230,11 +233,25 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
       : capabilityNeedInputSchema.safeParse(value.request).success;
     if (!matching) errors.push({ path: 'request', message: `The capability request must use the ${descriptive ? 'descriptive draft keys' : 'legacy'} contract`,
       expected: descriptive ? 'requestKey draft:capability-request:<name> and examples[].key draft:capability-example:<name>' : 'legacy examples without draft keys' });
+    if (descriptive && matching) {
+      const proposed = descriptiveCapabilityNeedInputSchema.parse(value.request);
+      const occupied = evidence.occupiedCapabilityNames;
+      const requestId = proposed.requestKey.slice('draft:'.length);
+      if (occupied?.requests.has(requestId)) errors.push({ path: 'request.requestKey',
+        message: `"${requestId}" is already accepted or retired`, expected: 'an unused draft:capability-request:<name>' });
+      const seen = new Set<string>();
+      proposed.examples.forEach((example, index) => {
+        const exampleId = example.key.slice('draft:'.length);
+        if (seen.has(exampleId) || occupied?.examples.has(exampleId)) errors.push({ path: `request.examples.${index}.key`,
+          message: `"${exampleId}" is already proposed, accepted or retired`, expected: 'a distinct unused draft:capability-example:<name>' });
+        seen.add(exampleId);
+      });
+    }
   }
   if (value.kind === 'capability-needed' && evidence.capabilityWorkflow !== true) {
     errors.push({ path: 'kind', message: 'Capability coordination is not enabled for this run', expected: 'an enabled capability workflow' });
   }
-  if (value.kind === 'contract-needed' && evidence.capabilityWorkflow === true) {
+  if (value.kind === 'contract-needed' && evidence.capabilityWorkflow === true && evidence.identityContract !== 'descriptive') {
     errors.push({ path: 'kind', message: 'The contract workflow is unavailable in capability coordination', expected: 'capability-needed' });
   }
   if (value.kind === 'capability-needed' && evidence.capabilityUsage !== undefined) {
@@ -479,7 +496,8 @@ export function iterationMessage(briefing: IterationBriefing): string {
 
   if (briefing.capabilityWorkflow && briefing.identityContract === 'descriptive') lines.push(
     '## Capability identity proposals', '',
-    'For capability-needed, propose request.requestKey as draft:capability-request:<behavior-name> and each request.examples[].key as draft:capability-example:<behavior-name>. The harness resolves these in ordinary acceptance. Existing accepted capability IDs are invalid in those draft fields. An unknown accepted requirement reference must be corrected from the work-item package; names are never guessed.', '',
+    'For capability-needed, propose request.requestKey as draft:capability-request:<behavior-name> and each request.examples[].key as draft:capability-example:<behavior-name>. The harness resolves these in ordinary acceptance. Existing accepted capability IDs are invalid in those draft fields. An unknown accepted requirement reference must be corrected from the work-item package; names are never guessed.',
+    'For an accepted registry capability outside your scope, contract-needed may open the agreement iteration. Cite its accepted capability:<name> ID in need.capability and state the behavior and caller evidence.', '',
   );
 
   if (assignment.scope.bootstrap.length > 0) {
