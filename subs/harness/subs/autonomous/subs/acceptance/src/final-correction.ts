@@ -7,4 +7,8 @@ export const finalCorrectionSchema = z.object({
   goal: z.string().min(1),
   rationale: z.string().min(1),
 }).strict();
-export type FinalCorrection = z.infer<typeof finalCorrectionSchema>;
+export const descriptiveFinalCorrectionSchema = finalCorrectionSchema.extend({
+  workItemKey: z.string().regex(/^draft:work-item:[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .describe('Propose draft:work-item:<correction-goal-name>; an accepted ID is invalid here.'),
+}).strict();
+export type FinalCorrection = z.infer<typeof finalCorrectionSchema> | z.infer<typeof descriptiveFinalCorrectionSchema>;

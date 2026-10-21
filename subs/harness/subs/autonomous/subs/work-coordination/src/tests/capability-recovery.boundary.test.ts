@@ -106,7 +106,7 @@ test('CA19 CA30: a snapshot written before its request commit is adopted with th
   await writeFile(join(fixture.root, untracked), 'export const pending = true;\n');
   await rm(join(fixture.root, deleted));
   await git(fixture.root, 'add', deleted);
-  const input = { projectRoot: fixture.root, runDirectory: directory.path, request: 'need-001',
+  const input = { projectRoot: fixture.root, runDirectory: directory.path, request: 'capability-request:render-fact-source',
     acceptedBase: base, writerSettledBy: 'inv-0001', changedPaths: await gitService.changedPaths(fixture.root, base) };
   const before = await captureProvisionalSource(input);
   const snapshotBytes = await readFile(join(directory.path, before.snapshot));
@@ -120,12 +120,18 @@ test('CA19 CA30: a snapshot written before its request commit is adopted with th
   expect(before.delta.find(change => change.path === deleted)?.staged).toBe(true);
 
   const log = await RunLog.open(join(directory.path, 'events.jsonl'), 'job-001');
-  const request = { ...fixtureRequest(), source: recovered };
+  const original = fixtureRequest();
+  const request = { ...original, schema: 'ramify-agent.capability-request/2' as const,
+    id: input.request, source: recovered, original: { ...original.original, examples: original.original.examples.map(example => ({
+      ...example, id: 'capability-example:render-fact-source',
+    })) } };
   await commitCapabilityTransition(log, { type: 'capability-requested', data: {
     request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: request.invocation,
   } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
   const reopened = await RunLog.open(join(directory.path, 'events.jsonl'), 'job-001');
   expect(committedRecords(reopened.ledger.replay()).capabilityRequests.get(request.id)?.source).toEqual(before);
+  expect(committedRecords(reopened.ledger.replay()).capabilityRequests.get(request.id)?.original.examples[0]?.id)
+    .toBe('capability-example:render-fact-source');
   expect(await captureProvisionalSource(input)).toEqual(before);
 }, 30_000);
 

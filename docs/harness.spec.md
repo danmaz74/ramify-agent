@@ -66,6 +66,25 @@ The [catalog specification](architecture/plan-context-catalog.spec.md) and
 [scenario contract](architecture/acceptance-scenarios.md) define their source
 and wording authority in both formats.
 
+A descriptive contract submission proposes `contractKey`,
+`providerObligationKey` and `consumerRequirementKey` as draft keys in the
+ordinary agreement task. Acceptance resolves them in its existing transaction;
+a revision keeps accepted identities, while a newly attached consumer receives
+its own requirement identity. Descriptive records use contract `/3`, provider
+obligation `/2`, consumer requirement `/2` and derived work item `/2` shapes.
+Record paths encode their IDs. Legacy agreements retain their original
+submission `/2`, contract `/2`, provider obligation `/1`, consumer requirement
+`/1` and work item `/1` shapes and IDs.
+
+On descriptive runs, an engineer proposes capability request and example draft
+keys in submission `/2`; qualification proposes a task draft key. Acceptance
+records request, task, plan, exchange and handback `/2` with the same accepted
+relationships. A later placement request and its decision use `/2` identities
+derived from the accepted work item and capability; repeated requests receive
+distinct stable ordinals. Derived provider, revision and integration work items
+use `/2`; a final correction proposes its work item name. Legacy records and
+continuations retain their original versions and IDs.
+
 ### Forecast Early; Decide with Current Evidence
 
 When a concrete need arises, reuse the responsible agent's oriented context

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { modulePathSchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import { elementIdSchema } from '../../../../../plan-evidence/src/interfaces/catalog.js';
-import { capabilityPlanContentSchema, capabilityPlanSchema, type CapabilityPlan } from './records.js';
+import { capabilityPlanContentSchema, capabilityPlanSchema, draftCapabilityTaskSchema, type CapabilityPlan } from './records.js';
 import { assignmentBodySchema } from '../work/assignment.js';
 import {
   incompleteRequestError, obligationSubmissionErrors, obligationSubmissionFields, outstandingReports, type ObligationContext,
@@ -22,7 +22,7 @@ export const capabilityActionSchema = z.discriminatedUnion('kind', [
   action('assign', {
     assignment: assignmentBodySchema,
   }),
-  action('delegate-capability', { request: text, provider: modulePathSchema, placementReason: text, constraints: z.array(text) }),
+  action('delegate-capability', { request: text, provider: modulePathSchema, placementReason: text, constraints: z.array(text), taskKey: draftCapabilityTaskSchema.optional() }),
   action('request-placement', { problem: text, evidence: z.array(text).min(1) }),
   action('unresolved', { problem: text, evidence: z.array(text).min(1) }),
   /** The architect's done reports on the task's obligations, in `reports`,
@@ -48,11 +48,17 @@ export const qualificationActionSchema = z.discriminatedUnion('kind', [
   }).strict(),
   z.object({ kind: z.literal('delegate-capability'), request: text, invocation: text,
     provider: modulePathSchema, placementReason: text, constraints: z.array(text), requirementRefs: z.array(elementIdSchema),
+    taskKey: draftCapabilityTaskSchema.optional(),
   }).strict(),
   z.object({ kind: z.literal('request-placement'), request: text, invocation: text, problem: text, evidence: z.array(text).min(1) }).strict(),
   z.object({ kind: z.literal('unresolved'), request: text, invocation: text, problem: text, evidence: z.array(text).min(1) }).strict(),
 ]);
 export type QualificationAction = z.infer<typeof qualificationActionSchema>;
+export const descriptiveQualificationActionSchema = z.discriminatedUnion('kind', [
+  qualificationActionSchema.options[0]!,
+  qualificationActionSchema.options[1]!.extend({ taskKey: draftCapabilityTaskSchema.describe('Propose draft:capability-task:<provider-behavior-name>; accepted ID is assigned on delegation.') }),
+  qualificationActionSchema.options[2]!, qualificationActionSchema.options[3]!,
+]);
 
 export const capabilityPlanUpdateSchema = z.object({
   task: text,

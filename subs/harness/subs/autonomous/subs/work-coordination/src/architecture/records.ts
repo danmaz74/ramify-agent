@@ -21,15 +21,21 @@ import { slugSchema } from '../../../planning/src/records.js';
  */
 
 const text = z.string().min(1);
+const capabilityName = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 
 /** `pr-003`, the count of committed placement requests. */
 export const requestId = (count: number): string => `pr-${String(count).padStart(3, '0')}`;
+export const descriptivePlacementRequestId = (workItem: string, capability: string, count: number): string =>
+  `placement-request:place-${capability.replace(':', '-')}-for-${workItem.replace(':', '-')}-request-${count}`;
 
 /** `gd-003` for request `pr-003`: one decision per request, derived from it. */
-export const globalDecisionId = (request: string): string => `gd-${request.replace(/^pr-/, '')}`;
+export const globalDecisionId = (request: string): string => request.startsWith('placement-request:')
+  ? `placement-decision:${request.slice('placement-request:'.length)}` : `gd-${request.replace(/^pr-/, '')}`;
 
 /** `ld-wi-001-02`, from the work item and the count of its committed local decisions. */
 export const localDecisionId = (workItem: string, count: number): string => `ld-${workItem}-${String(count).padStart(2, '0')}`;
+export const descriptiveLocalDecisionId = (workItem: string, capability: string, count: number): string =>
+  `placement-decision:place-${capability.replace(':', '-')}-for-${workItem.replace(':', '-')}-local-${count}`;
 
 /** What the retired `extend` value is answered with, in the terms the role submits. */
 export const extensionIsANewCapability = 'An existing capability is never revised to cover more. Register the extended behavior as a new capability named for itself, with outcome "create" and the existing module as its owner, and set "changesExistingSymbols" to true where implementing it changes symbols that already have consumers';
@@ -58,17 +64,17 @@ export const hypothesisStanceSchema = z.enum(['supports', 'contradicts', 'depart
 export type HypothesisStance = z.infer<typeof hypothesisStanceSchema>;
 
 export const placementRequestSchema = z.object({
-  schema: z.literal('ramify-agent.placement-request/1'),
+  schema: z.enum(['ramify-agent.placement-request/1', 'ramify-agent.placement-request/2']),
   id: text,
   workItem: text,
   requester: modulePathSchema,
   /** The consumer capability being implemented, which this request is made for. */
-  forCapability: slugSchema,
+  forCapability: capabilityName,
   question: text,
   requiredBehavior: text,
   findings: z.array(z.object({ text, citations: z.array(citationSchema) }).strict()),
   candidates: z.array(z.object({
-    capability: slugSchema.optional(),
+    capability: capabilityName.optional(),
     owner: modulePathSchema.optional(),
     note: text,
   }).strict()),
@@ -79,11 +85,13 @@ export const placementRequestSchema = z.object({
   localDecisions: z.array(text),
   /** Required by current producers; absent input cannot select a moving parent. */
   globalSource: globalForkSourceSchema.optional(),
-}).strict();
+}).strict().superRefine((request, context) => {
+  if (request.schema.endsWith('/2') !== request.id.startsWith('placement-request:')) context.addIssue({ code: 'custom', path: ['id'], message: 'placement request ID disagrees with contract version' });
+});
 export type PlacementRequest = z.infer<typeof placementRequestSchema>;
 
 export const placementDecisionSchema = z.object({
-  schema: z.literal('ramify-agent.placement-decision/1'),
+  schema: z.enum(['ramify-agent.placement-decision/1', 'ramify-agent.placement-decision/2']),
   id: text,
   authority: decisionAuthoritySchema,
   /** Null for a local decision: no request was made of the plan architect. */
@@ -92,7 +100,7 @@ export const placementDecisionSchema = z.object({
   invocation: text,
   question: text,
   outcome: placementOutcomeSchema,
-  capability: slugSchema,
+  capability: capabilityName,
   /**
    * Whether implementing this capability changes symbols that already have
    * consumers. It is what break analysis reads, and what gives a contract
@@ -127,13 +135,15 @@ export const placementDecisionSchema = z.object({
   hypothesisRevisions: z.array(recordRefSchema),
   /** Global decisions only: the text appended to the parent context. */
   brief: text.optional(),
-}).strict();
+}).strict().superRefine((decision, context) => {
+  if (decision.schema.endsWith('/2') !== decision.id.startsWith('placement-decision:')) context.addIssue({ code: 'custom', path: ['id'], message: 'placement decision ID disagrees with contract version' });
+});
 export type PlacementDecision = z.infer<typeof placementDecisionSchema>;
 
 /** Where the architecture's records are materialized, relative to the run's directory. */
 export const architectureLayout = {
-  request: (id: string): string => join('requests', `${id}.json`),
-  decision: (id: string): string => join('decisions', `${id}.json`),
+  request: (id: string): string => join('requests', `${encodeURIComponent(id)}.json`),
+  decision: (id: string): string => join('decisions', `${encodeURIComponent(id)}.json`),
 } as const;
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */

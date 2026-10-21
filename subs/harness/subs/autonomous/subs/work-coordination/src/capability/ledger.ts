@@ -35,8 +35,15 @@ export function validateCapabilityTransition(
     const request = capabilityRequestSchema.parse(records[0]!.body);
     if (request.id !== event.data.request || request.parent.id !== event.data.parent ||
       request.assignment !== event.data.assignment || request.invocation !== event.data.invocation ||
-      request.original.examples.some((example, index) => example.id !== `${request.id}.ex${String(index + 1).padStart(2, '0')}`)) {
+      (request.schema.endsWith('/1') && request.original.examples.some((example, index) => example.id !== `${request.id}.ex${String(index + 1).padStart(2, '0')}`))) {
       throw new Error('Request must retain its harness IDs, parent and stable example order');
+    }
+    if (request.schema.endsWith('/2')) {
+      const ids = request.original.examples.map(example => example.id);
+      if (new Set(ids).size !== ids.length || committed.capabilityRequests.has(request.id) ||
+        [...committed.capabilityRequests.values()].some(existing => existing.original.examples.some(example => ids.includes(example.id)))) {
+        throw new Error('Capability request or example ID collides with an accepted identity');
+      }
     }
     if (request.parent.kind === 'capability-task' && request.original.revises !== undefined) {
       const cycle = capabilityDependencyCycle(prior, request.parent.id, request.original.revises.task);

@@ -185,6 +185,7 @@ const engineerFields = {
   candidateBefore: text.optional(),
   /** Whether the run coordinates capability needs, which selects the handback the module engineer may submit. */
   capabilityWorkflow: z.boolean(),
+  identityContract: z.enum(['legacy', 'descriptive']).optional(),
   /** Whether the run's policy offers the capability submission. */
   capabilityPolicy: z.boolean(),
   workingDirectory: projectPathSchema,

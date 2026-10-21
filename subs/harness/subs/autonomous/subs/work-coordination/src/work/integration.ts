@@ -32,17 +32,21 @@ export function dueIntegrations(
     && record.subScenarios.every(id => states.get(id) === 'done'));
 }
 
-/** The work item one due integration scenario gets, numbered after the `count` already committed. */
-export function integrationWorkItem(record: ScenarioRecord, count: number): WorkItem {
+/** The work item one due integration scenario gets, numbered on legacy runs. */
+export function integrationWorkItem(record: ScenarioRecord, count: number, identityContract: 'legacy' | 'descriptive' = 'legacy'): WorkItem {
+  const descriptive = identityContract === 'descriptive';
+  if (descriptive && !/^scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.id))
+    throw new Error(`Integration scenario ${record.id} has no descriptive identity`);
   return workItemSchema.parse({
-    schema: 'ramify-agent.work-item/1',
-    id: workItemId(count + 1),
+    schema: descriptive ? 'ramify-agent.work-item/2' : 'ramify-agent.work-item/1',
+    id: descriptive ? `work-item:bind-${record.id.slice('scenario:'.length)}` : workItemId(count + 1),
     module: record.owner,
     origin: { integration: record.id },
     goal: `Bind the integration scenario ${record.id}, "${record.name}": a step file here imports, by name, the step definitions its sub-scenarios' owners wrote, exposed with expose-test along each path, and the scenario passes.`,
     requirementRefs: [],
     acceptanceRefs: [],
     contextRefs: [],
+    ...(descriptive ? { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [] } : {}),
     startedFor: null,
   } satisfies WorkItem);
 }

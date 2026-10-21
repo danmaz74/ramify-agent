@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { RunLog } from '../../../../src/run/log.js';
 import { commitCapabilityTransition } from '../../../../src/run/capability-transition.js';
-import { capabilityLayout, capabilityPlanSchema, capabilityRequestSchema, capabilitySchemas, type CapabilityPlan } from '../capability/records.js';
+import { capabilityLayout, capabilityPlanSchema, capabilityRequestSchema, capabilitySchemas, descriptiveCapabilityNeedInputSchema, identifyCapabilityNeed, type CapabilityPlan } from '../capability/records.js';
 import { committedRecords } from '../../../../src/run/committed-records.js';
 import { recordHash } from '../../../../../../src/jobs/committed-reader.js';
 import { capabilityFixtureIds, copyCapabilityFixture, fixturePlan, fixtureRequest, fixtureTask } from './helpers/capability.js';
@@ -20,6 +20,67 @@ const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true }))); });
 
 describe('capability records', () => {
+  it('accepts descriptive request, example and task identities together and replays exact relationships', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'descriptive-capability-'));
+    directories.push(directory);
+    const logPath = join(directory, 'events.jsonl');
+    const log = await RunLog.open(logPath, 'job-001');
+    const requestId = 'capability-request:resolve-review-predecessors';
+    const taskId = 'capability-task:provide-review-predecessor-resolution';
+    const exampleId = 'capability-example:reject-unknown-predecessor';
+    const original = fixtureRequest();
+    const input = descriptiveCapabilityNeedInputSchema.parse({
+      requestKey: `draft:${requestId}`,
+      ...original.original,
+      examples: original.original.examples.map(example => ({ key: `draft:${exampleId}`, title: example.title,
+        code: example.code, designation: example.designation })),
+    });
+    const request = capabilityRequestSchema.parse({ ...original, schema: 'ramify-agent.capability-request/2', id: requestId,
+      original: identifyCapabilityNeed(requestId, input) });
+    const task = { ...fixtureTask(request), schema: 'ramify-agent.capability-task/2' as const, id: taskId };
+    const plan = { ...fixturePlan(request, task), schema: 'ramify-agent.capability-plan/2' as const };
+    await commitCapabilityTransition(log, { type: 'capability-requested', data: {
+      request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: request.invocation,
+    } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
+    await expect(commitCapabilityTransition(log, { type: 'capability-requested', data: {
+      request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: request.invocation,
+    } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }])).rejects.toThrow();
+    const afterRequest = log.ledger.replay().length;
+    const colliding = { ...request, id: 'capability-request:separate-review-predecessor', invocation: 'inv-0003' };
+    await expect(commitCapabilityTransition(log, { type: 'capability-requested', data: {
+      request: colliding.id, parent: colliding.parent.id, assignment: colliding.assignment, invocation: colliding.invocation,
+    } }, [{ path: capabilityLayout.request(colliding.id), id: colliding.id, revision: 1, body: colliding }]))
+      .rejects.toThrow('example ID collides');
+    expect(log.ledger.replay()).toHaveLength(afterRequest);
+    const corrected = { ...colliding, original: { ...colliding.original, examples: [
+      { ...colliding.original.examples[0]!, id: 'capability-example:separate-review-predecessor' },
+    ] } };
+    await commitCapabilityTransition(log, { type: 'capability-requested', data: {
+      request: corrected.id, parent: corrected.parent.id, assignment: corrected.assignment, invocation: corrected.invocation,
+    } }, [{ path: capabilityLayout.request(corrected.id), id: corrected.id, revision: 1, body: corrected }]);
+    const beforeFault = log.ledger.replay().length;
+    await expect(commitCapabilityTransition(log, { type: 'capability-delegated', data: {
+      task: task.id, request: request.id, parent: request.parent.id, invocation: 'inv-0002', planRevision: 1,
+    } }, [
+      { path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
+      { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1,
+        body: { ...plan, originalExamples: ['capability-example:foreign-example'] } },
+    ])).rejects.toThrow('Original example capability-example:foreign-example requires a case');
+    expect(log.ledger.replay()).toHaveLength(beforeFault);
+    await commitCapabilityTransition(log, { type: 'capability-delegated', data: {
+      task: task.id, request: request.id, parent: request.parent.id, invocation: 'inv-0002', planRevision: 1,
+    } }, [
+      { path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
+      { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
+    ]);
+    const reopened = await RunLog.open(logPath, 'job-001');
+    const records = committedRecords(reopened.ledger.replay());
+    expect(records.capabilityRequests.get(requestId)?.original.examples[0]?.id).toBe(exampleId);
+    expect(records.capabilityTasks.get(taskId)?.request).toBe(requestId);
+    expect(records.capabilityPlans.get(taskId)?.[0]?.originalExamples).toEqual([exampleId]);
+    expect(capabilityLayout.task(taskId)).toContain('capability-task%3A');
+  });
+
   it('CA01 accepts a known-insufficient API and validates prospective usage structurally', () => {
     const original = fixtureRequest();
     const revised = { ...original, original: { ...original.original,

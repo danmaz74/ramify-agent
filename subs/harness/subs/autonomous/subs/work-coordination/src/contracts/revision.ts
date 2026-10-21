@@ -89,9 +89,10 @@ export function reopenEvidence(request: ReopenRequest): Reopening {
       return;
     }
     created += 1;
+    const descriptive = subject.id.startsWith('provider-obligation:') || subject.id.startsWith('consumer-requirement:');
     const item = workItemSchema.parse({
-      schema: 'ramify-agent.work-item/1',
-      id: workItemId(request.workItemCount + created),
+      schema: descriptive ? 'ramify-agent.work-item/2' : 'ramify-agent.work-item/1',
+      id: descriptive ? `work-item:reconcile-${subject.id.replace(':', '-')}-revision-${subject.revision}` : workItemId(request.workItemCount + created),
       module,
       origin,
       ...(priorItem === undefined ? {} : { follows: priorItem.id }),
@@ -101,6 +102,8 @@ export function reopenEvidence(request: ReopenRequest): Reopening {
       requirementRefs: priorItem === undefined ? [] : priorItem.requirementRefs,
       acceptanceRefs: priorItem === undefined ? [] : priorItem.acceptanceRefs,
       contextRefs: priorItem === undefined ? [] : priorItem.contextRefs,
+      ...(descriptive ? { functionalRequirementIds: priorItem?.functionalRequirementIds ?? [],
+        functionalAcceptanceIds: priorItem?.functionalAcceptanceIds ?? [], contextIds: priorItem?.contextIds ?? [] } : {}),
       startedFor: request.requestedBy,
     } satisfies WorkItem);
     followUps.push(item);

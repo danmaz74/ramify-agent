@@ -14,6 +14,7 @@ import { rootModuleOf } from '../../subs/work-coordination/src/context.js';
 import { WorkCoordination, type CoordinationObservation, type CoordinationEffect } from '../../subs/work-coordination/src/coordination.js';
 import type { RunWrite } from './log.js';
 import { coordinationHistory } from './coordination-history.js';
+import { contractPublicationRefusal } from '../../subs/work-coordination/src/contracts/accept.js';
 import { performInitialAnalysis } from '../../subs/planning/src/planning.js';
 import { planPointer, capturedPlanBlock } from '../../subs/planning/src/messages.js';
 import { verifiedCandidateSource } from '../../../evidence/src/git-text.js';
@@ -479,7 +480,7 @@ export class AutonomousRunService {
       observation = { ...reading, findings: structuredClone(checkFindingStateOf(run.log.ledger)), restoring: run.restoring, readerStop: run.readerStop };
       return observation;
     };
-    value = new Acceptance({ projectRoot: this.projectRoot, directory: run.directory, record: structuredClone({ jobId: run.record.jobId, planId: run.record.planId, manifest: run.record.manifest, projectConfig: run.record.projectConfig, auditConfiguration: run.record.auditConfiguration }), workflow: this.workflow?.version ?? null,
+    value = new Acceptance({ projectRoot: this.projectRoot, directory: run.directory, record: structuredClone({ jobId: run.record.jobId, planId: run.record.planId, manifest: run.record.manifest, projectConfig: run.record.projectConfig, auditConfiguration: run.record.auditConfiguration, identityContract: run.record.identityContract }), workflow: this.workflow?.version ?? null,
       options: { ramify: this.options.ramify, commandExecution: this.options.commandExecution, configuredAudit: this.options.configuredAudit }, git: this.git, candidates: this.candidates,
       gates: this.gates(run), handling: this.handling(run),
     }, {
@@ -557,7 +558,7 @@ export class AutonomousRunService {
       return cached;
     };
     const coordinator = new WorkCoordination({ projectRoot: this.projectRoot, directory: run.directory, base: run.base,
-      record: structuredClone({ jobId: run.record.jobId, planId: run.record.planId, baseline: run.record.baseline, manifest: run.record.manifest, auditConfiguration: run.record.auditConfiguration, projectConfig: run.record.projectConfig }),
+      record: structuredClone({ jobId: run.record.jobId, planId: run.record.planId, baseline: run.record.baseline, manifest: run.record.manifest, auditConfiguration: run.record.auditConfiguration, projectConfig: run.record.projectConfig, identityContract: run.record.identityContract }),
       workflow: this.workflow?.version ?? null, options: { ramify: this.options.ramify, rootModule: this.options.rootModule, commandExecution: this.options.commandExecution, provisionalSourceGit: this.options.provisionalSourceGit, skillDirectory: this.options.skillDirectory },
       git: this.git, candidates: this.candidates, repairIncidentExport: this.repairIncidentExport,
     }, {
@@ -903,6 +904,8 @@ export class AutonomousRunService {
   private write(run: Run, input: RunEventInput, records: readonly CommitRecord[] = [], at?: Date): Promise<'committed' | 'already-committed' | 'ended'> {
     return run.mutex.run(async () => {
       if (run.log.terminal || !await this.options.lock.held()) return 'ended';
+      const refusal = contractPublicationRefusal(run.log.ledger.replay(), input, records);
+      if (refusal !== null) throw refusal;
       if (records.length === 0) { await run.log.append(input, at); return 'committed'; }
       return commitRecord(run.log.ledger, { event: run.log.next(input), records: [...records] });
     });

@@ -161,7 +161,7 @@ import { startingPointsSection, type StartingPointGroup } from '../../work-coord
 
 
 
-import { finalCorrectionSchema, type FinalCorrection } from './final-correction.js';
+import { finalCorrectionSchema, descriptiveFinalCorrectionSchema, type FinalCorrection } from './final-correction.js';
 
 
 import { posix } from 'node:path';
@@ -308,7 +308,7 @@ export interface AcceptanceObservation extends AcceptanceReading {
  readonly findings: CheckFindingState; readonly restoring: boolean; readonly readerStop: NotVerifiedReason | undefined;
 }
 export interface AcceptanceInput {
- readonly projectRoot: string; readonly directory: string; readonly record: Pick<RunRecord, 'jobId' | 'planId' | 'manifest' | 'projectConfig' | 'auditConfiguration'>;
+ readonly projectRoot: string; readonly directory: string; readonly record: Pick<RunRecord, 'jobId' | 'planId' | 'manifest' | 'projectConfig' | 'auditConfiguration' | 'identityContract'>;
  readonly workflow: 'capability-coordination/1' | null;
  readonly options: { readonly ramify: RamifyCli; readonly commandExecution?: CommandRunner | undefined; readonly configuredAudit: ConfiguredAuditPort };
  readonly git: GitService; readonly candidates: CandidateSource;
@@ -1486,7 +1486,7 @@ export class Acceptance {
       const bytes = await readIfExists(this.path(runLayout.submission(start.data.invocation)));
       if (bytes === undefined || sha256(bytes) !== end.data.submission) throw new Error('Final correction submission is unavailable');
       const { schema: _schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-      accepted = { id: start.data.invocation, value: finalCorrectionSchema.parse(body) };
+      accepted = { id: start.data.invocation, value: (this.input.record.identityContract === 'descriptive' ? descriptiveFinalCorrectionSchema : finalCorrectionSchema).parse(body) };
     }
     let priorUnfinished: string | undefined;
     while (accepted === undefined) {
@@ -1499,6 +1499,7 @@ export class Acceptance {
         prompt: [
           `Final verification ${gate.id} is ${gate.verdict}. The plan remains unfinished; accepted work is retained.`,
           `For this turn, use submit_final_correction to choose the module architect and goal for the next correction; its supplied schema defines this task's answer.`,
+          ...(this.input.record.identityContract === 'descriptive' ? ['Propose workItemKey draft:work-item:<correction-goal-name>. Its accepted name must be unused in this run.'] : []),
           'Investigate the actual diagnostics. Explain why the next approach should help; repeated failure requires reconsideration, not abandonment.',
           'An environment or verification issue may need investigation before source changes. Delegate that investigation as the goal where appropriate.',
           `Gate evidence: ${this.path(runLayout.gate(gate.id))}`,
@@ -1508,8 +1509,16 @@ export class Acceptance {
         ].join('\n\n'),
         start: { mode: 'fresh' }, keep: () => finished('work-closed'),
         toolName: 'submit_final_correction', description: 'Choose the responsible module architect and correction goal after failed final verification.',
-        inputSchema: z.toJSONSchema(finalCorrectionSchema) as JsonSchema,
-        submissionSchema: 'ramify-agent.final-correction/1', validate: input => validateAgainst(finalCorrectionSchema, input),
+        inputSchema: z.toJSONSchema(this.input.record.identityContract === 'descriptive' ? descriptiveFinalCorrectionSchema : finalCorrectionSchema) as JsonSchema,
+        submissionSchema: this.input.record.identityContract === 'descriptive' ? 'ramify-agent.final-correction/2' : 'ramify-agent.final-correction/1',
+        validate: input => {
+          const result = validateAgainst(this.input.record.identityContract === 'descriptive' ? descriptiveFinalCorrectionSchema : finalCorrectionSchema, input);
+          if (!result.ok || !('workItemKey' in result.value) || typeof result.value.workItemKey !== 'string') return result;
+          const id = result.value.workItemKey.slice('draft:'.length);
+          return committedRecords(this.observe().history.lines).workItems.some(item => item.id === id)
+            ? { ok: false, errors: [{ path: 'workItemKey', message: `${id} is already an accepted work item in this run`, expected: 'an unused draft:work-item:<correction-goal-name> key' }] }
+            : result;
+        },
         scope: { write: null, measurement: null, size: null }, writer: true,
         equip: session => ({ ...this.nonfunctionalTools(session, []),
           builtinTools: ['read', 'write', 'edit', 'grep', 'find', 'ls'] }),
@@ -1523,10 +1532,13 @@ export class Acceptance {
     }
     if (this.ports.ignoring()) return false;
     const records = committedRecords(this.observe().history.lines);
-    const item = workItemSchema.parse({ schema: 'ramify-agent.work-item/1', id: workItemId(records.workItems.length + 1),
+    const descriptive = this.input.record.identityContract === 'descriptive';
+    const item = workItemSchema.parse({ schema: descriptive ? 'ramify-agent.work-item/2' : 'ramify-agent.work-item/1',
+      id: descriptive && 'workItemKey' in accepted.value ? accepted.value.workItemKey.slice('draft:'.length) : workItemId(records.workItems.length + 1),
       module: accepted.value.module, origin: { finalVerification: gate.id },
       goal: [accepted.value.goal, accepted.value.rationale, `Failed verification: ${this.path(runLayout.gate(gate.id))}`, ...diagnostics.summary].join('\n\n'),
-      requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
+      requirementRefs: [], acceptanceRefs: [], contextRefs: [],
+      ...(descriptive ? { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [] } : {}), startedFor: null,
     });
     await this.ports.write({ type: 'final-correction-planned', data: { gate: gate.id, invocation: accepted.id,
       workItem: item.id, candidate: binding.candidateId, assessment: binding.assessment.id, round: binding.assessment.round } },
@@ -2345,7 +2357,8 @@ export class Acceptance {
       if (verified.has(verificationKey(evidence.requirement.id, evidence.requirement.revision))) continue;
       const requirement = records.requirements.get(evidence.requirement.id);
       if (requirement === undefined) continue;
-      const contract = [...records.contracts.values()].find(candidate => obligationId(candidate.id) === requirement.obligation);
+      const obligation = records.obligations.get(requirement.obligation);
+      const contract = obligation === undefined ? undefined : records.contracts.get(obligation.contract.id);
       if (contract === undefined) continue;
       const sites: Array<{ path: string; text: string }> = [];
       for (const path of requirement.evidence.fakeInjections) {

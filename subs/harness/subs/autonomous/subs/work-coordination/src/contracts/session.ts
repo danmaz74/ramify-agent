@@ -14,6 +14,7 @@ import { contractToolName, type NeedAsBehavior } from './submission.js';
 
 export interface ContractBriefing {
   readonly assignment: IterationAssignment;
+  readonly identityContract?: 'legacy' | 'descriptive';
   readonly projectRoot: string;
   /** The commit `git diff` compares against: the last accepted boundary. */
   readonly base: string;
@@ -64,6 +65,15 @@ export function contractMessage(briefing: ContractBriefing): string {
       'The elements its assignment cites, whole, with the plan deviations in force when it was assigned.', '',
       briefing.package.trimEnd(), '']),
   ];
+  if (briefing.identityContract === 'descriptive') lines.push(
+    '## Agreement identities', '',
+    'The established submission proposes draft:contract:<name>, draft:provider-obligation:<name>, and',
+    'draft:consumer-requirement:<name> in contractKey, providerObligationKey and consumerRequirementKey.',
+    'Use lowercase kebab-case names describing the agreement, provider behavior and consumer need.',
+    'The harness resolves them to accepted IDs during ordinary acceptance. A revision keeps the existing',
+    'agreement and obligation identities; an added consumer proposes its own requirement name.',
+    'A collision or invalid reference is returned for correction in this task.', '',
+  );
 
   if (revision !== undefined) {
     lines.push(

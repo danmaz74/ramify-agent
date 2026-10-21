@@ -134,7 +134,7 @@ export const registryEntrySchema = z.object({
   /** Null for an entry assignment; a decision's ID otherwise. */
   decision: z.string().nullable(),
   /** Confirmed consumer-to-dependency links this revision adds. */
-  consumers: z.array(z.object({ capability: slugSchema, workItem: text }).strict()),
+  consumers: z.array(z.object({ capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]), workItem: text }).strict()),
   previousOwner: modulePathSchema.optional(),
 }).strict();
 export type RegistryEntry = z.infer<typeof registryEntrySchema>;

@@ -77,47 +77,55 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
           results.set(value.iteration, value);
           break;
         }
-        case 'ramify-agent.placement-request/1': {
+        case 'ramify-agent.placement-request/1':
+        case 'ramify-agent.placement-request/2': {
           const value = parseCommittedRecord(placementRequestSchema, record.body, record.path);
           requests.set(value.id, value);
           break;
         }
-        case 'ramify-agent.placement-decision/1': {
+        case 'ramify-agent.placement-decision/1':
+        case 'ramify-agent.placement-decision/2': {
           const value = parseCommittedRecord(placementDecisionSchema, record.body, record.path);
           decisions.set(value.id, value);
           break;
         }
-        case 'ramify-agent.contract/2': {
+        case 'ramify-agent.contract/2':
+        case 'ramify-agent.contract/3': {
           const value = parseCommittedRecord(contractRecordSchema, record.body, record.path);
           const current = contracts.get(value.id);
           if (current === undefined || value.revision >= current.revision) contracts.set(value.id, value);
           break;
         }
-        case 'ramify-agent.provider-obligation/1': {
+        case 'ramify-agent.provider-obligation/1':
+        case 'ramify-agent.provider-obligation/2': {
           const value = parseCommittedRecord(providerObligationSchema, record.body, record.path);
           const current = obligations.get(value.id);
           if (current === undefined || value.revision >= current.revision) obligations.set(value.id, value);
           break;
         }
-        case 'ramify-agent.consumer-requirement/1': {
+        case 'ramify-agent.consumer-requirement/1':
+        case 'ramify-agent.consumer-requirement/2': {
           const value = parseCommittedRecord(consumerRequirementSchema, record.body, record.path);
           const current = requirements.get(value.id);
           if (current === undefined || value.revision >= current.revision) requirements.set(value.id, value);
           break;
         }
-        case 'ramify-agent.capability-request/1': {
+        case 'ramify-agent.capability-request/1':
+        case 'ramify-agent.capability-request/2': {
           const value = parseCommittedRecord(capabilityRequestSchema, record.body, record.path);
           if (capabilityRequests.has(value.id)) throw new CommittedRecordError(record.path, ['An original request is immutable']);
           capabilityRequests.set(value.id, value);
           break;
         }
-        case 'ramify-agent.capability-task/1': {
+        case 'ramify-agent.capability-task/1':
+        case 'ramify-agent.capability-task/2': {
           const value = parseCommittedRecord(capabilityTaskSchema, record.body, record.path);
           if (capabilityTasks.has(value.id)) throw new CommittedRecordError(record.path, ['A task identity is immutable']);
           capabilityTasks.set(value.id, value);
           break;
         }
-        case 'ramify-agent.capability-plan/1': {
+        case 'ramify-agent.capability-plan/1':
+        case 'ramify-agent.capability-plan/2': {
           const value = parseCommittedRecord(capabilityPlanSchema, record.body, record.path);
           const list = capabilityPlans.get(value.task) ?? [];
           if (value.revision !== list.length + 1) throw new CommittedRecordError(record.path, ['Plan revisions are consecutive and immutable']);
@@ -125,7 +133,8 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
           capabilityPlans.set(value.task, list);
           break;
         }
-        case 'ramify-agent.capability-exchange/1': {
+        case 'ramify-agent.capability-exchange/1':
+        case 'ramify-agent.capability-exchange/2': {
           const value = parseCommittedRecord(capabilityExchangeSchema, record.body, record.path);
           const list = capabilityExchanges.get(value.id) ?? [];
           if (list.length > 0 && (list.length !== 1 || list[0]?.answer !== null || value.answer === null)) {
@@ -135,7 +144,8 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
           capabilityExchanges.set(value.id, list);
           break;
         }
-        case 'ramify-agent.capability-handback/1': {
+        case 'ramify-agent.capability-handback/1':
+        case 'ramify-agent.capability-handback/2': {
           const value = parseCommittedRecord(capabilityHandbackSchema, record.body, record.path);
           if (capabilityHandbacks.has(value.task)) throw new CommittedRecordError(record.path, ['A handback is immutable']);
           capabilityHandbacks.set(value.task, value);

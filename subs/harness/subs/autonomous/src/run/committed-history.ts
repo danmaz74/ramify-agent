@@ -32,6 +32,10 @@ const supported: Readonly<Record<string, string>> = Object.fromEntries([
 const alsoSupported = new Set([
   'ramify-agent.hypothesis/2', 'ramify-agent.capability/2', 'ramify-agent.work-item/2',
   'ramify-agent.entry-assignments/2', 'ramify-agent.scenario/2',
+  'ramify-agent.capability-request/2', 'ramify-agent.capability-task/2',
+  'ramify-agent.capability-plan/2', 'ramify-agent.capability-exchange/2', 'ramify-agent.capability-handback/2',
+  'ramify-agent.contract/3', 'ramify-agent.provider-obligation/2', 'ramify-agent.consumer-requirement/2',
+  'ramify-agent.placement-request/2', 'ramify-agent.placement-decision/2',
 ]);
 
 export function unsupportedCommittedVersion(declared: unknown): string | null {

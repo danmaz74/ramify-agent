@@ -31,12 +31,13 @@ import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '
  */
 
 const text = z.string().min(1);
+const capabilityName = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 
 /** A `PlacementDecision` without the fields the harness assigns. */
 export const decisionBodySchema = z.object({
   question: text,
   outcome: placementOutcomeSchema,
-  capability: slugSchema,
+  capability: capabilityName,
   /**
    * Whether implementing this capability changes symbols that already have
    * consumers. An extension of existing behavior is a `create` whose owner
@@ -70,12 +71,12 @@ export type DecisionBody = z.infer<typeof decisionBodySchema>;
 
 /** A `RegistryEntry` revision without the fields the harness assigns. */
 export const registryChangeSchema = z.object({
-  capability: slugSchema,
+  capability: capabilityName,
   behavior: text,
   owner: modulePathSchema,
   proposed: moduleProposalSchema.optional(),
   /** Confirmed consumer-to-dependency links this revision adds. */
-  consumers: z.array(z.object({ capability: slugSchema, workItem: text }).strict()).describe(
+  consumers: z.array(z.object({ capability: capabilityName, workItem: text }).strict()).describe(
     'Consumer capabilities may be committed or registered anywhere in this complete submission, regardless of order. '
     + 'Each workItem must already be committed.',
   ),
@@ -116,12 +117,12 @@ export type LocalDecisionBody = z.infer<typeof localDecisionSchema>;
 
 /** A `PlacementRequest` without the fields the harness assigns. */
 export const placementRequestBodySchema = z.object({
-  forCapability: slugSchema,
+  forCapability: capabilityName,
   question: text,
   requiredBehavior: text,
   findings: z.array(z.object({ text, citations: z.array(citationSchema) }).strict()),
   candidates: z.array(z.object({
-    capability: slugSchema.optional(),
+    capability: capabilityName.optional(),
     owner: modulePathSchema.optional(),
     note: text,
   }).strict()),

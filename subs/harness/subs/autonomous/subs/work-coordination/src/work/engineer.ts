@@ -5,7 +5,7 @@ import { modulePathSchema } from '../../../../../../src/interfaces/protocol/evid
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
 import { openFindingsMessage, type HookFinding, type HookSubmissionPolicy } from '../../../../../../src/hooks/post-write.js';
 import { needAsBehaviorSchema } from '../contracts/submission.js';
-import { capabilityNeedInputSchema } from '../capability/records.js';
+import { capabilityNeedInputSchema, descriptiveCapabilityNeedInputSchema } from '../capability/records.js';
 import { bindingErrors, obligationBindingSchema } from './obligations.js';
 import type { IterationAssignment } from './iterations.js';
 import { injectionSiteRule, moduleOwning } from '../../../../../../src/work/scope.js';
@@ -106,7 +106,7 @@ export const engineerSubmissionSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('capability-needed'),
     summary: text,
-    request: capabilityNeedInputSchema,
+    request: z.union([capabilityNeedInputSchema, descriptiveCapabilityNeedInputSchema]),
   }).strict(),
 ]);
 export type EngineerSubmission = z.infer<typeof engineerSubmissionSchema>;
@@ -123,6 +123,11 @@ export const capabilityEngineerSubmissionSchema = z.discriminatedUnion('kind', [
   engineerSubmissionSchema.options[2]!, engineerSubmissionSchema.options[4]!,
 ]);
 export const capabilityEngineerJsonSchema = z.toJSONSchema(capabilityEngineerSubmissionSchema) as JsonSchema;
+export const descriptiveCapabilityEngineerSubmissionSchema = z.discriminatedUnion('kind', [
+  engineerSubmissionSchema.options[0]!, engineerSubmissionSchema.options[1]!,
+  engineerSubmissionSchema.options[2]!, engineerSubmissionSchema.options[4]!.extend({ request: descriptiveCapabilityNeedInputSchema }),
+]);
+export const descriptiveCapabilityEngineerJsonSchema = z.toJSONSchema(descriptiveCapabilityEngineerSubmissionSchema) as JsonSchema;
 
 export const engineerToolName = 'submit_iteration_result';
 
@@ -169,6 +174,7 @@ const trailerLine = /^\s*Ramify-[A-Za-z-]*\s*:/m;
 
 /** What the rules beyond the schema are checked against. */
 export interface EngineerEvidence {
+  readonly identityContract?: 'legacy' | 'descriptive';
   /** Only the internal test workflow may offer the new submission before rollout. */
   readonly capabilityWorkflow?: boolean;
   /** Refreshed ownership and accepted creation authority for new usage declarations. Historical requests are never revalidated. */
@@ -216,6 +222,13 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
   if (!shape.ok) return shape;
   const errors: SubmissionError[] = [];
   const value = shape.value;
+  if (value.kind === 'capability-needed') {
+    const descriptive = evidence.identityContract === 'descriptive';
+    const matching = descriptive ? descriptiveCapabilityNeedInputSchema.safeParse(value.request).success
+      : capabilityNeedInputSchema.safeParse(value.request).success;
+    if (!matching) errors.push({ path: 'request', message: `The capability request must use the ${descriptive ? 'descriptive draft keys' : 'legacy'} contract`,
+      expected: descriptive ? 'requestKey draft:capability-request:<name> and examples[].key draft:capability-example:<name>' : 'legacy examples without draft keys' });
+  }
   if (value.kind === 'capability-needed' && evidence.capabilityWorkflow !== true) {
     errors.push({ path: 'kind', message: 'Capability coordination is not enabled for this run', expected: 'an enabled capability workflow' });
   }
@@ -383,6 +396,7 @@ export interface IterationBriefing {
   readonly base: string;
   /** Selects the handback supported by this invocation's submission schema. */
   readonly capabilityWorkflow?: boolean | undefined;
+  readonly identityContract?: 'legacy' | 'descriptive' | undefined;
   /** The API views of the modules this iteration writes, or why one has none. */
   readonly views?: readonly IterationApiViews[] | undefined;
   /**
@@ -460,6 +474,11 @@ export function iterationMessage(briefing: IterationBriefing): string {
       ? 'A symbol you need that is not there is reported with `capability-needed`, with the actual calling code and missing behavior; it is never imported anyway.'
       : 'A symbol you need that is not there is reported with `unsuitable`, reason `scope`; it is never imported anyway.', '');
   }
+
+  if (briefing.capabilityWorkflow && briefing.identityContract === 'descriptive') lines.push(
+    '## Capability identity proposals', '',
+    'For capability-needed, propose request.requestKey as draft:capability-request:<behavior-name> and each request.examples[].key as draft:capability-example:<behavior-name>. The harness resolves these in ordinary acceptance. Existing accepted capability IDs are invalid in those draft fields. An unknown accepted requirement reference must be corrected from the work-item package; names are never guessed.', '',
+  );
 
   if (assignment.scope.bootstrap.length > 0) {
     lines.push('This iteration creates a module. The harness prepared its source directory for your session; write its');

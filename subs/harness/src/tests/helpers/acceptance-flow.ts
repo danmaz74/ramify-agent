@@ -31,12 +31,23 @@ const acceptanceDivision = [
   { decision: 'need-001.ex03 remains broader consumer acceptance with A module architect', reason: 'The delegated render capability supports the person-review flow, whose registered sc-001 remains A responsibility.', evidence: ['sc-001'] },
 ];
 
-export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift' | 'restart' | 'verify-restart' |
+export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'descriptive' | 'drift' | 'restart' | 'verify-restart' |
   'gate-restart' | 'gate-intent-restart' | 'gate-committing-restart' |
   'review-restart' | 'review-submission-restart' | 'concern-submission-restart' | 'repair-exhaustion', cleanups: Array<() => Promise<void>>, realBoundary = false,
   /** Inspects the settled run of the full revision flow. */
   inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>, infrastructureRecovery = false, handbackCommitDrift = false, staleRecovery = false, isolation = false): Promise<void> {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
+  const descriptive = mode === 'descriptive';
+  const names = { request: 'capability-request:render-source-fact', task: 'capability-task:provide-source-fact',
+    work: 'work-item:richer-a-fact', deferred: 'work-item:b-entry', scenario: 'scenario:review-source' };
+  const encode = (value: string) => encodeURIComponent(value);
+  const examples = ['capability-example:render-source', 'capability-example:provider-source', 'capability-example:review-source'];
+  const named = (value: string) => descriptive ? value.replaceAll('need-001.ex01', examples[0]!).replaceAll('need-001.ex02', examples[1]!)
+    .replaceAll('need-001.ex03', examples[2]!).replaceAll('need-001', names.request).replaceAll('cap-001', names.task)
+    .replaceAll('wi-001', names.work).replaceAll('wi-002', names.deferred).replaceAll('sc-001', names.scenario) : value;
+  const legacy = (value: string) => descriptive ? value.replaceAll(examples[0]!, 'need-001.ex01').replaceAll(examples[1]!, 'need-001.ex02')
+    .replaceAll(examples[2]!, 'need-001.ex03').replaceAll(names.request, 'need-001').replaceAll(names.task, 'cap-001')
+    .replaceAll(names.work, 'wi-001').replaceAll(names.deferred, 'wi-002').replaceAll(names.scenario, 'sc-001') : value;
   if (realBoundary) {
     await mkdir(join(fixture.root, 'subs/a/src/tests/steps'), { recursive: true });
     await writeFile(join(fixture.root, 'subs/a/src/tests/steps/capability.steps.js'), [
@@ -79,7 +90,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   let repairContinuationStarted = false;
   let originalRequest = '';
   let handbackMaterialized = false;
-  const scripted: Script = spec => {
+  const legacyScripted: Script = spec => {
     // Callback perception includes inherited packets. Route only by the newest
     // renderer-owned objective and the actual current working directory.
     const objective = [...spec.prompt.matchAll(/^Perform [^\n]+ for (\{[^\n]*\}); use the current evidence and designated submission\.$/gmu)].at(-1);
@@ -89,10 +100,12 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', a), entry('b-entry', b)]));
     if (spec.submission.name === 'submit_work_item_result') {
       if (work.workItem === 'wi-002') {
-        deferredBriefing = spec.prompt;
+        deferredBriefing = named(spec.prompt);
         return [{ kind: 'wait', ms: 60_000 }];
       }
-      return localTurn++ === 0 ? submit(assign(a, {}, outline())) : submit(requestCompletion());
+      return localTurn++ === 0 ? submit(assign(a, {}, outline())) : submit(descriptive
+        ? { ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] }
+        : requestCompletion());
     }
     if (spec.submission.name === 'submit_capability_qualification') {
       const [, request, invocation] = latest(/Use request (need-\d+) and invocation (inv-\d+)/gu)!;
@@ -131,7 +144,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       expect(spec.prompt).toContain(composedSummary);
       expect(spec.prompt).toContain(remainingConsumer);
       expect(spec.prompt).toContain('Inspect and reuse the delivered caller source and tests');
-      expect(spec.prompt).toMatch(/capabilities\/cap-001\/plan\/3.json/u);
+      expect(spec.prompt).toMatch(descriptive ? /capabilities\/capability-task%3Aprovide-source-fact\/plan\/3.json/u
+        : /capabilities\/cap-001\/plan\/3.json/u);
       expect(spec.prompt).toMatch(/gates\/ga-\d+\/attempt.json/u);
       expect(readFileSync(join(fixture.root, 'subs/a/src/caller.ts'), 'utf8')).toContain("import { readFact } from '../../b/src/fact.js'");
       expect(readFileSync(join(fixture.root, 'subs/a/src/tests/caller.test.ts'), 'utf8')).toContain("toBe('Fresh fact: old from B')");
@@ -141,7 +155,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         mode === 'review-restart' || mode === 'review-submission-restart' || mode === 'concern-submission-restart') return resuming
         ? submit({ kind: 'completion-proposed', summary: 'A resumed after restart with the accepted result', findings: [] })
         : [{ kind: 'wait', ms: 60_000 }];
-      if (mode === 'deferred') return submit({ kind: 'completion-proposed', summary: 'A resumed with the accepted result', findings: [] });
+      if (mode === 'deferred' || descriptive) return submit({ kind: 'completion-proposed', summary: 'A resumed with the accepted result', findings: [] });
       return submit({ kind: 'capability-needed', summary: 'A found a post-handback integration issue', request: {
         need: 'Revise the B result for A integration',
         usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Integrate the returned result', prospective: false }],
@@ -211,7 +225,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       }
       if (architect === 1) return [{ kind: 'await', until: async () => {
         const runId = activeService!.listRuns('need')[0]!.jobId;
-        originalRequest = await readFile(runPath(fixture.root, 'need', runId, 'capabilities/requests/need-001.json'), 'utf8');
+        originalRequest = await readFile(runPath(fixture.root, 'need', runId, `capabilities/requests/${encode(named('need-001'))}.json`), 'utf8');
       } }, ...assignOwner(b, 'Add the source field')];
       if (architect === 2) return submit({ ...basis, kind: 'partial', progress: 'B source field delivered; required real A/B composition is not yet implemented',
         unfinished: ['Migrate compatibility callers, expose the companion and integrate the real B result in A'] });
@@ -256,6 +270,49 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     }
     return [];
   };
+  const scripted: Script = spec => {
+    if (descriptive) {
+      if (spec.submission.name === 'submit_intake') {
+        const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
+        return submit({ goal: 'Expose the richer B fact to A.', elements: [], incorporation: {
+          documents: documents.map(document => ({ document, scenarios: true, uncertainty: '' })), missing: [],
+        } });
+      }
+      if (spec.submission.name === 'submit_principle_elements') return submit({ elements: [] });
+      if (spec.submission.name === 'submit_catalog_check') return submit({ corrections: [], entries: [], scenarios: [] });
+      if (spec.role === 'initial-architect') return submit({ elements: [], entries: [
+        { capabilityKey: 'draft:capability:richer-a-fact', description: 'A renders the richer B fact.', owner: a,
+          functionalRequirementKeys: [], functionalAcceptanceKeys: [], contextKeys: [], citations: [] },
+        { capabilityKey: 'draft:capability:b-entry', description: 'B supplies the fact.', owner: b,
+          functionalRequirementKeys: [], functionalAcceptanceKeys: [], contextKeys: [], citations: [] },
+      ], hypotheses: [], coverageLimits: [], scenarios: [
+        { scenarioKey: 'draft:scenario:review-source', entryCapabilityKey: 'draft:capability:richer-a-fact',
+          origin: { kind: 'architect' }, functionalAcceptanceKeys: [],
+          gherkin: 'Scenario: Review source\n  When A renders the B fact\n  Then the source is shown' },
+        { scenarioKey: 'draft:scenario:provide-source', entryCapabilityKey: 'draft:capability:b-entry',
+          origin: { kind: 'architect' }, functionalAcceptanceKeys: [],
+          gherkin: 'Scenario: Provide source\n  When B provides a fact\n  Then its source is present' },
+      ], integrationScenarios: [] });
+    }
+    const translated = descriptive ? { ...spec, prompt: legacy(spec.prompt) } : spec;
+    const result = legacyScripted(translated);
+    if (!descriptive) return result;
+    return result.map(action => {
+      if (action.kind === 'submit') {
+        const input = JSON.parse(named(JSON.stringify(action.input))) as Record<string, unknown>;
+        if (input.kind === 'capability-needed') {
+          const request = input.request as Record<string, unknown>;
+          request.requestKey = 'draft:capability-request:render-source-fact';
+          request.examples = (request.examples as Array<Record<string, unknown>>).map((example, index) => ({ ...example,
+            key: `draft:capability-example:${['render-source', 'provider-source', 'review-source'][index]}` }));
+        }
+        if (input.kind === 'delegate-capability') input.taskKey = 'draft:capability-task:provide-source-fact';
+        return { ...action, input };
+      }
+      if (action.kind === 'tool') return { ...action, input: JSON.parse(named(JSON.stringify(action.input))) };
+      return action;
+    });
+  };
   // Hold the already accepted coordinator at confirmed settlement until the
   // concern review's close has begun. This fixes the race ordering without a
   // timer or a late result completing an owning action.
@@ -281,7 +338,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   const gateContexts: string[] = [];
   let inheritedAuthorityChecked = false;
   let infrastructureInterrupted = false;
-  const options = { git: external?.git ?? gitService, ...(external === undefined ? {} : { candidates: external.candidates, ramify: external.ramify, provisionalSourceGit: external.sourceGit }), script: scripted, inputs: treeInputs(),
+  const options = { git: external?.git ?? gitService, ...(external === undefined ? {} : { candidates: external.candidates, ramify: external.ramify, provisionalSourceGit: external.sourceGit }),
+    identityContract: descriptive ? 'descriptive' as const : undefined, script: scripted, inputs: treeInputs(),
 
     configuredAudit: infrastructureRecovery ? { read: realChecks.read, async run(input: ConfiguredAuditInput) {
         if (!infrastructureInterrupted && await gateCheckpoint(fixture.root, input) === 'work-item') {
@@ -635,6 +693,51 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     throw new Error(`${String(error)}; architect ${architect}, reviewer ${reviewer}; prompt ${lastCapabilityPrompt.slice(-2200)}; gate ${JSON.stringify(body)}; last events ${JSON.stringify(events.slice(-18))}`);
   });
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
+  if (descriptive) {
+    expect(events.filter(event => event.type === 'job-failed'), JSON.stringify({ events: events.slice(-20),
+      sessions: opened.agent?.sessions.map(session => ({ role: session.spec.role, submission: session.spec.submission.name,
+        verdicts: session.verdicts })) })).toHaveLength(0);
+    expect(events.filter(event => event.type === 'capability-handed-back' && event.data.task === names.task)).toHaveLength(1);
+    const handedBack = events.find(event => event.type === 'capability-handed-back' && event.data.task === names.task)!;
+    expect(events.some(event => event.type === 'capability-verification-started' && event.data.task === names.task)).toBe(true);
+    expect(events.some(event => event.type === 'gate-attempted' && event.data.checkpoint === 'work-item' && event.data.verdict === 'passed')).toBe(true);
+    const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
+      `capabilities/requests/${encode(names.request)}.json`), 'utf8'));
+    const task = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
+      `capabilities/${encode(names.task)}/task.json`), 'utf8'));
+    const handback = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
+      `capabilities/${encode(names.task)}/handback.json`), 'utf8'));
+    expect(request).toMatchObject({ schema: 'ramify-agent.capability-request/2', id: names.request,
+      parent: { id: names.work }, original: { examples: examples.map(id => ({ id })) } });
+    expect(task).toMatchObject({ schema: 'ramify-agent.capability-task/2', id: names.task,
+      request: names.request, parent: { id: names.work } });
+    expect(handback).toMatchObject({ schema: 'ramify-agent.capability-handback/2', task: names.task,
+      request: names.request, summary: named(composedSummary), limitations: [named(remainingConsumer)] });
+    expect(events.some(event => event.type === 'capability-assignment-settled' && event.data.task === names.task &&
+      event.data.outcome === 'accepted')).toBe(true);
+    await until(() => deferredBriefing.length > 0 || (opened.service.events('need', receipt.jobId) ?? []).some(event =>
+      event.type === 'job-failed'), 30_000);
+    expect(deferredBriefing, JSON.stringify({ tail: (opened.service.events('need', receipt.jobId) ?? []).slice(-12),
+      sessions: opened.agent?.sessions.slice(-5).map(session => ({ role: session.spec.role, submission: session.spec.submission.name,
+        verdicts: session.verdicts })) })).toContain(`Task ${names.task} returned tree`);
+    expect(deferredBriefing).toContain(`Plan ${names.task}`);
+    expect(deferredBriefing).toContain(named(composedSummary));
+    const consumerEvents = opened.service.events('need', receipt.jobId) ?? [];
+    expect(consumerEvents.some(event => event.type === 'iteration-closed' && event.sequence > handedBack.sequence &&
+      event.data.iteration === `${names.work}.i01` && event.data.outcome === 'accepted')).toBe(true);
+    expect(consumerEvents.some(event => event.type === 'work-item-completed' && event.sequence > handedBack.sequence &&
+      event.data.workItem === names.work)).toBe(true);
+    await stopStable(opened.service, receipt.jobId);
+    await opened.service.settled('need', receipt.jobId);
+    await opened.service.close();
+    const reopened = await openCapabilityRuns(fixture.root, options);
+    cleanups.push(() => reopened.service.close());
+    const replayed = reopened.service.events('need', receipt.jobId) ?? [];
+    expect(replayed.filter(event => event.type === 'capability-handed-back' && event.data.task === names.task)).toHaveLength(1);
+    expect(reopened.service.committed('need', receipt.jobId)?.entries.flatMap(line => line.transaction.records)
+      .some(record => record.path === `capabilities/${encode(names.task)}/handback.json`)).toBe(true);
+    return;
+  }
   if (mode === 'repair-exhaustion') {
     expect(repairContinuationStarted).toBe(true);
     expect(events.filter(event => event.type === 'job-failed'),

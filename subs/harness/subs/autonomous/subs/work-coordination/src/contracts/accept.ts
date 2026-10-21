@@ -36,6 +36,8 @@ export interface AttachedConsumer {
 
 export interface RegistrationRequest {
   readonly contract: ContractId;
+  /** Explicit identity for a descriptive obligation; legacy derives it from the contract. */
+  readonly obligation?: string;
   readonly revision: number;
   /** The registry entry of the capability, and the decision that placed it. */
   readonly capability: { readonly ref: RecordRef; readonly slug: string; readonly decision: string | null };
@@ -67,6 +69,15 @@ export interface Registration {
 /** The records one accepted contract submission commits, derived from committed state. */
 export function registerContract(request: RegistrationRequest): Registration {
   const { submission } = request;
+  const descriptive = 'contractKey' in submission;
+  if (descriptive && request.contract !== submission.contractKey.slice('draft:'.length))
+    throw new Error(`Contract ${request.contract} does not resolve ${submission.contractKey}`);
+  if (descriptive && submission.mode === 'fake-backed' && request.obligation !== submission.providerObligationKey.slice('draft:'.length))
+    throw new Error(`Provider obligation ${request.obligation ?? '<missing>'} does not resolve ${submission.providerObligationKey}`);
+  if (descriptive && submission.mode === 'fake-backed' && request.consumers.some(consumer =>
+    consumer.requirement !== submission.consumerRequirementKey.slice('draft:'.length)
+    && request.revision === 1))
+    throw new Error(`A new consumer requirement must resolve ${submission.consumerRequirementKey}`);
   const hash = (path: string): string => {
     const found = request.hashes.get(path);
     if (found === undefined) throw new Error(`The contract artifact ${path} was not hashed`);
@@ -74,7 +85,7 @@ export function registerContract(request: RegistrationRequest): Registration {
   };
 
   const contract = contractRecordSchema.parse({
-    schema: 'ramify-agent.contract/2',
+    schema: descriptive ? 'ramify-agent.contract/3' : 'ramify-agent.contract/2',
     id: request.contract,
     revision: request.revision,
     capability: request.capability.ref,
@@ -112,8 +123,8 @@ export function registerContract(request: RegistrationRequest): Registration {
   }
 
   const obligation = providerObligationSchema.parse({
-    schema: 'ramify-agent.provider-obligation/1',
-    id: obligationId(contract.id),
+    schema: descriptive ? 'ramify-agent.provider-obligation/2' : 'ramify-agent.provider-obligation/1',
+    id: request.obligation ?? obligationId(contract.id),
     revision: request.revision,
     contract: refOf(contract.id, contract.revision, contract),
     capability: request.capability.slug,
@@ -124,7 +135,7 @@ export function registerContract(request: RegistrationRequest): Registration {
   records.push({ path: contractsLayout.obligation(obligation.id, obligation.revision), id: obligation.id, revision: obligation.revision, body: obligation });
 
   const requirements = request.consumers.map(consumer => consumerRequirementSchema.parse({
-    schema: 'ramify-agent.consumer-requirement/1',
+    schema: descriptive ? 'ramify-agent.consumer-requirement/2' : 'ramify-agent.consumer-requirement/1',
     id: consumer.requirement,
     revision: request.revision,
     workItem: consumer.workItem,
@@ -155,7 +166,7 @@ export function registerContract(request: RegistrationRequest): Registration {
   let providerWorkItem: WorkItem | null = null;
   if (request.provider.kind === 'create') {
     providerWorkItem = workItemSchema.parse({
-      schema: 'ramify-agent.work-item/1',
+      schema: descriptive ? 'ramify-agent.work-item/2' : 'ramify-agent.work-item/1',
       id: request.provider.id,
       module: submission.provider,
       origin: { obligation: refOf(obligation.id, obligation.revision, obligation) },
@@ -163,6 +174,7 @@ export function registerContract(request: RegistrationRequest): Registration {
       requirementRefs: [],
       acceptanceRefs: [],
       contextRefs: [],
+      ...(descriptive ? { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [] } : {}),
       startedFor: request.provider.startedFor,
     } satisfies WorkItem);
     records.push({ path: workLayout.item(providerWorkItem.id), id: providerWorkItem.id, revision: 1, body: providerWorkItem });
@@ -198,4 +210,70 @@ export function registrationNeeded(prior: readonly RegisteredKey[], key: Registe
     return !prior.some(entry => entry.contract === key.contract && entry.revision === key.revision);
   }
   return true;
+}
+
+/** A serialized refusal that names the proposal field the author can correct. */
+export class ContractPublicationError extends Error {
+  constructor(readonly path: string, message: string) {
+    super(`${path}: ${message}`);
+    this.name = 'ContractPublicationError';
+  }
+}
+
+export type PublicationRecord = { readonly path: string; readonly id: string; readonly revision: number; readonly body: unknown };
+export type PublicationEvent = { readonly type: string; readonly data: unknown };
+export type PublicationLine = { readonly transaction: { readonly event: PublicationEvent; readonly records: readonly PublicationRecord[] } };
+
+const descriptiveRecord = (record: PublicationRecord): boolean => {
+  const schema = (record.body as { schema?: unknown } | null)?.schema;
+  return schema === 'ramify-agent.contract/3' || schema === 'ramify-agent.provider-obligation/2'
+    || schema === 'ramify-agent.consumer-requirement/2' || schema === 'ramify-agent.work-item/2';
+};
+
+const proposalField = (record: PublicationRecord): string => {
+  if (record.id.startsWith('contract:')) return 'contractKey';
+  if (record.id.startsWith('provider-obligation:')) return 'providerObligationKey';
+  if (record.id.startsWith('consumer-requirement:')) return 'consumerRequirementKey';
+  return 'providerWorkItem';
+};
+
+/**
+ * Refuse a colliding descriptive name under the run's write mutex, using the
+ * durable log as authority. An exact replay of the same iteration is harmless;
+ * a changed answer under its retry identity is not an authorized correction.
+ */
+export function contractPublicationRefusal(
+  lines: readonly PublicationLine[], event: PublicationEvent, records: readonly PublicationRecord[],
+): ContractPublicationError | null {
+  if (event.type !== 'contract-registered' && event.type !== 'evidence-reopened') return null;
+  if (!records.some(descriptiveRecord)) return null;
+  const iteration = (event.data as { iteration?: unknown } | null)?.iteration;
+  const prior = lines.filter(line => line.transaction.event.type === 'contract-registered'
+    || line.transaction.event.type === 'evidence-reopened');
+  const sameIteration = prior.find(line => (line.transaction.event.data as { iteration?: unknown } | null)?.iteration === iteration);
+  if (sameIteration !== undefined) {
+    const previous = sameIteration.transaction;
+    if (previous.event.type === event.type && JSON.stringify(previous.event.data) === JSON.stringify(event.data)
+      && JSON.stringify(previous.records) === JSON.stringify(records)) return null;
+    return new ContractPublicationError('iteration', `the accepted submission for ${String(iteration)} already has a different result; use ordinary correction authority`);
+  }
+
+  const accepted = lines.flatMap(line => line.transaction.records);
+  for (const record of records.filter(descriptiveRecord)) {
+    const earlier = accepted.filter(candidate => candidate.id === record.id);
+    if (earlier.length === 0) continue;
+    const priorRevision = earlier.reduce((latest, candidate) => candidate.revision > latest.revision ? candidate : latest);
+    const revision = event.type === 'evidence-reopened' && record.revision === priorRevision.revision + 1;
+    const body = record.body as { schema?: unknown; contract?: { id?: unknown }; workItem?: unknown; obligation?: unknown };
+    const previous = priorRevision.body as typeof body;
+    const sameSubject = body.schema === previous.schema
+      && (body.schema === 'ramify-agent.contract/3'
+        || body.schema === 'ramify-agent.provider-obligation/2' && body.contract?.id === previous.contract?.id
+        || body.schema === 'ramify-agent.consumer-requirement/2'
+          && body.workItem === previous.workItem && body.obligation === previous.obligation);
+    if (revision && sameSubject) continue;
+    return new ContractPublicationError(proposalField(record),
+      `"${record.id}" is already accepted at revision ${priorRevision.revision}; propose an unused descriptive name or cite the existing agreement through its revision authority`);
+  }
+  return null;
 }

@@ -6,7 +6,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type ScriptedAgent } from '../../../../../agent/src/scripted.js';
 import type { ArchitectIndex } from '../../../../../evidence/src/views.js';
 import { analysisLayout, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
-import { architectureLayout, type PlacementDecision, type PlacementRequest } from '../architecture/records.js';
+import { architectureLayout, descriptiveLocalDecisionId, descriptivePlacementRequestId, globalDecisionId, type PlacementDecision, type PlacementRequest } from '../architecture/records.js';
+import { acceptDecision } from '../architecture/accept.js';
 import type { RunInputs } from '../../../../src/run/inputs.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { type InvocationOutcome } from '../../../../../task-execution/src/records.js';
@@ -16,7 +17,7 @@ import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { declaringScenarios } from '../../../../../../src/tests/helpers/declarations.js';
 import { analysis, entry, hypothesis, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { byRole, readDeclaredTree, submit, treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
-import { forkDecision, forkPartial, registryChange, requestPlacement } from './helpers/placement.js';
+import { decision as placementDecisionFixture, forkDecision, forkPartial, registryChange, requestPlacement } from './helpers/placement.js';
 import {
   installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun,
 } from '../../../../../../src/tests/helpers/runs.js';
@@ -47,6 +48,24 @@ afterEach(async () => {
 const core = 'collection-review/workspace/catalog/core';
 const panel = 'collection-review/workspace/catalog/ui';
 const unchangedPlacementCheckpoints = [scenariosCommit('revision-diff'), 'wi-001', 'wi-002', 'final verification of plan "revision-diff"'] as const;
+
+test('descriptive placement IDs preserve their work and capability origin through accepted records', () => {
+  const request = descriptivePlacementRequestId('work-item:add-revision-preview', 'capability:resolve-review-predecessors', 1);
+  const id = globalDecisionId(request);
+  const accepted = acceptDecision({ id, authority: 'global', request, workItem: 'work-item:add-revision-preview',
+    invocation: 'inv-0001', body: placementDecisionFixture({ capability: 'resolve-review-predecessors' }),
+    registry: [registryChange({ capability: 'resolve-review-predecessors', owner: core })],
+    view: { status: 'placeholder' }, brief: 'Core resolves review predecessors.',
+    committed: { registry: new Map(), hypotheses: new Map() },
+  });
+  expect(request).toMatch(/^placement-request:/);
+  expect(accepted.decision).toMatchObject({ schema: 'ramify-agent.placement-decision/2', id,
+    capability: 'capability:resolve-review-predecessors', request });
+  expect(accepted.registry[0]).toMatchObject({ schema: 'ramify-agent.capability/2', capability: 'capability:resolve-review-predecessors' });
+  expect(accepted.records[0]?.path).toContain('placement-decision%3A');
+  expect(descriptiveLocalDecisionId('work-item:add-revision-preview', 'capability:resolve-review-predecessors', 1))
+    .toMatch(/^placement-decision:/);
+});
 
 /** A copy of the fixture project, made a git repository with the runner readiness looks for. */
 async function target(): Promise<string> {

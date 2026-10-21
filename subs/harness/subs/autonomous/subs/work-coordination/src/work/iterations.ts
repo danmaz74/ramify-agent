@@ -235,9 +235,9 @@ export type IterationResult = z.infer<typeof iterationResultSchema>;
 /** Where an iteration's records are materialized, relative to the run's directory. */
 export const iterationLayout = {
   assignment: (workItem: WorkItemId, number: number): string =>
-    join('work-items', workItem, 'iterations', String(number).padStart(2, '0'), 'assignment.json'),
+    join('work-items', encodeURIComponent(workItem), 'iterations', String(number).padStart(2, '0'), 'assignment.json'),
   result: (workItem: WorkItemId, number: number): string =>
-    join('work-items', workItem, 'iterations', String(number).padStart(2, '0'), 'result.json'),
+    join('work-items', encodeURIComponent(workItem), 'iterations', String(number).padStart(2, '0'), 'result.json'),
 } as const;
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */

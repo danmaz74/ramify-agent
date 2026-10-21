@@ -30,7 +30,7 @@ const text = z.string().min(1);
 /** A need stated as behavior, which the contract iteration designs an interface for. */
 export const needAsBehaviorSchema = z.object({
   /** The capability the need is for, as the registry names it or would name it. */
-  capability: slugSchema,
+  capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]),
   useCases: z.array(text).min(1),
   inputs: z.array(text),
   outputs: z.array(text),
@@ -71,7 +71,20 @@ export const contractSubmissionSchema = z.discriminatedUnion('kind', [
     findings: z.array(text),
   }).strict(),
 ]);
-export type ContractSubmission = z.infer<typeof contractSubmissionSchema>;
+const name = '[a-z0-9]+(?:-[a-z0-9]+)*';
+const draftKey = (family: string) => z.string().regex(new RegExp(`^draft:${family}:${name}$`))
+  .describe(`A proposed draft:${family}:<descriptive-name> key; an accepted ID or another namespace is invalid.`);
+
+/** Names proposed in the ordinary agreement submission. Acceptance resolves them atomically. */
+export const descriptiveContractSubmissionSchema = z.discriminatedUnion('kind', [
+  contractSubmissionSchema.options[0].extend({
+    contractKey: draftKey('contract'),
+    providerObligationKey: draftKey('provider-obligation'),
+    consumerRequirementKey: draftKey('consumer-requirement'),
+  }).strict(),
+  contractSubmissionSchema.options[1],
+]);
+export type ContractSubmission = z.infer<typeof contractSubmissionSchema> | z.infer<typeof descriptiveContractSubmissionSchema>;
 export type EstablishedContract = Extract<ContractSubmission, { kind: 'established' }>;
 
 /** The members this iteration's package offers the role. */
@@ -79,6 +92,32 @@ export const contractSubmissionKinds = ['established', 'incomplete'] as const;
 
 /** The schema the agent's tool is given, taken from the same definition that validates. */
 export const contractJsonSchema = z.toJSONSchema(contractSubmissionSchema) as JsonSchema;
+export const descriptiveContractJsonSchema = z.toJSONSchema(descriptiveContractSubmissionSchema) as JsonSchema;
+
+/** Resolve proposals against the run's accepted and retired names at the acceptance boundary. */
+export function descriptiveContractIdentityErrors(
+  submission: EstablishedContract,
+  occupied: ReadonlyMap<string, string>,
+  retained: ReadonlySet<string> = new Set(),
+): SubmissionError[] {
+  if (!('contractKey' in submission)) return [];
+  const proposals = submission.mode === 'access-only'
+    ? [['contractKey', submission.contractKey]] as const
+    : [
+      ['contractKey', submission.contractKey],
+      ['providerObligationKey', submission.providerObligationKey],
+      ['consumerRequirementKey', submission.consumerRequirementKey],
+    ] as const;
+  return proposals.flatMap(([path, key]) => {
+    const id = key.slice('draft:'.length);
+    const conflict = occupied.get(id);
+    return conflict === undefined || retained.has(id) ? [] : [{
+      path,
+      message: `"${key}" resolves to ${id}, which this run already ${conflict}; propose a meaningful qualifier in this field`,
+      expected: `an unused draft:${id.split(':', 1)[0]}:<descriptive-name> key; existing names are in accepted run records`,
+    }];
+  });
+}
 
 export const contractToolName = 'submit_contract_result';
 
@@ -100,8 +139,8 @@ const trailerLine = /^\s*Ramify-[A-Za-z-]*\s*:/m;
  * schema cannot hold. Nothing changes on a failure and every error names its
  * path.
  */
-export async function validateContract(input: unknown, evidence: ContractEvidence): Promise<SubmissionValidation<ContractSubmission>> {
-  const shape = validateAgainst(contractSubmissionSchema, input);
+export async function validateContract(input: unknown, evidence: ContractEvidence, identityContract: 'legacy' | 'descriptive' = 'legacy'): Promise<SubmissionValidation<ContractSubmission>> {
+  const shape = validateAgainst(identityContract === 'descriptive' ? descriptiveContractSubmissionSchema : contractSubmissionSchema, input);
   if (!shape.ok) return shape;
   if (shape.value.kind === 'incomplete') return shape;
   const errors = await establishedErrors(shape.value, evidence);

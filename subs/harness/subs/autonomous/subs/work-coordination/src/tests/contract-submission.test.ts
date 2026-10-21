@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import { outline, readDeclaredTree } from '../../../../../../src/tests/helpers/iterations.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, validateContract } from '../contracts/submission.js';
+import { contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, descriptiveContractJsonSchema, descriptiveContractIdentityErrors, validateContract } from '../contracts/submission.js';
 import { fakeNamingViolations, isFakeFile } from '../contracts/naming.js';
-import { registrationNeeded } from '../contracts/accept.js';
+import { contractPublicationRefusal, registerContract, registrationNeeded } from '../contracts/accept.js';
+import { consumerRequirementSchema, contractRecordSchema, providerObligationSchema } from '../contracts/records.js';
 import { cycleClosedBy, cycleIdentity } from '../contracts/graph.js';
 import { depthOf, nextWorkItem } from '../contracts/schedule.js';
+import { integrationWorkItem } from '../work/integration.js';
 import { validateEngineer } from '../work/engineer.js';
 import { validateLocalArchitect } from '../work/submission.js';
 import type { WorkItem } from '../work/records.js';
@@ -59,6 +61,30 @@ function established(extra: Record<string, unknown> = {}) {
 }
 
 describe('the contract submission', () => {
+  test('descriptive proposals are delivered in the tool schema and reject wrong namespaces at their fields', async () => {
+    const proposal = { ...established(), contractKey: 'draft:contract:review-predecessor-resolution',
+      providerObligationKey: 'draft:provider-obligation:provide-review-predecessor-resolution',
+      consumerRequirementKey: 'draft:consumer-requirement:preview-resolves-review-predecessors' };
+    const delivered = JSON.stringify(descriptiveContractJsonSchema);
+    expect(delivered).toContain('draft:contract:<descriptive-name>');
+    expect(delivered).toContain('draft:provider-obligation:<descriptive-name>');
+    expect(delivered).toContain('draft:consumer-requirement:<descriptive-name>');
+    expect((await validateContract(proposal, await evidence(), 'descriptive')).ok).toBe(true);
+    const wrong = await validateContract({ ...proposal, consumerRequirementKey: 'provider-obligation:provide-review-predecessor-resolution' }, await evidence(), 'descriptive');
+    expect(wrong.ok).toBe(false);
+    if (!wrong.ok) expect(wrong.errors.map(error => error.path)).toContain('consumerRequirementKey');
+    expect((await validateContract(proposal, await evidence(), 'legacy')).ok).toBe(false);
+    const accepted = await validateContract(proposal, await evidence(), 'descriptive');
+    if (!accepted.ok || accepted.value.kind !== 'established') throw new Error('the descriptive agreement was rejected');
+    const occupied = new Map([
+      ['contract:review-predecessor-resolution', 'has an accepted agreement'],
+      ['consumer-requirement:preview-resolves-review-predecessors', 'has a retired requirement'],
+    ]);
+    expect(descriptiveContractIdentityErrors(accepted.value, occupied).map(error => error.path))
+      .toEqual(['contractKey', 'consumerRequirementKey']);
+    expect(descriptiveContractIdentityErrors(accepted.value, occupied, new Set(['contract:review-predecessor-resolution']))
+      .map(error => error.path)).toEqual(['consumerRequirementKey']);
+  });
   test('it is a union discriminated on kind, and has no field for an ID the harness knows', () => {
     const union = (contractJsonSchema as { anyOf?: unknown[]; oneOf?: unknown[] });
     expect(union.anyOf ?? union.oneOf).toHaveLength(2);
@@ -333,6 +359,86 @@ describe('registration is keyed by the obligation and the requirement revision',
     // registration of its own.
     expect(registrationNeeded([attached, reopened], { ...reopened, requirements: ['rq-001', 'rq-002', 'rq-003'] })).toBe(true);
   });
+});
+
+test('an integration work item derives a stable descriptive ID from its accepted scenario', () => {
+  const scenario = { id: 'scenario:preview-binds-review-predecessors', name: 'Preview binds review predecessors', owner: reviews } as Parameters<typeof integrationWorkItem>[0];
+  const first = integrationWorkItem(scenario, 4, 'descriptive');
+  expect(first).toMatchObject({ schema: 'ramify-agent.work-item/2', id: 'work-item:bind-preview-binds-review-predecessors',
+    functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [] });
+  expect(integrationWorkItem(scenario, 18, 'descriptive').id).toBe(first.id);
+  expect(integrationWorkItem(scenario, 4).id).toBe('wi-005');
+});
+
+test('descriptive agreement and obligation survive record serialization with their relationship', async () => {
+  const proposal = { ...established(), contractKey: 'draft:contract:review-predecessor-resolution',
+    providerObligationKey: 'draft:provider-obligation:provide-review-predecessor-resolution',
+    consumerRequirementKey: 'draft:consumer-requirement:preview-resolves-review-predecessors' };
+  const accepted = await validateContract(proposal, await evidence(), 'descriptive');
+  if (!accepted.ok || accepted.value.kind !== 'established') throw new Error('the agreement was rejected');
+  const hashes = new Map<string, string>();
+  for (const entry of [...proposal.artifacts.interface, ...proposal.artifacts.conformance,
+    ...proposal.artifacts.fake, ...proposal.artifacts.exposure]) hashes.set(entry.path, 'a'.repeat(64));
+  const registration = registerContract({
+    contract: 'contract:review-predecessor-resolution',
+    obligation: 'provider-obligation:provide-review-predecessor-resolution', revision: 1,
+    capability: { ref: { id: 'capability:add-revision-preview', revision: 1, hash: 'b'.repeat(64) },
+      slug: 'capability:add-revision-preview', decision: null },
+    submission: accepted.value, hashes, establishedBy: { iteration: 'it-001', gate: 'ga-001' },
+    consumers: [{ requirement: 'consumer-requirement:preview-resolves-review-predecessors',
+      workItem: 'work-item:add-revision-preview', module: reviews,
+      forCapability: 'capability:add-revision-preview',
+      tests: { policy: 'owned-by-scope', exactOwners: [reviews], subtrees: [], extraSuites: [] },
+      fakeInjections: proposal.fakeInjections }],
+    provider: { kind: 'create', id: 'work-item:provide-review-predecessor-resolution',
+      goal: 'Provide review predecessor resolution.', startedFor: 'work-item:add-revision-preview' },
+  });
+  expect(registration.records.map(record => record.path)).toEqual([
+    'contracts/contract%3Areview-predecessor-resolution/1.json',
+    'obligations/provider-obligation%3Aprovide-review-predecessor-resolution/1.json',
+    'requirements/consumer-requirement%3Apreview-resolves-review-predecessors/1.json',
+    'work-items/work-item%3Aprovide-review-predecessor-resolution/item.json',
+  ]);
+  expect(contractRecordSchema.parse(JSON.parse(JSON.stringify(registration.contract))).schema).toBe('ramify-agent.contract/3');
+  expect(providerObligationSchema.parse(JSON.parse(JSON.stringify(registration.obligation))).contract.id)
+    .toBe('contract:review-predecessor-resolution');
+  expect(consumerRequirementSchema.parse(JSON.parse(JSON.stringify(registration.requirements[0]))).obligation)
+    .toBe('provider-obligation:provide-review-predecessor-resolution');
+  expect(registration.providerWorkItem).toMatchObject({ schema: 'ramify-agent.work-item/2',
+    id: 'work-item:provide-review-predecessor-resolution', startedFor: 'work-item:add-revision-preview' });
+});
+
+test('serialized contract publication rejects collisions and changed retries without a partial batch', () => {
+  const contract = { path: 'contracts/contract%3Areview-predecessors/1.json', id: 'contract:review-predecessors', revision: 1,
+    body: { schema: 'ramify-agent.contract/3', id: 'contract:review-predecessors' } };
+  const obligation = { path: 'obligations/provider-obligation%3Aprovide-review-predecessors/1.json',
+    id: 'provider-obligation:provide-review-predecessors', revision: 1,
+    body: { schema: 'ramify-agent.provider-obligation/2', id: 'provider-obligation:provide-review-predecessors',
+      contract: { id: contract.id } } };
+  const requirement = { path: 'requirements/consumer-requirement%3Apreview-resolves-predecessors/1.json',
+    id: 'consumer-requirement:preview-resolves-predecessors', revision: 1,
+    body: { schema: 'ramify-agent.consumer-requirement/2', id: 'consumer-requirement:preview-resolves-predecessors',
+      workItem: 'work-item:preview', obligation: obligation.id } };
+  const first = { type: 'contract-registered', data: { iteration: 'it-001', contract: contract.id } };
+  const records = [contract, obligation, requirement];
+  const accepted = [{ transaction: { event: first, records } }];
+  expect(contractPublicationRefusal([], first, records)).toBeNull();
+  expect(contractPublicationRefusal(accepted, first, records)).toBeNull();
+  const changed = contractPublicationRefusal(accepted, first,
+    [{ ...contract, body: { ...contract.body, behavior: 'A changed answer' } }, obligation, requirement]);
+  expect(changed?.path).toBe('iteration');
+  const colliding = contractPublicationRefusal(accepted,
+    { type: 'contract-registered', data: { iteration: 'it-002', contract: contract.id } }, records);
+  expect(colliding?.path).toBe('contractKey');
+  expect(colliding?.message).toContain('contract:review-predecessors');
+  expect(contractPublicationRefusal([], { type: 'contract-registered', data: { iteration: 'it-002' } }, records)).toBeNull();
+
+  const revised = { type: 'evidence-reopened', data: { iteration: 'it-003', contract: contract.id, revision: 2 } };
+  const next = records.map(record => ({ ...record, path: record.path.replace('/1.json', '/2.json'), revision: 2 }));
+  expect(contractPublicationRefusal(accepted, revised, next)).toBeNull();
+  const redirected = next.map(record => record.id === requirement.id
+    ? { ...record, body: { ...record.body, workItem: 'work-item:other' } } : record);
+  expect(contractPublicationRefusal(accepted, revised, redirected)?.path).toBe('consumerRequirementKey');
 });
 
 describe('the dependency graph has capabilities for nodes', () => {
