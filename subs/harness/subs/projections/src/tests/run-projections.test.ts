@@ -150,7 +150,7 @@ describe('a record of an unsupported version', () => {
   test('is a failure with evidence, never an absent record', () => {
     const run = constructedRun([
       { type: 'job-started', data: {} },
-      { type: 'analysis-accepted', data: {}, records: [{ path: 'work-items/wi-001/item.json', body: { ...item('wi-001', { entry: 'a' }), schema: 'ramify-agent.work-item/2' } }] },
+      { type: 'analysis-accepted', data: {}, records: [{ path: 'work-items/wi-001/item.json', body: { ...item('wi-001', { entry: 'a' }), schema: 'ramify-agent.work-item/9' } }] },
     ]);
     let caught: unknown;
     try {
@@ -161,11 +161,11 @@ describe('a record of an unsupported version', () => {
     expect(caught).toBeInstanceOf(ProjectionError);
     const error = caught as ProjectionError;
     expect(error.code).toBe('unsupported-version');
-    expect(error.message).toContain('ramify-agent.work-item/2');
+    expect(error.message).toContain('ramify-agent.work-item/9');
     expect(error.message).toContain('ramify-agent.work-item/1');
     expect(error.evidence).toEqual([
       'plans/review-notes/.harness/jobs/20260921T080000Z-c0ffee/work-items/wi-001/item.json',
-      'declares ramify-agent.work-item/2',
+      'declares ramify-agent.work-item/9',
       'committed by event 2 (analysis-accepted)',
     ]);
   });

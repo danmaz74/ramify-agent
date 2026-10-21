@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { openUnchangedRuns, assertUnchangedGit } from '../../../../../../src/tests/helpers/unchanged-run.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
@@ -91,6 +91,9 @@ describe('descriptive initial analysis', () => {
       expect(briefing.text).toContain('plans/preview/plan.md');
     }
     expect(accepted.records.map(record => record.body)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ schema: 'ramify-agent.entry-assignments/2' }),
+      expect.objectContaining({ schema: 'ramify-agent.hypothesis/2' }),
+      expect.objectContaining({ schema: 'ramify-agent.capability/2' }),
       expect.objectContaining({ schema: 'ramify-agent.work-item/2' }),
       expect.objectContaining({ schema: 'ramify-agent.scenario/2' }),
     ]));
@@ -183,5 +186,15 @@ describe('descriptive initial analysis', () => {
     expect(captured.schema).toBe('ramify-agent.document-manifest/2');
     const entries = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, runLayout.entries), 'utf8')) as Record<string, unknown>;
     expect(entries.schema).toBe('ramify-agent.entry-assignments/2');
+    const directory = runPath(fixture.root, 'review-notes', receipt.jobId, '');
+    const schemas: string[] = [];
+    for (const path of (await readdir(directory, { recursive: true })).filter(path => path.endsWith('.json'))) {
+      const body = JSON.parse(await readFile(`${directory}/${path}`, 'utf8')) as { schema?: string };
+      if (body.schema !== undefined) schemas.push(body.schema);
+    }
+    expect(schemas).toEqual(expect.arrayContaining([
+      'ramify-agent.document-manifest/2', 'ramify-agent.element-catalog/2', 'ramify-agent.document-incorporation/3',
+      'ramify-agent.entry-assignments/2',
+    ]));
   }, 180_000);
 });
