@@ -46,8 +46,10 @@ export async function reconcileProvisionalSource(input: {
   readonly request: string;
   readonly acceptedBase: string;
   readonly writerSettledBy: string;
+  /** Descriptive proposals may race for a name; their unaccepted snapshots remain invocation-local. */
+  readonly invocationScoped?: boolean;
 }): Promise<ProvisionalSource | null> {
-  const snapshot = join('capabilities', 'snapshots', `${encodeURIComponent(input.request)}.json`).split(sep).join('/');
+  const snapshot = join('capabilities', 'snapshots', `${encodeURIComponent(input.request)}${input.invocationScoped ? `.${encodeURIComponent(input.writerSettledBy)}` : ''}.json`).split(sep).join('/');
   let document: SnapshotDocument;
   try {
     document = JSON.parse(await readFile(join(input.runDirectory, snapshot), 'utf8')) as SnapshotDocument;
@@ -96,6 +98,7 @@ export async function captureProvisionalSource(input: {
   readonly request: string;
   readonly acceptedBase: string;
   readonly writerSettledBy: string;
+  readonly invocationScoped?: boolean;
   readonly changedPaths: readonly string[];
 }): Promise<ProvisionalSource> {
   const existing = await reconcileProvisionalSource(input);
@@ -118,7 +121,7 @@ export async function captureProvisionalSource(input: {
     files.push({ path, staged: stagedPaths.has(path), worktree: worktree?.toString('base64') ?? null, index: index?.toString('base64') ?? null,
       base: base?.toString('base64') ?? null });
   }
-  const snapshot = join('capabilities', 'snapshots', `${encodeURIComponent(input.request)}.json`).split(sep).join('/');
+  const snapshot = join('capabilities', 'snapshots', `${encodeURIComponent(input.request)}${input.invocationScoped ? `.${encodeURIComponent(input.writerSettledBy)}` : ''}.json`).split(sep).join('/');
   const document = { schema: 'ramify-agent.provisional-source/1' as const, acceptedBase: input.acceptedBase,
     writerSettledBy: input.writerSettledBy, files };
   const snapshotHash = sha256(JSON.stringify(document));

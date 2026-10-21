@@ -55,7 +55,7 @@ expose-src depthOf, nextWorkItem, verificationKey, ScheduleState, NextWork, conf
 expose-src createCapabilityWorkflow, CapabilityWorkflow from "capability/workflow.ts" to parent
 expose-src completionBlockers, verifiedRequirements, obligationProjection, assignedCount, evidenceFor, CoordinationHistory, capabilityBlockersOf, pendingCorrection, integrationItemsDue, eventsOf, eventOf from "work/history.ts" to parent
 expose-src createGitInspectionTool from "work/git-inspection.ts" to parent
-expose-src CapabilityInput, validateCapabilityTransition from "capability/ledger.ts" to parent
+expose-src CapabilityInput, CapabilityNameConflictError, validateCapabilityTransition from "capability/ledger.ts" to parent
 expose-src CapabilityVerification, CapabilityHandbackBasis, WorkCoordination, CoordinationObservation, CoordinationEffect, ClosedIterationOutcome, IterationOutcome, CoordinationPorts, CoordinationInputs, SuspendedCapabilityOutcome, groupedPassedScenarioLines from "coordination.ts" to parent
 expose-src rootModuleOf, failedWithoutResult from "context.ts" to parent
 expose-src prepareOutlinePublication, prepareAssignmentPublication, authorizedScope, requiredArtifacts, OutlinePublicationInput, OutlinePublication, AssignmentPublicationInput, CoordinationPublication from "work/publication.ts" to parent

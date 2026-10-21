@@ -5,7 +5,7 @@ import { modulePathSchema } from '../../../../../../src/interfaces/protocol/evid
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
 import { openFindingsMessage, type HookFinding, type HookSubmissionPolicy } from '../../../../../../src/hooks/post-write.js';
 import { needAsBehaviorSchema } from '../contracts/submission.js';
-import { capabilityNeedInputSchema, descriptiveCapabilityNeedInputSchema } from '../capability/records.js';
+import { capabilityNeedInputSchema, descriptiveCapabilityNeedInputSchema, type DescriptiveCapabilityNeedInput } from '../capability/records.js';
 import { bindingErrors, obligationBindingSchema } from './obligations.js';
 import type { IterationAssignment } from './iterations.js';
 import { injectionSiteRule, moduleOwning } from '../../../../../../src/work/scope.js';
@@ -235,17 +235,7 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
       expected: descriptive ? 'requestKey draft:capability-request:<name> and examples[].key draft:capability-example:<name>' : 'legacy examples without draft keys' });
     if (descriptive && matching) {
       const proposed = descriptiveCapabilityNeedInputSchema.parse(value.request);
-      const occupied = evidence.occupiedCapabilityNames;
-      const requestId = proposed.requestKey.slice('draft:'.length);
-      if (occupied?.requests.has(requestId)) errors.push({ path: 'request.requestKey',
-        message: `"${requestId}" is already accepted or retired`, expected: 'an unused draft:capability-request:<name>' });
-      const seen = new Set<string>();
-      proposed.examples.forEach((example, index) => {
-        const exampleId = example.key.slice('draft:'.length);
-        if (seen.has(exampleId) || occupied?.examples.has(exampleId)) errors.push({ path: `request.examples.${index}.key`,
-          message: `"${exampleId}" is already proposed, accepted or retired`, expected: 'a distinct unused draft:capability-example:<name>' });
-        seen.add(exampleId);
-      });
+      errors.push(...descriptiveCapabilityNameErrors(proposed, evidence.occupiedCapabilityNames));
     }
   }
   if (value.kind === 'capability-needed' && evidence.capabilityWorkflow !== true) {
@@ -380,6 +370,25 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
   }
 
   return errors.length === 0 ? shape : { ok: false, errors };
+}
+
+/** The same field diagnostics are used before author acceptance and after a serialized publication race. */
+export function descriptiveCapabilityNameErrors(
+  proposed: DescriptiveCapabilityNeedInput,
+  occupied?: { readonly requests: ReadonlySet<string>; readonly examples: ReadonlySet<string> },
+): SubmissionError[] {
+  const errors: SubmissionError[] = [];
+  const requestId = proposed.requestKey.slice('draft:'.length);
+  if (occupied?.requests.has(requestId)) errors.push({ path: 'request.requestKey',
+    message: `"${requestId}" is already accepted or retired`, expected: 'an unused draft:capability-request:<name>' });
+  const seen = new Set<string>();
+  proposed.examples.forEach((example, index) => {
+    const exampleId = example.key.slice('draft:'.length);
+    if (seen.has(exampleId) || occupied?.examples.has(exampleId)) errors.push({ path: `request.examples.${index}.key`,
+      message: `"${exampleId}" is already proposed, accepted or retired`, expected: 'a distinct unused draft:capability-example:<name>' });
+    seen.add(exampleId);
+  });
+  return errors;
 }
 
 /** Reconcile only new submissions with current ownership before a runner admits them. */

@@ -221,6 +221,7 @@ expose-test ScratchGitScript from "helpers/scratch-git.ts" to descendants
 expose-test commandResult from "helpers/command-result.ts" to descendants
 expose-test recoveryBoundaries from "helpers/recovery-boundaries.ts" to descendants
 expose-test runAcceptedHandback from "helpers/acceptance-flow.ts" to descendants
+expose-test acceptanceBoundaries from "helpers/acceptance-boundaries.ts" to descendants
 expose-test runDependencyGate, runDependencyScheduling, runDependencyDecision from "helpers/dependency-flow.ts" to descendants
 expose-test recoveryInitialFiles from "helpers/recovery-files.ts" to descendants
 expose-src ModuleTree, ModuleTreeResponse, ViewIdentity, citationSchema, inputManifestSchema, isWithin, modulePathSchema, moduleTreeResponseSchema, sha256Schema from "interfaces/protocol/evidence.ts" to parent

@@ -1,6 +1,6 @@
 import type { RecordBody } from '../../../ledger/src/ledger.js';
 import type { RunEvent, RunLog } from './log.js';
-import { validateCapabilityTransition, type CapabilityInput } from '../../subs/work-coordination/src/capability/ledger.js';
+import { CapabilityNameConflictError, validateCapabilityTransition, type CapabilityInput } from '../../subs/work-coordination/src/capability/ledger.js';
 import { coordinationHistory } from './coordination-history.js';
 import { isDeepStrictEqual } from 'node:util';
 /** Called only under lifecycle serialization: validate current domain authority, then append atomically. */
@@ -14,7 +14,8 @@ export async function commitCapabilityTransition(log: RunLog, input: CapabilityI
   });
   if (prior !== undefined) {
    if (!isDeepStrictEqual(prior.transaction.event.data, input.data) || !isDeepStrictEqual(prior.transaction.records, records))
-    throw new Error(`${input.type} ${identity} is already accepted with a different submission`);
+    throw new CapabilityNameConflictError(input.type === 'capability-requested' ? 'request' : 'task', identity,
+      `${input.type} ${identity} is already accepted with a different submission`);
    await log.ledger.materialize();
    return prior.transaction.event;
   }

@@ -11,6 +11,14 @@ import { capabilityCompletionBlockers, capabilityDependencyCycle, capabilityHand
 export type CapabilityInput = Extract<RunEventInput, { type: `capability-${string}` }>;
 type RecordSpecification = { readonly path: string; readonly schema: z.ZodType; readonly id: string; readonly revision: number };
 
+/** A name lost at serialized publication; its author may correct the draft field in the same task. */
+export class CapabilityNameConflictError extends Error {
+  constructor(readonly family: 'request' | 'example' | 'task', readonly id: string, message: string) {
+    super(message);
+    this.name = 'CapabilityNameConflictError';
+  }
+}
+
 /** The one real-ledger write path for capability records. Validate the event
  * against replayed authority and the exact bodies it promises before append.
  * The ledger then commits event and immutable bodies in one transaction. */
@@ -18,6 +26,13 @@ export function validateCapabilityTransition(
   history: CoordinationHistory, event: RunEvent, records: readonly RecordBody[],
 ): void {
   if (!isCapabilityEvent(event)) throw new Error(`${event.type} is not a capability event`);
+  const committed = committedRecords(history.lines);
+  if (event.type === 'capability-requested' && committed.capabilityRequests.has(event.data.request))
+    throw new CapabilityNameConflictError('request', event.data.request,
+      `Capability request ID ${event.data.request} collides with an accepted identity`);
+  if (event.type === 'capability-delegated' && committed.capabilityTasks.has(event.data.task))
+    throw new CapabilityNameConflictError('task', event.data.task,
+      `Capability task ID ${event.data.task} collides with an accepted identity`);
   const prior = replayCapabilityState(history.events);
   transitionCapabilityState(prior, event);
   const expected = specifications(event);
@@ -31,7 +46,6 @@ export function validateCapabilityTransition(
     const parsed = spec.schema.safeParse(actual.body);
     if (!parsed.success) throw new Error(`${actual.path}: ${parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ')}`);
   }
-  const committed = committedRecords(history.lines);
   if (event.type === 'capability-requested') {
     const request = capabilityRequestSchema.parse(records[0]!.body);
     if (request.id !== event.data.request || request.parent.id !== event.data.parent ||
@@ -43,10 +57,13 @@ export function validateCapabilityTransition(
       const ids = request.original.examples.map(example => example.id);
       if ((request.original.revises === undefined) !== (event.data.retiredRequest === undefined))
         throw new Error('Request correction must retire its accepted prior request');
-      if (new Set(ids).size !== ids.length || committed.capabilityRequests.has(request.id) ||
-        [...committed.capabilityRequests.values()].some(existing => existing.original.examples.some(example => ids.includes(example.id)))) {
-        throw new Error('Capability request or example ID collides with an accepted identity');
-      }
+      if (new Set(ids).size !== ids.length) throw new Error('Capability example IDs repeat within one request');
+      if (committed.capabilityRequests.has(request.id)) throw new CapabilityNameConflictError('request', request.id,
+        `Capability request ID ${request.id} collides with an accepted identity`);
+      const occupiedExample = [...committed.capabilityRequests.values()].flatMap(existing => existing.original.examples)
+        .find(example => ids.includes(example.id));
+      if (occupiedExample !== undefined) throw new CapabilityNameConflictError('example', occupiedExample.id,
+        `Capability request or example ID collides with an accepted identity: ${occupiedExample.id}`);
       if (event.data.retiredRequest !== undefined) {
         const retirement = executionRetirementSchema.parse(records[1]!.body);
         const old = committed.capabilityRequests.get(event.data.retiredRequest);

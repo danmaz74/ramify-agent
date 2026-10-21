@@ -1,7 +1,7 @@
 import { Acceptance } from '../../acceptance/src/acceptance.js';
 
 
-import type { CapabilityInput } from './capability/ledger.js';
+import { CapabilityNameConflictError, type CapabilityInput } from './capability/ledger.js';
 
 import { viewIdentityOf as projectViewIdentity } from './project-facts.js';
 import type { BriefAppend } from '../../acceptance/src/completion.js';
@@ -250,7 +250,7 @@ import { type ShellCallRecord } from './work/engineer-equipment.js';
 
 
 import { engineerWorkingDirectory } from './work/engineer-directory.js';
-import { engineerSubmissionSchema, iterationAcceptance, type AssignedObligation, validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews } from './work/engineer.js';
+import { descriptiveCapabilityNameErrors, engineerSubmissionSchema, iterationAcceptance, type AssignedObligation, validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews } from './work/engineer.js';
 import { iterationAssignmentSchema, iterationLayout, type FailureDigest } from './work/iterations.js';
 
 import { digestLines, failureAnalysisJsonSchema, failureAnalysisMessage, failureAnalysisSubmissionDescription, failureAnalysisToolName, failureDigest, validateFailureAnalysis, type AnalysisEvidence as FailureEvidence, type DigestShellCall, type FailureAnalysisSubmission } from './work/failure.js';
@@ -1413,7 +1413,7 @@ export class WorkCoordination {
         const answer = await this.coordinateCapabilityNeed(agent, packages, baseline, item, assignment, suspended,
           undefined, { session: undefined, point: undefined, workingDirectory }, unqualified);
         if (answer === null || answer.kind === 'delegated') return null;
-        session = answer.parent.session; sessionRef = answer.parent.point || undefined;
+        if (answer.kind === 'satisfied') { session = answer.parent.session; sessionRef = answer.parent.point || undefined; }
         lastAssignment = assignment;
         let resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
           session: suspended.session, point: suspended.point, priorInvocation: suspended.invocation, guidance: answer.guidance,
@@ -1423,7 +1423,7 @@ export class WorkCoordination {
           const next = await this.coordinateCapabilityNeed(agent, packages, baseline, item, assignment, resumed, undefined,
             { session, point: sessionRef, workingDirectory });
           if (next === null || next.kind === 'delegated') return null;
-          session = next.parent.session; sessionRef = next.parent.point || undefined;
+          if (next.kind === 'satisfied') { session = next.parent.session; sessionRef = next.parent.point || undefined; }
           resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
             session: resumed.session, point: resumed.point, priorInvocation: resumed.invocation, guidance: next.guidance,
           });
@@ -1462,7 +1462,7 @@ export class WorkCoordination {
           const answer = await this.coordinateCapabilityNeed(agent, packages, baseline, item, assignment, resumed, undefined,
             { session, point: sessionRef, workingDirectory });
           if (answer === null || answer.kind === 'delegated') return null;
-          session = answer.parent.session; sessionRef = answer.parent.point || undefined;
+          if (answer.kind === 'satisfied') { session = answer.parent.session; sessionRef = answer.parent.point || undefined; }
           resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
             session: resumed.session, point: resumed.point, priorInvocation: resumed.invocation, guidance: answer.guidance,
           });
@@ -1948,7 +1948,7 @@ export class WorkCoordination {
             { session, point: sessionRef, workingDirectory });
           if (answer === null) return null;
           if (answer.kind === 'delegated') return 'reported';
-          session = answer.parent.session; sessionRef = answer.parent.point || undefined;
+          if (answer.kind === 'satisfied') { session = answer.parent.session; sessionRef = answer.parent.point || undefined; }
           outcome = await this.takeIteration(agent, packages, baseline, item, assigned, index, {
             session: outcome.session, point: outcome.point, priorInvocation: outcome.invocation, guidance: answer.guidance,
           });
@@ -3385,7 +3385,8 @@ export class WorkCoordination {
     contextPackage: WorkPackage | undefined,
     parent: { readonly session: SessionId | undefined; readonly point: string | undefined; readonly workingDirectory: string },
     existingRequest?: CapabilityRequest,
-  ): Promise<{ readonly kind: 'satisfied'; readonly guidance: string; readonly parent: { readonly session: SessionId; readonly point: string } } | { readonly kind: 'delegated' } | null> {
+  ): Promise<{ readonly kind: 'satisfied'; readonly guidance: string; readonly parent: { readonly session: SessionId; readonly point: string } }
+    | { readonly kind: 'retry-name'; readonly guidance: string } | { readonly kind: 'delegated' } | null> {
     if (this.workflow === null || !supportedCapabilityPolicy(this.observe().policy.version)) {
       await this.ports.fail('internal', 'A capability request reached a run without its captured workflow');
       return null;
@@ -3403,6 +3404,7 @@ export class WorkCoordination {
     const source = existingRequest?.source ?? await captureProvisionalSource({ git: this.git, sourceGit: this.options.provisionalSourceGit,
       projectRoot: this.projectRoot, runDirectory: this.input.directory, request: requestId,
       acceptedBase: this.accepted(), writerSettledBy: suspended.invocation,
+      invocationScoped: this.input.record.identityContract === 'descriptive',
       changedPaths: await this.git.changedPaths(this.projectRoot, this.accepted()),
     });
     if (existingRequest === undefined) {
@@ -3427,7 +3429,22 @@ export class WorkCoordination {
     }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request },
       ...(retiredRequest === undefined ? [] : [capabilityRetirement(retiredRequest, 'capability-request', request.id,
         assignment.id, request.original.revises!.reason)])]); } catch (error) {
-      if (/collides|already accepted|retired/u.test(message(error))) await unlink(this.path(source.snapshot)).catch(() => {});
+      if (error instanceof CapabilityNameConflictError && this.input.record.identityContract === 'descriptive'
+        && 'requestKey' in suspended.need) {
+        const current = this.observe().records;
+        const errors = descriptiveCapabilityNameErrors(suspended.need, {
+          requests: new Set(current.capabilityRequests.keys()),
+          examples: new Set([...current.capabilityRequests.values()].flatMap(entry => entry.original.examples.map(example => example.id))),
+        });
+        if (errors.length > 0) {
+          if (![...current.capabilityRequests.values()].some(accepted => accepted.source.snapshot === source.snapshot))
+            await unlink(this.path(source.snapshot)).catch(() => {});
+          return { kind: 'retry-name', guidance: `The serialized request acceptance refused this proposal. Correct the same task with a meaningful qualifier: ${errors.map(entry => `${entry.path}: ${entry.message}; expected ${entry.expected}`).join(' | ')}` };
+        }
+      }
+      if (error instanceof CapabilityNameConflictError && existingRequest === undefined
+        && ![...this.observe().records.capabilityRequests.values()].some(accepted => accepted.source.snapshot === source.snapshot))
+        await unlink(this.path(source.snapshot)).catch(() => {});
       await this.ports.fail('invalid-submission', `Capability request ${request.id} was refused: ${message(error)}`);
       return null;
     }
@@ -3533,8 +3550,6 @@ export class WorkCoordination {
         qualification = undefined;
         continue;
       }
-      break;
-    }
     if (qualification?.value === undefined ||
       (qualification.value.kind !== 'satisfy-with-existing' && qualification.value.kind !== 'delegate-capability')) {
       await this.ports.fail('internal', `Qualification of ${request.id} produced no final decision`);
@@ -3586,7 +3601,7 @@ export class WorkCoordination {
       openQuestions: [], requirementRefs: [...decision.requirementRefs],
       originalExamples: request.original.examples.map(example => example.id),
     };
-    await this.ports.commitCapability({
+    try { await this.ports.commitCapability({
       type: 'capability-delegated', data: { task: task.id, request: request.id, parent: item.id,
         invocation: qualification.id, planRevision: 1,
         ...(request.schema.endsWith('/2') && request.original.revises !== undefined ? { retiredTask: request.original.revises.task } : {}) },
@@ -3595,7 +3610,18 @@ export class WorkCoordination {
       { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
       ...(request.schema.endsWith('/2') && request.original.revises !== undefined
         ? [capabilityRetirement(request.original.revises.task, 'capability-task', task.id, assignment.id, request.original.revises.reason)] : []),
-    ]);
+    ]); } catch (error) {
+      const current = this.observe().records;
+      if (error instanceof CapabilityNameConflictError && request.schema.endsWith('/2') && decision.taskKey !== undefined
+        && (current.capabilityTasks.has(taskId) || current.retirements.has(taskId))) {
+        returned = `The serialized delegation refused taskKey: "${decision.taskKey}" resolves to ${taskId}, already accepted or retired. Propose an unused draft:capability-task:<name> with a meaningful qualifier in this same qualification task.`;
+        point = qualification.ref || undefined;
+        parentSession = qualification.kept ? qualification.session : undefined;
+        qualification = undefined;
+        continue;
+      }
+      throw error;
+    }
 
     // The provider entry's recorded decisions belong in the fresh briefing.
     // It receives the selected source package whole, while its own transcript
@@ -3642,6 +3668,7 @@ export class WorkCoordination {
     // Qualification advanced this exact local action session. Hand its accepted
     // point back explicitly; the earlier context checkpoint remains fork authority.
     return coordinated?.kind === 'satisfied' ? { ...coordinated, parent: { session: qualification.session, point: qualification.ref } } : coordinated;
+    }
   }
 
   /** Drives one delegated task; the same path is used for a nested child. */
@@ -4096,7 +4123,7 @@ export class WorkCoordination {
     coordinator: { readonly point: string | undefined; readonly session: SessionId | undefined },
     existingRequest?: CapabilityRequest,
   ): Promise<{ readonly guidance: string; readonly coordinatorPoint: string; readonly coordinatorSession: SessionId;
-    readonly coordinatorInvocation: string } | null> {
+    readonly coordinatorInvocation: string } | { readonly kind: 'retry-name'; readonly guidance: string } | null> {
     if (suspended.ended !== 'submitted' || suspended.value?.kind !== 'capability-needed') {
       await this.ports.fail('invalid-submission', `Nested need from ${assignment.id} has no retained requesting module engineer`);
       return null;
@@ -4114,6 +4141,7 @@ export class WorkCoordination {
     const requestId = existingRequest?.id ?? ('requestKey' in suspended.value.request ? suspended.value.request.requestKey.slice('draft:'.length) : capabilityRequestId(this.observe().records.capabilityRequests.size + 1));
     const source = existingRequest?.source ?? await captureProvisionalSource({ git: this.git, sourceGit: this.options.provisionalSourceGit, projectRoot: this.projectRoot, runDirectory: this.input.directory,
       request: requestId, acceptedBase: this.accepted(), writerSettledBy: suspended.id,
+      invocationScoped: this.input.record.identityContract === 'descriptive',
       changedPaths: await this.git.changedPaths(this.projectRoot, this.accepted()) });
     if (existingRequest === undefined) {
       await this.ports.afterWrite('capability-source-captured', this.input.record.jobId);
@@ -4136,7 +4164,21 @@ export class WorkCoordination {
           assignment.id, request.original.revises!.reason)])]);
       }
     } catch (error) {
-      if (existingRequest === undefined && /collides|already accepted|retired/u.test(message(error)))
+      if (error instanceof CapabilityNameConflictError && existingRequest === undefined
+        && this.input.record.identityContract === 'descriptive' && 'requestKey' in suspended.value.request) {
+        const current = this.observe().records;
+        const errors = descriptiveCapabilityNameErrors(suspended.value.request, {
+          requests: new Set(current.capabilityRequests.keys()),
+          examples: new Set([...current.capabilityRequests.values()].flatMap(entry => entry.original.examples.map(example => example.id))),
+        });
+        if (errors.length > 0) {
+          if (![...current.capabilityRequests.values()].some(accepted => accepted.source.snapshot === source.snapshot))
+            await unlink(this.path(source.snapshot)).catch(() => {});
+          return { kind: 'retry-name', guidance: `The serialized nested request acceptance refused this proposal. Correct the same task with a meaningful qualifier: ${errors.map(entry => `${entry.path}: ${entry.message}; expected ${entry.expected}`).join(' | ')}` };
+        }
+      }
+      if (error instanceof CapabilityNameConflictError && existingRequest === undefined
+        && ![...this.observe().records.capabilityRequests.values()].some(accepted => accepted.source.snapshot === source.snapshot))
         await unlink(this.path(source.snapshot)).catch(() => {});
       await this.ports.fail('unresolvable-requirement', `Nested need ${request.id} could not be recorded: ${message(error)}`);
       return null;
@@ -4221,8 +4263,6 @@ export class WorkCoordination {
       qualification = undefined;
       continue;
     }
-    break;
-    }
     if (qualification?.value === undefined ||
       (qualification.value.kind !== 'satisfy-with-existing' && qualification.value.kind !== 'delegate-capability')) {
       await this.ports.fail('internal', `Nested qualification of ${request.id} produced no final decision`);
@@ -4262,7 +4302,7 @@ export class WorkCoordination {
       decisions: [{ decision: `Coordinate in ${decision.provider}`, reason: decision.placementReason,
         evidence: [...decision.requirementRefs] }], openQuestions: [], requirementRefs: [...decision.requirementRefs],
       originalExamples: request.original.examples.map(example => example.id) };
-    await this.ports.commitCapability({ type: 'capability-delegated', data: {
+    try { await this.ports.commitCapability({ type: 'capability-delegated', data: {
       task: child.id, request: request.id, parent: parentTask.id, invocation: qualification.id, planRevision: 1,
       ...(request.schema.endsWith('/2') && request.original.revises !== undefined ? { retiredTask: request.original.revises.task } : {}),
     } }, [
@@ -4270,7 +4310,18 @@ export class WorkCoordination {
       { path: capabilityLayout.plan(child.id, 1), id: child.id, revision: 1, body: plan },
       ...(request.schema.endsWith('/2') && request.original.revises !== undefined
         ? [capabilityRetirement(request.original.revises.task, 'capability-task', child.id, assignment.id, request.original.revises.reason)] : []),
-    ]);
+    ]); } catch (error) {
+      const current = this.observe().records;
+      if (error instanceof CapabilityNameConflictError && request.schema.endsWith('/2') && decision.taskKey !== undefined
+        && (current.capabilityTasks.has(taskId) || current.retirements.has(taskId))) {
+        returned = `The serialized nested delegation refused taskKey: "${decision.taskKey}" resolves to ${taskId}, already accepted or retired. Propose an unused draft:capability-task:<name> with a meaningful qualifier in this same qualification task.`;
+        point = qualification.ref || undefined;
+        session = qualification.kept ? qualification.session : undefined;
+        qualification = undefined;
+        continue;
+      }
+      throw error;
+    }
     const providerDecisions = [...records.decisions.values()].filter(entry => entry.owner === decision.provider);
     const selected = new TextDecoder().decode(await readFile(this.path(runLayout.capturedPlan)));
     const childItem = records.workItems.find(entry => entry.module === assignmentOwner) ?? item;
@@ -4279,6 +4330,7 @@ export class WorkCoordination {
     if (result === null || result.kind !== 'satisfied') return null;
     return { guidance: result.guidance, coordinatorPoint: qualification.ref, coordinatorSession: qualification.session,
       coordinatorInvocation: qualification.id };
+    }
   }
 
   /** Capability tasks issue the same durable assignment and use the same
@@ -4403,7 +4455,7 @@ export class WorkCoordination {
           const nested = await this.coordinateNestedCapability(agent, packages, baseline, item, task, plan,
             assignment, suspended, coordinator, pending);
           if (nested === null) return null;
-          coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
+          if (!('kind' in nested)) coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
             invocation: nested.coordinatorInvocation };
           guidance = nested.guidance;
         }
@@ -4421,7 +4473,7 @@ export class WorkCoordination {
       const nested = await this.coordinateNestedCapability(agent, packages, baseline, item, task, plan,
         assignment, suspended, coordinatorAfterNested ?? coordinator);
       if (nested === null) return null;
-      coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
+      if (!('kind' in nested)) coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
         invocation: nested.coordinatorInvocation };
       outcome = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
         session: outcome.session, point: outcome.point, priorInvocation: outcome.invocation, guidance: nested.guidance,
