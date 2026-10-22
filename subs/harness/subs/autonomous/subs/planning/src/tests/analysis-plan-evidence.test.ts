@@ -131,7 +131,6 @@ test('accepts the intake\'s elements and incorporation once, and projects them b
   const architect = validateDescriptiveInitialAnalysis({ ...emptyAnalysis(), elements: [{ ...valid.elements[1]! }] }, { index: null, catalog: open, documents: captured, planScenarios: [] });
   expect(architect.ok).toBe(false);
   if (!architect.ok) expect(architect.errors.map(item => item.path)).toContain('elements.0.kind');
-  if (process.env.CATALOG_REVIEW_EXPORT) await writeFile(process.env.CATALOG_REVIEW_EXPORT, JSON.stringify(projection));
   await service.execute(stopRun(planId, receipt.jobId, service.getRun(planId, receipt.jobId)!.version));
   await service.settled(planId, receipt.jobId);
 });
