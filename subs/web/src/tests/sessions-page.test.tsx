@@ -4,7 +4,7 @@ import { sessionListResponseSchema, type SessionListEntry } from '../../../harne
 import { App } from '../app.js';
 import { parseRoute, routeHref } from '../routes.js';
 import { SessionsPage } from '../sessions-page.js';
-import { architect, at, liveEngineer, planId, runId } from './helpers/sessions.js';
+import { architect, at, liveEngineer, planId, runId, sessionView } from './helpers/sessions.js';
 import { StubClient } from './helpers/stub-client.js';
 
 afterEach(() => {
@@ -45,6 +45,32 @@ test('ST09: the Sessions page lists live and suspended sessions first, across ru
   expect(within(closed).getAllByRole('listitem')[1]!.textContent).toContain('work-closed');
   expect(within(open).getAllByRole('listitem')[0]!.textContent).toContain('work item wi-001, capability send-button, module shop/reviews');
   expect(screen.getByRole('alert').textContent).toContain('plans/old/runs/x');
+});
+
+test('a manual session opens from Sessions and returns there without a run-page link', async () => {
+  const client = new StubClient();
+  const manual = '20261022T080001Z-000002';
+  const ref = { source: 'run' as const, planId: 'sessions', runId: manual, session: 'ses-0001' };
+  client.sessionList = sessionListResponseSchema.parse({ sessions: [entry({ ref, state: 'interrupted', work: {}, invocations: 1 })],
+    total: 1, offset: 0, next: null, unserved: [] });
+  client.runSessions.set(manual, { version: 2, sessions: [sessionView('ses-0001', { state: 'interrupted', awaiting: 'inv-0001' })], total: 1 });
+  client.transcripts.set('ses-0001@0', { session: ref, page: { file: 'present', entries: [], cursor: 0, more: false, partial: false, unreadable: [] } });
+  window.location.hash = '#/sessions';
+  render(<App client={client} />);
+  const item = (await screen.findByRole('link', { name: 'ses-0001 Module engineer' })).closest('li')!;
+  expect(item.textContent).toContain(`Manual session ${manual}`);
+  expect(within(item).queryByRole('link', { name: manual })).toBeNull();
+  const sessionLink = within(item).getByRole('link', { name: 'ses-0001 Module engineer' });
+  expect(sessionLink.getAttribute('href')).toBe(`#/plans/sessions/runs/${manual}/sessions/ses-0001`);
+  fireEvent.click(sessionLink);
+  act(() => window.dispatchEvent(new HashChangeEvent('hashchange')));
+  await screen.findByRole('heading', { name: /Session ses-0001/ });
+  const back = screen.getByRole('link', { name: '← All sessions' });
+  expect(back.getAttribute('href')).toBe('#/sessions');
+  expect(screen.queryByRole('link', { name: '← The run' })).toBeNull();
+  fireEvent.click(back);
+  act(() => window.dispatchEvent(new HashChangeEvent('hashchange')));
+  await screen.findByRole('heading', { name: 'Sessions', level: 1 });
 });
 
 test('a session with degraded starts is flagged with their count and why; the others are not', async () => {

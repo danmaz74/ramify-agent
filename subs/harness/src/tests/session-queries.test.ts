@@ -17,6 +17,7 @@ import {
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { RunLog } from '../../subs/autonomous/src/run/log.js';
+import { SessionQueries } from '../../subs/projections/src/session-queries.js';
 import { manualRunRecordSchema } from '../../subs/task-workflow/src/steps/records.js';
 import { jobSchemaVersion } from '../jobs/records.js';
 import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
@@ -101,7 +102,7 @@ function fileBodies(entry: TranscriptEntry): string[] {
 }
 
 describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts and bodies', () => {
-  test('two current manual runs are listed and paged over HTTP while the retired directory is ignored', async () => {
+  test('two current manual runs are listed and paged over HTTP; a crashed invocation is interrupted under the server lock', async () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     const root = fixture.root;
@@ -122,11 +123,15 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
         { type: 'text', body: await bodies.text(`Manual run ${index + 1}`) },
       ] }));
       await writer.drain();
-      await log.append({ type: 'invocation-ended', data: { invocation: `inv-${index + 1}`, session: 'ses-0001', ended: 'submitted', submission: null, kept: false, finished: 'work-closed' } });
+      if (index === 0) await log.append({ type: 'invocation-ended', data: { invocation: `inv-${index + 1}`, session: 'ses-0001', ended: 'submitted', submission: null, kept: false, finished: 'work-closed' } });
     }
     const retired = join(root, 'plans', '.harness', 'sessions', '20261010T084131Z-725903');
     await mkdir(retired, { recursive: true });
     await writeFile(join(retired, 'session.json'), '{bad json');
+    // Without server ownership, an in-progress manual command may still be writing.
+    const unowned = new SessionQueries({ projectRoot: root, agentName: undefined, committed: () => undefined,
+      committedRuns: () => [], runVersions: () => [] });
+    expect((await unowned.runSession('sessions', runs[1], 'ses-0001')).session.state).toBe('live');
     const server = await startServerWith({ projectRoot: root, port: 0, assetsDirectory: join(root, 'no-such-build'), ramify: new FakeRamifyCli(),
       runs: { inputs: treeInputs(), git: fixtureScratchGit(mockGit()), changeHistory: unscriptedChangeHistory, warn: () => undefined } });
     cleanups.push(() => server.close());
@@ -135,9 +140,12 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
     expect(list.unserved).toEqual([]);
     expect(list.total).toBe(2);
     expect(list.sessions.map(entry => entry.ref)).toEqual(runs.slice().reverse().map(runId => ({ source: 'run', planId: 'sessions', runId, session: 'ses-0001' })));
+    expect(list.sessions.map(entry => entry.state)).toEqual(['interrupted', 'finished']);
     for (const [index, runId] of runs.entries()) {
       const answer = await ok(server.url, protocolPaths.runSessions('sessions', runId), runSessionsResponseSchema);
-      expect(answer.sessions).toMatchObject([{ session: 'ses-0001', state: 'finished' }]);
+      expect(answer.sessions).toMatchObject([{ session: 'ses-0001', state: index === 0 ? 'finished' : 'interrupted' }]);
+      if (index === 1) expect(answer.sessions[0]).toMatchObject({ awaiting: 'inv-2', invocations: [{ ended: null }] });
+      expect(await refused(server.url, protocolPaths.run('sessions', runId))).toEqual([404, 'not-found']);
       const page = await ok(server.url, protocolPaths.runSessionTranscript('sessions', runId, 'ses-0001', 0), sessionTranscriptResponseSchema);
       expect(page.session).toEqual({ source: 'run', planId: 'sessions', runId, session: 'ses-0001' });
       expect(page.page.entries).toHaveLength(1);

@@ -43,7 +43,7 @@ export class SessionQueries {
   private readonly evaluations = new Map<string, InvocationEvaluation>();
   private readonly pages = new TranscriptPages();
 
-  constructor(private readonly source: RunSource) {}
+  constructor(private readonly source: RunSource, private readonly inactiveManualRuns = false) {}
 
   /** Every session of the project, in the project's order, one page from `offset`. */
   async list(offset: number): Promise<SessionListResponse> {
@@ -148,7 +148,7 @@ export class SessionQueries {
       if (manual !== null) {
         const current = manual.events.at(-1)?.sequence ?? 0;
         if (cached !== undefined && cached.version === current) return cached;
-        const at: RunSessionsAt = { version: current, view: manual, sessions: manualSessionViews(manual) };
+        const at: RunSessionsAt = { version: current, view: manual, sessions: manualSessionViews(manual, this.inactiveManualRuns) };
         this.runs.set(key, at);
         return at;
       }

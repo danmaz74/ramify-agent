@@ -15,9 +15,8 @@ import { capabilityOfItem } from './work.js';
  * a pure function of the run's log and records.
  *
  * Interrupted is what a reader shows for a session whose log says live and
- * whose harness is gone. The server holds the project lock, so it drives
- * every run it serves that has not ended: a live session of a run that has
- * ended, such as one whose stop's grace expired, is interrupted.
+ * whose harness is gone. The server holds the project lock and drives
+ * implementation runs it serves; it never resumes manual runs.
  */
 
 const terminal = new Set<string>(terminalRunEvents);
@@ -63,8 +62,8 @@ export function runSessionViews(view: RunView): RunSessionView[] {
 }
 
 /** A current manual run uses the same session events, without implementation reach records. */
-export function manualSessionViews(input: SessionViewInput): RunSessionView[] {
-  return sessionViews(input, () => ({ kind: 'run' }));
+export function manualSessionViews(input: SessionViewInput, inactive: boolean): RunSessionView[] {
+  return sessionViews(input, () => ({ kind: 'run' }), inactive);
 }
 
 export interface SessionViewInput {
@@ -76,7 +75,7 @@ export interface SessionViewInput {
   };
 }
 
-function sessionViews(view: SessionViewInput, reach: (session: RunSession) => SessionReach): RunSessionView[] {
+function sessionViews(view: SessionViewInput, reach: (session: RunSession) => SessionReach, inactive = false): RunSessionView[] {
   let sessions: ReadonlyMap<SessionId, RunSession>;
   try {
     sessions = reduceSessions(view.events.filter(event => event.sequence > 0));
@@ -85,7 +84,7 @@ function sessionViews(view: SessionViewInput, reach: (session: RunSession) => Se
     const log = join('plans', view.record.planId, '.harness', 'jobs', view.record.jobId, 'events.jsonl');
     throw new ProjectionError('unreadable', `The sessions of run ${view.record.jobId} cannot be derived: ${error.message}`, [log, `event ${error.sequence}`]);
   }
-  const ended = view.events.some(event => terminal.has(event.type));
+  const ended = inactive || view.events.some(event => terminal.has(event.type));
 
   const invocations = new Map<string, SessionInvocation>();
   const appends = new Map<SessionId, SessionAppend[]>();

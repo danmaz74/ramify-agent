@@ -30,7 +30,9 @@ function SessionItem({ entry }: { readonly entry: SessionListEntry }) {
         {entry.finished && <span className="muted"> {entry.finished}</span>}
       </p>
       <p className="muted session-entry-where">
-        Run <a href={routeHref({ page: 'run', planId: ref.planId, runId: ref.runId })}><code>{ref.runId}</code></a> of <code>{ref.planId}</code>
+        {ref.planId === 'sessions'
+          ? <>Manual session <code>{ref.runId}</code></>
+          : <>Run <a href={routeHref({ page: 'run', planId: ref.planId, runId: ref.runId })}><code>{ref.runId}</code></a> of <code>{ref.planId}</code></>}
         {work && <> · {work}</>} · {reachText(entry.reaches)}
       </p>
       <p className="muted session-entry-facts">
