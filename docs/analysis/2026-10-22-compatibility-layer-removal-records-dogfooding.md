@@ -31,4 +31,28 @@ per committed iteration and cumulatively.
 
 ## Execution
 
-Filled in as the run progresses.
+Launched 2026-10-22T07:03:59Z from the harness checkout at `91f6de7c`:
+
+```sh
+node --import tsx src/main.ts coordinate start \
+  --project /workspaces/worktrees/compat-records-assisted-20261022 \
+  --plan compatibility-layer-removal-records --replace-mcp ramify-agent \
+  --model gpt-6-astra --worker-model gpt-6-sol --assessment-model openai/gpt-6-sol \
+  --message-file <task directions> --timeout-ms 540000 --json
+```
+
+- Coordinator: `coord-0cecf031-e777-451d-bfce-8406012afb1b`, Codex thread
+  `01a1626c-8191-74e1-a8b9-357358ee84bb`, endpoint `http://127.0.0.1:41279`,
+  owner PID 2003584.
+- Assisted job: `20261022T070359Z-22e31a`, records under
+  `plans/compatibility-layer-removal-records/.harness/jobs/20261022T070359Z-22e31a/`
+  in the target worktree; baseline commit `91f6de7c`.
+- Task directions: implement the plan's three proposed iterations, iteration 1
+  alone and 2 and 3 in parallel where files do not overlap; respect the
+  reserved-for-continuation constraint strictly; commit candidates on the
+  branch; let RA run the configured audit; finish with the cumulative final
+  assessment.
+
+Observe with `coordinate status --project <target> --json` and
+`coordinate watch --project <target> --id <coordinator> --after <cursor> --json`
+from the harness checkout.
