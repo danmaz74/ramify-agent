@@ -89,6 +89,11 @@ run-local element/scenario IDs, entry mappings, generated feature files and step
 bindings to execution. Scenario text is frozen when analysis is accepted; do
 not treat it as something a module engineer may weaken to obtain a passing check.
 
+Never require test execution beyond the configured audit: no named suites,
+commands, modes or extra runs, per
+[A Plan Asks for the Audit and Nothing More](../../../docs/harness.principles.md#a-plan-asks-for-the-audit-and-nothing-more).
+State the property the audit must witness, and leave what runs to ramify-audit.
+
 For structural or nonfunctional obligations, state the required property and
 appropriate inspection or check evidence plainly. Do not manufacture a runtime
 test-registration identity. See the

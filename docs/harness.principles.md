@@ -15,6 +15,8 @@ The architect progress-checkpoint principle adopted on 2026-10-14 is
 normative; its implementation remains pending.
 The audit-report delivery rule adopted on 2026-10-14 is normative;
 its runtime delivery change is implemented.
+The audit-sufficiency principle adopted on 2026-10-22 is normative; the
+plan skill and reviewer briefing alignment remain pending.
 
 ## Purpose
 
@@ -114,6 +116,19 @@ diagnostics, investigates them and makes the repairs. It asks its architect
 when it needs a scope or architectural decision. The harness does not infer
 repair responsibility from test locations, failure counts or comparison with
 a second test run. It records audit results and enforces execution and write boundaries. The module architect reads those results and the implementation and tests, assesses whether the requirement is satisfied, and reports its judgment to the harness, which trusts and records it.
+
+### A Plan Asks for the Audit and Nothing More
+
+The configured audit is the only execution evidence a plan may require. A
+plan states what must be true of the result: its scenarios and its
+structural or nonfunctional properties. It never names suites, commands,
+modes or extra runs, such as a full `npm test`, a self check or a repeated
+run on the final candidate. ramify-audit decides what to execute for a
+candidate, and its passed report is the whole of that evidence. The harness
+and the reviewer trust it. A plan clause that asks for more is a plan
+defect, reported as such, never an evidence gap of the candidate. Anyone who
+needs a different audit scope changes the audit configuration or the
+harness, not the plan.
 
 ### Bounded Context Is What Makes Agents Efficient
 
