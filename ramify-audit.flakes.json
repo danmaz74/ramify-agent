@@ -1,7 +1,7 @@
 {
   "entries": [
     {
-      "consecutiveFullPasses": 4,
+      "consecutiveFullPasses": 5,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -36,7 +36,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 1,
+      "consecutiveFullPasses": 2,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -71,7 +71,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 4,
+      "consecutiveFullPasses": 5,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -98,7 +98,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 4,
+      "consecutiveFullPasses": 5,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -125,7 +125,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 4,
+      "consecutiveFullPasses": 5,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -153,10 +153,10 @@
     }
   ],
   "lastApplied": {
-    "preimageDigest": "sha256:5a0348f0d6a71840dc76185fe33a38e3eaa3cd571e2436f42b78862955082d3c",
+    "preimageDigest": "sha256:cc6c1659a5774b0723de465984b21f8fd9820ce3903a12d13712a95b36544d10",
     "projectRoot": ".",
-    "reportObject": "18691f9d347ef22b782f219db4ea60aa264320ec",
-    "sourceRevision": "8d93290f846de2ba55eaa4c6fc1f6185a874cb75"
+    "reportObject": "07056e9d8330d4bca3e4f9a77205976c9d95352f",
+    "sourceRevision": "d16e4bb674be25211b7b5641957588fc862975ec"
   },
   "version": 1
 }
