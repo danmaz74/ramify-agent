@@ -4,7 +4,8 @@ import type {
 } from '../../../src/interfaces/protocol/sessions.js';
 import { terminalRunEvents } from '../../autonomous/src/run/log.js';
 import { operationIdentitySchema } from '../../../src/interfaces/protocol/runs.js';
-import type { SessionId } from '../../task-execution/src/records.js';
+import type { Invocation, InvocationOutcome, SessionId } from '../../task-execution/src/records.js';
+import type { RunEvent } from '../../autonomous/src/run/log.js';
 import { InvalidSessionTransitionError, reduceSessions, type RunSession } from '../../autonomous/src/run/sessions.js';
 import { ProjectionError, type RunView } from './inputs.js';
 import { capabilityOfItem } from './work.js';
@@ -58,6 +59,24 @@ export function reachOf(view: RunView, session: RunSession): SessionReach {
  * their lifecycle is unreadable, with the event that breaks it.
  */
 export function runSessionViews(view: RunView): RunSessionView[] {
+  return sessionViews(view, session => reachOf(view, session));
+}
+
+/** A current manual run uses the same session events, without implementation reach records. */
+export function manualSessionViews(input: SessionViewInput): RunSessionView[] {
+  return sessionViews(input, () => ({ kind: 'run' }));
+}
+
+export interface SessionViewInput {
+  readonly record: { readonly planId: string; readonly jobId: string };
+  readonly events: readonly RunEvent[];
+  readonly records: {
+    readonly invocations: ReadonlyMap<string, Invocation>;
+    readonly outcomes: ReadonlyMap<string, InvocationOutcome>;
+  };
+}
+
+function sessionViews(view: SessionViewInput, reach: (session: RunSession) => SessionReach): RunSessionView[] {
   let sessions: ReadonlyMap<SessionId, RunSession>;
   try {
     sessions = reduceSessions(view.events.filter(event => event.sequence > 0));
@@ -147,7 +166,7 @@ export function runSessionViews(view: RunView): RunSessionView[] {
     work: session.work,
     executor: session.executor,
     model: session.model,
-    reaches: reachOf(view, session),
+    reaches: reach(session),
     opened: session.opened,
     changed: session.changed,
     awaiting: session.awaiting,

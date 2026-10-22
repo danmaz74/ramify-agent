@@ -431,7 +431,7 @@ describe('sessions', () => {
     expect(sessionQueryLimits).toEqual({ sessions: 200, runSessions: 500, entries: 200, pageBytes: 512 * 1024, pollSessions: 50, bodyBytes: 1024 * 1024 });
   });
 
-  test('a session is a run\'s, by plan, run and ses- number, or a standalone one, by its own ID', () => {
+  test('a session reference names a run, plan and ses- number', () => {
     expect(sessionRefSchema.parse(run)).toEqual(run);
     expect(sessionRefSchema.safeParse({ ...run, session: 'ses-1' }).success).toBe(false);
     expect(sessionRefSchema.safeParse({ ...run, session: '../ses-0001' }).success).toBe(false);
