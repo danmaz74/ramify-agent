@@ -25,7 +25,7 @@
       "owningCases": [
         "preview matches a whole-worktree commit and preserves staged user index bytes",
         "a late source mutation changes the preview tree",
-        "nested cwd previews the entire eventual repository tree",
+        "nested cwd previews the project's own tree, leaving the rest of the repository unstaged",
         "a repository nested inside another uses its own root and index",
         "a failed add cleans its isolated index and leaves the user index unchanged",
         "an aborted preview leaves no temporary index"
@@ -87,7 +87,7 @@
     {
       "file": "subs/harness/subs/audit/src/tests/audit-conformance.test.ts",
       "boundary": "Published audit SDK producer, reports, Git refs, cancellation and recovery conformance",
-      "whyFakeCannotProve": "Synthetic reports or in-process locks cannot establish the installed producer/object/OS contract.",
+      "whyFakeCannotProve": "The one ramify-audit canary: its numbered facts pin the installed SDK behavior that the harness's scripted audit answers assume, so an SDK upgrade that changes one fails here rather than in every fake-backed test. Synthetic reports or in-process locks cannot establish the installed producer/object/OS contract.",
       "owningCases": [
         "ramify-audit 0.12.1 conformance > fact 1: command summaries preserve status and runner errors but never an exit code",
         "ramify-audit 0.12.1 conformance > fact 2: command checks inherit the process environment except NODE_OPTIONS",
@@ -234,14 +234,6 @@
       ]
     },
     {
-      "file": "subs/harness/subs/task-workflow/src/tests/single-session.boundary.test.ts",
-      "boundary": "PB3-S04 actual permitted shell mutation versus protected candidate",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "the actual session shell write boundary > PB3-S04: actual shell tool writes pass only permitted candidates; protected creation fails the checkpoint"
-      ]
-    },
-    {
       "file": "subs/harness/src/tests/audit-check-execution.boundary.test.ts",
       "boundary": "Actual configured provider runner truth, reuse and publication",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
@@ -374,14 +366,6 @@
       ]
     },
     {
-      "file": "subs/harness/subs/task-workflow/src/tests/single-session-integration.test.ts",
-      "boundary": "Actual shell and completion command session",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "a standalone session process boundary > a violation written through the shell, which no hook check saw, is caught when completion is proposed"
-      ]
-    },
-    {
       "file": "subs/harness/src/tests/run-protocol-materialization.integration.test.ts",
       "boundary": "Installed materialized placement views and unchanged native Git status",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
@@ -425,7 +409,7 @@
     {
       "file": "subs/harness/subs/ledger/src/tests/killed-writer.test.ts",
       "boundary": "Actual killed ledger writer and crash-safe durable recovery",
-      "whyFakeCannotProve": "A simulated writer cannot establish persisted bytes at process death.",
+      "whyFakeCannotProve": "The kernel canary that torn-line replay depends on: torn-line.test.ts replays torn tails on a fake, which assumes what an actual SIGKILL leaves on disk. A simulated writer cannot establish persisted bytes at process death.",
       "owningCases": [
         "a real writer process killed with SIGKILL in the middle of appending > every resulting log reopens, replays to a complete transaction and accepts the next append"
       ]
@@ -581,7 +565,7 @@
       "boundary": "Released installed CLI ownership acquisition and consumer adapter decoding across invalid source and invalid declarations",
       "whyFakeCannotProve": "Scripted documents cannot establish that the installed released executable answers ownership without source linking, or that its actual failure document decodes through the consumer adapter.",
       "owningCases": [
-        "released installed ownership adapter answers missing-export source while affected fails, and retains invalid acquisition diagnostics"
+        "released installed ownership adapter answers missing-export source and retains invalid acquisition diagnostics"
       ]
     },
     {

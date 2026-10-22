@@ -484,6 +484,31 @@ describe('the gate option', () => {
     expect(attempt.commit).toBeNull();
     expect(git.commitAccepted).not.toHaveBeenCalled();
   }, 120_000);
+  test('a shell that creates protected audit configuration and job state fails the checkpoint\'s write scope', async () => {
+    const root = await project();
+    await mkdir(join(root, 'src'), { recursive: true });
+    await writeFile(join(root, 'src/root.ts'), 'export const root = true;');
+    const state = 'plans/plan/.harness/jobs/run/unsafe.json';
+    const command = 'create protected files';
+    // The scripted shell writes as the real one would; the gate reads the tree.
+    const commandExecution: CommandRunner = async request => {
+      await mkdir(dirname(join(root, state)), { recursive: true });
+      await writeFile(join(root, 'ramify-audit.json'), '{"createdByShell":true}');
+      await writeFile(join(root, state), '{"createdByShell":true}');
+      return commandResult(request, {});
+    };
+    const { result, git } = await session(root, [shell(command),
+      { kind: 'submit', input: completionProposed('The shell created protected audit configuration and durable job state') }], { gate: true, module: 'collection-review' },
+      { changed: ['ramify-audit.json', state], commandExecution, command, ramify: [checked('changed'), { form: 'complete', outcome: 'not-checked' }], gate: [] });
+    expect(finished(result).gate).toMatchObject({ verdict: 'failed' });
+    const attempt = gateAttemptSchema.parse(JSON.parse(await readFile((await recordsOf(finished(result).records)).diagnosis, 'utf8')));
+    const scopeRule = attempt.rules?.find(rule => rule.rule === 'write-scope');
+    expect(scopeRule?.outcome).toBe('failed');
+    expect(scopeRule?.violations).toEqual(expect.arrayContaining([{ rule: 'write-scope', path: state, detail: expect.any(String) }, { rule: 'write-scope', path: 'ramify-audit.json', detail: expect.any(String) }]));
+    expect(scopeRule?.violations).toHaveLength(2);
+    expect(attempt.commit).toBeNull();
+    expect(git.commitAccepted).not.toHaveBeenCalled();
+  }, 120_000);
 });
 
 describe('the session\'s records', () => {
