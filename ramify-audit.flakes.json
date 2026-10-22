@@ -1,0 +1,162 @@
+{
+  "entries": [
+    {
+      "consecutiveFullPasses": 0,
+      "firstFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "650cafe605de35e567a530a015304db34232197f"
+        },
+        "isolatedOutcome": "passed",
+        "sourceRevision": "0f00958825c84a636f29a50868075a0073e0ee41"
+      },
+      "flakinessEvidence": {
+        "context": "isolated",
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "650cafe605de35e567a530a015304db34232197f"
+        },
+        "sourceRevision": "0f00958825c84a636f29a50868075a0073e0ee41"
+      },
+      "identity": {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "path": "subs/harness/subs/assistance/src/tests/coordinator-publication.boundary.test.ts",
+        "project": "boundaries",
+        "runner": "vitest",
+        "testId": "startup crashes before and after successor admission plus listener failure recover the original job and complete lineage without replay or index edits"
+      },
+      "latestFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "650cafe605de35e567a530a015304db34232197f"
+        },
+        "isolatedOutcome": "passed",
+        "sourceRevision": "0f00958825c84a636f29a50868075a0073e0ee41"
+      }
+    },
+    {
+      "consecutiveFullPasses": 0,
+      "firstFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "59cd7810746bc4840ff07d3fab596d6575e48daa"
+        },
+        "isolatedOutcome": "passed",
+        "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
+      },
+      "flakinessEvidence": {
+        "context": "isolated",
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "59cd7810746bc4840ff07d3fab596d6575e48daa"
+        },
+        "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
+      },
+      "identity": {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "path": "subs/harness/src/tests/plan-evidence-review-unavailable.test.ts",
+        "project": "node",
+        "runner": "vitest",
+        "testId": "an assignment package that cannot be cited leaves a scope review explicitly not verified"
+      },
+      "latestFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "650cafe605de35e567a530a015304db34232197f"
+        },
+        "isolatedOutcome": "failed",
+        "sourceRevision": "0f00958825c84a636f29a50868075a0073e0ee41"
+      }
+    },
+    {
+      "consecutiveFullPasses": 0,
+      "firstFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "59cd7810746bc4840ff07d3fab596d6575e48daa"
+        },
+        "isolatedOutcome": "failed",
+        "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
+      },
+      "identity": {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "path": "subs/harness/subs/assistance/src/tests/assistance-protection-authorization.test.ts",
+        "project": "node",
+        "runner": "vitest",
+        "testId": "exact protection authorization through an assisted assessment > preserves unrelated assessment gates for {\"auditFailed\":true}"
+      },
+      "latestFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "59cd7810746bc4840ff07d3fab596d6575e48daa"
+        },
+        "isolatedOutcome": "failed",
+        "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
+      }
+    },
+    {
+      "consecutiveFullPasses": 0,
+      "firstFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "59cd7810746bc4840ff07d3fab596d6575e48daa"
+        },
+        "isolatedOutcome": "failed",
+        "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
+      },
+      "identity": {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "path": "subs/harness/subs/assistance/src/tests/assistance-protection-authorization.test.ts",
+        "project": "node",
+        "runner": "vitest",
+        "testId": "exact protection authorization through an assisted assessment > preserves unrelated assessment gates for {\"semantic\":true}"
+      },
+      "latestFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "59cd7810746bc4840ff07d3fab596d6575e48daa"
+        },
+        "isolatedOutcome": "failed",
+        "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
+      }
+    },
+    {
+      "consecutiveFullPasses": 0,
+      "firstFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "59cd7810746bc4840ff07d3fab596d6575e48daa"
+        },
+        "isolatedOutcome": "failed",
+        "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
+      },
+      "identity": {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "path": "subs/harness/subs/autonomous/subs/acceptance/src/tests/review-diff-delivery.test.ts",
+        "project": "node",
+        "runner": "vitest",
+        "testId": "precollected candidate patches in actual review invocations > fresh code and forked scope reviews receive complete pinned patches once and can inspect them without fetching tools"
+      },
+      "latestFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "59cd7810746bc4840ff07d3fab596d6575e48daa"
+        },
+        "isolatedOutcome": "failed",
+        "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
+      }
+    }
+  ],
+  "lastApplied": {
+    "preimageDigest": "sha256:089fcb32f36e28f431fdb111b2c55e8a01714b037e6e797125bd270eba888906",
+    "projectRoot": ".",
+    "reportObject": "650cafe605de35e567a530a015304db34232197f",
+    "sourceRevision": "0f00958825c84a636f29a50868075a0073e0ee41"
+  },
+  "version": 1
+}
