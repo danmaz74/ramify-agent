@@ -79,14 +79,17 @@ the harness leaves its durable bytes intact.
 An engineer proposes capability request and example draft keys in submission
 `/2`; qualification proposes a task draft key. Acceptance records request,
 task, plan, exchange and handback `/2` with the same accepted relationships.
-A later placement request and its decision use `/2` identities derived from
-the accepted work item and capability; repeated requests receive distinct
-stable ordinals. A decision on an accepted unresolved request carries a
-distinct `placement-decision:unresolved-<name>` identity; a placement decision
-uses `placement-decision:placement-<name>`. Derived provider, revision and integration work items use
-`/2`; a final correction proposes its work item name. A module architect
-proposes `draft:test:<name>` in each required-test registration; acceptance
-records `test:<name>` and derives each registered capability case from its
+A later placement submission supplies `requestKey: draft:placement-request:<name>`;
+acceptance removes `draft:` and records that exact `placement-request:<name>`
+identity in `/2`. A repeated request must propose a distinct key, and an
+occupied key is rejected. Its global decision derives
+`placement-decision:placement-<name>` from the accepted request. A decision on
+an accepted `unresolved-request:<name>` instead derives
+`placement-decision:unresolved-<name>`. Derived provider, revision and
+integration work items use `/2`; a final correction proposes its work item
+name. A module architect proposes `draft:test:<name>` in each required-test
+registration; acceptance records `test:<name>` and derives each registered
+capability case from its
 accepted task and case source with a stable collision-safe discriminator.
 Registration, binding, reporting and reload preserve those accepted IDs.
 
