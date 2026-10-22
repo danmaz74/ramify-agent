@@ -215,9 +215,9 @@
     {
       "file": "subs/harness/src/tests/audit-check-execution.boundary.test.ts",
       "boundary": "Actual configured provider runner truth, reuse and publication",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
+      "whyFakeCannotProve": "Real Vitest, Cucumber and command results, setup failures, cancellation and reuse come from the installed ramify-audit in its own worktrees; audit-check-execution.test.ts and gate-diagnostics.test.ts map scripted provider answers to the same gate attempts and cannot show the provider and runners produce them.",
       "owningCases": [
-        "configured committed execution over F2 (runner truth) > narrows real Vitest and Cucumber checks by ownership, keeps runner discovery and empty selection as producer facts, and carries failures through a zero-selection link",
+        "configured committed execution over F2 (runner truth) > reads real Vitest and Cucumber results from a full baseline, keeps both identities on reuse, and fails a partial gate on an ambiguous step",
         "applicable reuse over F4's root project > reuses applicable full evidence across an ignored-only change, keeping both source identities and executing nothing",
         "applicable reuse over F4's root project > a changed ignore list refuses the active run and needs a new baseline, never reusing evidence recorded under the old list",
         "configured gate outcomes > a failing configured command fails the gate with its output and no invented command record",
