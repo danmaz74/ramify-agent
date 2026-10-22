@@ -161,5 +161,5 @@ export function buildPreparedTaskPacket(input: {
   assertTaskProcedureSelection([...input.inherited, ...additions], procedureKey, procedureHash);
   const message = additions.filter(item => item.kind !== 'role-instructions' && item.kind !== 'tool-declaration').map(item => item.text).join('\n\n');
   return { roleInstructions, message, submissionTool: task.tool, declaration, additions,
-    manifest: buildDeliveredManifest({ inheritedPoint: input.inheritedPoint, inherited: input.inherited, appended: additions, currentMessage: message, schema: 'ramify-agent.delivered-inputs/2' }) };
+    manifest: buildDeliveredManifest({ inheritedPoint: input.inheritedPoint, inherited: input.inherited, appended: additions, currentMessage: message }) };
 }

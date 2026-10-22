@@ -178,7 +178,6 @@ describe('Plan23 F6 delivered scope and partial byte arithmetic', () => {
     expect(component(mismatched.components, 'architect-view')).toMatchObject({ state: 'measured', bytes: 0 });
     expect(component(mismatched.components, 'owned-source')).toMatchObject({ state: 'unavailable', bytes: null, reason: expect.stringContaining('two states') });
     expect(component(scopeSize(snapshot({ viewRevision: 'rev/2' }), scope({ apiViews: false })).components, 'owned-source')).toMatchObject({ state: 'measured', bytes: 0 });
-    expect(scopeSize({ ...snapshot(), policy: 'scope-size/1' }, scope({ exactOwners: ['p/a'], supportDocuments: ['skills/SKILL.md'] }))).toMatchObject({ bytes: null, subtotal: 0 });
   });
   test('outside inventory per-file identities remove held/extra/read overlaps: held10 + new7 adds only7', () => {
     const taken = snapshot();

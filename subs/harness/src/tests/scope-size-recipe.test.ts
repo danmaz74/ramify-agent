@@ -7,7 +7,6 @@ import { scopeSize, type DeclaredScope } from '../../subs/kpi/src/capture.js';
 import { deliveredManifestScopeInputs as deliveredScopeInputs, invocationScope, readScopeMeasurement, writeScopeMeasurement } from '../../subs/kpi/src/measurement/inputs.js';
 import type { MeasurementSnapshot } from '../../subs/kpi/src/run-records.js';
 import type { ScopeComponent } from '../../subs/task-execution/src/records.js';
-import type { LoadedPackage } from '../prompts/packages.js';
 import { buildDeliveredManifest, type DeliveredInput, type DeliveredManifest } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import type { WriteScope } from '../work/scope.js';
 
@@ -99,8 +98,8 @@ describe('scope-size/2 measures what a writer was given to write', () => {
     // which is not a directory, is unreadable with the system's error.
     const root = await mkdtemp(join(tmpdir(), 'ramify-agent-scope-location-')); directories.push(root);
     await writeFile(join(root, 'notes.txt'), '12345');
-    const loaded = { files: [] } as unknown as LoadedPackage;
-    const measured = await invocationScope(root, 'plan', scope({ locations: [{ path: 'absent', bytes: null }, { path: 'notes.txt/inner', bytes: null }, { path: 'notes.txt', bytes: null }] }), loaded, 'brief');
+    const manifest = buildDeliveredManifest({ inheritedPoint: null, inherited: [], appended: [] });
+    const measured = await invocationScope(root, scope({ locations: [{ path: 'absent', bytes: null }, { path: 'notes.txt/inner', bytes: null }, { path: 'notes.txt', bytes: null }] }), manifest);
     expect(measured.locations).toEqual([
       { path: 'absent', bytes: null, files: [] },
       { path: 'notes.txt/inner', bytes: null, files: [], unreadable: expect.stringContaining('ENOTDIR') },
@@ -141,7 +140,7 @@ describe('delivered-manifest adapter preserves recorded facts', () => {
     { bytes: [5, 5], expected: 5 },
   ])('same brief hash with ordered bytes $bytes retains last bytes $expected', ({ bytes, expected }) => {
     const manifest: DeliveredManifest = {
-      schema: 'ramify-agent.delivered-inputs/1', inheritedPoint: null, currentMessage: null, hash: 'manifest',
+      schema: 'ramify-agent.delivered-inputs/2', inheritedPoint: null, currentMessage: null, hash: 'manifest',
       entries: bytes.map((bytes, index) => ({
         key: `brief-${index}`, kind: 'brief', source: null, revision: null,
         hash: 'h', bytes, delivery: 'appended', sources: [],
@@ -163,7 +162,7 @@ describe('delivered-manifest adapter preserves recorded facts', () => {
     const sources = [{ path: 'same', hash: 'h', bytes: 5 }, { path: 'same', hash, bytes }];
     if (reverse) sources.reverse();
     const manifest: DeliveredManifest = {
-      schema: 'ramify-agent.delivered-inputs/1', inheritedPoint: null, currentMessage: null, hash: 'manifest',
+      schema: 'ramify-agent.delivered-inputs/2', inheritedPoint: null, currentMessage: null, hash: 'manifest',
       entries: sources.map((source, index) => ({
         key: `skill-${index}`, kind: 'skill', source: source.path, revision: null,
         hash: source.hash, bytes: source.bytes, delivery: 'appended', sources: [source],

@@ -50,7 +50,7 @@ const observation = <T extends string, D extends z.ZodType>(type: T, data: D) =>
 
 /** Native provider settings and missing estimates stay distinct from harness history. */
 const nativeContextSchema = z.object({
-  source: z.enum(['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager']),
+  source: z.literal('pi@1.3.0:SettingsManager'),
   compaction: z.object({ enabled: z.boolean(), reserveTokens: z.number(), keepRecentTokens: z.number() }).strict(),
   occupancy: z.literal('current'),
   projectedTokens: z.number().nullable(),

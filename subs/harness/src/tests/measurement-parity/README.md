@@ -33,7 +33,6 @@ metric still passes `metricSchema.parse`.
 | 4 no named writer | partial numerator10000/weight10; 50 of60 unattributed; inv-0003 delivered zero evidence |
 | 5 replaced/shared delivered shares | 4,4.5,1.5 weights at1000,3000,5000; numerator25000/10; 4.50 evidence |
 | 6 no accepted commit versus failed Git | not-applicable versus unavailable, original Git failure reason |
-| 7 incompatible size policy | unavailable, incompatible scope-size/1 reason retained |
 | 8 unavailable baseline | ratios unavailable with baseline reason |
 | 9 separate usage categories | recorded input/cache/output; missing usage unavailable; no price/cost metric |
 | 10 every session/continued max | continued component maxima, session count and coverage retained |

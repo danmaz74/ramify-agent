@@ -41,18 +41,18 @@ async function writeByHand(path: string, text: string): Promise<void> {
 describe('reading a committed record', () => {
   test('a record the schema accepts is valid, with its value', async () => {
     const log = await openCommitLog(directory.path);
-    const record = recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/1' });
+    const record = recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/2' });
     await commitRecord(log, { event: started(), records: [record] });
 
     const read = await readCommitted(log, 'run/run.json', testRecordSchema);
     expect(read.kind).toBe('valid');
     if (read.kind !== 'valid') throw new Error('unreachable');
-    expect(read.value).toEqual({ schema: 'ramify-agent.test-record/1', id: 'run-0001', revision: 1, policy: 'scope-size/1' });
+    expect(read.value).toEqual({ schema: 'ramify-agent.test-record/1', id: 'run-0001', revision: 1, policy: 'scope-size/2' });
   });
 
   test('a record declaring another schema is unsupported-version, naming the schema it declares', async () => {
     const log = await openCommitLog(directory.path);
-    await writeByHand('run/run.json', `${JSON.stringify({ schema: 'ramify-agent.test-record/2', id: 'run-0001', revision: 1, policy: 'scope-size/1' }, null, 2)}\n`);
+    await writeByHand('run/run.json', `${JSON.stringify({ schema: 'ramify-agent.test-record/2', id: 'run-0001', revision: 1, policy: 'scope-size/2' }, null, 2)}\n`);
 
     const read = await readCommitted(log, 'run/run.json', testRecordSchema);
     expect(read).toEqual({ kind: 'unsupported-version', schema: 'ramify-agent.test-record/2', path: 'run/run.json' });
@@ -82,7 +82,7 @@ describe('reading a committed record', () => {
 
   test('a record declaring no schema is invalid', async () => {
     const log = await openCommitLog(directory.path);
-    await writeByHand('run/run.json', `${JSON.stringify({ id: 'run-0001', revision: 1, policy: 'scope-size/1' }, null, 2)}\n`);
+    await writeByHand('run/run.json', `${JSON.stringify({ id: 'run-0001', revision: 1, policy: 'scope-size/2' }, null, 2)}\n`);
 
     const read = await readCommitted(log, 'run/run.json', testRecordSchema);
     expect(read).toEqual({ kind: 'invalid', errors: ['the record declares no schema'], path: 'run/run.json' });
@@ -90,7 +90,7 @@ describe('reading a committed record', () => {
 
   test('a missing record file is invalid with its evidence, never an absent record', async () => {
     const log = await openCommitLog(directory.path);
-    const record = recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/1' });
+    const record = recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/2' });
     await commitRecord(log, { event: started(), records: [record] });
     await rm(join(directory.path, 'run/run.json'));
 
@@ -102,7 +102,7 @@ describe('reading a committed record', () => {
     const log = await openCommitLog(directory.path);
     const kinds = new Set<string>();
 
-    await commitRecord(log, { event: started(), records: [recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/1' })] });
+    await commitRecord(log, { event: started(), records: [recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/2' })] });
     kinds.add((await readCommitted(log, 'run/run.json', testRecordSchema)).kind);
     await writeByHand('run/run.json', `${JSON.stringify({ schema: 'ramify-agent.test-record/9' })}\n`);
     kinds.add((await readCommitted(log, 'run/run.json', testRecordSchema)).kind);

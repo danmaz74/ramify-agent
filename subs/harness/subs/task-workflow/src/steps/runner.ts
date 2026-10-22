@@ -589,7 +589,7 @@ export class InvocationRunner {
           readSize = invocationReadSize(snapshot, request.measured, request.writer === true);
           // Acquisition stays here and follows read-size calculation. No location
           // acquisition was performed by the baseline without a frozen snapshot.
-          const acquired = snapshot === null ? actual.scope : await invocationScope(this.projectRoot, run.planId, declared, request.loaded, packet.message, packet.manifest);
+          const acquired = snapshot === null ? actual.scope : await invocationScope(this.projectRoot, declared, packet.manifest);
           size = invocationScopeSize(snapshot, actual, acquired, request.role, request.measured !== undefined);
         } catch (error) {
           size = invocationScopeFailure(request.measured, request.role, message(error));

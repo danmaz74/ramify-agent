@@ -37,11 +37,14 @@ async function baselineOf(view: RunView): Promise<MetricsResponse['baseline']> {
   const path = runLayout.measurement(reference.measurement.id);
   const text = await readRunFile(view, path);
   if (text === null) return { state: 'unavailable', reason: `${path} is missing`, subtotal: null };
+  let document: { schema?: unknown; policy?: unknown };
+  try { document = JSON.parse(text) as typeof document; }
+  catch (error) { return { state: 'unavailable', reason: `${path} cannot be read: ${error instanceof Error ? error.message : String(error)}`, subtotal: null }; }
+  const expected = unsupportedVersion(document.schema);
+  if (expected !== null) return { state: 'unavailable', reason: `${path} declares ${String(document.schema)}; this harness reads ${expected}`, subtotal: null };
+  if (document.policy !== undefined && document.policy !== 'scope-size/2') throw new Error(`${path} run measurement: expected scope-size/2`);
   let snapshot: MeasurementSnapshot;
   try {
-    const document = JSON.parse(text) as { schema?: unknown };
-    const expected = unsupportedVersion(document.schema);
-    if (expected !== null) return { state: 'unavailable', reason: `${path} declares ${String(document.schema)}; this harness reads ${expected}`, subtotal: null };
     snapshot = measurementSnapshotSchema.parse(document);
   } catch (error) {
     return { state: 'unavailable', reason: `${path} cannot be read: ${error instanceof Error ? error.message : String(error)}`, subtotal: null };
@@ -552,6 +555,12 @@ function efficiencyOf({ invocation, outcome, observations }: EvaluationInputs): 
   const manifest = deliveredManifestViewSchema.safeParse(invocation.prompt?.manifest);
   const declared = scopeSizeViewSchema.safeParse(invocation.scope?.size);
   const readScope = scopeSizeViewSchema.safeParse(invocation.scope?.readSize);
+  const recordedManifest = invocation.prompt?.manifest;
+  if (recordedManifest && typeof recordedManifest === 'object' && 'schema' in recordedManifest && recordedManifest.schema !== 'ramify-agent.delivered-inputs/2')
+    throw new Error(`Delivered manifest for invocation ${invocation.id}: expected ramify-agent.delivered-inputs/2`);
+  for (const size of [invocation.scope?.size, invocation.scope?.readSize]) {
+    if (size && size.policy !== 'scope-size/2') throw new Error(`Run measurement for invocation ${invocation.id}: expected scope-size/2`);
+  }
   const operation = operationIdentitySchema.safeParse({ ...invocation.sessionOperation, ...(outcome?.sessionOperation?.point === undefined ? {} : { point: outcome.sessionOperation.point }) });
   if (!manifest.success) coverage.add('Actual delivered input manifest unavailable');
   if (!declared.success) coverage.add('Declared scope size unavailable');

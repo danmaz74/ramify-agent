@@ -20,7 +20,7 @@ corresponding timing, usage and exploration details.
 | --- | --- |
 | Role and work identity | `invocation.json`: `role`, `work`; metrics evaluation also exposes role, work item, iteration and request. A reviewer's `request` is the review request its `review-attempt-started` names. |
 | Task kind and procedure | The retained packet's current task section starts with `# Current task: <kind>` and selects `procedure:<role>:<family>` with its exact framed SHA-256. That body can be inherited rather than appended. See the correlation lookup below. |
-| Actual instruction inputs | `invocation.json.prompt.manifest`, also `evaluation.efficiency.manifest`, preserves ordered inherited/appended entries, bytes, hashes, sources and inherited point. `/1` and `/2` are readable; new packets use `/2` with optional logical block key/effect. |
+| Actual instruction inputs | `invocation.json.prompt.manifest`, also `evaluation.efficiency.manifest`, preserves ordered inherited/appended entries, bytes, hashes, sources and inherited point. The manifest uses `/2` with optional logical block key/effect. |
 | Briefing updates | The operation correlation's `context.history` retains ordered occurrence revisions and optional canonical `contentHash`; `context.revision` selects the current occurrence. Equal content hashes can name distinct A → B → A occurrences. Packet additions record actual set/remove effects. |
 | Discovery origin and comparison | `packet.additions` and retained context carry `brief:support:starting-points` producer/work/iteration/invocation/boundary origins and `brief:support:nonfunctional-source` captured comparison names/base/target/default. Inherited pointers need not appear again in current additions. |
 | Requested and actual start | `invocation.json.session.requested`; `outcome.json.session.mode` when recorded. Session detail includes `operation.mode`, continuation/fork lineage and `degraded`. For a separate fresh fallback, `degraded.requested` retains the original fork/continue intention while the new operation's mode is fresh. |
@@ -36,8 +36,8 @@ and `.operationId`. Its harness correlation is under
 `plans/.harness/session-operations/correlations/operations/<hash>.json`, where
 `<hash>` is SHA-256 of the UTF-8 bytes of JavaScript
 `JSON.stringify([runId, operationId])`. Read `packet.message` or
-`packet.additions`; no provider payload decoding is needed. Legacy invocations
-without this correlation have no retained task-kind value here.
+`packet.additions`; no provider payload decoding is needed. An unavailable
+correlation leaves no retained task-kind value here.
 
 To distinguish physical delivery from logical state, count ordered manifest
 entries by `delivery`. Superseded sets and withdrawals remain physical inherited
@@ -49,8 +49,8 @@ message bytes exclude the separately delivered role and tool declaration.
 Support-size projections count delivered source identities and unique briefing
 content as defined by the scope-size policy, rather than summing every physical
 manifest entry. Read those components separately from inherited/appended totals.
-Original retries retain the exact old packet and manifest; legacy normalization
-does not synthesize physical field deliveries or change historical provenance.
+Retries retain the exact recorded packet and manifest without synthesizing
+physical field deliveries or changing provenance.
 
 NFR comparison identities describe actual Git boundaries. `run-start` is absent
 when original provenance is unavailable; dirty original captures exclude
@@ -95,7 +95,7 @@ readable even though new context losses do not build replacement parents.
 
 `evaluation.context.observations[]` projects actual `context` observation rows:
 current estimated `tokens`, model `window`, observation time and, when supplied,
-`native` settings from `pi@0.87.1:SettingsManager`. Native settings name enabled
+`native` settings from `pi@1.3.0:SettingsManager`. Native settings name enabled
 compaction, reserve and retained recent-history tokens. `projectedTokens` is a
 separate prospective request estimate; `null` means Pi did not provide it.
 Missing occupancy, window, settings or observations remain explicit coverage gaps.

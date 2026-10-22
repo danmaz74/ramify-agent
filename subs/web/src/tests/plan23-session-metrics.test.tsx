@@ -16,7 +16,7 @@ function fixture(extra: Partial<InvocationEfficiency> = {}): InvocationEfficienc
     operation: { runId: 'run', operationId: 'inv-1', sessionId: 'original-session', turn: 2,
       sourcePoint: { sessionId: 'original-session', kind: 'checkpoint', turn: 1, checkpoint: 'brief-C1' },
       point: { sessionId: 'original-session', kind: 'turn', turn: 2, checkpoint: 'turn-C2' } },
-    manifest: { schema: 'ramify-agent.delivered-inputs/1', hash: 'manifest-original', inheritedPoint: 'brief-C1',
+    manifest: { schema: 'ramify-agent.delivered-inputs/2', hash: 'manifest-original', inheritedPoint: 'brief-C1',
       currentMessage: { hash: 'current-task', bytes: 5 }, entries: [{ key: 'role:engineer', kind: 'role-instructions', source: 'engineer.md', revision: 'role-r1', hash: 'role-hash', bytes: 20, delivery: 'inherited', sources: [{ path: 'engineer.md', hash: 'role-hash', bytes: 20 }] }] },
     declared: { policy: 'scope-size/2', snapshot: 'writer-snapshot', bytes: 90, subtotal: 90, coverage: 'complete', components: [
       { component: 'owned-source', detail: 'recorded source', bytes: 40, state: 'measured' },

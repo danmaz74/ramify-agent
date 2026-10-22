@@ -51,7 +51,6 @@ function observedCount(id: string, unit: string, count: number, covered: number,
 const readable = (facts: InvocationFacts): readonly Observation[] | null => (Array.isArray(facts.observations) ? facts.observations as readonly Observation[] : null);
 function sizeGap(size: ScopeSize | null): string | null {
   if (size === null) return 'no scope size was captured';
-  if (size.policy !== measurementPolicyVersion) return `its size was taken under ${size.policy}, which is not comparable with ${measurementPolicyVersion}`;
   if (size.bytes !== null) return null;
   return size.components.filter(component => component.state !== 'measured')
     .map(component => `${component.component} ${component.state}${component.reason === undefined ? '' : `: ${component.reason}`}`).join('; ');
@@ -84,7 +83,7 @@ function bytesPerChangedLine(inputs: MetricInputs): Metric {
     const gap = sizeGap(size) ?? (!('unavailable' in inputs.baseline) && size!.snapshot !== inputs.baseline.snapshot ? 'scope snapshot differs from the frozen baseline snapshot' : null);
     if (gap !== null) {
       unknownSize.push(`${invocation}: w_e = ${lines(weight)}, S_e unknown: ${gap}`);
-      if (size !== null && size.policy === measurementPolicyVersion && size.bytes === null && ('unavailable' in inputs.baseline || size.snapshot === inputs.baseline.snapshot)) {
+      if (size !== null && size.bytes === null && ('unavailable' in inputs.baseline || size.snapshot === inputs.baseline.snapshot)) {
         hasPartialSubtotal = true;
         partialSubtotal += weight * size.subtotal;
         evidence.push(`${invocation}: known scope subtotal ${size.subtotal} bytes contributes ${weight * size.subtotal} byte-lines; weight ${lines(weight)} has incomplete size`);
@@ -150,8 +149,8 @@ function sessionWeightedTotal(inputs: MetricInputs): Metric {
     const largest = new Map<string, number>();
     const unavailable = new Set<string>();
     for (const facts of list) {
-      if (facts.size === null || facts.size.policy !== measurementPolicyVersion || (!('unavailable' in inputs.baseline) && facts.size.snapshot !== inputs.baseline.snapshot)) {
-        unavailable.add(facts.size === null ? 'scope' : facts.size.policy !== measurementPolicyVersion ? `${facts.size.policy} scope` : `incompatible snapshot ${facts.size.snapshot}`);
+      if (facts.size === null || (!('unavailable' in inputs.baseline) && facts.size.snapshot !== inputs.baseline.snapshot)) {
+        unavailable.add(facts.size === null ? 'scope' : `incompatible snapshot ${facts.size.snapshot}`);
         continue;
       }
       hasKnownSize = true;
@@ -346,7 +345,7 @@ export function comparableScopeMetrics(input: {
       if (gap !== null) {
         unknownSizeWeight += weight;
         gaps.push(`${id}: ${weight} delivered lines with unknown size: ${gap}`);
-        if (size !== null && size.policy === measurementPolicyVersion && !mismatch) subtotal += weight * size.subtotal;
+        if (size !== null && !mismatch) subtotal += weight * size.subtotal;
       } else { completeSizeWeight += weight; subtotal += weight * size!.bytes!; covered += 1; }
     }
     for (const [reason, weight] of input.delivered.unattributed) { unattributedWeight += weight; gaps.push(`${weight} unattributed lines: ${reason}`); }

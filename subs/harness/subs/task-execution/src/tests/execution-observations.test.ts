@@ -6,7 +6,8 @@ import { ObservationLog } from '../observations.js';
 import { PortEventRecorder } from '../port-events.js';
 import { ExcursionWatcher } from '../excursions.js';
 
-test.each(['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'] as const)('%s context settings and compaction failure remain honest evidence without a harness threshold', async source => {
+test('current Pi context settings and compaction failure remain honest evidence without a harness threshold', async () => {
+  const source = 'pi@1.3.0:SettingsManager' as const;
   const directory = await mkdtemp(join(tmpdir(), 'ramify-context-observation-'));
   try {
     const observations = await ObservationLog.open(join(directory, 'observations.jsonl'));

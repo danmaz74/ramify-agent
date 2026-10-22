@@ -169,7 +169,7 @@ async function legacy(root: string, adapter: HarnessSessionOperations) {
     toolChange: { add: [declaration], activate: [declaration.name], inactivate: [] }, bindings: { task, policy, tools: [], submission: { name: declaration.name, accept: input.spec.submission.accept }, currentAuthority: async () => true, onEvent: () => undefined, publish: async () => undefined } });
   const receipt = await handle.receipt; await handle.settled(); expect(receipt.status).toBe('completed');
   const context = { inherited: additions, history: [{ revision: 'old-revision', sections }], revision: 'old-revision' };
-  const intent = { schema: 'ramify-agent.harness-operation/1', runId: 'run', operationId: 'legacy', session: input.session, source: null, mode: 'fresh', packet, context, policy, task, declarations: [declaration] };
+  const intent = { schema: 'ramify-agent.harness-operation/2', requestHash: hash(JSON.stringify(input.brief)), runId: 'run', operationId: 'legacy', session: input.session, source: null, mode: 'fresh', packet, context, policy, task, declarations: [declaration] };
   const path = await correlation(root, 'operations', ['run', 'legacy'], intent);
   await correlation(root, 'points', ['run', receipt.point], { ...context, point: receipt.point });
   return { input, packet, context, ref: sessionPointReference('run', receipt.point!), path };
