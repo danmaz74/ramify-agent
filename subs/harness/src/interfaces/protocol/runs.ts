@@ -1597,7 +1597,7 @@ export const deliveredManifestViewSchema =
     block: z.object({ key: text, effect: z.enum(['set', 'remove']) }).strict().optional(),
   }).strict()) }).strict();
 export type DeliveredManifestView = z.infer<typeof deliveredManifestViewSchema>;
-export const scopeSizeViewSchema = z.object({ policy: z.enum(['scope-size/1', 'scope-size/2']), snapshot: text,
+export const scopeSizeViewSchema = z.object({ policy: z.literal('scope-size/2'), snapshot: text,
   components: z.array(z.object({ component: z.enum(['owned-source', 'api-views', 'architect-view', 'support-documents']), detail: z.string(), bytes: count.nullable(), state: z.enum(['measured', 'unavailable', 'unknown']), reason: z.string().optional(), buckets: z.record(z.string(), count).optional() }).strict()),
   bytes: count.nullable(), subtotal: count, coverage: z.enum(['complete', 'partial']),
 }).strict();
