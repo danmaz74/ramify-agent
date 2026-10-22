@@ -1,38 +1,23 @@
-
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { Script } from '../../../agent/src/scripted.js';
-import type { AgentSession, SessionOutcome, SessionSpec } from '../../../agent/src/interfaces/port.js';
+import type { AgentSession, SessionOutcome } from '../../../agent/src/interfaces/port.js';
 import type { CommandRunner } from '../../../evidence/src/run-command.js';
-import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
 import { commandResult } from '../../../../src/tests/helpers/command-result.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../src/tests/helpers/external-tools.js';
-import { copyFixture, temporaryDirectory } from '../../../../src/tests/helpers/fixture.js';
-import {
-  assign, byRole, failureAnalystFake, outline, partialReport, shell, submit, treeInputs, type Turn,
-} from '../../../../src/tests/helpers/iterations.js';
-import { installTestRunner, onlyRun, runPath, startRun, stopRun, testPolicy, until } from '../../../../src/tests/helpers/runs.js';
-import { scenariosCommit } from '../../../../src/tests/helpers/scripted-git.js';
-import { assertUnchangedGit, openUnchangedRuns as openRuns } from '../../../../src/tests/helpers/unchanged-run.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../../../autonomous/subs/work-coordination/src/work/iterations.js';
-import { type RunPolicy } from '../../../autonomous/src/run/records.js';
+import { temporaryDirectory } from '../../../../src/tests/helpers/fixture.js';
+import { assign, outline } from '../../../../src/tests/helpers/iterations.js';
+import { testPolicy } from '../../../../src/tests/helpers/runs.js';
+import { assertUnchangedGit } from '../../../../src/tests/helpers/unchanged-run.js';
 import { engineerBoundsOf } from '../../../../src/run/policy.js';
 import { InvocationBounds } from '../../../task-execution/src/port-events.js';
 import { validateLocalArchitect, type LocalArchitectSubmission } from '../../../autonomous/subs/work-coordination/src/work/submission.js';
-import { createShellTool, shellToolName } from '../../../../src/tools/shell.js';
+import { createShellTool } from '../../../../src/tools/shell.js';
 
 /*
- * A module engineer that ends without a result is its module architect's decision,
- * not the run's end, and the architect decides on a pre-analysis: the
- * harness's digest of what the module engineer left, and a failure analysis a
- * model makes in a reader session of its own. Where a bound ended it, the
- * architect may raise that bound for the next iteration, up to the policy's
- * ceiling.
- *
- * Every run here is composed on the scripted fake: agents are scripts, Git
- * is scripted and a shell command is answered in this process, so no run
- * starts a process.
+ * Where a bound ended a module engineer, its architect may raise that bound
+ * for the next iteration, up to the policy's ceiling. The runs that drive a
+ * failed engineer through analysis to its architect are in
+ * work-coordination's engineer-runs.test.ts.
  */
 
 vi.mock('node:child_process', async original =>
@@ -44,9 +29,7 @@ afterEach(async () => {
   try { assertUnchangedGit(); expectNoProcesses(); } finally { forgetExternalTools(); }
 });
 
-const plan = 'review-notes';
 const reviews = 'collection-review/workspace/reviews';
-const checkpoints = [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`];
 
 /** What each shell command asked for, as the scripted runner received it. */
 interface AskedCommand {
@@ -54,208 +37,14 @@ interface AskedCommand {
   readonly timeoutMs: number;
 }
 
-/**
- * Answers every shell command in this process. `npm run test:slow` prints
- * the start of a long suite and runs until it is cancelled; any other
- * command passes at once. Nothing else is a command this run may start.
- */
+/** Answers every shell command in this process at once, recording what it asked for. */
 function scriptedShell(asked: AskedCommand[]): CommandRunner {
   return async request => {
     if (request.argv[0] !== 'bash') throw new Error(`No process is started here: ${request.argv.join(' ')}`);
-    const command = request.argv[2] ?? '';
-    asked.push({ command, timeoutMs: request.timeoutMs });
-    if (command !== 'npm run test:slow') return commandResult(request, { stdout: 'all suites passed\n' });
-    const printed = Array.from({ length: 40 }, (_, index) => `suite ${index + 1} of 400 passed`).join('\n');
-    if (request.outputFile !== undefined) {
-      await mkdir(dirname(request.outputFile), { recursive: true });
-      await writeFile(request.outputFile, `${printed}\n`);
-    }
-    await new Promise<void>(resolve => {
-      if (request.signal?.aborted === true) resolve();
-      request.signal?.addEventListener('abort', () => resolve(), { once: true });
-    });
-    return commandResult(request, { stdout: `${printed}\n`, outcome: { kind: 'cancelled' } });
+    asked.push({ command: request.argv[2] ?? '', timeoutMs: request.timeoutMs });
+    return commandResult(request, { stdout: 'all suites passed\n' });
   };
 }
-
-/** A run of the fixture's plan with one entry in `reviews`, driven by `turns`, whose sessions are kept. */
-async function run(turns: Readonly<Record<string, readonly Turn[]>>, limits: Partial<RunPolicy['limits']> = {}, asked: AskedCommand[] = [], previewCount = 5) {
-  const fixture = await copyFixture();
-  cleanups.push(fixture.remove);
-  await installTestRunner(fixture.root);
-  const specs: SessionSpec[] = [];
-  const scripted = byRole(turns) as (spec: SessionSpec) => ReturnType<Extract<Script, (spec: SessionSpec) => unknown>>;
-  const opened = await openRuns(fixture.root, {
-    script: spec => {
-      specs.push(spec);
-      return scripted(spec);
-    },
-    unchangedCheckpoints: checkpoints,
-    previewCount,
-    inputs: treeInputs(),
-    commandExecution: scriptedShell(asked),
-    policy: projectRoot => {
-      const policy = testPolicy(projectRoot);
-      return { ...policy, limits: { ...policy.limits, ...limits } };
-    },
-  });
-  cleanups.push(() => opened.service.close());
-  const receipt = await opened.service.execute(startRun(plan));
-  await opened.service.settled(plan, receipt.jobId);
-  const role = (name: string) => specs.filter(spec => spec.role === name);
-  return { root: fixture.root, runId: receipt.jobId, service: opened.service, specs, role };
-}
-
-async function iterationResult(root: string, runId: string, number: number): Promise<IterationResult> {
-  return JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.result('work-item:reviewer-note', number)), 'utf8')) as IterationResult;
-}
-
-test('a genuine engineer provider failure retains its diagnostic while current recovery pauses the assignment', async () => {
-  const fixture = await copyFixture();
-  cleanups.push(fixture.remove);
-  await installTestRunner(fixture.root);
-  const opened = await openRuns(fixture.root, {
-    script: byRole({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(assign(reviews, {}, outline()))],
-      engineer: [[{ kind: 'fail', error: 'The provider refused this unsupported request' }]],
-    }),
-    unchangedCheckpoints: [scenariosCommit(plan)],
-    gitScript: { previews: [{ repositoryRoot: fixture.root, head: `scenarios-of-${plan}`, tree: 'a'.repeat(40) }] },
-    inputs: treeInputs(),
-  });
-  cleanups.push(() => opened.service.close());
-  const receipt = await opened.service.execute(startRun(plan));
-  await until(() => opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
-  const inspection = await opened.service.recoveryInspection(plan, receipt.jobId);
-  expect(inspection).toMatchObject({ state: 'paused', boundary: { role: 'engineer' }, evidence: { diagnostic: expect.stringContaining('The provider refused this unsupported request') } });
-  const ended = opened.service.events(plan, receipt.jobId)!.find(event => event.type === 'invocation-ended' && event.data.ended === 'failed');
-  expect(ended).toMatchObject({ data: { ended: 'failed' } });
-  expect(onlyRun(opened.service, plan)).toMatchObject({ state: 'running', recovery: { state: 'paused' } });
-  await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
-  await opened.service.settled(plan, receipt.jobId);
-});
-
-test('a genuine failure-analyst provider failure retains its diagnostic while current recovery pauses analysis', async () => {
-  const fixture = await copyFixture();
-  cleanups.push(fixture.remove);
-  await installTestRunner(fixture.root);
-  const opened = await openRuns(fixture.root, {
-    script: byRole({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(assign(reviews, {}, outline()))],
-      engineer: [[{ kind: 'end', message: 'No submission.' }]],
-      'failure-analyst': [[{ kind: 'fail', error: 'The analyst provider refused this request' }]],
-    }),
-    unchangedCheckpoints: [scenariosCommit(plan)],
-    gitScript: { previews: [{ repositoryRoot: fixture.root, head: `scenarios-of-${plan}`, tree: 'a'.repeat(40) }] },
-    inputs: treeInputs(),
-  });
-  cleanups.push(() => opened.service.close());
-  const receipt = await opened.service.execute(startRun(plan));
-  await until(() => opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
-  const inspection = await opened.service.recoveryInspection(plan, receipt.jobId);
-  expect(inspection).toMatchObject({ state: 'paused', boundary: { role: 'failure-analyst' }, evidence: { diagnostic: expect.stringContaining('The analyst provider refused this request') } });
-  const ended = opened.service.events(plan, receipt.jobId)!.find(event => event.type === 'invocation-ended' && event.data.ended === 'failed');
-  expect(ended).toMatchObject({ data: { ended: 'failed' } });
-  expect(onlyRun(opened.service, plan)).toMatchObject({ state: 'running', recovery: { state: 'paused' } });
-  await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
-  await opened.service.settled(plan, receipt.jobId);
-});
-
-describe('an engineer failure with revised command settings', () => {
-  test('analyzes semantic failure before its architect revises the command maximum', async () => {
-    const asked: AskedCommand[] = [];
-    const raised = { commandTimeoutMs: { ms: 1_200_000, reason: 'The whole suite runs for about fifteen minutes.' } };
-    const { root, runId, service, role } = await run({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(assign(reviews, {}, outline())), submit(assign(reviews, { bounds: raised })), submit(requestCompletion())],
-      engineer: [
-        [{ kind: 'end', message: 'The provider refused this unsupported request' }],
-        submit(partialReport(['the suite passed'], ['nothing']), shell('npm run test:slow:rerun', { timeoutMs: 1_000_000 })),
-      ],
-      'failure-analyst': [failureAnalystFake('bound-too-tight', { recommendation: 'Use the supported request and appropriate command maximum.' })],
-    }, {}, asked, 6);
-    const snapshot = onlyRun(service, plan);
-    expect(snapshot.state, JSON.stringify(snapshot.failure)).toBe('completed');
-    const result = await iterationResult(root, runId, 1);
-    expect(result.failure!.digest).toMatchObject({ ended: 'ended', interruption: null,
-      cause: 'The session stopped on its own without an accepted submission.', inFlight: [] });
-    expect(result.failure!.analysis).toMatchObject({ outcome: 'analyzed', cause: 'bound-too-tight' });
-    expect(role('local-architect')[1]!.prompt).toContain('Use the supported request and appropriate command maximum.');
-    const assignment = JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.assignment('work-item:reviewer-note', 2)), 'utf8')) as IterationAssignment;
-    expect(assignment.bounds).toEqual(raised);
-    const next = role('engineer')[1]!;
-    const tool = next.tools.find(candidate => candidate.name === shellToolName)!;
-    expect((tool.inputSchema as { properties: { timeoutMs: { maximum: number } } }).properties.timeoutMs.maximum).toBe(1_200_000);
-    expect(asked).toEqual([{ command: 'npm run test:slow:rerun', timeoutMs: 1_000_000 }]);
-  }, 120_000);
-});
-
-describe('a failure analysis that fails', () => {
-  test('leaves the digest alone, says the analysis was unavailable, and never fails the run', async () => {
-    const { root, runId, service, role } = await run({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
-      engineer: [[{ kind: 'end', message: 'the provider refused the request' }]],
-      'failure-analyst': [[{ kind: 'end', message: 'the analyst\'s provider refused the request too' }]],
-    });
-
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const result = await iterationResult(root, runId, 1);
-    expect(result.failure!.digest).toMatchObject({ ended: 'ended', interruption: null, cause: 'The session stopped on its own without an accepted submission.', inFlight: [] });
-    expect(result.failure!.analysis).toMatchObject({ outcome: 'unavailable', reason: 'the analysis ended `ended`' });
-
-    const briefing = role('local-architect')[1]!.prompt;
-    expect(briefing).toContain('- Why it ended: The session stopped on its own without an accepted submission.');
-    expect(briefing).toContain('The failure analysis is unavailable');
-    expect(briefing).toContain('Decide on the digest above.');
-    expect(briefing).not.toContain('If the work needs more, raise');
-  }, 120_000);
-
-  test('that ends without a submission is unavailable too', async () => {
-    const { root, runId, service } = await run({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
-      engineer: [[{ kind: 'end', message: 'I have nothing more to add.' }]],
-      'failure-analyst': [[{ kind: 'end', message: 'No account.' }]],
-    });
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const result = await iterationResult(root, runId, 1);
-    expect(result.failure!.digest).toMatchObject({ ended: 'ended', cause: 'The session stopped on its own without an accepted submission.' });
-    expect(result.failure!.analysis).toMatchObject({ outcome: 'unavailable', reason: 'the analysis ended `ended`' });
-  }, 120_000);
-});
-
-describe('every cause an analyst judges', () => {
-  test('reaches the iteration\'s result and the next briefing', async () => {
-    const { root, runId, service, role } = await run({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [
-        submit(assign(reviews, {}, outline())),
-        submit(assign(reviews)),
-        submit(assign(reviews)),
-        submit(assign(reviews)),
-        submit(requestCompletion()),
-      ],
-      engineer: [[{ kind: 'end', message: 'the provider refused the request' }]],
-      'failure-analyst': [
-        failureAnalystFake('environment-problem'),
-        failureAnalystFake('work-problem'),
-        failureAnalystFake('agent-behavior'),
-        failureAnalystFake('unknown'),
-      ],
-    }, {}, [], 8);
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const causes = [];
-    for (const number of [1, 2, 3, 4]) {
-      const analysisOf = (await iterationResult(root, runId, number)).failure!.analysis;
-      causes.push(analysisOf.outcome === 'analyzed' ? analysisOf.cause : null);
-    }
-    expect(causes).toEqual(['environment-problem', 'work-problem', 'agent-behavior', 'unknown']);
-    expect(role('local-architect')[4]!.prompt).toContain('(`unknown`)');
-  }, 120_000);
-});
 
 describe('the bounds an assignment raises', () => {
   const policy = engineerBoundsOf(testPolicy('/project').limits);
