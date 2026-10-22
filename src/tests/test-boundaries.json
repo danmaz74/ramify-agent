@@ -356,14 +356,6 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/iterations-integration.test.ts",
-      "boundary": "Actual installed CLI, public provider and Git accepted gate objects",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "G8: one small work item completes in one iteration > a local architect assigns it, an engineer works it, the gate accepts it and the harness commits"
-      ]
-    },
-    {
       "file": "subs/harness/subs/task-workflow/src/tests/single-session-integration.test.ts",
       "boundary": "Actual shell and completion command session",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
@@ -382,7 +374,7 @@
     {
       "file": "subs/harness/src/tests/iteration-gate-integration.test.ts",
       "boundary": "Actual failing test, repair and accepted Git checkpoint",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
+      "whyFakeCannotProve": "A real failing Vitest assertion in committed source, the installed audit over each committed candidate and the commits Git records with their Ramify-Gate trailers; iteration-gate.test.ts states those command results and Git answers as scripts and cannot show that real tools produce them.",
       "owningCases": [
         "K1: a module gate fails, is repaired and reruns the complete gate > a real failing assertion in scope returns in-scope diagnostics and one repair round"
       ]
