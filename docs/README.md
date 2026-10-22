@@ -3,9 +3,14 @@
 Design documents for the separate agent harness:
 
 - [Remove readers for retired run-state forms](../plans/compatibility-layer-removal/plan.md),
-  proposed assisted execution input in six iterations: one current form per record kind, manual-run sessions
-  only, same-run continuation, no policy adoption, and recovery commands without
-  ignored fields; removes the twelve layers in the compatibility inventory
+  overview of the split into two assisted plans: the
+  [records part](../plans/compatibility-layer-removal-records/plan.md) removes the
+  earlier session layout, `/1` delivery manifests and intents, inline-body
+  session-store transactions, `scope-size/1` and Pi `0.87.1`; the
+  [continuation part](../plans/compatibility-layer-removal-continuation/plan.md),
+  registered after Plan 42 merges, removes successor imports, policy adoption,
+  forced exhaustion, judge bounds, snapshot defaults, boundary checks, inline
+  assisted captures and ignored recovery fields
 - [Removable compatibility layers](analysis/2026-10-22-removable-compatibility-layers.md),
   Sol's verified inventory across ramify-agent, ramify and ramify-audit under the
   run-state-is-disposable rule: about 7,200 lines in the harness, 105 in the
