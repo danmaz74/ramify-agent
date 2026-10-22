@@ -56,3 +56,23 @@ node --import tsx src/main.ts coordinate start \
 Observe with `coordinate status --project <target> --json` and
 `coordinate watch --project <target> --id <coordinator> --after <cursor> --json`
 from the harness checkout.
+
+## Iteration 1 and the listing revision
+
+- `it-7d81699b` (sessions, focus `subs/harness/subs/projections`). Candidate
+  `3f4c17cb` removed the earlier layout; `as-0001` passed audit and returned
+  `incomplete` with two coverage findings (no HTTP witness listing two
+  manual-run sessions; a lost committed-run refusal witness).
+- Repair `9016bb1d` closed both; `as-0002` passed audit and returned
+  `incomplete` with two new findings about the newly added manual-session
+  listing: run links the service cannot serve, and a crashed session shown as
+  live. On main, manual runs were never listed, so these were gaps of a new
+  listing rather than regressions.
+- The user directed that listing manual sessions is not required. The pinned
+  revision `plans/compatibility-layer-removal-records/requirements-2026-10-22.md`
+  (main `af5f4fd5`) replaces the listing scenario. The coordinator's turn was
+  busy on the moot repair (`8f3dfa90`, `as-0003`), so the external observer
+  sent `coordinate interrupt` and then `coordinate send` with the revision; the
+  coordinator cancelled `as-0003` and produced `57d32530`, which deletes the
+  manual-sessions reader and commits the revision document byte-identical to
+  main's copy.
