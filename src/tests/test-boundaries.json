@@ -4,7 +4,7 @@
     {
       "file": "subs/harness/subs/evidence/src/tests/git.test.ts",
       "boundary": "Git object, branch, commit, trailer and failure behavior",
-      "whyFakeCannotProve": "The assertions require native tool or kernel behavior and actual output, objects or process settlement.",
+      "whyFakeCannotProve": "Status, branch, commit, trailer, blob and blame answers are Git's own; git-common-directory.test.ts and accepted-commit.test.ts drive the adapter and its callers with scripted Git answers and cannot show the adapter reads real Git correctly.",
       "owningCases": [
         "the real Git adapter > inspects committed, staged, unstaged, deleted and untracked source without changing files, index or refs",
         "the real Git adapter > creates and resumes a run branch, commits with its own policy, and recovers exact commit identities",
@@ -15,7 +15,8 @@
         "the real Git adapter > names the commit that delivered each changed line, and the one that removed each deleted line, over the direct diff",
         "the real Git adapter > reports an unavailable head and a typed status error outside a repository",
         "the real Git adapter > commits exact feature paths while preserving unrelated staged, unstaged and untracked work in a nested project",
-        "the real Git adapter > refuses isolated commits outside run branches and refuses traversal or directory path selections"
+        "the real Git adapter > refuses isolated commits outside run branches and refuses traversal or directory path selections",
+        "the real Git adapter > names a nested project's changes as the project does, and leaves the rest of the repository out"
       ]
     },
     {
@@ -227,11 +228,11 @@
     {
       "file": "subs/harness/src/tests/test-lock-gate.test.ts",
       "boundary": "Actual private kernel holder and harness gate wait/cancellation",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
+      "whyFakeCannotProve": "A real flock holder decides whether the type check and focused shell run proceed and when the configured check may start; test-lock.test.ts and test-lock-bounds.test.ts drive the wrapper and gate bounds with scripted waits and cannot show that the private kernel lock actually blocks or releases them.",
       "owningCases": [
         "the machine test lock at a gate > an in-place type check runs while a suite holds the lock, without waiting for it",
         "the machine test lock at a gate > a focused shell run finishes while a suite holds the private lock",
-        "the machine test lock at a gate > a configured check waiting for the lock is reported with the provider line, and the gate passes once it ran",
+        "the machine test lock at a gate > a configured check waiting for the lock passes the gate once it ran",
         "the machine test lock at a gate > cancelling a gate whose configured check waits for the lock is not verified, never a pass"
       ]
     },

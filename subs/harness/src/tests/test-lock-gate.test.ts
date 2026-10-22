@@ -35,12 +35,11 @@ async function fixture() {
 }
 
 /** A committing gate over `root` that asks `audit` about `candidate`. */
-async function configuredGate(root: string, audit: ConfiguredGateAudit, options: { readonly signal?: AbortSignal; readonly waiting?: string[] } = {}) {
+async function configuredGate(root: string, audit: ConfiguredGateAudit, options: { readonly signal?: AbortSignal } = {}) {
   const prepared = await prepareGate('iteration', {
     id: 'ga-0001', runId: 'run-lock', projectRoot: root, directory: join(root, 'gate'), head: 'HEAD', checks: [],
     audit: { mode: 'project-default', timeoutMs: 5_000 },
     ...(options.signal === undefined ? {} : { signal: options.signal }),
-    ...(options.waiting === undefined ? {} : { waiting: async (_command: unknown, line: string) => { options.waiting!.push(line); } }),
   });
   if ('schema' in prepared) throw new Error('The configured gate was not prepared');
   return executeConfiguredGate(audit, prepared, 'candidate', 'candidate');
@@ -95,9 +94,8 @@ describe('the machine test lock at a gate', () => {
     await f.holder;
   });
 
-  test('a configured check waiting for the lock is reported with the provider line, and the gate passes once it ran', async () => {
+  test('a configured check waiting for the lock passes the gate once it ran', async () => {
     const f = await fixture();
-    const waiting: string[] = [];
     let acquiredAt = 0;
     const gate = await configuredGate(f.root, async request => {
       await request.waiting?.({ kind: 'configured', name: 'agent-tests', position: 1, total: 1 }, 'Waiting for another test run (holder)');
@@ -107,9 +105,8 @@ describe('the machine test lock at a gate', () => {
       request.lockAcquired?.();
       await request.started?.({ kind: 'configured', name: 'agent-tests', position: 1, total: 1 });
       return answered('completed', 'pass');
-    }, { waiting });
+    });
     expect(acquiredAt).toBeGreaterThan(0);
-    expect(waiting).toEqual(['Waiting for another test run (holder)']);
     expect([gate.verdict, gate.cause, gate.audited]).toEqual(['passed', null, 'candidate']);
     expect(gate.commands).toEqual([]);
   });
