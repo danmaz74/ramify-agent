@@ -1,7 +1,7 @@
 {
   "entries": [
     {
-      "consecutiveFullPasses": 2,
+      "consecutiveFullPasses": 3,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -64,14 +64,14 @@
       "latestFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
-          "reportObject": "61b07cbd211c13a2a4bf10b90fcc607fbac57684"
+          "reportObject": "635d4752f34f8ee86c0928ac42d3bab32d280a4b"
         },
         "isolatedOutcome": "failed",
-        "sourceRevision": "4436c2e6c2a421b4dc785c814c469593350faa54"
+        "sourceRevision": "4e82c59308d4a1f3901e56fe341ce617327301ff"
       }
     },
     {
-      "consecutiveFullPasses": 2,
+      "consecutiveFullPasses": 3,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -98,7 +98,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 2,
+      "consecutiveFullPasses": 3,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -125,7 +125,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 2,
+      "consecutiveFullPasses": 3,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -153,10 +153,10 @@
     }
   ],
   "lastApplied": {
-    "preimageDigest": "sha256:1a30bab511de0e1419d2edf06700037d72830233fe30fdd5a60a2e3565ee1998",
+    "preimageDigest": "sha256:187eee50b3613b7b9ee5b413abb9c21f7db0e6bfe851f577f71c3e705ea2281f",
     "projectRoot": ".",
-    "reportObject": "61b07cbd211c13a2a4bf10b90fcc607fbac57684",
-    "sourceRevision": "4436c2e6c2a421b4dc785c814c469593350faa54"
+    "reportObject": "635d4752f34f8ee86c0928ac42d3bab32d280a4b",
+    "sourceRevision": "4e82c59308d4a1f3901e56fe341ce617327301ff"
   },
   "version": 1
 }
