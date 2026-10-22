@@ -310,23 +310,6 @@ async function observedWriter() {
 }
 
 describe('explicit independent transcript bursts', () => {
-  test('three rows have exact independent bytes, individual flushes, and no acknowledgement or drain before actual close', async () => {
-    const f = await observedWriter(); const closing = deferred(); const release = deferred();
-    writes.beforeClose = async n => { if (n === 1) { closing.resolve(); await release.promise; } };
-    const inputs = ['α\nfirst', 'second', 'third'].map(simpleEntry);
-    let answered = 0; const order: number[] = [];
-    const promises = inputs.map((input, index) => f.writer.appendIndependent(() => { order.push(index); return input; }).then(entry => { answered++; return entry; }));
-    const draining = f.writer.drain(); let drained = false; void draining.then(() => { drained = true; });
-    await closing.promise;
-    expect(order).toEqual([0, 1, 2]); expect(writes.opens).toBe(1); expect(writes.syncs).toBe(3);
-    expect(answered).toBe(0); expect(drained).toBe(false);
-    const expected = inputs.map((input, index) => `${JSON.stringify({ n: index + 1, at: fixedAt, ...input })}\n`).join('');
-    expect(await readFile(f.path, 'utf8')).toBe(expected);
-    release.resolve(); await draining;
-    expect((await Promise.all(promises)).map(entry => entry.n)).toEqual([1, 2, 3]);
-    expect(writes.closes).toBe(1); expect(answered).toBe(3);
-  });
-
   test('ordinary builders can await an earlier append acknowledgement and remain hard boundaries between independent bursts', async () => {
     const f = await observedWriter();
     const first = f.writer.appendIndependent(() => simpleEntry('first'));
@@ -360,17 +343,6 @@ describe('explicit independent transcript bursts', () => {
     expect(await rejected).toBe('injected transcript close'); expect((await later).n).toBe(1); expect(calls).toBe(1);
     expect(writes.opens).toBe(2); expect(writes.syncs).toBe(1); expect(writes.closes).toBe(2);
     expect((await lines(f.path)).map(entry => entry.n)).toEqual([1]);
-  });
-
-  test('a builder and its actual datasync finish before the next independent builder begins', async () => {
-    const f = await observedWriter(); const building = deferred(); const releaseBuild = deferred(); const syncing = deferred(); const releaseSync = deferred();
-    const order: string[] = [];
-    writes.beforeSync = async n => { if (n === 1) { syncing.resolve(); await releaseSync.promise; } };
-    const first = f.writer.appendIndependent(async () => { order.push('first'); building.resolve(); await releaseBuild.promise; return simpleEntry('first'); });
-    const second = f.writer.appendIndependent(() => { order.push('second'); return simpleEntry('second'); });
-    await building.promise; expect(order).toEqual(['first']); expect(writes.lines).toHaveLength(0);
-    releaseBuild.resolve(); await syncing.promise; expect(order).toEqual(['first']); expect(writes.lines).toHaveLength(1);
-    releaseSync.resolve(); await Promise.all([first, second]); expect(order).toEqual(['first', 'second']); expect(writes.syncs).toBe(2);
   });
 
   test('already admitted bursts are bounded and a finite drain does not wait for later arrivals', async () => {

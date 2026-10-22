@@ -80,6 +80,14 @@ describe('element catalog', () => {
     expect(elementCatalogSchema.safeParse({ ...catalog, retired: ['functional-requirement:refuse-partial-package'] }).success).toBe(false);
   });
 
+  it('rejects a whole batch that collides with an active ID, and a retirement without its replacement', () => {
+    const catalog = sampleCatalog();
+    const collision = acceptElements(catalog, [element('draft:functional-requirement:another', 'functional', 'document:example-plan', 'Another.'),
+      element('draft:functional-requirement:render-packages', 'functional', 'document:example-plan', 'Collides.')]);
+    expect(collision.ok ? '' : collision.errors.join('\n')).toContain('1.key:');
+    expect(reviseCatalog(catalog, { rewrite: [], retire: ['functional-requirement:render-packages'], add: [] })).toMatchObject({ ok: false });
+  });
+
   it('revises a catalog: a rewrite keeps its ID, kind and document, a split retires the old ID and numbers past it', () => {
     const catalog = sampleCatalog();
     const revised = reviseCatalog(catalog, {

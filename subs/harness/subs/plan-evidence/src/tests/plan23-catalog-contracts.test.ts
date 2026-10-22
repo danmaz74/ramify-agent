@@ -58,6 +58,11 @@ describe('Plan 23 C01/C02 catalog local-key validation', () => {
       'entries.cap-a.requirementRefs.0: "draft:functional-requirement:req-a" is functional-requirement; this field requires no permitted element kinds from this submission',
     ]);
   });
+  test('a draft-stage field refuses accepted IDs and an accepted-stage field refuses draft keys, at the field path', () => {
+    const accepted = acceptElements(openElementCatalog(hash, manifest), [element('draft:functional-requirement:req-a')]); if (!accepted.ok) throw new Error('fixture');
+    expect(validateElementReferences([{ ...field(['functional-requirement:req-a']), stage: 'draft' }, { ...field(['draft:functional-requirement:req-a']), stage: 'accepted' }], accepted.catalog, [])).toEqual([
+      expect.stringMatching(/^entries\.cap-a\.requirementRefs\.0: .* accepted ID or wrong-stage reference/), expect.stringMatching(/^entries\.cap-a\.requirementRefs\.0: .* is a draft key/)]);
+  });
   test('Gherkin remains valid element text, while a separate gherkin field is refused', () => {
     const catalog = openElementCatalog(hash, manifest);
     const text = 'Scenario: A caller receives a result\n Given a valid request\n When the caller submits it\n Then the result is returned';
