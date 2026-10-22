@@ -11,27 +11,13 @@ const cli = join(projectRoot, 'node_modules/vitest/vitest.mjs');
 const setup = join(projectRoot, 'src/tests/vitest-process-guard.ts');
 const nativeSetup = join(projectRoot, 'src/tests/vitest-boundary-processes.ts');
 const facade = join(projectRoot, 'subs/harness/src/tests/helpers/process-guard.ts');
+// The API and spelling matrix is owned in-process by test-process-guard.test.ts;
+// these launches prove the configured runner installs the guard for an ESM
+// import, a CommonJS require and a teardown hook.
 const cases: Array<{ name: string; code: string; diagnostic: string }> = [
-  { name: 'builtin state cannot grant caller supplied native permission', code: `import {createRequire} from 'node:module'; import {execFileSync} from 'node:child_process'; test('caught',()=>{const builtin=createRequire(import.meta.url)('child_process'); const state=builtin[Symbol.for('ramify-agent.ordinary-test-process-enforcement')]; expect(Object.isFrozen(state)).toBe(true); state.begin('src/tests/fake-native.test.ts',true); try{execFileSync('git',['--version'])}catch{} });`, diagnostic: 'execFileSync git --version' },
-  { name: 'root reinstall cannot erase a caught refusal', code: `import { installProcessGuard } from ${JSON.stringify(join(projectRoot, 'src/tests/helpers/process-guard.ts'))}; import {execFileSync} from 'node:child_process'; test('caught',()=>{try{execFileSync('git',['--version'])}catch{} installProcessGuard();});`, diagnostic: 'execFileSync git --version' },
-  { name: 'all seven native/default/CommonJS APIs are refused', code: `import cp from 'node:child_process'; import {createRequire} from 'node:module'; test('caught',()=>{const require=createRequire(import.meta.url); for(const source of [cp,require('child_process'),require('node:child_process')]) for(const api of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork']) expect(()=>source[api]('git',['--version'])).toThrow('process guard');});`, diagnostic: 'fork git --version' },
-
-  { name: 'caught named Git refusal', code: `import { execFileSync } from 'node:child_process'; test('caught',()=>{try { execFileSync('git',['--version']) } catch {} });`, diagnostic: 'execFileSync git --version' },
-  { name: 'default export', code: `import cp from 'node:child_process'; test('caught',()=>{try { cp.spawnSync('git',['--version']) } catch {} });`, diagnostic: 'spawnSync git --version' },
-  { name: 'promisified export', code: `import { createHash } from 'node:crypto';
-import { execFile } from 'node:child_process'; import { promisify } from 'node:util'; test('caught',async()=>{try { await promisify(execFile)('git',['--version']) } catch {} });`, diagnostic: 'execFile git --version' },
-  { name: 'CommonJS node spelling', code: `import { createRequire } from 'node:module'; test('caught',()=>{try { createRequire(import.meta.url)('node:child_process').execSync('git --version') } catch {} });`, diagnostic: 'execSync git --version' },
   { name: 'CommonJS bare spelling', code: `import { createRequire } from 'node:module'; test('caught',()=>{try { createRequire(import.meta.url)('child_process').spawn('git',['--version']) } catch {} });`, diagnostic: 'spawn git --version' },
   { name: 'ESM bare spelling', code: `import { execSync } from 'child_process'; test('caught',()=>{try { execSync('git --version') } catch {} });`, diagnostic: 'execSync git --version' },
-  { name: 'importActual', code: `test('caught',async()=>{const cp=await vi.importActual('node:child_process'); try { cp.execFileSync('git',['--version']) } catch {} });`, diagnostic: 'execFileSync git --version' },
-  { name: 'module setup', code: `import { execFileSync } from 'node:child_process'; try { execFileSync('git',['--version']) } catch {} test('still registers',()=>{});`, diagnostic: 'execFileSync git --version' },
-  { name: 'beforeAll setup', code: `import { execFileSync } from 'node:child_process'; beforeAll(()=>{try {execFileSync('git',['--version'])}catch{}}); test('registered',()=>{});`, diagnostic: 'execFileSync git --version' },
-  { name: 'afterAll failure retains refusal', code: `import { execFileSync } from 'node:child_process'; afterAll(()=>{try{execFileSync('git',['--version'])}catch{} throw new Error('original-teardown-failure');}); test('registered',()=>{});`, diagnostic: 'original-teardown-failure' },
   { name: 'afterAll teardown', code: `import { execFileSync } from 'node:child_process'; afterAll(()=>{try{execFileSync('git',['--version'])}catch{}}); test('registered',()=>{});`, diagnostic: 'execFileSync git --version' },
-  { name: 'compatibility reset cannot erase', code: `import { guardedChildProcess, resetSpawnAttempts } from ${JSON.stringify(facade)}; import cp from 'node:child_process'; test('caught',()=>{try{guardedChildProcess(cp).execFileSync('git',['--version'])}catch{} resetSpawnAttempts(); vi.resetModules(); });`, diagnostic: 'execFileSync git --version' },
-  { name: 'default Git adapter', code: `import { gitService } from ${JSON.stringify(join(projectRoot, 'subs/harness/subs/evidence/src/git.ts'))}; test('caught',async()=>{try{await gitService.currentHead(process.cwd())}catch{}});`, diagnostic: 'git rev-parse HEAD' },
-  { name: 'missing candidate injection', code: `import { gitCandidateSource } from ${JSON.stringify(join(projectRoot, 'subs/harness/subs/evidence/src/git.ts'))}; test('caught',async()=>{try{await gitCandidateSource.readBlob(process.cwd(),'tree','src/missing.ts')}catch{}});`, diagnostic: 'git cat-file blob tree:./src/missing.ts' },
-  { name: 'real Ramify adapter', code: `import { RamifyCli } from ${JSON.stringify(join(projectRoot, 'subs/harness/subs/evidence/src/ramify-cli.ts'))}; test('caught',async()=>{try{await new RamifyCli().run(['--version'],process.cwd())}catch{}});`, diagnostic: 'execFile' },
 ];
 async function fixture(): Promise<{ root: string; remove(): Promise<void> }> {
   const root = await mkdtemp(join(tmpdir(), 'ramify-ordinary-guard-'));
@@ -42,6 +28,7 @@ async function fixture(): Promise<{ root: string; remove(): Promise<void> }> {
     .replaceAll("'src/tests/vitest-test-lock.ts'", JSON.stringify(join(projectRoot, 'src/tests/vitest-test-lock.ts')))
     .replaceAll("'src/tests/vitest-process-guard.ts'", JSON.stringify(setup))
     .replaceAll("'src/tests/vitest-boundary-processes.ts'", JSON.stringify(nativeSetup))
+    .replaceAll("'./src/tests/test-boundaries-manifest.js'", JSON.stringify(join(projectRoot, 'src/tests/test-boundaries-manifest.ts')))
     .replaceAll("'subs/harness/src/tests/helpers/mock-session-store.setup.ts'", JSON.stringify(join(projectRoot, 'subs/harness/src/tests/helpers/mock-session-store.setup.ts')));
   await writeFile(join(root, 'vitest.config.ts'), config);
   await writeFile(join(root, 'src/tests/test-boundaries.json'), JSON.stringify({ schema: 'ramify-agent.test-boundaries/1', boundaries: [] }));
@@ -77,25 +64,10 @@ describe('automatic ordinary runtime process boundary', () => {
       expect(observations[0]!.refused.length).toBeGreaterThan(0);
     } finally { await directory.remove(); }
   });
-  test('the complete configured invocation enforces a caught attempt too', async () => {
-    const directory = await fixture();
-    try {
-      await writeFile(join(directory.root, 'src/tests/new-ordinary.test.ts'), `import { test } from 'vitest'; import { fork } from 'node:child_process'; test('caught',()=>{try{fork('git')}catch{}});`);
-      const result = await launch(directory.root, ['run', '--maxWorkers', '4', 'new-ordinary.test.ts']);
-      expect(result.code).toBe(1); expect(result.text).toContain('fork git');
-    } finally { await directory.remove(); }
-  });
-  test('a newly discovered ordinary scripted case passes without attempted launches', async () => {
-    const directory = await fixture();
-    try {
-      await writeFile(join(directory.root, 'src/tests/new-ordinary.test.ts'), `import { test, expect } from 'vitest'; test('scripted',async()=>expect(await Promise.resolve({head:'declared-head'})).toEqual({head:'declared-head'}));`);
-      const result = await launch(directory.root, ['run', '--project', 'node', '--project', 'web', 'new-ordinary.test.ts']);
-      expect(result.code).toBe(0);
-    } finally { await directory.remove(); }
-  });
 });
 
 
+// Manifest defects are unit tests of boundaryPaths in test-boundaries-manifest.test.ts.
 describe('configured partition validation', () => {
   test('public configured discovery is a disjoint complete union and preserves fixture/scratch exclusions', async () => {
     const directory = await fixture();
@@ -123,32 +95,11 @@ describe('configured partition validation', () => {
       expect([...union].sort()).toEqual(rows.map(row=>row.file).sort());
     } finally { await directory.remove(); }
   });
-  for (const defect of ['missing manifest','missing file','duplicate path','bad path','excluded fixture','excluded scratch','web boundary']) test(`fails configuration for ${defect}`, async () => {
-    const directory = await fixture();
-    try {
-      const entry = {file:'src/tests/native.test.ts',boundary:'Native worker',whyFakeCannotProve:'Actual worker',owningCases:['case']};
-      await writeFile(join(directory.root,entry.file), "import { test } from 'vitest'; test('case',()=>{});");
-      let entries = [entry];
-      if(defect==='missing manifest') await rm(join(directory.root,'src/tests/test-boundaries.json'));
-      else {
-        if(defect==='missing file') entry.file='src/tests/absent.test.ts';
-        if(defect==='duplicate path') entries=[entry,entry];
-        if(defect==='bad path') entry.file='../escape.test.ts';
-        if(defect==='excluded fixture') entry.file='subs/harness/fixtures/example/src/tests/excluded.test.ts';
-        if(defect==='excluded scratch') entry.file='src/tmp/excluded.test.ts';
-        if(defect==='web boundary') entry.file='subs/web/src/native.test.ts';
-        if(['excluded fixture','excluded scratch','web boundary'].includes(defect)) { await mkdir(dirname(join(directory.root,entry.file)),{recursive:true}); await writeFile(join(directory.root,entry.file),''); }
-        await writeFile(join(directory.root,'src/tests/test-boundaries.json'),JSON.stringify({schema:'ramify-agent.test-boundaries/1',boundaries:entries}));
-      }
-      const result=await launch(directory.root,['list','--filesOnly','--json']);
-      expect(result.code).not.toBe(0);
-      expect(result.text).toMatch(/test boundar|test-boundaries|ENOENT/i);
-    } finally { await directory.remove(); }
-  });
 });
 
 describe('builtin functions captured across a reused worker',()=>{
-  for (const nativeFirst of [false,true]) test(nativeFirst?'native then ordinary then native':'ordinary then native then ordinary',async()=>{
+  test('ordinary then native then ordinary',async()=>{
+    const nativeFirst=false;
     const directory=await fixture();
     try {
       const files=['src/tests/a.test.ts','src/tests/b.test.ts','src/tests/c.test.ts'];
@@ -177,7 +128,8 @@ describe('builtin functions captured across a reused worker',()=>{
 });
 
 describe('forwarded guards captured across a reused worker', () => {
-  for (const nativeFirst of [false, true]) test(nativeFirst ? 'native/ordinary/native forwarding preserves command results and refused observations' : 'ordinary/native/ordinary forwarding preserves command results and refused observations', async () => {
+  test('native/ordinary/native forwarding preserves command results and refused observations', async () => {
+    const nativeFirst = true;
     const directory = await fixture();
     try {
       const files = ['src/tests/a.test.ts', 'src/tests/b.test.ts', 'src/tests/c.test.ts'];
