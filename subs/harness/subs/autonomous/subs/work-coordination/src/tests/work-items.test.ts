@@ -108,8 +108,8 @@ describe('a run whose work items need no change', () => {
       // The package is appended to the session once; the organizing turn names it by hash.
       'context-package-append-requested', 'context-package-appended', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended',
       'obligation-reported', 'outline-revised', 'gate-committing', 'gate-attempted', 'work-item-completed', 'session-finished',
-      'nonfunctional-phase-started', 'candidate-prepared', 'nonfunctional-assessed', 'nonfunctional-round-closed',
-      'gate-committing', 'gate-attempted', 'candidate-bound-to-gate', 'session-finished', 'job-completed',
+      'nonfunctional-phase-started', 'candidate-prepared', 'gate-committing', 'gate-attempted',
+      'nonfunctional-assessed', 'candidate-bound-to-gate', 'nonfunctional-round-closed', 'session-finished', 'job-completed',
     ]);
 
     // One event holds every record of the analysis phase.

@@ -183,7 +183,11 @@ describe('scratch setup before a run uses it', () => {
       return ++audits === 1 ? { ...result, verdict: 'fail' as const, detail: 'Scripted first baseline failed' } : result;
     } };
     const opened = await openRuns(root, { git, script: [{ kind: 'submit', input: emptyAnalysis() }],
-      configuredAudit, candidates: strictScratchCandidates(root, [{ operation: 'commitTree', args: [root, source], answer: 'a'.repeat(40) }]) });
+      configuredAudit, candidates: strictScratchCandidates(root, [
+        { operation: 'commitTree', args: [root, source], answer: 'a'.repeat(40) },
+        { operation: 'commitTree', args: [root, source], answer: 'a'.repeat(40) },
+        { operation: 'commitTree', args: [root, source], answer: 'a'.repeat(40) },
+      ]) });
     cleanups.push(() => opened.service.close());
     const first = await opened.service.execute(startRun(plan));
     await opened.service.settled(plan, first.jobId);

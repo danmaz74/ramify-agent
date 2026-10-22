@@ -10,7 +10,6 @@ import { declaringScenarios } from './helpers/declarations.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';
 import { commandResult } from './helpers/command-result.js';
-import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
 import { gateAttemptSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 
@@ -63,12 +62,15 @@ test.each(['environment', 'target'] as const)('a final check %s repair resumes q
   } else {
     expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
     expect(events.filter(event => event.type === 'nonfunctional-final-invalidated')).toHaveLength(1);
-    expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(3);
-    const refusal = events.find(event => event.type === 'gate-attempted' && event.data.next === 'return-to-local-architect')!;
-    if (refusal.type !== 'gate-attempted') throw new Error('Missing applicability boundary');
-    const record = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, runLayout.gate(refusal.data.gate)), 'utf8')));
-    const explanation = (await gateDiagnostics(record, 'local-architect')).summary.join('\n');
-    expect(explanation).toContain('candidate');
+    const finals = events.filter((event): event is Extract<(typeof events)[number], { type: 'gate-attempted' }> =>
+      event.type === 'gate-attempted').filter(event => event.data.checkpoint === 'final');
+    expect(finals).toHaveLength(2);
+    expect(finals.map(event => event.data.verdict)).toEqual(['not-verified', 'passed']);
+    const record = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, runLayout.gate(finals[1]!.data.gate)), 'utf8')));
+    expect(record.audited).toBe('corrected-head');
+    expect(events.filter(event => event.type === 'candidate-bound-to-gate')).toMatchObject([
+      { data: { gate: finals[1]!.data.gate, commit: 'corrected-head', tree: repairedTree } },
+    ]);
     expect(events.filter(event => event.type === 'external-candidate-observed')).toHaveLength(1);
   }
   const attempted = events.filter(event => event.type === 'gate-attempted').map(event => event.data.gate);

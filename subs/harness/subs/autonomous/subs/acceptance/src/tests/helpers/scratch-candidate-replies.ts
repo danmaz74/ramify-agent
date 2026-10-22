@@ -9,7 +9,7 @@ export function scratchCandidateReplies(root: string, replies: readonly { operat
   const candidates = Object.fromEntries(operations.map(operation => [operation, async (...args: unknown[]) => {
     try {
       expect(args[0]).toBe(root);
-      const reply = replies[used++]; expect(reply, 'undeclared candidate operation').toBeDefined();
+      const reply = replies[used++]; expect(reply, `undeclared candidate operation ${operation} ${JSON.stringify(args)}`).toBeDefined();
       expect(operation).toBe(reply!.operation); expect(args).toEqual(reply!.args); return reply!.answer;
     } catch (error) { errors.push(error); throw error; }
   }])) as unknown as CandidateSource;
