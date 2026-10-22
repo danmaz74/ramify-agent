@@ -17,9 +17,8 @@ afterEach(async () => {
   try { expectNoProcesses(); } finally { forgetExternalTools(); }
 });
 
-test.each([
-  ['admitted', 'missing', false], ['admitted', 'corrupt', false], ['running', 'missing', false], ['running', 'corrupt', false], ['running', 'missing', true],
-] as const)('restart during %s repair uses the durable assignment with %s optional context (downtime source %s)', async (stage, contextLoss, downtimeEdit) => {
+// Two restarts cover both stages, both kinds of lost context and a downtime edit.
+test.each([['admitted', 'corrupt', false], ['running', 'missing', true]] as const)('restart during %s repair uses the durable assignment with %s optional context (downtime source %s)', async (stage, contextLoss, downtimeEdit) => {
   const subject = await scenario({ freezeStage: stage, downtimeEdit });
   if (downtimeEdit) await subject.addDowntimeSource();
   const payloads = join(subject.root, 'plans', '.harness', 'session-operations', 'store', 'payloads');

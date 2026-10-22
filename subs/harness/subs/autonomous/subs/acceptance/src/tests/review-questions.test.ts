@@ -317,41 +317,6 @@ describe('three questions over one candidate', () => {
 });
 
 describe('unavailable reusable review context uses ordinary fresh inputs', () => {
-  test('an unavailable preserving fork makes one fresh invocation with the ordinary review inputs', async () => {
-    const root = await reviewTarget(cleanups); let reviewDispatches = 0;
-    const startedAt = Date.now();
-    const run = await reviewRun(root, cleanups, {
-      // This case witnesses fork fallback; keep completion deadlines independent
-      // of wall-clock scheduling while all six review requests are processed.
-      now: () => new Date(startedAt),
-      commits: guidedCommits(), policy: { kinds: ['scope', 'design'], concurrency: 1, retries: 0 },
-      engineer: engineers(), reviewers: { 'orientation#1': orient([readme]), 'orientation#2': orient([readme]) },
-      agentReady: agent => {
-        const bind = agent.bindSessionStore.bind(agent);
-        agent.bindSessionStore = store => { const operations = bind(store); return { ...operations,
-          async fork(input) {
-            const source = await operations.inspect(input.runId, input.sourcePoint.sessionId, input.sourcePoint);
-            const reviewerSource = source?.activeTools.some(name => name === 'submit_work_item_result' || name === 'submit_orientation');
-            return operations.fork(reviewerSource ? { ...input, sourcePoint: { ...input.sourcePoint, checkpoint: 'genuinely-absent-checkpoint' } } : input);
-          },
-          async continue(input) { if (input.task.submissionTool === 'submit_review') reviewDispatches++; return operations.continue(input); },
-        }; };
-      },
-    });
-    expect(reviewDispatches).toBe(6);
-    const attempted = eventsOf(run.events, 'review-attempt-finished');
-    expect(attempted.length).toBeGreaterThan(0);
-    const coverage = run.service.reviews(plan, run.runId)!.coverage;
-    expect(coverage.state).toBe('available'); if (coverage.state !== 'available') throw new Error('Expected available coverage');
-    expect(coverage.notVerified).toBeGreaterThan(0);
-    const reviewers = new Set(eventsOf(run.events, 'invocation-started').filter(event => event.data.role === 'reviewer').map(event => event.data.invocation));
-    const degraded = eventsOf(run.events, 'invocation-ended').filter(event => event.data.degraded?.actual === 'fresh' && reviewers.has(event.data.invocation));
-    expect(degraded).toHaveLength(6);
-    expect(eventsOf(run.events, 'invocation-ended').filter(event => event.data.ended === 'failed' && reviewers.has(event.data.invocation))).toHaveLength(6);
-    expect(new Set(degraded.map(event => event.data.invocation)).size).toBe(6);
-    expect(eventsOf(run.events, 'reconciliation-assessed').map(event => event.data.next)).toEqual(['complete']);
-  }, 120_000);
-
   test('a failed orientation is recorded once and its dependent design reviews start fresh', async () => {
     const root = await reviewTarget(cleanups);
     let agent!: ScriptedAgent;

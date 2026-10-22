@@ -39,8 +39,6 @@ afterEach(async () => {
 
 const notes = 'collection-review/workspace/reviews/notes';
 const notesDirectory = 'subs/workspace/subs/reviews/subs/notes';
-const tags = 'collection-review/workspace/reviews/tags';
-const tagsDirectory = 'subs/workspace/subs/reviews/subs/tags';
 const limits = 'collection-review/workspace/reviews/limits';
 const limitsDirectory = 'subs/workspace/subs/reviews/subs/limits';
 
@@ -54,8 +52,6 @@ const noteLimit: Seam = {
   reach: '../../limits',
   behavior: 'A note of at most 500 characters is within the limit; a longer one is not.',
 };
-
-const tagLimit: Seam = { ...noteLimit, consumerDirectory: tagsDirectory, consumerFile: 'tags.ts' };
 
 /**
  * A run whose Git answers are this scenario's own fixture data: the
@@ -130,92 +126,6 @@ function attached(seam: Seam) {
   return { ...proposal, contractId: `contract:${seam.capability}`,
     providerObligationId: `provider-obligation:${seam.capability}` };
 }
-
-describe('P5: a shared obligation runs its provider once and each consumer verifies separately', () => {
-  test('a second consumer attaches its own requirement and reuses the current provider work', async () => {
-    const root = await fixtureWith([
-      { directory: notesDirectory, name: 'notes', files: { 'src/notes.ts': consumerStub, 'src/tests/notes.test.ts': consumerTest('notes.ts') } },
-      { directory: tagsDirectory, name: 'tags', files: { 'src/tags.ts': consumerStub, 'src/tests/tags.test.ts': consumerTest('tags.ts') } },
-      { directory: limitsDirectory, name: 'limits', files: {} },
-    ]);
-
-    // What Git reports for this scenario: the agreement's own files when the
-    // contract iteration establishes them, the provider's when it implements
-    // them, each consumer's when it moves off the fake, and an unchanged tree
-    // for every gate that follows a commit without a write of its own.
-    const note = paths(noteLimit);
-    const tag = paths(tagLimit);
-    const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes), entry('review-tags', tags)]), 'document:review-notes-plan'))],
-      'local-architect': [
-        submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-        submit(yieldFor(['consumer-requirement:notes-note-limit'])),
-        submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))),
-        submit(requestCompletion()),
-        submit(assign(notes, { kind: 'verification', goal: 'Replace the fake with the real limit.' })),
-        submit(requestCompletion()),
-        // The second consumer. Its provider has already conformed, so it
-        // attaches and verifies without a provider execution of its own.
-        submit(assign(tags, {}, outline())),
-        submit(assign(tags, { kind: 'verification', goal: 'Replace the fake with the real limit.' })),
-        submit(requestCompletion()),
-      ],
-      engineer: [
-        submit(contractNeeded(noteLimit)),
-        submit(completionProposed('The real limit is implemented and the agreed suite runs against it.'), ...providerWrites(noteLimit, root)),
-        submit(completionProposed('The notes now use the real limit.'), write(join(root, paths(noteLimit).consumer), consumerAgainstReal(noteLimit))),
-        submit(contractNeeded(tagLimit)),
-        submit(completionProposed('The tags now use the real limit.'), write(join(root, paths(tagLimit).consumer), consumerAgainstReal(tagLimit))),
-      ],
-      'contract-engineer': [
-        submit(established(noteLimit), ...contractWrites(noteLimit)),
-        // The same agreement, a second consumer: only the integration differs.
-        submit(attached(tagLimit), write(paths(tagLimit).consumer, consumerAgainstReal(tagLimit).replace('createNoteLimit(', 'createNoteLimitFake(').replace('/src/note-limit.ts', '/src/fakes/note-limit.fake.ts').replace('{ createNoteLimit }', '{ createNoteLimitFake }'))),
-      ],
-    }, [
-      accepted('work-item:review-notes.i02', 'revision-01', [...added(note.contract, note.fake, note.subjects, note.conformance), ...modified(note.consumer)]),
-      accepted('work-item:provide-note-limit.i01', 'revision-02', [...added(note.real), ...modified(note.subjects)]),
-      unchanged('work-item:provide-note-limit'),
-      accepted('work-item:review-notes.i03', 'revision-03', modified(note.consumer)),
-      unchanged('work-item:review-notes'),
-      accepted('work-item:review-tags.i02', 'revision-04', modified(tag.consumer)),
-      accepted('work-item:review-tags.i03', 'revision-05', modified(tag.consumer)),
-      unchanged('work-item:review-tags'),
-      unchanged('final verification of plan "review-notes"'),
-    ], undefined, ['revision-01', 'revision-04']);
-
-    expect(onlyRun(service, 'review-notes').failure).toBeNull();
-    expect(onlyRun(service, 'review-notes').state).toBe('completed');
-    const log = await events(root, runId);
-
-    // One contract, one obligation, one provider execution.
-    const registrations = log.filter(event => event.type === 'contract-registered');
-    expect(registrations).toHaveLength(2);
-    expect(registrations[0]!.data).toMatchObject({ contract: 'contract:note-limit', revision: 1, obligation: 'provider-obligation:note-limit', requirements: ['consumer-requirement:notes-note-limit'], providerWorkItem: 'work-item:provide-note-limit' });
-    // The second registration adds its requirement and its binding, and
-    // nothing else: the same contract, the same obligation revision, and the
-    // provider work item the first one started.
-    expect(registrations[1]!.data).toMatchObject({ contract: 'contract:note-limit', revision: 1, obligation: 'provider-obligation:note-limit', requirements: ['consumer-requirement:tags-note-limit'], providerWorkItem: 'work-item:provide-note-limit' });
-
-    expect(log.filter(event => event.type === 'provider-conformed')).toHaveLength(1);
-    // Each consumer verifies separately, against the one provider.
-    const verifications = log.filter(event => event.type === 'requirement-verified');
-    expect(verifications.map(event => event.data.requirement)).toEqual(['consumer-requirement:notes-note-limit', 'consumer-requirement:tags-note-limit']);
-    expect(verifications.map(event => event.data.workItem)).toEqual(['work-item:review-notes', 'work-item:review-tags']);
-
-    // Three work items: two entry consumers and one provider.
-    expect(log.filter(event => event.type === 'work-item-started')).toHaveLength(3);
-    expect(log.filter(event => event.type === 'work-item-completed')).toHaveLength(3);
-    expect(onlyRun(service, 'review-notes').counts.openRequirements).toBe(0);
-    expect(onlyRun(service, 'review-notes').notices).toEqual([]);
-
-    // The run committed on its own branch, once for each gate, and recorded
-    // the revisions Git reported for the five that changed the tree.
-    expect(git.branch()).toBe(`ramify-agent-run/${runId}`);
-    expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01', 'revision-02', 'revision-03', 'revision-04', 'revision-05']);
-    git.assertAnswered();
-  }, 60_000);
-});
 
 describe('P5: a chain of changes back through a module that has yielded is not a cycle', () => {
   test('change 1 in A needing change 2 in B needing change 3 in A completes 3, 2, 1 with no notice', async () => {

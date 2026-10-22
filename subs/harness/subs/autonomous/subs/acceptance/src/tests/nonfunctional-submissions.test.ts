@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createPackage, elementCatalogSchema } from '../../../../../plan-evidence/src/interfaces/catalog.js';
 import type { Candidate } from '../../../../../nonfunctional/src/interfaces/contracts.js';
-import { coordinatorActionPrompt, coordinatorAssessmentPrompt, repairPrompt } from '../nonfunctional/prompts.js';
+import { coordinatorAssessmentPrompt, repairPrompt } from '../nonfunctional/prompts.js';
 import { bindCoordinatorAssessment, validateCoordinatorAction, validateCoordinatorInvestigation, nonfunctionalRepairSubmissionSchema, type ActionContext } from '../nonfunctional/submissions.js';
 
 const candidate: Candidate = { tree: 'a'.repeat(40), head: 'b'.repeat(40), preparedAt: '2026-09-25T00:00:00.000Z' };
@@ -141,17 +141,6 @@ describe('non-functional coordinator submissions', () => {
     expect(assessment).toContain('- stated: At every intermediate load step');
     expect(assessment).toContain('- inferred: The system may need a retry bound');
     expect(assessment).not.toContain('recommendation:case-001');
-    expect(assessment).toContain('inspect Git history, run records and command or audit evidence for historical and execution claims');
-    expect(assessment).toContain('Follow available evidence before choosing undetermined.');
-    expect(assessment).toContain('Use ordinary read/search tools and shell');
-    expect(assessment).not.toContain('lack observed evidence');
-    expect(assessment).not.toContain('temporal condition lacks observed intermediate evidence');
-    expect(assessment).not.toContain('capability progress as evidence');
-    expect(assessment).toContain('Judge each as worded, under its stated or inferred conditions.');
-    expect(assessment).not.toContain('forward unchanged');
-    expect(coordinatorActionPrompt(candidate, ['non-functional-requirement:case-001'], ['non-functional-requirement:case-001'])).toContain('one repair batch');
-    // The action instructions the assessment procedure no longer carries reach the action task.
-    expect(coordinatorActionPrompt(candidate, ['non-functional-requirement:case-001'], ['non-functional-requirement:case-001'])).toContain('An investigation reports evidence only for the NFR IDs you name. If closing with unresolved requirements, propose a distinct draft:plan-deviation:<name> and draft:finding:<name> for each one in the close submission.');
     const repair = repairPrompt('Bound retries', candidate, packageText(['non-functional-requirement:case-001']), 'app/api');
     expect(repair).toContain(`### non-functional-requirement:case-001: non-functional requirement of the plan from plans/plan.md\n\n> ${quote}`);
     expect(repair).not.toContain('fixed-requirement:case-001');

@@ -1,6 +1,6 @@
 import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { coordinatorActionToolName, coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
 import { intakeToolName } from '../../../planning/src/extraction.js';
 import type { CheckFindingUserCommand } from '../../../../../../src/interfaces/protocol/check-findings.js';
@@ -32,27 +32,6 @@ afterEach(async () => {
   try { expect(spawnAttempts(), 'ordinary NFR setup/flow/teardown process attempts').toEqual([]); } catch (error) { errors.push(error); }
   if (errors.length) throw new AggregateError(errors, 'NFR fixture teardown failed');
 });
-const browserCases: Record<string, unknown> = {};
-const trial: Record<string, unknown> = {};
-afterAll(async () => {
-  const target = process.env.PLAN13_READINESS_EXPORT;
-  if (target) await writeFile(target, JSON.stringify({
-    source: { kind: 'run-ledger-projection', test: 'nonfunctional-deviation-runtime.test.ts' },
-    expected: { quote, sourcePath: `plans/${plan}/plan.md` }, trial, cases: browserCases,
-  }, null, 2));
-});
-
-async function captureBrowserCase(name: string, queries: RunQueries, runId: string, version: number) {
-  if (!process.env.PLAN13_READINESS_EXPORT) return;
-  const page = await queries.events(plan, runId, 0);
-  const findings = await queries.checkFindings(plan, runId,
-    { workItem: null, module: null, select: 'all', order: 'attention', after: null, limit: 20 }, version);
-  const details: Record<string, unknown> = {};
-  for (const finding of findings.items) details[finding.id] = await queries.checkFinding(plan, runId, finding.id, version);
-  browserCases[name] = { run: page.run, events: page.events, readiness: await queries.mergeReadiness(plan, runId, version),
-    findings, details };
-}
-
 /** The intake reads the one non-functional requirement; the architect finds nothing functional to place. */
 const intake = { goal: 'Answer review notes quickly.', elements: [
   { key: 'draft:non-functional-requirement:case-001', kind: 'non-functional', document: 'document:review-notes-plan', text: quote, conditions: [], uncertainty: '' },
@@ -162,14 +141,6 @@ test('an NFR-only exhausted run completes pending review with an exact source-bo
   const events = await runEventsOnDisk(fixture.root, plan, receipt.jobId);
   expect(events.filter(event => event.type === 'nonfunctional-round-closed')).toHaveLength(1);
   expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(1);
-  const acceptedCatalog = events.find(event => event.type === 'analysis-accepted');
-  const boundCandidate = events.find(event => event.type === 'candidate-bound-to-gate');
-  if (acceptedCatalog?.type !== 'analysis-accepted' || !acceptedCatalog.data.evidence
-    || boundCandidate?.type !== 'candidate-bound-to-gate') throw new Error('Missing accepted catalog or bound candidate');
-  Object.assign(trial, { runId: receipt.jobId, catalogHash: acceptedCatalog.data.evidence.catalog.hash,
-    roundsClosed: 1, assessments: 1, candidate: boundCandidate.data.candidate, tree: boundCandidate.data.tree,
-    finalGate: boundCandidate.data.gate, gateCommit: boundCandidate.data.commit,
-    deviations: events.filter(event => event.type === 'nonfunctional-deviations-recorded').flatMap(event => event.data.deviations).length });
   expect(events.filter(event => event.type === 'nonfunctional-deviations-recorded')).toHaveLength(1);
   const deviation = events.find(event => event.type === 'nonfunctional-deviations-recorded');
   if (deviation?.type !== 'nonfunctional-deviations-recorded') throw new Error('Missing nonfunctional deviation');
@@ -180,7 +151,6 @@ test('an NFR-only exhausted run completes pending review with an exact source-bo
   const version = opened.service.getRun(plan, receipt.jobId)!.version;
   const readiness = await queries.mergeReadiness(plan, receipt.jobId, version);
   expect(readiness.readiness).toMatchObject({ status: 'pending-review', checkFindings: ['finding:case-0001'] });
-  await captureBrowserCase('pending', queries, receipt.jobId, version);
   const findings = await queries.checkFindings(plan, receipt.jobId,
     { workItem: null, module: null, select: 'all', order: 'attention', after: null, limit: 20 }, version);
   expect(findings.items[0]?.planDeviation).toMatchObject({ origin: { kind: 'nonfunctional-assessment', nfr: 'non-functional-requirement:case-001' },
@@ -196,7 +166,6 @@ test('an NFR-only exhausted run completes pending review with an exact source-bo
   expect(await opened.service.execute(accept)).toEqual(accepted);
   const afterAccept = opened.service.getRun(plan, receipt.jobId)!.version;
   expect((await queries.mergeReadiness(plan, receipt.jobId, afterAccept)).readiness.status).toBe('ready');
-  await captureBrowserCase('accepted', queries, receipt.jobId, afterAccept);
   expect((await runEventsOnDisk(fixture.root, plan, receipt.jobId)).filter(event => event.type === 'candidate-bound-to-gate')).toEqual(gate ? [gate] : []);
   const revoke: CheckFindingUserCommand = { commandId: 'revoke-nfr-1', expectedVersion: afterAccept,
     type: 'revoke-check-finding-waiver', payload: { planId: plan, jobId: receipt.jobId, responder: 'dan',
@@ -206,13 +175,6 @@ test('an NFR-only exhausted run completes pending review with an exact source-bo
   expect((await queries.mergeReadiness(plan, receipt.jobId, afterRevoke)).readiness.status).toBe('pending-review');
   await expect(opened.service.execute({ ...accept, commandId: 'stale-nfr-1', expectedVersion: afterRevoke })).rejects.toMatchObject({ code: 'conflict' });
   expect((await queries.mergeReadiness(plan, receipt.jobId, afterRevoke)).readiness.status).toBe('pending-review');
-  trial.acceptedAndRevokedCommands = (await runEventsOnDisk(fixture.root, plan, receipt.jobId))
-    .filter(event => event.type === 'check-findings-recorded' && event.data.cause.kind === 'user-command').length;
-  if (process.env.PLAN13_READINESS_EXPORT) {
-    await rm(join(fixture.root, 'plans', plan, '.harness', 'jobs', receipt.jobId, acceptedCatalog.data.evidence.catalog.path));
-    expect((await queries.mergeReadiness(plan, receipt.jobId, afterRevoke)).readiness.status).toBe('unavailable');
-    await captureBrowserCase('source-unavailable', queries, receipt.jobId, afterRevoke);
-  }
 }, 30_000);
 
 test('accepting an exhausted NFR cannot waive a failed final test gate', async () => {
@@ -236,7 +198,6 @@ test('accepting an exhausted NFR cannot waive a failed final test gate', async (
       checkFinding: finding.id, expectedRevision: finding.revision, request, option: 'accept' } });
   const after = opened.service.getRun(plan, receipt.jobId)!.version;
   expect((await queries.mergeReadiness(plan, receipt.jobId, after)).readiness.status).toBe('gate-failed');
-  await captureBrowserCase('gate-failed', queries, receipt.jobId, after);
   expect((await runEventsOnDisk(fixture.root, plan, receipt.jobId)).filter(event => event.type === 'gate-attempted'
     && event.data.checkpoint === 'final')).toEqual([failedGate]);
   expect(await queries.gate(plan, receipt.jobId, failedGate.data.gate)).toEqual(durableGate);
@@ -257,7 +218,6 @@ test('a rejected NFR decision remains current after a ledger rebuild and require
   await opened.service.execute(command);
   const after = opened.service.getRun(plan, receipt.jobId)!.version;
   expect((await queries.mergeReadiness(plan, receipt.jobId, after)).readiness.status).toBe('rejected');
-  await captureBrowserCase('rejected', queries, receipt.jobId, after);
   const rejected = await queries.checkFindings(plan, receipt.jobId,
     { workItem: null, module: null, select: 'all', order: 'attention', after: null, limit: 20 }, after);
   expect(rejected.items[0]?.planDeviation).toMatchObject({ followUp: 'Rework the response path before merge' });

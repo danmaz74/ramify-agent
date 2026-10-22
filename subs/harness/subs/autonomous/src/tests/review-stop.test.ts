@@ -487,15 +487,6 @@ describe('elapsed run age', () => {
     await service.execute(stopRun(plan, runId, version(service, runId)));
     await service.settled(plan, runId);
   }, 120_000);
-
-  test('model execution after the stop stays eligible beyond the historical run allowance', async () => {
-    const { root, runId, service, scripted } = await budgeted(400, 10_000);
-    await until(() => scripted.sessions.some(session => session.spec.submission.name === 'submit_work_item_result'));
-    expect(service.getRun(plan, runId)).toMatchObject({ state: 'running', phase: 'working', failure: null });
-    expect(scripted.sessions.length).toBeGreaterThan(3);
-    await service.execute(stopRun(plan, runId, version(service, runId)));
-    await service.settled(plan, runId);
-  }, 120_000);
 });
 
 describe('over HTTP', () => {

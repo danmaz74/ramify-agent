@@ -111,7 +111,7 @@ export async function scenario(options: { delegated?: boolean; blocked?: boolean
     candidates: final ? candidateAnswers() : undefined });
   const opened = await openRuns(fixture.root, { git, inputs: treeInputs(), script,
     ...(options.resourceRepair ? { policy: (root: string) => { const policy = testPolicy(root, { recovery: true, continuity: true }); return { ...policy,
-      recovery: { ...policy.recovery!, baseDelayMs: 0 }, limits: { ...policy.limits, runAbsoluteMs: 1, maxInvocationsPerRun: 1 } }; } } : {}),
+      recovery: { ...policy.recovery!, baseDelayMs: 0 } }; } } : {}),
     candidates: final ? candidateAnswers() : undefined,
     afterWrite: async (write, runId) => {
       if (write === 'invocation-ended' && options.unsettledRepair) {
