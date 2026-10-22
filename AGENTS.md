@@ -139,6 +139,17 @@ process launches automatically. Actual tool/kernel claims require an exact
 reviewed entry in `src/tests/test-boundaries.json`. Full audits retain every
 configured project.
 
+## Test pruning
+
+Use [test-pruning](.claude/skills/test-pruning/SKILL.md) to remove redundant
+or inefficient tests: Vitest copies of Cucumber scenarios, boundary files that
+wrap whole workflows, tests of other tools, behaviors proven at several
+layers, sweeps outside `*.stress.ts`, run-state compatibility tests, tests of
+test doubles and constant locks. It measures from the latest audit report,
+requires a named owner for every deletion and re-qualifies with a default-mode
+audit. The shared skill lives in `.claude/skills/` and is linked from
+`.agents/skills/` for Codex.
+
 ## Plans for harness execution
 
 Use [ramify-agent-plan](.claude/skills/ramify-agent-plan/SKILL.md) to write,
