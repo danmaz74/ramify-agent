@@ -10,8 +10,8 @@ import { reviewToolName } from '../../../../../reviews/src/submission.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 import { completionProposed, submit, write } from '../../../../../../src/tests/helpers/iterations.js';
 import type { ScriptedCandidates } from './helpers/candidates.js';
-import { attemptRecord, candidates, eventsOf, gate, limit, notesDirectory, plan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
-import { onlyRun, runEventsOnDisk, runPath, stopRun } from '../../../../../../src/tests/helpers/runs.js';
+import { attemptRecord, candidates, eventsOf, finalReviewTree, gate, limit, notesDirectory, plan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
+import { onlyRun, runEventsOnDisk, runPath, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
 
 vi.mock('node:child_process', async original =>
   (await import('../../../../../../src/tests/helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
@@ -151,19 +151,36 @@ describe('precollected candidate patches in actual review invocations', () => {
     run.git.assertComplete();
   }, 60_000);
 
-  test('a failed patch collection records unavailable evidence before any reviewer starts for that candidate', async () => {
+  test('a failed patch collection pauses for recovery before any reviewer starts for that candidate', async () => {
     const root = await reviewTarget(cleanups);
     const run = await reviewRun(root, cleanups, {
-      candidates: source => source.fail('diffPatch', 'revision-01'),
+      detached: true,
+      previews: Array.from({ length: 2 }, () => ({ repositoryRoot: root, head: 'revision-01', tree: 'a'.repeat(40) })).concat(
+        Array.from({ length: 4 }, () => ({ repositoryRoot: root, head: 'revision-03', tree: finalReviewTree }))),
+      candidates: source => {
+        const ordinary = source.diffPatch.bind(source);
+        let unavailable = true;
+        vi.spyOn(source, 'diffPatch').mockImplementation(async (...args) => {
+          if (args[2] === 'revision-01' && unavailable) { unavailable = false; throw new Error('Scripted patch collection unavailable'); }
+          return ordinary(...args);
+        });
+      },
       engineer: engineers(),
-      reviewers: { 'rq-0002': [clean(limit)], 'rq-0003': [clean(store, index)] },
+      reviewers: { 'rq-0001': [clean(store)], 'rq-0002': [clean(limit)], 'rq-0003': [clean(store, index)] },
     });
+    cleanups.push(() => run.service.close());
+    await until(() => run.service.events(plan, run.runId)!.some(event => event.type === 'operation-recovery-paused'));
+    expect(run.agent!.sessions.filter(session => session.spec.role === 'reviewer')).toHaveLength(0);
+    await run.service.execute({ type: 'resume-recovery', commandId: 'retry-review-patch', expectedVersion: 0,
+      payload: { planId: plan, jobId: run.runId } });
+    await run.service.settled(plan, run.runId);
     expect(onlyRun(run.service, plan).state).toBe('completed');
-    const attempt = await attemptRecord(root, run.runId, 'rq-0001.a01');
-    expect(attempt).toMatchObject({ invocation: null, result: { result: 'not-verified', reason: 'unavailable' } });
-    expect(eventsOf(run.events, 'review-attempt-started').map(event => event.data.request)).not.toContain('rq-0001');
-    expect(run.agent!.sessions.filter(session => session.spec.role === 'reviewer')).toHaveLength(2);
-    expect(eventsOf(run.events, 'review-attempt-finished').filter(event => event.data.request !== 'rq-0001').every(event => event.data.result === 'complete')).toBe(true);
+    const events = await runEventsOnDisk(root, plan, run.runId);
+    expect(eventsOf(events, 'operation-recovery-paused')).toHaveLength(1);
+    expect(eventsOf(events, 'review-attempt-finished').map(event => [event.data.request, event.data.result])).toEqual([
+      ['rq-0001', 'complete'], ['rq-0002', 'complete'], ['rq-0003', 'complete'],
+    ]);
+    expect((await attemptRecord(root, run.runId, 'rq-0001.a01')).result).toMatchObject({ result: 'complete' });
     run.git.assertComplete();
   }, 60_000);
 

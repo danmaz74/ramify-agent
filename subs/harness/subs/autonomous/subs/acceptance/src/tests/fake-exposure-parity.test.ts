@@ -437,7 +437,8 @@ async function target() {
 
 async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly CommitResponse[], finalHead: string) {
   const final = finalCandidate(root, finalHead);
-  const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits], previews: final.previews });
+  const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits],
+    previews: [{ repositoryRoot: root, head: 'revision-02', tree: 'a'.repeat(40) }, ...final.previews] });
   const opened = await openRuns(root, { script: byRole(plan), inputs: viewedTree(), git,
     candidates: final.candidates, });
   cleanups.push(() => opened.service.close());
