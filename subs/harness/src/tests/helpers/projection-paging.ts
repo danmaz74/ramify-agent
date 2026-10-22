@@ -15,7 +15,7 @@ export async function recordedProjectionPaging() {
   async function boundaries() {
     // Oracle: one registry, 105 work items, two sessions, in recorded source order.
     const expectedKeys = ['session:ses-0001', 'capability:paging',
-      ...Array.from({ length: 105 }, (_, n) => `work-item:wi-${String(n).padStart(3, '0')}`), 'session:ses-0002'];
+      ...Array.from({ length: 105 }, (_, n) => `work-item:paging-${String(n).padStart(3, '0')}`), 'session:ses-0002'];
     const keys: string[] = [];
     let cursor: string | undefined;
     do {

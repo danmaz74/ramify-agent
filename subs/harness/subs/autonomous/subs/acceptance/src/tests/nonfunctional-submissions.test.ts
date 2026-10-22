@@ -7,16 +7,16 @@ import { bindCoordinatorAssessment, validateCoordinatorAction, validateCoordinat
 const candidate: Candidate = { tree: 'a'.repeat(40), head: 'b'.repeat(40), preparedAt: '2026-09-25T00:00:00.000Z' };
 const quote = 'Latency stays low.';
 const catalog = elementCatalogSchema.parse({
-  schema: 'ramify-agent.element-catalog/1', manifestHash: 'd'.repeat(64),
-  documents: [{ id: 'doc-001', path: 'plans/plan.md', kind: 'plan' }, { id: 'doc-002', path: 'docs/a.principles.md', kind: 'principle' }],
+  schema: 'ramify-agent.element-catalog/2', manifestHash: 'd'.repeat(64),
+  documents: [{ id: 'document:case-001', path: 'plans/plan.md', kind: 'plan' }, { id: 'document:case-002', path: 'docs/a.principles.md', kind: 'principle' }],
   elements: [
-    { id: 'nfr-001', kind: 'non-functional', document: 'doc-001', text: quote,
+    { id: 'non-functional-requirement:case-001', kind: 'non-functional', document: 'document:case-001', text: quote,
       conditions: [{ text: 'At every intermediate load step', source: 'stated' }], uncertainty: '' },
-    { id: 'rec-001', kind: 'recommendation', document: 'doc-001', text: 'Prefer small retries.', conditions: [], uncertainty: '' },
-    { id: 'fix-001', kind: 'fixed', document: 'doc-002', text: 'Retries are bounded.',
+    { id: 'recommendation:case-001', kind: 'recommendation', document: 'document:case-001', text: 'Prefer small retries.', conditions: [], uncertainty: '' },
+    { id: 'fixed-requirement:case-001', kind: 'fixed', document: 'document:case-002', text: 'Retries are bounded.',
       conditions: [{ text: 'The system may need a retry bound', source: 'inferred' }], uncertainty: 'May be advice' },
   ],
-  retired: [],
+  retired: [], replacements: [],
 });
 const packageText = (elements: readonly string[]): string => {
   const rendered = createPackage({ catalog, planDeviations: [], elements, deviations: [] });
@@ -25,8 +25,8 @@ const packageText = (elements: readonly string[]): string => {
 };
 
 const results = [
-  { nfr: 'nfr-001', result: 'undetermined' as const, inspectedScope: ['src/'], evidence: [], uncertainty: 'No intermediate load measurements' },
-  { nfr: 'fix-001', result: 'not-satisfied' as const, inspectedScope: ['src/'], evidence: ['src/retry.ts'], uncertainty: '' },
+  { nfr: 'non-functional-requirement:case-001', result: 'undetermined' as const, inspectedScope: ['src/'], evidence: [], uncertainty: 'No intermediate load measurements' },
+  { nfr: 'fixed-requirement:case-001', result: 'not-satisfied' as const, inspectedScope: ['src/'], evidence: ['src/retry.ts'], uncertainty: '' },
 ];
 
 const binding = {
@@ -36,7 +36,7 @@ const binding = {
 
 function actionContext(overrides: Partial<ActionContext> = {}): ActionContext {
   return {
-    decision: { action: 'repair-or-close', round: 1, unresolved: ['nfr-001', 'fix-001'] },
+    decision: { action: 'repair-or-close', round: 1, unresolved: ['non-functional-requirement:case-001', 'fixed-requirement:case-001'] },
     results, investigatedNfrs: [], moduleNames: ['app/api'], ...overrides,
   };
 }
@@ -51,7 +51,7 @@ describe('non-functional coordinator submissions', () => {
   });
 
   it('refuses missing, duplicate and recommendation IDs; an explicit empty catalog accepts []', () => {
-    for (const invalid of [results.slice(0, 1), results.slice(1), [...results, results[0]!], [...results, { ...results[0]!, nfr: 'rec-001' }]]) {
+    for (const invalid of [results.slice(0, 1), results.slice(1), [...results, results[0]!], [...results, { ...results[0]!, nfr: 'recommendation:case-001' }]]) {
       expect(bindCoordinatorAssessment({ kind: 'assessment', results: invalid }, binding).ok).toBe(false);
     }
     const empty = elementCatalogSchema.parse({ ...catalog, elements: catalog.elements.filter(element => element.kind === 'recommendation') });
@@ -61,52 +61,70 @@ describe('non-functional coordinator submissions', () => {
   it('retains satisfied judgments with provenance, requires unresolved follow-up and permits a concrete broader result', () => {
     const initial = bindCoordinatorAssessment({ kind: 'assessment', results: [results[0], { ...results[1]!, result: 'satisfied' }] }, binding);
     if (!initial.ok) throw new Error(JSON.stringify(initial.errors));
-    const followUp = { ...binding, previous: initial.value, selected: ['nfr-001'], id: 'nfa-002', phase: 'after-repair' as const };
+    const followUp = { ...binding, previous: initial.value, selected: ['non-functional-requirement:case-001'], id: 'nfa-002', phase: 'after-repair' as const };
     expect(bindCoordinatorAssessment({ kind: 'assessment', results: [] }, followUp).ok).toBe(false);
     const repaired = { ...results[0]!, result: 'satisfied' };
     expect(bindCoordinatorAssessment({ kind: 'assessment', results: [repaired] }, followUp)).toMatchObject({ ok: true, value: {
-      followUp: { assessment: 'nfa-001', reviewed: ['nfr-001'] }, results: [repaired, expect.objectContaining({ nfr: 'fix-001', result: 'satisfied' })],
+      followUp: { assessment: 'nfa-001', reviewed: ['non-functional-requirement:case-001'] }, results: [repaired, expect.objectContaining({ nfr: 'fixed-requirement:case-001', result: 'satisfied' })],
     } });
     expect(bindCoordinatorAssessment({ kind: 'assessment', results: [repaired, { ...results[1]!, evidence: ['Repair changed the retry caller.'] }] }, followUp))
-      .toMatchObject({ ok: true, value: { results: [repaired, expect.objectContaining({ nfr: 'fix-001', result: 'not-satisfied' })] } });
+      .toMatchObject({ ok: true, value: { results: [repaired, expect.objectContaining({ nfr: 'fixed-requirement:case-001', result: 'not-satisfied' })] } });
   });
 
   it('permits sequential investigation of unresolved IDs after the first investigation', () => {
-    const investigate = { kind: 'investigate', nfrs: ['fix-001'], question: 'Inspect the retry path', scope: ['src/retry.ts'] };
-    expect(validateCoordinatorAction(investigate, actionContext({ investigatedNfrs: ['nfr-001'] })).ok).toBe(true);
-    expect(validateCoordinatorAction({ ...investigate, nfrs: ['nfr-001'] }, actionContext({ investigatedNfrs: ['nfr-001'] })).ok).toBe(false);
-    expect(validateCoordinatorAction({ ...investigate, nfrs: ['nfr-001'] }, actionContext({ decision: { action: 'investigate', round: 1, undetermined: ['nfr-001'] } })).ok).toBe(true);
-    expect(validateCoordinatorAction(investigate, actionContext({ decision: { action: 'investigate', round: 1, undetermined: ['nfr-001'] } })).ok).toBe(false);
-    expect(validateCoordinatorAction({ ...investigate, nfrs: ['nfr-999'] }, actionContext()).ok).toBe(false);
-    expect(validateCoordinatorAction({ ...investigate, nfrs: ['rec-001'] }, actionContext()).ok).toBe(false);
+    const investigate = { kind: 'investigate', nfrs: ['fixed-requirement:case-001'], question: 'Inspect the retry path', scope: ['src/retry.ts'] };
+    expect(validateCoordinatorAction(investigate, actionContext({ investigatedNfrs: ['non-functional-requirement:case-001'] })).ok).toBe(true);
+    expect(validateCoordinatorAction({ ...investigate, nfrs: ['non-functional-requirement:case-001'] }, actionContext({ investigatedNfrs: ['non-functional-requirement:case-001'] })).ok).toBe(false);
+    expect(validateCoordinatorAction({ ...investigate, nfrs: ['non-functional-requirement:case-001'] }, actionContext({ decision: { action: 'investigate', round: 1, undetermined: ['non-functional-requirement:case-001'] } })).ok).toBe(true);
+    expect(validateCoordinatorAction(investigate, actionContext({ decision: { action: 'investigate', round: 1, undetermined: ['non-functional-requirement:case-001'] } })).ok).toBe(false);
+    expect(validateCoordinatorAction({ ...investigate, nfrs: ['non-functional-requirement:case-999'] }, actionContext()).ok).toBe(false);
+    expect(validateCoordinatorAction({ ...investigate, nfrs: ['recommendation:case-001'] }, actionContext()).ok).toBe(false);
   });
 
   it('requires investigation of the specific undetermined NFR before repair', () => {
-    const repair = { kind: 'repair', nfrs: ['nfr-001'], startingModule: 'app/api', task: 'Measure and bound load time', evidence: [], uncertainty: '' };
+    const repair = { kind: 'repair', nfrs: ['non-functional-requirement:case-001'], startingModule: 'app/api', task: 'Measure and bound load time', evidence: [], uncertainty: '' };
     expect(validateCoordinatorAction(repair, actionContext()).ok).toBe(false);
-    expect(validateCoordinatorAction(repair, actionContext({ investigatedNfrs: ['nfr-001'] })).ok).toBe(true);
-    expect(validateCoordinatorAction({ ...repair, nfrs: ['fix-001'] }, actionContext()).ok).toBe(true);
+    expect(validateCoordinatorAction(repair, actionContext({ investigatedNfrs: ['non-functional-requirement:case-001'] })).ok).toBe(true);
+    expect(validateCoordinatorAction({ ...repair, nfrs: ['fixed-requirement:case-001'] }, actionContext()).ok).toBe(true);
     expect(validateCoordinatorAction({ ...repair, startingModule: 'unknown' }, actionContext()).ok).toBe(false);
     expect(validateCoordinatorAction(repair, actionContext({ decision: { action: 'assess', round: 1, phase: 'initial' } })).ok).toBe(false);
   });
 
   it('closes only with every unresolved NFR and an alternative or explicit uncertainty', () => {
     const close = { kind: 'close', deviations: [
-      { nfr: 'nfr-001', proposedAlternative: null, uncertainty: 'No intermediate evidence can be obtained' },
-      { nfr: 'fix-001', proposedAlternative: 'Revise the retry bound', uncertainty: '' },
+      { nfr: 'non-functional-requirement:case-001', proposedAlternative: null, uncertainty: 'No intermediate evidence can be obtained', deviationKey: 'draft:plan-deviation:latency', findingKey: 'draft:finding:latency' },
+      { nfr: 'fixed-requirement:case-001', proposedAlternative: 'Revise the retry bound', uncertainty: '', deviationKey: 'draft:plan-deviation:retry-bound', findingKey: 'draft:finding:retry-bound' },
     ] };
     expect(validateCoordinatorAction(close, actionContext()).ok).toBe(true);
     expect(validateCoordinatorAction({ ...close, deviations: close.deviations.slice(0, 1) }, actionContext()).ok).toBe(false);
     expect(validateCoordinatorAction({ ...close, deviations: [{ ...close.deviations[0]!, uncertainty: '' }, close.deviations[1]!] }, actionContext()).ok).toBe(false);
   });
 
+  it('delivers descriptive close keys and rejects occupied or duplicate names before acceptance', () => {
+    const named = { kind: 'close', deviations: [
+      { nfr: 'non-functional-requirement:case-001', proposedAlternative: null, uncertainty: 'No safe alternative was established',
+        deviationKey: 'draft:plan-deviation:preserve-latency', findingKey: 'draft:finding:preserve-latency' },
+      { nfr: 'fixed-requirement:case-001', proposedAlternative: 'Revise retry bound', uncertainty: '',
+        deviationKey: 'draft:plan-deviation:bound-retries', findingKey: 'draft:finding:bound-retries' },
+    ] };
+    expect(validateCoordinatorAction(named, actionContext())).toMatchObject({ ok: true });
+    expect(validateCoordinatorAction({ ...named, deviations: [{ ...named.deviations[0], findingKey: undefined }] }, actionContext()).ok).toBe(false);
+    expect(validateCoordinatorAction(named, actionContext({ occupiedDeviationNames: new Set(['plan-deviation:preserve-latency']) })))
+      .toMatchObject({ ok: false, errors: expect.arrayContaining([expect.objectContaining({ path: 'deviations.0.deviationKey' })]) });
+    expect(validateCoordinatorAction(named, actionContext({ occupiedFindingNames: new Set(['finding:bound-retries']) })))
+      .toMatchObject({ ok: false, errors: expect.arrayContaining([expect.objectContaining({ path: 'deviations.1.findingKey' })]) });
+    expect(validateCoordinatorAction({ ...named, deviations: [named.deviations[0], { ...named.deviations[1],
+      findingKey: named.deviations[0]!.findingKey }] }, actionContext()))
+      .toMatchObject({ ok: false, errors: expect.arrayContaining([expect.objectContaining({ path: 'deviations.1.findingKey' })]) });
+  });
+
   it('binds investigation output to exactly the requested IDs and does not call it satisfaction', () => {
     const result = { kind: 'investigation-result', summary: 'Inspected load path', findings: [
-      { nfr: 'nfr-001', inspectedScope: ['src/'], evidence: ['trace-1'], uncertainty: 'No intermediate trace' },
+      { nfr: 'non-functional-requirement:case-001', inspectedScope: ['src/'], evidence: ['trace-1'], uncertainty: 'No intermediate trace' },
     ] };
-    expect(validateCoordinatorInvestigation(result, ['nfr-001']).ok).toBe(true);
-    expect(validateCoordinatorInvestigation(result, ['fix-001']).ok).toBe(false);
-    expect(validateCoordinatorInvestigation({ ...result, findings: [result.findings[0]!, result.findings[0]!] }, ['nfr-001']).ok).toBe(false);
+    expect(validateCoordinatorInvestigation(result, ['non-functional-requirement:case-001']).ok).toBe(true);
+    expect(validateCoordinatorInvestigation(result, ['fixed-requirement:case-001']).ok).toBe(false);
+    expect(validateCoordinatorInvestigation({ ...result, findings: [result.findings[0]!, result.findings[0]!] }, ['non-functional-requirement:case-001']).ok).toBe(false);
   });
 
   it('repair reports work without a satisfaction verdict', () => {
@@ -116,13 +134,13 @@ describe('non-functional coordinator submissions', () => {
   });
 
   it('carries the package, whole, with its stated/inferred conditions in the prompt', () => {
-    const assessed = packageText(['nfr-001', 'fix-001']);
+    const assessed = packageText(['non-functional-requirement:case-001', 'fixed-requirement:case-001']);
     const assessment = coordinatorAssessmentPrompt(assessed, candidate, 1, 'initial');
     expect(assessment).toContain(assessed.trimEnd());
     expect(assessment).toContain(`> ${quote}`);
     expect(assessment).toContain('- stated: At every intermediate load step');
     expect(assessment).toContain('- inferred: The system may need a retry bound');
-    expect(assessment).not.toContain('rec-001');
+    expect(assessment).not.toContain('recommendation:case-001');
     expect(assessment).toContain('inspect Git history, run records and command or audit evidence for historical and execution claims');
     expect(assessment).toContain('Follow available evidence before choosing undetermined.');
     expect(assessment).toContain('Use ordinary read/search tools and shell');
@@ -131,11 +149,11 @@ describe('non-functional coordinator submissions', () => {
     expect(assessment).not.toContain('capability progress as evidence');
     expect(assessment).toContain('Judge each as worded, under its stated or inferred conditions.');
     expect(assessment).not.toContain('forward unchanged');
-    expect(coordinatorActionPrompt(candidate, ['nfr-001'], ['nfr-001'])).toContain('one repair batch');
+    expect(coordinatorActionPrompt(candidate, ['non-functional-requirement:case-001'], ['non-functional-requirement:case-001'])).toContain('one repair batch');
     // The action instructions the assessment procedure no longer carries reach the action task.
-    expect(coordinatorActionPrompt(candidate, ['nfr-001'], ['nfr-001'])).toContain('An investigation reports evidence only for the NFR IDs you name, and receives those elements whole. The harness assigns every identity.');
-    const repair = repairPrompt('Bound retries', candidate, packageText(['nfr-001']), 'app/api');
-    expect(repair).toContain(`### nfr-001: non-functional requirement of the plan from plans/plan.md\n\n> ${quote}`);
-    expect(repair).not.toContain('fix-001');
+    expect(coordinatorActionPrompt(candidate, ['non-functional-requirement:case-001'], ['non-functional-requirement:case-001'])).toContain('An investigation reports evidence only for the NFR IDs you name. If closing with unresolved requirements, propose a distinct draft:plan-deviation:<name> and draft:finding:<name> for each one in the close submission.');
+    const repair = repairPrompt('Bound retries', candidate, packageText(['non-functional-requirement:case-001']), 'app/api');
+    expect(repair).toContain(`### non-functional-requirement:case-001: non-functional requirement of the plan from plans/plan.md\n\n> ${quote}`);
+    expect(repair).not.toContain('fixed-requirement:case-001');
   });
 });

@@ -2,7 +2,7 @@ import { rootDescription } from '../../../../../../src/tests/helpers/root-descri
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from '../../../work-coordination/src/tests/helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, readDeclaredTree, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
@@ -115,6 +115,9 @@ describe('the contract names what each fake stands for', () => {
   function established(fake: Record<string, unknown>) {
     return {
       kind: 'established',
+      contractKey: 'draft:contract:enrich-diagnostics',
+      providerObligationKey: 'draft:provider-obligation:enrich-diagnostics',
+      consumerRequirementKey: 'draft:consumer-requirement:enrich-diagnostics',
       mode: 'fake-backed',
       authority: { kind: 'provider', owner: validation, rationale: 'The capability\'s public contract belongs with its implementation.' },
       provider: validation,
@@ -140,7 +143,7 @@ describe('the contract names what each fake stands for', () => {
     expect(accepted.ok).toBe(true);
 
     // The submission as the real run made it, with nothing to compare the fake with.
-    const unnamed = await validateContract(established({}), known);
+    const unnamed = await validateContract(established({ standsFor: [] }), known);
     expect(unnamed.ok).toBe(false);
     if (!unnamed.ok) expect(unnamed.errors.map(error => error.path)).toContain('artifacts.fake.0.standsFor');
 
@@ -178,20 +181,24 @@ describe('the contract names what each fake stands for', () => {
     const submission = established({ standsFor: [standsFor('enrichFake', { exposure: reexposed }), standsFor('EnrichFake', { export: 'Enrich' })] });
     const hash = 'e'.repeat(64);
     const registration = registerContract({
-      contract: 'ct-001',
+      contract: 'contract:enrich-diagnostics',
+      obligation: 'provider-obligation:enrich-diagnostics',
       revision: 1,
-      capability: { ref: { id: 'enrich', revision: 1, hash }, slug: 'enrich', decision: null },
+      capability: { ref: { id: 'capability:enrich', revision: 1, hash }, slug: 'capability:enrich', decision: null },
       submission: submission as never,
       hashes: new Map([
         ...submission.artifacts.interface.map(entry => [entry.path, hash] as const),
         ...submission.artifacts.conformance.map(entry => [entry.path, hash] as const),
         ...submission.artifacts.fake.map(entry => [entry.path, hash] as const),
       ]),
-      establishedBy: { iteration: 'wi-001.i02', gate: 'ga-0002' },
-      consumers: [],
+      establishedBy: { iteration: 'work-item:enrich-diagnostics.i02', gate: 'ga-0002' },
+      consumers: [{ requirement: 'consumer-requirement:enrich-diagnostics', workItem: 'work-item:enrich-diagnostics',
+        module: validation, forCapability: 'capability:enrich',
+        tests: { policy: 'owned-by-scope', exactOwners: [validation], subtrees: [], extraSuites: [] },
+        fakeInjections: submission.fakeInjections }],
       provider: { kind: 'none' },
     });
-    expect(registration.contract.schema).toBe('ramify-agent.contract/2');
+    expect(registration.contract.schema).toBe('ramify-agent.contract/3');
     expect(registration.contract.artifacts.fake[0]!.standsFor).toEqual([standsFor('enrichFake', { exposure: reexposed }), standsFor('EnrichFake', { export: 'Enrich' })]);
   });
 });
@@ -265,7 +272,7 @@ describe('the fake-exposure-parity rule', () => {
   });
 
   test('at a later gate, a fake-only exposure the iteration could have written fails, and one it could not is a limit', async () => {
-    const registered = standIn({ contract: 'ct-001', declaredHere: false });
+    const registered = standIn({ contract: 'contract:enrich-diagnostics', declaredHere: false });
     const input = {
       index: toolkit([fakeRecord({ reexposed: reexposedByRoot }), realRecord()]),
       standIns: [registered],
@@ -291,7 +298,7 @@ describe('the fake-exposure-parity rule', () => {
   });
 
   test('a retired fake is out of the rule, and a declaration that still exposes it is named', async () => {
-    const registered = standIn({ contract: 'ct-001', declaredHere: false });
+    const registered = standIn({ contract: 'contract:enrich-diagnostics', declaredHere: false });
     const retired = await fakeExposureParity({
       index: toolkit([realRecord()]),
       standIns: [registered],
@@ -379,7 +386,7 @@ const conformanceFile = "import { test, expect } from 'vitest';\ntest('the agree
 const integrated = "import { createNoteLimitFake } from '../../limits/src/fakes/note-limit.fake.ts';\n\nconst limit = createNoteLimitFake();\n\nexport function addNote(note) {\n  return limit.withinLimit(note) ? note : '';\n}\n";
 
 const need = {
-  capability: 'note-limit',
+  capability: 'capability:note-limit',
   useCases: ['a note over the limit is refused'],
   inputs: ['the note text'],
   outputs: ['whether the note is within the limit'],
@@ -389,13 +396,15 @@ const need = {
 };
 
 const placeTheLimit = localDecision(
-  { question: 'Where does the note limit belong?', outcome: 'reuse', capability: 'note-limit', owner: provider, rationale: 'The limit is a rule of its own.' },
-  [registryChange({ capability: 'note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
+  { question: 'Where does the note limit belong?', outcome: 'reuse', capability: 'capability:note-limit', owner: provider, rationale: 'The limit is a rule of its own.' },
+  [registryChange({ capability: 'capability:note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
 );
 
 /** The agreement as the contract sub-session submits it: the real limit is declared exposed to the parent only. */
 const establishedContract = {
   kind: 'established' as const,
+  contractKey: 'draft:contract:note-limit', providerObligationKey: 'draft:provider-obligation:note-limit',
+  consumerRequirementKey: 'draft:consumer-requirement:notes-note-limit',
   mode: 'fake-backed' as const,
   authority: { kind: 'provider' as const, owner: provider, rationale: 'The note limit belongs with its implementation.' },
   provider,
@@ -446,10 +455,10 @@ describe('the rule at a run\'s contract gate', () => {
     const reexposing = `${reviewsText.trimEnd()}\n// The notes module uses the stand-in until the provider implements the limit.\nexpose-sub createNoteLimitFake from limits to descendants\n`;
 
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
-        submit({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'Waiting for the real limit.' }),
+        submit({ kind: 'yield-for-providers', requirements: ['consumer-requirement:notes-note-limit'], summary: 'Waiting for the real limit.' }),
         submit(assign(provider, {}, outline({ changes: 'Implement the agreed limit.' }))),
         submit(requestCompletion()),
         submit(assign(consumer, { kind: 'verification', goal: 'Replace the fake with the real note limit.' })),
@@ -472,12 +481,12 @@ describe('the rule at a run\'s contract gate', () => {
           write(reviewsDeclaration, reviewsText)),
       ],
     }, [
-      accepted('wi-001.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.conformance), ...modified(seam.consumer, seam.declaration, reviewsDeclaration)]),
-      accepted('wi-001.i02', 'revision-02', modified(reviewsDeclaration)),
-      accepted('wi-002.i01', 'revision-03', [...added(seam.real), ...modified(seam.declaration)]),
-      unchanged('wi-002'),
-      accepted('wi-001.i03', 'revision-04', modified(seam.consumer)),
-      unchanged('wi-001'),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.conformance), ...modified(seam.consumer, seam.declaration, reviewsDeclaration)]),
+      accepted('work-item:review-notes.i02', 'revision-02', modified(reviewsDeclaration)),
+      accepted('work-item:provide-note-limit.i01', 'revision-03', [...added(seam.real), ...modified(seam.declaration)]),
+      unchanged('work-item:provide-note-limit'),
+      accepted('work-item:review-notes.i03', 'revision-04', modified(seam.consumer)),
+      unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
     ], 'revision-04');
     expect(onlyRun(service, 'review-notes').failure).toBeNull();
@@ -509,13 +518,13 @@ describe('the rule at a run\'s contract gate', () => {
     ]);
 
     // The registered agreement names what the fake stands for.
-    const contract = JSON.parse(await readFile(runPath(root, 'review-notes', runId, 'contracts/ct-001/1.json'), 'utf8')) as { schema: string; artifacts: { fake: Array<{ standsFor: unknown[] }> } };
-    expect(contract.schema).toBe('ramify-agent.contract/2');
+    const contract = JSON.parse(await readFile(runPath(root, 'review-notes', runId, 'contracts/contract%3Anote-limit/1.json'), 'utf8')) as { schema: string; artifacts: { fake: Array<{ standsFor: unknown[] }> } };
+    expect(contract.schema).toBe('ramify-agent.contract/3');
     expect(contract.artifacts.fake[0]!.standsFor).toEqual(establishedContract.artifacts.fake[0]!.standsFor);
 
     // The provider's gate compared the fake with the real limit as the view
     // recorded it once it existed: both exposed to the parent, so it passed.
-    const providerGate = attempts.find(attempt => attempt.subject.iteration === 'wi-002.i01')!;
+    const providerGate = attempts.find(attempt => attempt.subject.iteration === 'work-item:provide-note-limit.i01')!;
     expect(providerGate.verdict).toBe('passed');
     expect(providerGate.rules).toEqual([
       { rule: 'fake-exposure-parity', outcome: 'passed', violations: [] },

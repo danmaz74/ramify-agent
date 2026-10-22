@@ -13,7 +13,7 @@ import { createConfiguredAudit } from '../../subs/audit/src/check-execution.js';
 import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { git, initRepository, onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { gitService } from '../../subs/evidence/src/git.js';
@@ -84,7 +84,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
     const opened = await openRuns(root, {
       git: gitService,
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [
           // The first attempt states the limit the plan asks for in the test
@@ -137,7 +137,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
     expect(repaired.audit).toMatchObject({ status: 'completed', verdict: 'pass', requestedSourceCommit: repaired.commit });
     expect(repaired.audit!.definition).toEqual(failed.audit!.definition);
 
-    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
+    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1)), 'utf8')) as IterationResult;
     expect(result.outcome).toBe('accepted');
     expect(result.gate).toBe(repaired.id);
     expect(result.commit).toBe(repaired.audited);
@@ -155,7 +155,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
     // Past the accepted commit, the tree holds only the feature file the
     // work-item gate's commit rendered without its pending tag, once the
     // completion request declared its scenario.
-    expect(await changedPaths(root, result.commit!)).toEqual([`${notesDirectory}/src/tests/features/review-notes/review-note.feature`]);
+    expect(await changedPaths(root, result.commit!)).toEqual([`${notesDirectory}/src/tests/features/review-notes/capability%3Areview-note.feature`]);
     expect(await changedPaths(root, 'HEAD')).toEqual([]);
     const closed = events.find(event => event.type === 'iteration-closed' && event.data.iteration === result.iteration);
     expect(closed?.type === 'iteration-closed' && closed.data.notices).toEqual([]);
@@ -163,7 +163,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
     // Each changed attempt made one commit before its audit: fail, then pass.
     const log = await git(root, 'log', '--format=%H%x1f%B%x1e', `ramify-agent-run/${runId}`);
     const commits = log.split('').map(part => part.trim()).filter(Boolean);
-    expect(commits.filter(commit => commit.includes('Ramify-Iteration: wi-001.i01'))).toHaveLength(2);
+    expect(commits.filter(commit => commit.includes('Ramify-Iteration: work-item:review-note.i01'))).toHaveLength(2);
     expect(commits.some(commit => commit.includes(`Ramify-Gate: ${failed.id}`))).toBe(true);
     expect(await git(root, 'notes', '--ref=audit', 'show', failed.audited!)).toContain('Audited-Overall: fail');
     expect(await git(root, 'notes', '--ref=audit', 'show', repaired.audited!)).toContain('Audited-Overall: pass');

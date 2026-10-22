@@ -4,7 +4,7 @@ import { capabilityNeedInputSchema } from '../../subs/autonomous/subs/work-coord
 import { capabilityActionSchema, validateCapabilityAction } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
 import { assignmentBodySchema, assignmentErrors } from '../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
 import { validateEngineer } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
-import { capabilityLocalArchitectJsonSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
+import { localArchitectJsonSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import { assign, outline } from './helpers/iterations.js';
 import type { RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
@@ -23,8 +23,8 @@ const ownershipAnswer = (path: string, module: string | null, status = 'owned', 
   paths: [{ path, module, status, exclusion }],
 } as unknown as OwnershipAnswer);
 const request = (usage: unknown[]) => ({ kind: 'capability-needed', summary: 'Preview needs a provider', request: {
-  need: 'Verify the displayed preview', usage, constraints: [], knownInterface: { kind: 'none-known' },
-  examples: [{ title: 'Preview displayed', code: 'expect(preview()).toBeVisible()', designation: 'pseudocode' }],
+  requestKey: 'draft:capability-request:preview-verification', need: 'Verify the displayed preview', usage, constraints: [], knownInterface: { kind: 'none-known' },
+  examples: [{ key: 'draft:capability-example:preview-displayed', title: 'Preview displayed', code: 'expect(preview()).toBeVisible()', designation: 'pseudocode' }],
   suggestedProvider: { module: provider, reason: 'Owns integration checks' },
 } });
 
@@ -59,7 +59,7 @@ describe('Plan 36 prospective caller ownership', () => {
   test('accepted creation authority gives a missing caller its intended new owner', () => {
     const newOwner = `${reviews}/preview-tests`;
     const registry = new Map<string, RegistryEntry>([['preview-checks', {
-      schema: 'ramify-agent.capability/1', capability: 'preview-checks', owner: newOwner,
+      schema: 'ramify-agent.capability/2', capability: 'preview-checks', owner: newOwner,
       revision: 1, behavior: 'Preview checks', origin: 'entry', decision: null, consumers: [],
       proposed: { parent: reviews, directory: 'subs/workspace/subs/reviews/subs/preview-tests', purpose: 'Preview checks', tags: [] },
     }]]);
@@ -106,7 +106,7 @@ describe('Plan 36 assignment scope and stages', () => {
     ]);
     expect(assignmentErrors(assignmentBodySchema.parse(assign(reviews).assignment), evidence)).toEqual([]);
     const capabilitySchema = z.toJSONSchema(capabilityActionSchema) as any;
-    const localSchema = capabilityLocalArchitectJsonSchema as any;
+    const localSchema = localArchitectJsonSchema as any;
     expect(capabilitySchema.oneOf.find((option: any) => option.properties.kind.const === 'assign').properties.assignment.allOf).toHaveLength(1);
     expect(localSchema.oneOf.find((option: any) => option.properties.kind.const === 'assign').properties.assignment.allOf).toHaveLength(1);
   });

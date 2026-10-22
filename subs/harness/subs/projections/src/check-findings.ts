@@ -74,6 +74,8 @@ export function runVersionOf(view: RunView): number {
   return view.entries.at(-1)?.sequence ?? 0;
 }
 
+function protocolOf(_view: RunView): typeof checkFindingProtocolVersion { return checkFindingProtocolVersion; }
+
 function basisOf(view: RunView): Basis {
   const unresolved = new Map<string, UnresolvedReasonView>();
   const completed = new Set<string>();
@@ -100,16 +102,18 @@ function deviationsOf(view: RunView): Map<string, DeviationRecord> {
   for (const line of view.entries) {
     for (const record of line.transaction.records) {
       const schema = (record.body as { schema?: unknown } | null)?.schema;
-      if (schema === 'ramify-agent.plan-deviation/1') {
+      if (schema === 'ramify-agent.plan-deviation/2') {
         const parsed = planDeviationSchema.safeParse(record.body);
         if (parsed.success) deviations.set(parsed.data.checkFinding, parsed.data);
-      } else if (schema === 'ramify-agent.nonfunctional-deviation/1'
-        && line.transaction.event.type === 'nonfunctional-deviation-recorded') {
+      } else if (schema === 'ramify-agent.nonfunctional-deviation/2'
+        && line.transaction.event.type === 'nonfunctional-deviations-recorded') {
         const parsed = nonfunctionalDeviationSchema.safeParse(record.body);
-        if (parsed.success && parsed.data.id === line.transaction.event.data.deviation
-          && parsed.data.origin.nfr === line.transaction.event.data.nfr
-          && parsed.data.origin.assessment === line.transaction.event.data.assessment
-          && parsed.data.checkFinding === line.transaction.event.data.checkFinding) {
+        const event = line.transaction.event;
+        const entries = event.data.deviations;
+        if (parsed.success && entries.some(entry => parsed.data.id === entry.deviation
+          && parsed.data.origin.nfr === entry.nfr
+          && parsed.data.origin.assessment === event.data.assessment
+          && parsed.data.checkFinding === entry.checkFinding)) {
           deviations.set(parsed.data.checkFinding, parsed.data);
         }
       }
@@ -182,7 +186,7 @@ export function checkFindingListOf(view: RunView, query: CheckFindingListQuery):
   const remaining = selected.filter(summary => all.findIndex(entry => entry.id === summary.id) >= start);
   const page = remaining.slice(0, query.limit);
   return checkFindingListResponseSchema.parse({
-    protocol: checkFindingProtocolVersion,
+    protocol: protocolOf(view),
     runId: view.record.jobId,
     version: basis.version,
     coverage: coverageOf(basis, query.workItem),
@@ -236,7 +240,7 @@ export function checkFindingModulesOf(view: RunView): CheckFindingModuleCounts {
     }
   }
   return checkFindingModuleCountsSchema.parse({
-    protocol: checkFindingProtocolVersion,
+    protocol: protocolOf(view),
     runId: view.record.jobId,
     version: basis.version,
     coverage: coverageOf(basis, null),
@@ -252,7 +256,7 @@ export function checkFindingDetailOf(view: RunView, checkFinding: string): Check
   const detail = selected.view;
   const entry = basis.state.findings.get(detail.summary.id)!;
   return checkFindingDetailSchema.parse({
-    protocol: checkFindingProtocolVersion,
+    protocol: protocolOf(view),
     runId: view.record.jobId,
     version: basis.version,
     summary: summaryView(basis, detail.summary),
@@ -314,7 +318,7 @@ export function reviewListOf(view: RunView, query: { readonly workItem: string |
     };
   });
   return reviewListResponseSchema.parse({
-    protocol: checkFindingProtocolVersion,
+    protocol: protocolOf(view),
     runId: view.record.jobId,
     version: basis.version,
     coverage: coverageOf(basis, query.workItem),
@@ -460,6 +464,9 @@ function settlementOf(entry: CheckFindingEntry): CheckFindingSettlement | null {
       return { kind: 'fixed-by-assessment', decision: decision.id, by, rationale: decision.rationale };
     case 'supersede':
       return { kind: 'superseded', decision: decision.id, by, replacement: action.replacement };
+    case 'supersede-protection-request':
+      return { kind: 'superseded-protection-request', decision: decision.id, by,
+        request: action.request, assessment: action.assessment, paths: [...action.paths] };
     case 'waive':
       return { kind: 'waived', decision: decision.id, by, reason: decision.rationale, acceptedRisk: action.acceptedRisk, uncertainty: action.uncertainty };
     case 'defer':
@@ -524,6 +531,8 @@ function decisionView(decision: CheckFindingDecision): CheckFindingDecisionView 
     case 'fix-by-check': view = { action: 'fix-by-check', witness: witnessView(action.witness) }; break;
     case 'fix-by-assessment': view = { action: 'fix-by-assessment', reassessed: [...action.reassessed] }; break;
     case 'supersede': view = { action: 'supersede', reassessed: [...action.reassessed], replacement: action.replacement }; break;
+    case 'supersede-protection-request': view = { action: 'supersede-protection-request', request: action.request,
+      assessment: action.assessment, paths: [...action.paths] }; break;
     case 'waive': view = { action: 'waive', authority: authority(action.authority), acceptedRisk: action.acceptedRisk, uncertainty: action.uncertainty }; break;
     case 'revoke-waiver': view = { action: 'revoke-waiver', reason: action.reason }; break;
     case 'defer':

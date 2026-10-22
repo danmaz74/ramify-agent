@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { createScriptedAgent } from '../../../../../agent/src/scripted.js';
@@ -7,7 +8,7 @@ import type { ConfiguredAuditPort } from '../../../../../audit/src/check-executi
 import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
 import { intakeToolName } from '../../../planning/src/extraction.js';
 import { withDefaultTurns } from '../../../../../../src/tests/helpers/declarations.js';
-import { analysis } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis } from '../../../../../../src/tests/helpers/analysis.js';
 import { submit, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { RunQueries } from '../../../../../projections/src/queries.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
@@ -27,6 +28,12 @@ beforeEach(resetSpawnAttempts);
 const answers: ReturnType<typeof nfrBoundaries>[] = [];
 
 const cleanups: Array<() => Promise<void>> = [];
+const instabilityFinding = (testId: string): string => {
+  const identity = JSON.stringify({ projectRoot: '.', checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+    path: 'src/tests/retained-coverage.test.ts', testId });
+  const observationKey = createHash('sha256').update(identity).digest('hex');
+  return `finding:audit-instability-${createHash('sha256').update(observationKey).digest('hex').slice(0, 16)}`;
+};
 afterEach(async () => {
   const errors: unknown[] = [];
   for (const cleanup of cleanups.splice(0).reverse()) try { await cleanup(); } catch (error) { errors.push(error); }
@@ -93,8 +100,8 @@ for (const boundary of ['gate-attempted', 'gate-committing', 'gate-committed'] a
 /** An intake that reads the obligation as the plan's one non-functional requirement. */
 function intake(obligation: string) {
   return { goal: 'Keep an audit record of reviews.', elements: [
-    { key: 'audit', kind: 'non-functional', document: 'doc-001', text: obligation, conditions: [], uncertainty: '' },
-  ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } };
+    { key: 'draft:non-functional-requirement:audit-record', kind: 'non-functional', document: 'document:review-notes-plan', text: obligation, conditions: [], uncertainty: '' },
+  ], incorporation: { documents: [{ document: 'document:review-notes-plan', scenarios: true, uncertainty: '' }], missing: [] } };
 }
 
 function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnType<typeof nfrBoundaries>, noResult: false | 'end' | 'checkpoint' = false,
@@ -102,20 +109,20 @@ function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnTy
   return createScriptedAgent(withDefaultTurns(spec => {
     if (judgeWarnings && spec.submission.name === 'submit_reconciliation' && spec.prompt.includes('# Reconciliation final-instability-'))
       return reconcile({ ...submission([
-        disposition('cf-0001', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
-        disposition('cf-0002', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+        disposition(instabilityFinding('first'), { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+        disposition(instabilityFinding('second'), { action: 'waive', uncertainty: 'The original test remains unstable.' }),
       ], { kind: 'complete' }), testOrigins: [
-        { checkFinding: 'cf-0001', origin: 'existing', basis: 'The original execution baseline contains this test.' },
-        { checkFinding: 'cf-0002', origin: 'existing', basis: 'The original execution baseline contains this test.' },
+        { checkFinding: instabilityFinding('first'), origin: 'existing', basis: 'The original execution baseline contains this test.' },
+        { checkFinding: instabilityFinding('second'), origin: 'existing', basis: 'The original execution baseline contains this test.' },
       ] });
     if (spec.submission.name === 'submit_compaction_review') return submit({ action: 'handoff', reason: 'Return the retained repair to the coordinator.' });
     if (spec.submission.name === intakeToolName) return submit(intake(obligation));
-    if (spec.role === 'initial-architect') return submit(analysis([]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([]), 'document:review-notes-plan'));
     if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{
-      nfr: 'nfr-001', result: spec.prompt.includes('(after-repair)') ? 'satisfied' : 'not-satisfied',
+      nfr: 'non-functional-requirement:audit-record', result: spec.prompt.includes('(after-repair)') ? 'satisfied' : 'not-satisfied',
       inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Current source inspected'], uncertainty: '',
     }] });
-    if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['nfr-001'],
+    if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['non-functional-requirement:audit-record'],
       startingModule: 'collection-review/workspace/reviews/core', task: 'Add audit record source', evidence: [], uncertainty: '' });
     if (spec.submission.name === nonfunctionalRepairToolName) {
       boundaryAnswers.repair();
@@ -201,7 +208,7 @@ test.each(['before-ingestion', 'between-observations'] as const)(
     expect(reconciled!.sequence).toBeLessThan(repair!.sequence);
     if (reconciled?.type === 'final-instability-reconciled') {
       expect(reconciled.data.checkFindings.map(change => change.type === 'check-finding-decided'
-        ? change.data.checkFinding : null)).toEqual(['cf-0001', 'cf-0002']);
+        ? change.data.checkFinding : null)).toEqual([instabilityFinding('first'), instabilityFinding('second')]);
     }
     expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
     expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(2);
@@ -286,12 +293,13 @@ for (const { boundary, ...variant } of repairCrashes) {
 function exhaustedAgent(obligation: string) {
   return createScriptedAgent(withDefaultTurns(spec => {
     if (spec.submission.name === intakeToolName) return submit(intake(obligation));
-    if (spec.role === 'initial-architect') return submit(analysis([]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([]), 'document:review-notes-plan'));
     if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{
-      nfr: 'nfr-001', result: 'not-satisfied', inspectedScope: ['src/'], evidence: ['Audit record absent'], uncertainty: '',
+      nfr: 'non-functional-requirement:audit-record', result: 'not-satisfied', inspectedScope: ['src/'], evidence: ['Audit record absent'], uncertainty: '',
     }] });
     if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'close', deviations: [{
-      nfr: 'nfr-001', proposedAlternative: null, uncertainty: 'No supported alternative is known',
+      nfr: 'non-functional-requirement:audit-record', deviationKey: 'draft:plan-deviation:audit-record',
+      findingKey: 'draft:finding:audit-record', proposedAlternative: null, uncertainty: 'No supported alternative is known',
     }] });
     return [];
   }));
@@ -305,7 +313,7 @@ test('a coordinator command registration retains its settlement requirement afte
   await writeFile(plan, `${await readFile(plan, 'utf8')}\n${obligation}\n`);
   const agent = createScriptedAgent(withDefaultTurns(spec => {
     if (spec.submission.name === intakeToolName) return submit(intake(obligation));
-    if (spec.role === 'initial-architect') return submit(analysis([]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([]), 'document:review-notes-plan'));
     if (spec.submission.name === coordinatorAssessmentToolName) return [{ kind: 'tool', tool: 'shell', input: { command: 'git log -1' } }];
     return [];
   }));

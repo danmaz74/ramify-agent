@@ -85,7 +85,6 @@ export const runPolicySchema = z.object({
   version: z.enum(['run-policy/7', 'run-policy/8']),
   continuity: z.object({ version: z.literal('resource-continuity/1') }).strict().optional(),
   contract: z.literal('plan21-whole-owner-and-architect-reporting/1'),
-  /** Absent in historical runs; only newly captured policies authorize recovery. */
   recovery: z.object({ version: z.literal('operation-recovery/1'), automaticRetries: z.int().nonnegative(),
     baseDelayMs: z.int().nonnegative(), maxDelayMs: z.int().positive() }).strict().optional(),
   limits: z.object({
@@ -111,9 +110,7 @@ export const runPolicySchema = z.object({
     maxInvocationsPerRun: z.int().positive(),
     unlimitedRunDuration: z.boolean().optional(),
     runAbsoluteMs: z.int().positive(),
-    /** Legacy reconciliation count, retained to read captured run policy. */
     reconciliationRoundsPerWorkItem: z.int().positive().optional(),
-    /** Legacy later-round risk floor, retained to read captured run policy. */
     laterRoundMinimumRisk: z.enum(['medium', 'high']).optional(),
     /** The plan deviations recorded before the next one waits for the person. */
     maxPlanDeviations: z.int().nonnegative().optional(),
@@ -130,7 +127,6 @@ export const runPolicySchema = z.object({
     maxCommandTimeoutMs: z.int().positive().optional(),
     maxInvocationIdleMs: z.int().positive().optional(),
     maxInvocationAbsoluteMs: z.int().positive().optional(),
-    /** Legacy non-functional round count, retained to read captured run policy. */
     nonfunctionalRoundsPerPlan: z.int().positive().max(3).optional(),
   }).strict(),
   /**
@@ -216,7 +212,7 @@ export const runRecordSchema = z.object({
   ]),
   /**
    * The plan scenarios extracted from the captured plan's `gherkin` blocks,
-   * `ps-01`, … in document order, and every block that did not parse as a
+   * each accepted `plan-scenario:<name>` identity, and every block that did not parse as a
    * limitation. Captured with the plan and never revised.
    */
   planScenarios: planScenarioExtractionSchema,
@@ -226,7 +222,7 @@ export const runRecordSchema = z.object({
    * `analysis-approved`, never a field here: this record is written once.
    */
   reviewStop: z.boolean(),
-  /** Absent for ordinary and legacy runs. Debug-enabled runs require the same live host. */
+  /** Absent for ordinary runs. Debug-enabled runs require the same live host. */
   breakpoint: breakpointSelectorSchema.optional(),
 }).strict();
 export type RunRecord = z.infer<typeof runRecordSchema>;
@@ -297,13 +293,13 @@ export const runLayout = {
   assessment: (id: string): string => join('nonfunctional', 'assessments', `${id}.json`),
   nonfunctionalRound: (number: number): string => join('nonfunctional', 'rounds', `${number}.json`),
   nonfunctionalRepairAssignment: (id: string): string => join('nonfunctional', 'repairs', `${id}.json`),
-  nonfunctionalDeviation: (id: string): string => join('deviations', `${id}.json`),
+  nonfunctionalDeviation: (id: string): string => join('deviations', `${encodeURIComponent(id)}.json`),
   events: 'events.jsonl',
   restartImport: 'restart/import.json',
   promptManifest: join('prompts', 'manifest.json'),
   entries: join('analysis', 'entries.json'),
-  /** One tracked scenario, `sc-001`, committed by `analysis-accepted` and immutable. */
-  scenario: (id: string): string => join('scenarios', `${id}.json`),
+  /** One tracked scenario, such as `scenario:preview-visible`, committed by `analysis-accepted` and immutable. */
+  scenario: (id: string): string => join('scenarios', `${encodeURIComponent(id).replace(/:/g, '%3A')}.json`),
   readiness: (attempt: number): string => join('readiness', readinessDirectory(attempt), 'attempt.json'),
   readinessOutput: (attempt: number): string => join('readiness', readinessDirectory(attempt)),
   operationRecovery: (id: string, revision = 1): string => join('operation-recoveries', id, `${revision}.json`),
@@ -343,18 +339,18 @@ export const runLayout = {
 /** The schema literal of each record kind, for a reader that answers unsupported version. */
 export const runSchemas = {
   run: { schema: jobSchemaVersion, body: runRecordSchema },
-  documents: { schema: 'ramify-agent.document-manifest/1', body: documentManifestSchema },
-  catalog: { schema: 'ramify-agent.element-catalog/1', body: elementCatalogSchema },
-  incorporation: { schema: 'ramify-agent.document-incorporation/2', body: incorporationSchema },
+  documents: { schema: 'ramify-agent.document-manifest/2', body: documentManifestSchema },
+  catalog: { schema: 'ramify-agent.element-catalog/2', body: elementCatalogSchema },
+  incorporation: { schema: 'ramify-agent.document-incorporation/3', body: incorporationSchema },
   selection: { schema: 'ramify-agent.context-selection/2', body: contextSelectionSchema },
   preparedCandidate: { schema: 'ramify-agent.prepared-candidate/1', body: preparedCandidateSchema },
-  assessment: { schema: 'ramify-agent.nonfunctional-assessment/1', body: assessmentSchema },
+  assessment: { schema: 'ramify-agent.nonfunctional-assessment/2', body: assessmentSchema },
   nonfunctionalRound: { schema: 'ramify-agent.nonfunctional-round/1', body: roundSchema },
   nonfunctionalRepairAssignment: { schema: 'ramify-agent.nonfunctional-repair-assignment/1', body: nonfunctionalRepairAssignmentSchema },
-  nonfunctionalDeviation: { schema: 'ramify-agent.nonfunctional-deviation/1', body: nonfunctionalDeviationSchema },
+  nonfunctionalDeviation: { schema: 'ramify-agent.nonfunctional-deviation/2', body: nonfunctionalDeviationSchema },
   promptManifest: { schema: 'ramify-agent.prompt-manifest/1', body: promptPackageManifestSchema },
-  entries: { schema: 'ramify-agent.entry-assignments/1', body: entryAssignmentsSchema },
-  scenario: { schema: 'ramify-agent.scenario/1', body: scenarioRecordSchema },
+  entries: { schema: 'ramify-agent.entry-assignments/2', body: entryAssignmentsSchema },
+  scenario: { schema: 'ramify-agent.scenario/2', body: scenarioRecordSchema },
   readiness: { schema: 'ramify-agent.readiness-attempt/1', body: readinessAttemptSchema },
   operationRecovery: { schema: 'ramify-agent.operation-recovery/1', body: operationRecoverySchema },
   recovery: { schema: 'ramify-agent.infrastructure-recovery/1', body: infrastructureRecoverySchema },

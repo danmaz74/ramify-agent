@@ -135,7 +135,7 @@ const editedSource = { [core + 'notes.ts']: 'export const noteLimit = 500;\n' };
 const scratch = modules.map(module => (module.directory === '.' ? '' : module.directory + '/') + 'src/tmp');
 const owners: Readonly<Record<string, string>> = {
   ...Object.fromEntries(modules.flatMap(module => [[module.directory, module.id]])),
-  [core + 'tests/features/review-notes/review-note.feature']: 'collection-review/workspace/reviews/notes',
+  [core + 'tests/features/review-notes/capability%3Areview-note.feature']: 'collection-review/workspace/reviews/notes',
   [core + 'tests/notes.test.ts']: 'collection-review/workspace/reviews/notes',
   [core + 'notes.ts']: 'collection-review/workspace/reviews/notes',
 };

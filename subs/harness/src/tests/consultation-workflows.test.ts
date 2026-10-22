@@ -178,7 +178,7 @@ describe('Plan 33 awaited consultation workflows', () => {
           const child = events.find(event => event.type === 'session-opened' && event.data.session === outcome.child!.session)!;
           expect(child).toMatchObject({ data: { role: 'capability-architect', fork: { reason: 'architect-consultation', from: start.target.point } } });
         }
-        expect(capabilityStarts.map(start => start.caller.work.iteration)).toEqual(['cap-001.i01', 'cap-002.i01', 'cap-002.i02', 'cap-001.i01']);
+        expect(capabilityStarts.map(start => start.caller.work.iteration)).toEqual(['capability-task:b-source.i01', 'capability-task:c-normalization.i01', 'capability-task:c-normalization.i02', 'capability-task:b-source.i01']);
         expect(capabilityStarts[0]!.target).toEqual(capabilityStarts[3]!.target);
         expect(capabilityStarts[1]!.target.session).not.toBe(capabilityStarts[0]!.target.session);
         expect(events.filter(event => event.type === 'capability-assigned')).toHaveLength(3);

@@ -9,7 +9,7 @@ import { createQuerySource } from '../http/query-source.js';
 import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';
-import { analysis, entry, hypothesis, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, hypothesis, requestCompletion } from './helpers/analysis.js';
 import { reviews } from './helpers/constructed.js';
 import { installTestRunner, runPath, startRun } from './helpers/runs.js';
 import { scenariosCommit, scriptedGit } from './helpers/scripted-git.js';
@@ -44,14 +44,14 @@ describe('over a real run', () => {
     );
     const git = scriptedGit(fixture.root, { previews: finalCandidate(fixture.root, 'scenarios-of-review-notes').previews, head: 'progress-base', checkpoints: [
       scenariosCommit('review-notes'),
-      { subject: 'wi-001', commit: null, changes: [] },
-      { subject: 'wi-002', commit: null, changes: [] },
+      { subject: 'work-item:reviewer-note', commit: null, changes: [] },
+      { subject: 'work-item:note-in-panel', commit: null, changes: [] },
       { subject: 'final verification of plan "review-notes"', commit: null, changes: [] },
     ] });
     const { service } = await openRunsWithoutProcesses(fixture.root, git, {
       candidates: finalCandidate(fixture.root, 'scenarios-of-review-notes').candidates,
       script: (spec: SessionSpec) => spec.role === 'catalog-extractor' ? []
-        : [{ kind: 'submit' as const, input: spec.role === 'initial-architect' ? submitted : requestCompletion() }],
+        : [{ kind: 'submit' as const, input: spec.role === 'initial-architect' ? currentAnalysis(submitted, 'document:review-notes-plan') : requestCompletion() }],
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
@@ -61,17 +61,17 @@ describe('over a real run', () => {
     const directory = runPath(fixture.root, 'review-notes', receipt.jobId);
     // Each kind of record is in its own directory, with no other kind in it.
     expect((await readdir(directory)).sort()).toEqual(expect.arrayContaining(['analysis', 'gates', 'hypotheses', 'invocations', 'registry', 'work-items']));
-    expect(await readdir(join(directory, 'hypotheses'))).toEqual(['note-storage']);
-    expect((await readdir(join(directory, 'registry'))).sort()).toEqual(['note-in-panel', 'reviewer-note']);
-    expect((await readdir(join(directory, 'work-items'))).sort()).toEqual(['wi-001', 'wi-002']);
-    expect((await readdir(join(directory, 'work-items', 'wi-001'))).sort()).toEqual(['item.json', 'outline']);
+    expect(await readdir(join(directory, 'hypotheses'))).toEqual(['hypothesis%3Anote-storage']);
+    expect((await readdir(join(directory, 'registry'))).sort()).toEqual(['capability%3Anote-in-panel', 'capability%3Areviewer-note']);
+    expect((await readdir(join(directory, 'work-items'))).sort()).toEqual(['work-item%3Anote-in-panel', 'work-item%3Areviewer-note']);
+    expect((await readdir(join(directory, 'work-items', 'work-item%3Areviewer-note'))).sort()).toEqual(['item.json', 'outline']);
 
     // The `Hypothesis` type has no reference to a work item: no committed
     // hypothesis carries one, and the schema refuses one.
-    const body = JSON.parse(await readFile(join(directory, analysisLayout.hypothesis('note-storage', 1)), 'utf8')) as Record<string, unknown>;
+    const body = JSON.parse(await readFile(join(directory, analysisLayout.hypothesis('hypothesis:note-storage', 1)), 'utf8')) as Record<string, unknown>;
     expect(Object.keys(body)).not.toContain('workItem');
-    expect(hypothesisSchema.safeParse({ ...body, workItem: 'wi-001' }).success).toBe(false);
-    expect(JSON.stringify(body)).not.toContain('wi-00');
+    expect(hypothesisSchema.safeParse({ ...body, workItem: 'work-item:reviewer-note' }).success).toBe(false);
+    expect(JSON.stringify(body)).not.toContain('work-item:reviewer-note');
 
     // The projection is a pure function of the log and its records: asked
     // twice it answers the same thing, and the run's files are what they
@@ -86,13 +86,13 @@ describe('over a real run', () => {
     expect(git.operations()).toEqual(gitOperations);
 
     expect(first.map(row => [row.capability, row.owner, row.state, row.tentative, row.workItems])).toEqual([
-      ['reviewer-note', reviews, 'completed', false, ['wi-001']],
-      ['note-in-panel', root, 'completed', false, ['wi-002']],
-      ['note-storage', root, 'todo', true, []],
+      ['capability:reviewer-note', reviews, 'completed', false, ['work-item:reviewer-note']],
+      ['capability:note-in-panel', root, 'completed', false, ['work-item:note-in-panel']],
+      ['capability:note-storage', root, 'todo', true, []],
     ]);
     for (const row of first.slice(0, 2)) expect(row.evidence).toEqual([expect.stringMatching(/^ga-\d{4}$/)]);
     // The outline records the delivery; nothing derives work from it.
-    expect((await readdir(join(directory, workLayout.directory('wi-001'), 'outline'))).sort()).toEqual(['1.json']);
+    expect((await readdir(join(directory, workLayout.directory('work-item:reviewer-note'), 'outline'))).sort()).toEqual(['1.json']);
   }, 300_000);
 });
 

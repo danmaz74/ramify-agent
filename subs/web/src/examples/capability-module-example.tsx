@@ -14,7 +14,7 @@ const cases: ReadonlyArray<{ readonly title: string; readonly response: ModuleCa
   {
     title: 'after the architect view is materialized: every module declared, coverage complete',
     response: {
-      identityPolicy: 'exact-capability-slug/1', runVersion: 46, initialView: { status: 'placeholder' },
+      identityPolicy: 'exact-accepted-capability-id/2', runVersion: 46, initialView: { status: 'placeholder' },
       tree: {
         status: 'available', revision: 'rev/1:42090bd7-9d65-461f-8aba-85ea6664fad1:1', input: 'input/1:07bad224ce2ed76f5b006a6b7e80dd7f7a726c0e83480d00601a7d827a6cd791',
         modules: [
@@ -49,8 +49,8 @@ const cases: ReadonlyArray<{ readonly title: string; readonly response: ModuleCa
         { module: 'collection-review/workspace/reviews/core', placement: 'declared', proposedAtStart: null, capabilities: [] },
         { module: 'collection-review/workspace/reviews/core/controller', placement: 'declared', proposedAtStart: null, capabilities: [] },
         { module: 'collection-review/workspace/reviews/core/tasks', placement: 'declared', proposedAtStart: null, capabilities: [] },
-        { module: 'collection-review/workspace/reviews/notes', placement: 'declared', proposedAtStart: null, capabilities: [{ capability: 'review-note', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'wi-001 passed its work-item gate ga-0003', evidence: ['ga-0003'] } }, { capability: 'note-search', initial: [{ role: 'suggested-owner', hypothesis: 'note-search' }], implementedHere: null }] },
-        { module: 'collection-review/workspace/reviews/notes/drafts', placement: 'declared', proposedAtStart: { parent: 'collection-review/workspace/reviews/notes', purpose: "Keeps a reviewer's unsent drafts.", tags: [] }, capabilities: [{ capability: 'note-drafts', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'wi-002 passed its work-item gate ga-0005', evidence: ['ga-0005'] } }] },
+        { module: 'collection-review/workspace/reviews/notes', placement: 'declared', proposedAtStart: null, capabilities: [{ capability: 'capability:review-note', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'work-item:review-note passed its work-item gate ga-0003', evidence: ['ga-0003'] } }, { capability: 'capability:note-search', initial: [{ role: 'suggested-owner', hypothesis: 'hypothesis:note-search' }], implementedHere: null }] },
+        { module: 'collection-review/workspace/reviews/notes/drafts', placement: 'declared', proposedAtStart: { parent: 'collection-review/workspace/reviews/notes', purpose: "Keeps a reviewer's unsent drafts.", tags: [] }, capabilities: [{ capability: 'capability:note-drafts', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'work-item:note-drafts passed its work-item gate ga-0005', evidence: ['ga-0005'] } }] },
         { module: 'collection-review/workspace/reviews/ui', placement: 'declared', proposedAtStart: null, capabilities: [] },
         { module: 'collection-review/workspace/reviews/ui/pure-ui', placement: 'declared', proposedAtStart: null, capabilities: [] },
         { module: 'collection-review/workspace/reviews/validation', placement: 'declared', proposedAtStart: null, capabilities: [] },
@@ -62,11 +62,11 @@ const cases: ReadonlyArray<{ readonly title: string; readonly response: ModuleCa
   {
     title: 'before the architect view is materialized: the tree is unavailable and every module is unplaced',
     response: {
-      identityPolicy: 'exact-capability-slug/1', runVersion: 46, initialView: { status: 'placeholder' },
+      identityPolicy: 'exact-accepted-capability-id/2', runVersion: 46, initialView: { status: 'placeholder' },
       tree: { status: 'unavailable', message: 'The architect view has not been materialized yet; a run materializes it before its initial analysis.' },
       modules: [
-        { module: 'collection-review/workspace/reviews/notes', placement: 'unplaced', proposedAtStart: null, capabilities: [{ capability: 'review-note', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'wi-001 passed its work-item gate ga-0003', evidence: ['ga-0003'] } }, { capability: 'note-search', initial: [{ role: 'suggested-owner', hypothesis: 'note-search' }], implementedHere: null }] },
-        { module: 'collection-review/workspace/reviews/notes/drafts', placement: 'unplaced', proposedAtStart: { parent: 'collection-review/workspace/reviews/notes', purpose: "Keeps a reviewer's unsent drafts.", tags: [] }, capabilities: [{ capability: 'note-drafts', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'wi-002 passed its work-item gate ga-0005', evidence: ['ga-0005'] } }] },
+        { module: 'collection-review/workspace/reviews/notes', placement: 'unplaced', proposedAtStart: null, capabilities: [{ capability: 'capability:review-note', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'work-item:review-note passed its work-item gate ga-0003', evidence: ['ga-0003'] } }, { capability: 'capability:note-search', initial: [{ role: 'suggested-owner', hypothesis: 'hypothesis:note-search' }], implementedHere: null }] },
+        { module: 'collection-review/workspace/reviews/notes/drafts', placement: 'unplaced', proposedAtStart: { parent: 'collection-review/workspace/reviews/notes', purpose: "Keeps a reviewer's unsent drafts.", tags: [] }, capabilities: [{ capability: 'capability:note-drafts', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'work-item:note-drafts passed its work-item gate ga-0005', evidence: ['ga-0005'] } }] },
       ],
       coverage: { state: 'partial', knownCapabilities: 3, knownImplemented: 2, totalCapabilities: null, gaps: ['The current module tree is unavailable, so no module is placed: The architect view has not been materialized yet; a run materializes it before its initial analysis.'] },
     },

@@ -9,8 +9,7 @@ import { resolveChangedPath, resolveSnapshotPath, type CandidateSnapshot } from 
 export const reviewToolName = 'submit_review';
 
 export const reviewJsonSchema = z.toJSONSchema(reviewSubmissionSchema, { io: 'input' }) as JsonSchema;
-
-export const reviewSubmissionDescription = 'End this review with your assessment, actionable concerns and meaningful limitations. Choose relevant inspection; no exhaustive file inventory is required. Legacy inspected and missing lists are optional. An accepted submission ends this invocation.';
+export const reviewSubmissionDescription = 'End this review with your assessment, actionable concerns and meaningful limitations. Choose relevant inspection; no exhaustive file inventory is required. Give each concern a distinct findingKey such as draft:finding:missing-world-companion-exports. A collision returns a field error for correction in this review. An accepted submission ends this invocation.';
 
 /** What the harness observed of this attempt, which the submission is judged against. */
 export interface ReviewEvidence {
@@ -33,6 +32,12 @@ export function validateReview(input: unknown, evidence: ReviewEvidence): Submis
   if (submission.concerns.length > evidence.maxConcerns) {
     errors.push({ path: 'concerns', message: `The run's review policy accepts at most ${evidence.maxConcerns} concerns in one submission`, expected: `at most ${evidence.maxConcerns} items` });
   }
+
+  const names = new Set<string>();
+  submission.concerns.forEach((concern, index) => {
+    if (names.has(concern.findingKey)) errors.push({ path: `concerns.${index}.findingKey`, message: `"${concern.findingKey}" is proposed twice in this review`, expected: 'a distinct draft:finding:<subject-name> for each concern' });
+    names.add(concern.findingKey);
+  });
 
   submission.concerns.forEach((concern, index) => {
     concern.locations.forEach((location, at) => {

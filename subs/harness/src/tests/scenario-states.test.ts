@@ -9,9 +9,10 @@ import { runEventSchema, type RunEvent } from '../../subs/autonomous/src/run/log
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { bindingErrors, bindingEventsToRecord, obligationsOf } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
 import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/src/records.js';
+import { scenarioIdOfTag } from '../../subs/scenarios/src/rendering.js';
 import { reduceScenarioStates, scenarioEventTypes, type ScenarioEvent } from '../../subs/scenarios/src/states.js';
 import { fixtureProjection, line, reported, scenarioRecord, submissionHash } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/obligations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { consumerStub, consumerTest } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts.js';
 import {
   accepted, added, answeredGit, modified, unchanged, scenariosCommitted, type AnsweredGit, type CommitResponse,
@@ -64,7 +65,7 @@ const notesDirectory = 'subs/workspace/subs/reviews/subs/notes';
 const tags = 'collection-review/workspace/reviews/tags';
 const tagsDirectory = 'subs/workspace/subs/reviews/subs/tags';
 
-const featureOf = (directory: string, capability: string) => `${directory}/src/tests/features/${plan}/${capability}.feature`;
+const featureOf = (directory: string, capability: string) => `${directory}/src/tests/features/${plan}/${encodeURIComponent(`capability:${capability}`)}.feature`;
 const stepsOf = (directory: string, capability: string) => `${directory}/src/tests/steps/${capability}.steps.ts`;
 const stepFile = [
   "import { Given, When, Then } from '@cucumber/cucumber';",
@@ -154,9 +155,9 @@ function runnableScenarios(root: string): ScriptedScenario[] {
     .sort();
   return files.flatMap(file => read(root, file).split('\n').flatMap((text, index) => {
     const tags = text.trim().split(/\s+/);
-    const identity = tags.find(tag => /^@ramify-sc-\d{3,}$/.test(tag));
+    const identity = tags.find(tag => scenarioIdOfTag(tag) !== null);
     if (identity === undefined || tags.includes('@ramify-pending')) return [];
-    return [{ id: identity.slice('@ramify-'.length), status: 'passed' as const, file, line: index + 1 }];
+    return [{ id: scenarioIdOfTag(identity)!, status: 'passed' as const, file, line: index + 1 }];
   }));
 }
 
@@ -168,10 +169,10 @@ function configuredScenarioCheck(root: string): DirectCheckScript {
 /** The obligation events of the log that name a scenario, as `bound sc (fakes)` and `reported sc judgment` lines. */
 function scenarioLines(log: readonly RunEvent[]): string[] {
   return log.flatMap(event => {
-    if (event.type === 'obligation-bound' && event.data.id.startsWith('sc-')) {
+    if (event.type === 'obligation-bound' && event.data.id.startsWith('scenario:')) {
       return [`bound ${event.data.id} (${event.data.fakes.length === 0 ? 'no fakes' : event.data.fakes.join(', ')})`];
     }
-    if (event.type === 'obligation-reported' && event.data.id.startsWith('sc-')) return [`reported ${event.data.id} ${event.data.judgment}`];
+    if (event.type === 'obligation-reported' && event.data.id.startsWith('scenario:')) return [`reported ${event.data.id} ${event.data.judgment}`];
     return [];
   });
 }
@@ -234,19 +235,19 @@ describe('PB3-D12, PB3-D06: binding, the done report and the pending tag', () =>
     // What each scenario check found in the files when it ran, by attempt.
     const seen = new Map<string, { note: string; tag: string }>();
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes), entry('review-tags', tags)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes), entry('review-tags', tags)]), 'document:review-notes-plan'))],
       'local-architect': [
-        submit(assign(notes, { obligations: ['sc-001'] }, outline())),
-        submit({ ...requestCompletion(), reports: [done('sc-001', 0)] }),
-        // wi-002 needs no iteration: existing step definitions bind its
+        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
+        submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 0)] }),
+        // work-item:review-tags needs no iteration: existing step definitions bind its
         // scenario, and its architect reports it done directly.
-        submit({ ...requestCompletion(), reports: [done('sc-002', 0)] }),
+        submit({ ...requestCompletion(), reports: [done('scenario:review-tags-is-used', 0)] }),
       ],
-      engineer: [submit(completionProposed('The note scenario is bound.', { bindings: [{ id: 'sc-001' }] }), write(noteSteps.slice(`${notesDirectory}/src/`.length), stepFile))],
+      engineer: [submit(completionProposed('The note scenario is bound.', { bindings: [{ id: 'scenario:review-note-is-used' }] }), write(noteSteps.slice(`${notesDirectory}/src/`.length), stepFile))],
     }, [
-      accepted('wi-001.i01', 'revision-01', [...added(noteSteps), ...modified(noteFeature)]),
-      unchanged('wi-001'),
-      accepted('wi-002', 'revision-02', modified(tagFeature)),
+      accepted('work-item:review-note.i01', 'revision-01', [...added(noteSteps), ...modified(noteFeature)]),
+      unchanged('work-item:review-note'),
+      accepted('work-item:review-tags', 'revision-02', modified(tagFeature)),
       unchanged(finalSubject),
     ], {
       checkScript: invocation => {
@@ -267,9 +268,9 @@ describe('PB3-D12, PB3-D06: binding, the done report and the pending tag', () =>
 
     // The binding, with its provenance, before the gate that commits it.
     const binding = log.find(event => event.type === 'obligation-bound')!;
-    expect(binding.data).toEqual({ id: 'sc-001', fakes: [], by: engineer, submission: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(binding.data).toEqual({ id: 'scenario:review-note-is-used', fakes: [], by: engineer, submission: expect.stringMatching(/^[0-9a-f]{64}$/) });
     expect(at(log, 'obligation-bound')).toBeLessThan(at(log, 'gate-committing', data => data.gate === iterationGate.id));
-    expect(scenarioLines(log)).toEqual(['bound sc-001 (no fakes)', 'reported sc-001 done', 'reported sc-002 done']);
+    expect(scenarioLines(log)).toEqual(['bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used done', 'reported scenario:review-tags-is-used done']);
     for (const report of log.filter(event => event.type === 'obligation-reported')) {
       expect(architects).toContain((report.data as { by: string }).by);
     }
@@ -279,22 +280,22 @@ describe('PB3-D12, PB3-D06: binding, the done report and the pending tag', () =>
     // profile excludes the pending tag, ran it; the harness selected nothing.
     expect(iterationGate.audit).toMatchObject({ mode: 'project-default', verdict: 'pass' });
     expect(iterationGate.commands).toEqual([]);
-    expect(resultsOf(iterationGate)).toEqual([expect.objectContaining({ id: 'sc-001', status: 'passed', check: 'scenarios' })]);
-    expect(seen.get(iterationGate.id)!.note).toContain('  @ramify-sc-001\n');
-    expect(seen.get(iterationGate.id)!.tag).toContain('  @ramify-sc-002 @ramify-pending\n');
-    // wi-002's direct done report took its tag off at its gate's commit.
-    expect(resultsOf(noteGate!).map(result => `${result.id} ${result.status}`)).toEqual(['sc-001 passed']);
-    expect(seen.get(tagGate!.id)!.tag).toContain('  @ramify-sc-002\n');
-    expect(resultsOf(tagGate!).map(result => result.id).sort()).toEqual(['sc-001', 'sc-002']);
+    expect(resultsOf(iterationGate)).toEqual([expect.objectContaining({ id: 'scenario:review-note-is-used', status: 'passed', check: 'scenarios' })]);
+    expect(seen.get(iterationGate.id)!.note).toContain('  @ramify-scenario-review-note-is-used\n');
+    expect(seen.get(iterationGate.id)!.tag).toContain('  @ramify-scenario-review-tags-is-used @ramify-pending\n');
+    // work-item:review-tags's direct done report took its tag off at its gate's commit.
+    expect(resultsOf(noteGate!).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:review-note-is-used passed']);
+    expect(seen.get(tagGate!.id)!.tag).toContain('  @ramify-scenario-review-tags-is-used\n');
+    expect(resultsOf(tagGate!).map(result => result.id).sort()).toEqual(['scenario:review-note-is-used', 'scenario:review-tags-is-used']);
 
     // §11: the final gate asked the full audit, its scenario check ran
     // every scenario, and the run completed with every tracked one done.
     expect(finalGate.audit).toMatchObject({ mode: 'full', verdict: 'pass' });
-    expect(resultsOf(finalGate).map(result => `${result.id} ${result.status}`).sort()).toEqual(['sc-001 passed', 'sc-002 passed']);
+    expect(resultsOf(finalGate).map(result => `${result.id} ${result.status}`).sort()).toEqual(['scenario:review-note-is-used passed', 'scenario:review-tags-is-used passed']);
     expect(log.at(-1)!.type).toBe('job-completed');
     expect(onlyRun(service, plan).counts.scenarios).toEqual({ pending: 0, bound: 0, done: 2 });
-    expect(read(root, noteFeature)).toContain('  @ramify-sc-001\n');
-    expect(read(root, tagFeature)).toContain('  @ramify-sc-002\n');
+    expect(read(root, noteFeature)).toContain('  @ramify-scenario-review-note-is-used\n');
+    expect(read(root, tagFeature)).toContain('  @ramify-scenario-review-tags-is-used\n');
     git.assertAnswered();
   }, 120_000);
 
@@ -302,41 +303,41 @@ describe('PB3-D12, PB3-D06: binding, the done report and the pending tag', () =>
     const hash = submissionHash('b');
     const bound = (id: string, fakes: string[], by: string) => line('obligation-bound', { id, fakes, by, submission: hash });
     const report = (judgment: 'done' | 'bound', basedOnRevision: number, by: string) =>
-      reported({ id: 'sc-001', judgment, basedOnRevision, revision: basedOnRevision + 1, by, submission: submissionHash('c') });
-    const after = (...events: ReturnType<typeof line>[]) => fixtureProjection(events).obligations.get('sc-001')!;
+      reported({ id: 'scenario:send-email-is-used', judgment, basedOnRevision, revision: basedOnRevision + 1, by, submission: submissionHash('c') });
+    const after = (...events: ReturnType<typeof line>[]) => fixtureProjection(events).obligations.get('scenario:send-email-is-used')!;
 
-    const withFakes = after(bound('sc-001', ['FakeMailer'], 'inv-0004'));
+    const withFakes = after(bound('scenario:send-email-is-used', ['FakeMailer'], 'inv-0004'));
     expect([withFakes.status, withFakes.revision, withFakes.binding?.fakes, withFakes.binding?.by]).toEqual(['bound', 0, ['FakeMailer'], 'inv-0004']);
     // The architect's report is accepted whatever the list says.
-    const reportedOverFakes = after(bound('sc-001', ['FakeMailer'], 'inv-0004'), report('done', 0, 'inv-0005'));
+    const reportedOverFakes = after(bound('scenario:send-email-is-used', ['FakeMailer'], 'inv-0004'), report('done', 0, 'inv-0005'));
     expect([reportedOverFakes.status, reportedOverFakes.revision, reportedOverFakes.binding?.fakes]).toEqual(['done', 1, ['FakeMailer']]);
     // A later binding of a done obligation records its list and leaves it done.
-    const rebound = after(bound('sc-001', ['FakeMailer'], 'inv-0004'), report('done', 0, 'inv-0005'), bound('sc-001', [], 'inv-0006'));
+    const rebound = after(bound('scenario:send-email-is-used', ['FakeMailer'], 'inv-0004'), report('done', 0, 'inv-0005'), bound('scenario:send-email-is-used', [], 'inv-0006'));
     expect([rebound.status, rebound.revision, rebound.binding?.fakes, rebound.binding?.by]).toEqual(['done', 1, [], 'inv-0006']);
     // Only the architect's revision moves it back, and its next report finishes it again.
-    const revisedBack = after(bound('sc-001', ['FakeMailer'], 'inv-0004'), report('done', 0, 'inv-0005'), bound('sc-001', [], 'inv-0006'), report('bound', 1, 'inv-0007'));
+    const revisedBack = after(bound('scenario:send-email-is-used', ['FakeMailer'], 'inv-0004'), report('done', 0, 'inv-0005'), bound('scenario:send-email-is-used', [], 'inv-0006'), report('bound', 1, 'inv-0007'));
     expect([revisedBack.status, revisedBack.revision]).toEqual(['bound', 2]);
-    expect(after(bound('sc-001', [], 'inv-0004'), report('done', 0, 'inv-0005'), report('bound', 1, 'inv-0007'), report('done', 2, 'inv-0008')).status).toBe('done');
+    expect(after(bound('scenario:send-email-is-used', [], 'inv-0004'), report('done', 0, 'inv-0005'), report('bound', 1, 'inv-0007'), report('done', 2, 'inv-0008')).status).toBe('done');
     // A direct report needs no binding.
     expect(after(report('done', 0, 'inv-0005'))).toMatchObject({ status: 'done', binding: null });
 
     // The scenario states are the same fold.
-    const states = reduceScenarioStates(['sc-001', 'sc-002'], [
-      { type: 'obligation-bound', data: { id: 'sc-001' } },
-      { type: 'obligation-reported', data: { id: 'sc-001', judgment: 'done' } },
-      { type: 'obligation-bound', data: { id: 'sc-001' } },
+    const states = reduceScenarioStates(['scenario:review-note-is-used', 'scenario:review-tags-is-used'], [
+      { type: 'obligation-bound', data: { id: 'scenario:review-note-is-used' } },
+      { type: 'obligation-reported', data: { id: 'scenario:review-note-is-used', judgment: 'done' } },
+      { type: 'obligation-bound', data: { id: 'scenario:review-note-is-used' } },
     ]);
-    expect([...states]).toEqual([['sc-001', 'done'], ['sc-002', 'pending']]);
+    expect([...states]).toEqual([['scenario:review-note-is-used', 'done'], ['scenario:review-tags-is-used', 'pending']]);
   });
 
   test('PB3-D12 a replayed binding is recorded once, and no declared, implemented, due or withdrawal event remains', () => {
     const identity = { by: 'inv-0004', submission: submissionHash('d') };
-    const first = bindingEventsToRecord([{ id: 'sc-001', fakes: ['FakeMailer'] }, { id: 'test-001', fakes: [] }], identity, []);
+    const first = bindingEventsToRecord([{ id: 'scenario:review-note-is-used', fakes: ['FakeMailer'] }, { id: 'test:review-note', fakes: [] }], identity, []);
     expect(first).toEqual([
-      { type: 'obligation-bound', data: { id: 'sc-001', fakes: ['FakeMailer'], ...identity } },
-      { type: 'obligation-bound', data: { id: 'test-001', fakes: [], ...identity } },
+      { type: 'obligation-bound', data: { id: 'scenario:review-note-is-used', fakes: ['FakeMailer'], ...identity } },
+      { type: 'obligation-bound', data: { id: 'test:review-note', fakes: [], ...identity } },
     ]);
-    expect(bindingEventsToRecord([{ id: 'sc-001', fakes: ['FakeMailer'] }, { id: 'test-001', fakes: [] }], identity,
+    expect(bindingEventsToRecord([{ id: 'scenario:review-note-is-used', fakes: ['FakeMailer'] }, { id: 'test:review-note', fakes: [] }], identity,
       [line('obligation-bound', first[0]!.data)])).toEqual([first[1]]);
     const types = runEventSchema.options.map(option => option.shape.type.value as string);
     expect(types).toContain('obligation-bound');
@@ -352,15 +353,15 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
     const feature = featureOf(notesDirectory, 'review-note');
     const steps = stepsOf(notesDirectory, 'review-note');
     const { service, runId, agent, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
-        submit(assign(notes, { obligations: ['sc-001'] }, outline())),
-        [...submit(forgotten), ...submit({ ...requestCompletion(), reports: [done('sc-001', 0)] })],
+        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
+        [...submit(forgotten), ...submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 0)] })],
       ],
-      engineer: [submit(completionProposed('Bound against the fake limit.', { bindings: [{ id: 'sc-001', fakes: ['FakeNoteLimit'] }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile))],
+      engineer: [submit(completionProposed('Bound against the fake limit.', { bindings: [{ id: 'scenario:review-note-is-used', fakes: ['FakeNoteLimit'] }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile))],
     }, [
-      accepted('wi-001.i01', 'revision-01', [...added(steps), ...modified(feature)]),
-      unchanged('wi-001'),
+      accepted('work-item:review-note.i01', 'revision-01', [...added(steps), ...modified(feature)]),
+      unchanged('work-item:review-note'),
       unchanged(finalSubject),
     ]);
 
@@ -369,23 +370,23 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
     const log = await events(root, runId);
     const iterationGate = (await gates(root, runId)).find(attempt => attempt.checkpoint === 'iteration')!;
     expect(iterationGate.verdict).toBe('passed');
-    expect(resultsOf(iterationGate)).toEqual([expect.objectContaining({ id: 'sc-001', status: 'passed' })]);
+    expect(resultsOf(iterationGate)).toEqual([expect.objectContaining({ id: 'scenario:review-note-is-used', status: 'passed' })]);
     // The pass reported nothing: the only report is the architect's last.
-    expect(scenarioLines(log)).toEqual(['bound sc-001 (FakeNoteLimit)', 'reported sc-001 done']);
+    expect(scenarioLines(log)).toEqual(['bound scenario:review-note-is-used (FakeNoteLimit)', 'reported scenario:review-note-is-used done']);
     expect(at(log, 'obligation-reported')).toBeGreaterThan(at(log, 'gate-passed', data => data.gate === iterationGate.id));
     const [, completing] = architectPrompts(agent);
     expect(architectPrompts(agent)).toHaveLength(2);
-    expect(completing).toContain('- sc-001 (scenario): bound, revision 0; bound by inv-');
+    expect(completing).toContain('- scenario:review-note-is-used (scenario): bound, revision 0; bound by inv-');
     expect(completing).toContain('relying on fakes FakeNoteLimit; no report yet');
     // The rejection and the report that answers it are one turn.
     const verdicts = architectVerdicts(agent)[1]!;
-    expect(rejection(verdicts[0])).toEqual([owing('sc-001')]);
+    expect(rejection(verdicts[0])).toEqual([owing('scenario:review-note-is-used')]);
     expect(verdicts[1]).toEqual({ accepted: true });
     // The rejected request ran no gate and wrote no outline: the assignment's
     // and the accepted request's are the only two.
     expect(log.filter(event => event.type === 'outline-revised')).toHaveLength(2);
     expect(log.filter(event => event.type === 'gate-attempted' && (event.data as { checkpoint: string }).checkpoint === 'work-item')).toHaveLength(1);
-    expect(read(root, feature)).toContain('  @ramify-sc-001\n');
+    expect(read(root, feature)).toContain('  @ramify-scenario-review-note-is-used\n');
     git.assertAnswered();
   }, 120_000);
 
@@ -396,34 +397,34 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
     const source = `${notesDirectory}/src/notes.ts`;
     let iterationGates = 0;
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
-        submit(assign(notes, { obligations: ['sc-001'] }, outline())),
+        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
         // The report is the architect's judgment: the fake is permanent here.
-        submit({ ...assign(notes, { kind: 'repair', goal: 'Tidy the notes source.' }), reports: [{ ...done('sc-001', 0), where: 'review-note steps' }] }),
+        submit({ ...assign(notes, { kind: 'repair', goal: 'Tidy the notes source.' }), reports: [{ ...done('scenario:review-note-is-used', 0), where: 'review-note steps' }] }),
         submit({ ...requestCompletion(), reports: [] }),
       ],
       engineer: [
-        submit(completionProposed('Bound against the fake limit.', { bindings: [{ id: 'sc-001', fakes: ['FakeNoteLimit'] }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile)),
+        submit(completionProposed('Bound against the fake limit.', { bindings: [{ id: 'scenario:review-note-is-used', fakes: ['FakeNoteLimit'] }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile)),
         submit(completionProposed('Tidied.'), write('notes.ts', `${consumerStub}// tidied\n`)),
         submit(completionProposed('Tidied, I still believe.')),
         submit(completionProposed('Tidied, once more.')),
       ],
     }, [
-      accepted('wi-001.i01', 'revision-01', [...added(steps), ...modified(feature)]),
-      accepted('wi-001.i02', 'revision-02', modified(source)),
-      unchanged('wi-001.i02'),
-      unchanged('wi-001.i02'),
+      accepted('work-item:review-note.i01', 'revision-01', [...added(steps), ...modified(feature)]),
+      accepted('work-item:review-note.i02', 'revision-02', modified(source)),
+      unchanged('work-item:review-note.i02'),
+      unchanged('work-item:review-note.i02'),
       // The failing scenario results are display only: they record no
       // finding, so no reconciliation asks for a second work-item gate.
-      unchanged('wi-001'),
+      unchanged('work-item:review-note'),
       unchanged(finalSubject),
     ], {
       checkScript: ({ check, context }) => {
         if (check.kind !== 'scenarios') return {};
         if (context.checkpoint !== 'iteration') return { scenarios: runnableScenarios(root) };
         iterationGates += 1;
-        return iterationGates === 1 ? { scenarios: runnableScenarios(root) } : failingScenario(root, 'sc-001');
+        return iterationGates === 1 ? { scenarios: runnableScenarios(root) } : failingScenario(root, 'scenario:review-note-is-used');
       },
     });
 
@@ -434,15 +435,15 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
     const failed = (await gates(root, runId)).filter(attempt => attempt.checkpoint === 'iteration' && attempt.verdict === 'failed');
     expect(failed).toHaveLength(3);
     // Every failure stays raw in its gate; none moved the state.
-    expect(resultsOf(failed[0]!)).toEqual([expect.objectContaining({ id: 'sc-001', status: 'failed',
+    expect(resultsOf(failed[0]!)).toEqual([expect.objectContaining({ id: 'scenario:review-note-is-used', status: 'failed',
       failure: { step: 'Then the outcome review-note promises is shown', message: 'expected the note, got nothing' } })]);
     expect(failed[0]!.audit).toMatchObject({ verdict: 'fail' });
-    expect(scenarioLines(log)).toEqual(['bound sc-001 (FakeNoteLimit)', 'reported sc-001 done']);
+    expect(scenarioLines(log)).toEqual(['bound scenario:review-note-is-used (FakeNoteLimit)', 'reported scenario:review-note-is-used done']);
     expect(log.find(event => event.type === 'obligation-reported')!.data).toMatchObject({ where: 'review-note steps', basedOnRevision: 0, revision: 1 });
     expect(log.filter(event => event.type === 'check-findings-recorded')).toEqual([]);
     expect((await gates(root, runId)).filter(attempt => attempt.checkpoint === 'work-item').map(attempt => attempt.verdict)).toEqual(['passed']);
     expect(onlyRun(service, plan).counts.scenarios).toEqual({ pending: 0, bound: 0, done: 1 });
-    expect(read(root, feature)).toContain('  @ramify-sc-001\n');
+    expect(read(root, feature)).toContain('  @ramify-scenario-review-note-is-used\n');
     git.assertAnswered();
   }, 120_000);
 
@@ -452,28 +453,28 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
     const steps = stepsOf(notesDirectory, 'review-note');
     const source = `${notesDirectory}/src/notes.ts`;
     const { service, runId, agent, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
-        submit(assign(notes, { obligations: ['sc-001'] }, outline())),
-        submit({ ...assign(notes, { goal: 'Replace the fake limit with the real one.', obligations: ['sc-001'] }), reports: [done('sc-001', 0)] }),
+        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
+        submit({ ...assign(notes, { goal: 'Replace the fake limit with the real one.', obligations: ['scenario:review-note-is-used'] }), reports: [done('scenario:review-note-is-used', 0)] }),
         // A completion request cannot carry the revision: it would leave
-        // sc-001 without a done report. The revision travels with the work.
+        // scenario:review-note-is-used without a done report. The revision travels with the work.
         [
-          ...submit({ ...requestCompletion(), reports: [revised('sc-001', 1)] }),
-          ...submit({ ...assign(notes, { goal: 'Cover the limit at its edge.', obligations: ['sc-001'] }), reports: [revised('sc-001', 1)] }),
+          ...submit({ ...requestCompletion(), reports: [revised('scenario:review-note-is-used', 1)] }),
+          ...submit({ ...assign(notes, { goal: 'Cover the limit at its edge.', obligations: ['scenario:review-note-is-used'] }), reports: [revised('scenario:review-note-is-used', 1)] }),
         ],
-        submit({ ...requestCompletion(), reports: [done('sc-001', 2)] }),
+        submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 2)] }),
       ],
       engineer: [
-        submit(completionProposed('Bound against the fake limit.', { bindings: [{ id: 'sc-001', fakes: ['FakeNoteLimit'] }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile)),
-        submit(completionProposed('The notes use the real limit.', { bindings: [{ id: 'sc-001' }] }), write('notes.ts', `${consumerStub}// real limit\n`)),
-        submit(completionProposed('The limit holds at its edge.', { bindings: [{ id: 'sc-001' }] }), write('notes.ts', `${consumerStub}// real limit, at its edge\n`)),
+        submit(completionProposed('Bound against the fake limit.', { bindings: [{ id: 'scenario:review-note-is-used', fakes: ['FakeNoteLimit'] }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile)),
+        submit(completionProposed('The notes use the real limit.', { bindings: [{ id: 'scenario:review-note-is-used' }] }), write('notes.ts', `${consumerStub}// real limit\n`)),
+        submit(completionProposed('The limit holds at its edge.', { bindings: [{ id: 'scenario:review-note-is-used' }] }), write('notes.ts', `${consumerStub}// real limit, at its edge\n`)),
       ],
     }, [
-      accepted('wi-001.i01', 'revision-01', [...added(steps), ...modified(feature)]),
-      accepted('wi-001.i02', 'revision-02', modified(source)),
-      accepted('wi-001.i03', 'revision-03', modified(source)),
-      unchanged('wi-001'),
+      accepted('work-item:review-note.i01', 'revision-01', [...added(steps), ...modified(feature)]),
+      accepted('work-item:review-note.i02', 'revision-02', modified(source)),
+      accepted('work-item:review-note.i03', 'revision-03', modified(source)),
+      unchanged('work-item:review-note'),
       unchanged(finalSubject),
     ]);
 
@@ -481,22 +482,22 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
     expect(onlyRun(service, plan).state).toBe('completed');
     const log = await events(root, runId);
     expect(scenarioLines(log)).toEqual([
-      'bound sc-001 (FakeNoteLimit)', 'reported sc-001 done', 'bound sc-001 (no fakes)', 'reported sc-001 bound', 'bound sc-001 (no fakes)', 'reported sc-001 done',
+      'bound scenario:review-note-is-used (FakeNoteLimit)', 'reported scenario:review-note-is-used done', 'bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used bound', 'bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used done',
     ]);
     const [, , rebound, revisedBack] = architectPrompts(agent);
     const engineers = invocationsOf(log, 'engineer');
-    expect(rebound).toContain(`- sc-001 (scenario): done, revision 1; bound by ${engineers[1]} with no fakes; last report done by`);
+    expect(rebound).toContain(`- scenario:review-note-is-used (scenario): done, revision 1; bound by ${engineers[1]} with no fakes; last report done by`);
     // PB3-C06: the accepted source moved since the report, shown as its own
     // fact beside the unchanged declaration; the harness infers nothing from it.
     expect(rebound).toContain('# Accepted source since your reports');
     expect(rebound).toContain('The accepted source is now revision-02.');
-    expect(rebound).toContain('- sc-001: last reported done against accepted source revision-01');
-    expect(rebound.indexOf('# Accepted source since your reports')).toBeGreaterThan(rebound.indexOf('- sc-001 (scenario): done'));
-    expect(rejection(architectVerdicts(agent)[2]![0])).toEqual([owing('sc-001')]);
-    expect(revisedBack).toContain(`- sc-001 (scenario): bound, revision 2; bound by ${engineers[2]} with no fakes; last report bound by`);
+    expect(rebound).toContain('- scenario:review-note-is-used: last reported done against accepted source revision-01');
+    expect(rebound.indexOf('# Accepted source since your reports')).toBeGreaterThan(rebound.indexOf('- scenario:review-note-is-used (scenario): done'));
+    expect(rejection(architectVerdicts(agent)[2]![0])).toEqual([owing('scenario:review-note-is-used')]);
+    expect(revisedBack).toContain(`- scenario:review-note-is-used (scenario): bound, revision 2; bound by ${engineers[2]} with no fakes; last report bound by`);
     // A revision never brings the pending tag back.
-    expect(read(root, feature)).toContain('  @ramify-sc-001\n');
-    expect(read(root, feature)).not.toContain('@ramify-sc-001 @ramify-pending');
+    expect(read(root, feature)).toContain('  @ramify-scenario-review-note-is-used\n');
+    expect(read(root, feature)).not.toContain('@ramify-scenario-review-note-is-used @ramify-pending');
     git.assertAnswered();
   }, 120_000);
 });
@@ -507,33 +508,33 @@ describe('PB3-D11: a completion proposal binds every assigned obligation', () =>
     const feature = featureOf(notesDirectory, 'review-note');
     const steps = stepsOf(notesDirectory, 'review-note');
     const { service, runId, agent, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
-        submit(assign(notes, { obligations: ['sc-001'] }, outline())),
+        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
         submit(requestCompletion()),
       ],
       engineer: [[
         write(steps.slice(`${notesDirectory}/src/`.length), stepFile),
         { kind: 'submit', input: completionProposed('Done.') },
-        { kind: 'submit', input: completionProposed('Done.', { bindings: [{ id: 'sc-099' }] }) },
-        { kind: 'submit', input: completionProposed('Done, with the binding.', { bindings: [{ id: 'sc-001' }] }) },
+        { kind: 'submit', input: completionProposed('Done.', { bindings: [{ id: 'scenario:unassigned-note' }] }) },
+        { kind: 'submit', input: completionProposed('Done, with the binding.', { bindings: [{ id: 'scenario:review-note-is-used' }] }) },
       ]],
     }, [
-      accepted('wi-001.i01', 'revision-01', [...added(steps), ...modified(feature)]),
-      unchanged('wi-001'),
+      accepted('work-item:review-note.i01', 'revision-01', [...added(steps), ...modified(feature)]),
+      unchanged('work-item:review-note'),
       unchanged(finalSubject),
     ]);
 
     expect(onlyRun(service, plan).state).toBe('completed');
     const engineer = agent!.sessions.find(session => session.spec.role === 'engineer')!;
     expect(engineer.spec.prompt).toContain('## Obligations to bind');
-    expect(engineer.spec.prompt).toContain('- `sc-001`: scenario "');
+    expect(engineer.spec.prompt).toContain('- `scenario:review-note-is-used`: scenario "');
     expect(engineer.verdicts).toHaveLength(3);
-    const missing = 'The assignment names sc-001, which this proposal does not bind. Bind every assigned obligation, with the fakes its binding relies on, or report "partial" with what is unfinished';
-    expect(rejection(engineer.verdicts[0])).toEqual([{ path: 'bindings', message: missing, expected: 'each of sc-001 once' }]);
+    const missing = 'The assignment names scenario:review-note-is-used, which this proposal does not bind. Bind every assigned obligation, with the fakes its binding relies on, or report "partial" with what is unfinished';
+    expect(rejection(engineer.verdicts[0])).toEqual([{ path: 'bindings', message: missing, expected: 'each of scenario:review-note-is-used once' }]);
     expect(rejection(engineer.verdicts[1])).toEqual([
-      { path: 'bindings.0.id', message: 'sc-099 is not assigned to this iteration, so this engineer cannot bind it', expected: 'each of sc-001 once' },
-      { path: 'bindings', message: missing, expected: 'each of sc-001 once' },
+      { path: 'bindings.0.id', message: 'scenario:unassigned-note is not assigned to this iteration, so this engineer cannot bind it', expected: 'each of scenario:review-note-is-used once' },
+      { path: 'bindings', message: missing, expected: 'each of scenario:review-note-is-used once' },
     ]);
     expect(engineer.verdicts[2]).toMatchObject({ accepted: true });
     const log = await events(root, runId);
@@ -541,7 +542,7 @@ describe('PB3-D11: a completion proposal binds every assigned obligation', () =>
     // iteration gate, after the accepted proposal's binding.
     expect(log.filter(event => event.type === 'gate-committing' && (event.data as { checkpoint: string }).checkpoint === 'iteration')).toHaveLength(1);
     expect(at(log, 'obligation-bound')).toBeLessThan(at(log, 'gate-committing'));
-    expect(scenarioLines(log)).toEqual(['bound sc-001 (no fakes)', 'reported sc-001 done']);
+    expect(scenarioLines(log)).toEqual(['bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used done']);
     git.assertAnswered();
   }, 120_000);
 
@@ -549,14 +550,14 @@ describe('PB3-D11: a completion proposal binds every assigned obligation', () =>
     const root = await fixtureWith('notes');
     const feature = featureOf(notesDirectory, 'review-note');
     const { service, runId, agent, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
-        submit(assign(notes, { obligations: ['sc-001'] }, outline())),
-        submit({ ...requestCompletion(), reports: [done('sc-001', 0)] }),
+        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
+        submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 0)] }),
       ],
       engineer: [submit(partialReport(['nothing'], ['the step file: existing definitions already bind the scenario']))],
     }, [
-      accepted('wi-001', 'revision-01', modified(feature)),
+      accepted('work-item:review-note', 'revision-01', modified(feature)),
       unchanged(finalSubject),
     ]);
 
@@ -565,20 +566,20 @@ describe('PB3-D11: a completion proposal binds every assigned obligation', () =>
     expect(engineer.verdicts).toEqual([expect.objectContaining({ accepted: true })]);
     const log = await events(root, runId);
     expect(log.filter(event => event.type === 'iteration-closed').map(event => (event.data as { outcome: string }).outcome)).toEqual(['partial']);
-    expect(scenarioLines(log)).toEqual(['reported sc-001 done']);
-    expect(read(root, feature)).toContain('  @ramify-sc-001\n');
+    expect(scenarioLines(log)).toEqual(['reported scenario:review-note-is-used done']);
+    expect(read(root, feature)).toContain('  @ramify-scenario-review-note-is-used\n');
     git.assertAnswered();
   }, 120_000);
 
   test('the structural check: unassigned, repeated and missing IDs, and a repeated fake', () => {
-    expect(bindingErrors([{ id: 'sc-001', fakes: ['FakeClock', 'FakeClock'] }, { id: 'sc-001', fakes: [] }], ['sc-001', 'test-001'])).toEqual([
+    expect(bindingErrors([{ id: 'scenario:review-note-is-used', fakes: ['FakeClock', 'FakeClock'] }, { id: 'scenario:review-note-is-used', fakes: [] }], ['scenario:review-note-is-used', 'test:review-note'])).toEqual([
       { path: 'bindings.0.fakes.1', message: 'FakeClock is named twice', expected: 'each fake once' },
-      { path: 'bindings.1.id', message: 'sc-001 is bound twice', expected: 'each of sc-001, test-001 once' },
-      expect.objectContaining({ path: 'bindings', message: expect.stringContaining('The assignment names test-001, which this proposal does not bind.') }),
+      { path: 'bindings.1.id', message: 'scenario:review-note-is-used is bound twice', expected: 'each of scenario:review-note-is-used, test:review-note once' },
+      expect.objectContaining({ path: 'bindings', message: expect.stringContaining('The assignment names test:review-note, which this proposal does not bind.') }),
     ]);
     expect(bindingErrors([], [])).toEqual([]);
-    expect(bindingErrors([{ id: 'sc-001', fakes: [] }], [])).toEqual([
-      { path: 'bindings.0.id', message: 'sc-001 is not assigned to this iteration, so this engineer cannot bind it', expected: 'an empty list: this assignment names no obligation' },
+    expect(bindingErrors([{ id: 'scenario:review-note-is-used', fakes: [] }], [])).toEqual([
+      { path: 'bindings.0.id', message: 'scenario:review-note-is-used is not assigned to this iteration, so this engineer cannot bind it', expected: 'an empty list: this assignment names no obligation' },
     ]);
   });
 });
@@ -587,20 +588,20 @@ describe('§9: work-item completion', () => {
   test('PB3-C01 a request is rejected while a scenario of its entry is pending, naming it; the same turn reports it done and completes', async () => {
     const root = await fixtureWith('notes');
     const { service, runId, agent } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
-      'local-architect': [[...submit(forgotten), ...submit({ ...requestCompletion(), reports: [done('sc-001', 0)] })]],
-    }, [unchanged('wi-001'), unchanged(finalSubject)]);
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
+      'local-architect': [[...submit(forgotten), ...submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 0)] })]],
+    }, [unchanged('work-item:review-note'), unchanged(finalSubject)]);
 
     expect(onlyRun(service, plan).state).toBe('completed');
     expect(architectPrompts(agent)).toHaveLength(1);
     const [verdicts] = architectVerdicts(agent);
-    expect(rejection(verdicts![0])).toEqual([owing('sc-001')]);
+    expect(rejection(verdicts![0])).toEqual([owing('scenario:review-note-is-used')]);
     expect(verdicts![1]).toEqual({ accepted: true });
     const log = await events(root, runId);
     // The rejected request ran no gate and wrote no outline.
     expect(log.filter(event => event.type === 'outline-revised')).toHaveLength(1);
     expect(log.filter(event => event.type === 'gate-attempted' && (event.data as { checkpoint: string }).checkpoint === 'work-item')).toHaveLength(1);
-    expect(scenarioLines(log)).toEqual(['reported sc-001 done']);
+    expect(scenarioLines(log)).toEqual(['reported scenario:review-note-is-used done']);
   }, 120_000);
 
   test('PB3-C02 a rejected request whose scenario is unfinished assigns the work in the same turn; the engineer binds it and the next turn reports it done', async () => {
@@ -608,39 +609,39 @@ describe('§9: work-item completion', () => {
     const feature = featureOf(notesDirectory, 'review-note');
     const steps = stepsOf(notesDirectory, 'review-note');
     const { service, runId, agent, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
-        [...submit(forgotten), ...submit(assign(notes, { obligations: ['sc-001'] }, outline()))],
-        submit({ ...requestCompletion(), reports: [done('sc-001', 0)] }),
+        [...submit(forgotten), ...submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline()))],
+        submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 0)] }),
       ],
-      engineer: [submit(completionProposed('Bound with no fakes.', { bindings: [{ id: 'sc-001' }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile))],
+      engineer: [submit(completionProposed('Bound with no fakes.', { bindings: [{ id: 'scenario:review-note-is-used' }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile))],
     }, [
-      accepted('wi-001.i01', 'revision-01', [...added(steps), ...modified(feature)]),
-      unchanged('wi-001'),
+      accepted('work-item:review-note.i01', 'revision-01', [...added(steps), ...modified(feature)]),
+      unchanged('work-item:review-note'),
       unchanged(finalSubject),
     ]);
 
     expect(onlyRun(service, plan).failure).toBeNull();
     const [first, second] = architectVerdicts(agent);
-    expect(rejection(first![0])).toEqual([owing('sc-001')]);
+    expect(rejection(first![0])).toEqual([owing('scenario:review-note-is-used')]);
     expect(first![1]).toEqual({ accepted: true });
     expect(second).toEqual([{ accepted: true }]);
     const log = await events(root, runId);
     // No report was manufactured: the binding came from the work, the done from the next turn.
-    expect(scenarioLines(log)).toEqual(['bound sc-001 (no fakes)', 'reported sc-001 done']);
+    expect(scenarioLines(log)).toEqual(['bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used done']);
     git.assertAnswered();
   }, 120_000);
 
   test('PB3-C03 four incomplete requests can be corrected and report the scenario in the same turn', async () => {
     const root = await fixtureWith('notes');
     const { service, runId, agent } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [[...submit(forgotten), ...submit(forgotten), ...submit(forgotten), ...submit(forgotten),
-        ...submit({ ...requestCompletion(), reports: [done('sc-001', 0)] })]],
-    }, [unchanged('wi-001'), unchanged(finalSubject)]);
+        ...submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 0)] })]],
+    }, [unchanged('work-item:review-note'), unchanged(finalSubject)]);
     const snapshot = onlyRun(service, plan);
     expect(snapshot.state).toBe('completed');
-    expect(architectVerdicts(agent)[0]!.slice(0, 4).map(verdict => rejection(verdict))).toEqual(Array.from({ length: 4 }, () => [owing('sc-001')]));
+    expect(architectVerdicts(agent)[0]!.slice(0, 4).map(verdict => rejection(verdict))).toEqual(Array.from({ length: 4 }, () => [owing('scenario:review-note-is-used')]));
     expect(architectVerdicts(agent)[0]!.at(-1)).toEqual({ accepted: true });
     const log = await events(root, runId);
     expect(log.filter(event => event.type === 'obligation-reported')).toHaveLength(1);
@@ -653,57 +654,57 @@ describe('§9: work-item completion', () => {
     const steps = stepsOf(notesDirectory, 'review-note');
     let regressions = 0;
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
-        submit(assign(notes, { obligations: ['sc-001'] }, outline())),
-        submit({ ...requestCompletion(), reports: [done('sc-001', 0)] }),
+        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
+        submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 0)] }),
         submit({ ...requestCompletion(), reports: [] }),
       ],
-      engineer: [submit(completionProposed('Bound.', { bindings: [{ id: 'sc-001' }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile))],
+      engineer: [submit(completionProposed('Bound.', { bindings: [{ id: 'scenario:review-note-is-used' }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile))],
     }, [
-      accepted('wi-001.i01', 'revision-01', [...added(steps), ...modified(feature)]),
-      unchanged('wi-001'),
-      unchanged('wi-001'),
+      accepted('work-item:review-note.i01', 'revision-01', [...added(steps), ...modified(feature)]),
+      unchanged('work-item:review-note'),
+      unchanged('work-item:review-note'),
       unchanged(finalSubject),
     ], {
       checkScript: ({ check, context }) => {
         if (check.kind !== 'scenarios') return {};
         if (context.checkpoint !== 'work-item' || regressions > 0) return { scenarios: runnableScenarios(root) };
         regressions += 1;
-        return failingScenario(root, 'sc-001');
+        return failingScenario(root, 'scenario:review-note-is-used');
       },
     });
 
     expect(onlyRun(service, plan).state).toBe('completed');
     const attempts = (await gates(root, runId)).filter(attempt => attempt.checkpoint === 'work-item');
     expect(attempts.map(attempt => attempt.verdict)).toEqual(['failed', 'passed']);
-    expect(resultsOf(attempts[0]!)).toEqual([expect.objectContaining({ id: 'sc-001', status: 'failed' })]);
+    expect(resultsOf(attempts[0]!)).toEqual([expect.objectContaining({ id: 'scenario:review-note-is-used', status: 'failed' })]);
     // The failure changed no state and the file kept no pending tag.
-    expect(scenarioLines(await events(root, runId))).toEqual(['bound sc-001 (no fakes)', 'reported sc-001 done']);
-    expect(read(root, feature)).toContain('  @ramify-sc-001\n');
+    expect(scenarioLines(await events(root, runId))).toEqual(['bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used done']);
+    expect(read(root, feature)).toContain('  @ramify-scenario-review-note-is-used\n');
     git.assertAnswered();
   }, 120_000);
 });
 
 describe('§11: the final gate', () => {
   test('acceptance-incomplete: a tracked scenario that is not done, integration scenarios included, is named with its record as evidence', () => {
-    const records = [record('sc-001', 'entry', 'review-note'), record('sc-002', 'entry', 'review-tags'), record('sc-003', 'integration', null)];
-    const tracked = { records, entries: [], states: new Map([['sc-001', 'done'], ['sc-002', 'bound'], ['sc-003', 'pending']] as const) };
+    const records = [record('scenario:review-note-is-used', 'entry', 'review-note'), record('scenario:review-tags-is-used', 'entry', 'review-tags'), record('scenario:review-notes-integration', 'integration', null)];
+    const tracked = { records, entries: [], states: new Map([['scenario:review-note-is-used', 'done'], ['scenario:review-tags-is-used', 'bound'], ['scenario:review-notes-integration', 'pending']] as const) };
     expect(incompleteScenarios(tracked)).toEqual([
-      { id: 'sc-002', entry: 'review-tags', state: 'bound', evidence: 'scenarios/sc-002.json' },
-      { id: 'sc-003', entry: null, state: 'pending', evidence: 'scenarios/sc-003.json' },
+      { id: 'scenario:review-tags-is-used', entry: 'capability:review-tags', state: 'bound', evidence: 'scenarios/scenario%3Areview-tags-is-used.json' },
+      { id: 'scenario:review-notes-integration', entry: null, state: 'pending', evidence: 'scenarios/scenario%3Areview-notes-integration.json' },
     ]);
-    expect(incompleteScenarios({ ...tracked, states: new Map([['sc-001', 'done'], ['sc-002', 'done'], ['sc-003', 'pending']] as const) }))
-      .toEqual([{ id: 'sc-003', entry: null, state: 'pending', evidence: 'scenarios/sc-003.json' }]);
-    expect(incompleteScenarios({ ...tracked, states: new Map([['sc-001', 'done'], ['sc-002', 'done'], ['sc-003', 'done']] as const) })).toEqual([]);
+    expect(incompleteScenarios({ ...tracked, states: new Map([['scenario:review-note-is-used', 'done'], ['scenario:review-tags-is-used', 'done'], ['scenario:review-notes-integration', 'pending']] as const) }))
+      .toEqual([{ id: 'scenario:review-notes-integration', entry: null, state: 'pending', evidence: 'scenarios/scenario%3Areview-notes-integration.json' }]);
+    expect(incompleteScenarios({ ...tracked, states: new Map([['scenario:review-note-is-used', 'done'], ['scenario:review-tags-is-used', 'done'], ['scenario:review-notes-integration', 'done']] as const) })).toEqual([]);
   });
 
   test('a passing final gate completes the run whatever its scenario check reported: the results are raw evidence, never matched to the states', async () => {
     const root = await fixtureWith('notes');
     const { service, runId } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [submit(requestCompletion())],
-    }, [unchanged('wi-001'), unchanged(finalSubject)], {
+    }, [unchanged('work-item:review-note'), unchanged(finalSubject)], {
       // The final run did not execute the scenario, and reported nothing failed.
       checkScript: ({ check, context }) => (check.kind !== 'scenarios' ? {}
         : context.checkpoint === 'final' ? { scenarios: [] } : { scenarios: runnableScenarios(root) }),
@@ -723,42 +724,44 @@ describe('§11: the final gate', () => {
 function record(id: string, kind: 'entry' | 'integration', entryName: string | null): ScenarioRecord {
   const source = [`Scenario: ${id}`, '  Given a note', '  When it is saved', '  Then it is kept'];
   return scenarioRecordSchema.parse({
-    schema: 'ramify-agent.scenario/1',
+    schema: 'ramify-agent.scenario/2',
     id,
     kind,
-    entry: entryName,
+    entry: entryName === null ? null : `capability:${entryName}`,
     owner: notes,
-    origin: kind === 'entry' ? { kind: 'architect', refs: ['fr-002'] } : { kind: 'plan', planScenario: 'ps-01', ref: { lines: [1, 4] } },
+    origin: kind === 'entry' ? { kind: 'architect', refs: ['functional-requirement:review-note-acceptance'] }
+      : { kind: 'plan', planScenario: 'plan-scenario:review-notes', ref: { document: 'document:review-notes-plan', lines: [1, 4] } },
+    citedElements: kind === 'entry' ? ['functional-requirement:review-note-acceptance'] : [],
     partOf: null,
-    subScenarios: kind === 'entry' ? [] : ['sc-001', 'sc-002'],
+    subScenarios: kind === 'entry' ? [] : ['scenario:review-note-is-used', 'scenario:review-tags-is-used'],
     name: id,
     source,
     hash: scenarioSourceHash(source),
-    file: kind === 'entry' ? featureOf(notesDirectory, entryName!) : `${notesDirectory}/src/tests/features/${plan}/integration.feature`,
+    file: kind === 'entry' ? featureOf(notesDirectory, entryName!) : `${notesDirectory}/src/tests/features/${plan}/plan-scenario%3Areview-notes.feature`,
   });
 }
 
 describe('PB3-D04: obligation reports and the scenario states are one fold', () => {
   test('PB3-D04 an architect report moves its scenario\'s obligation and state alike; a gate result moves neither', () => {
     const gate = line('gate-passed', { gate: 'ga-0004', kind: 'iteration' });
-    const report = reported({ id: 'sc-002', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0005', submission: submissionHash('d') });
+    const report = reported({ id: 'scenario:keep-history-is-used', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0005', submission: submissionHash('d') });
 
     // Gate results move no obligation.
     const withoutReport = fixtureProjection([gate]).obligations;
     expect([...withoutReport.values()].map(one => [one.id, one.status, one.revision])).toEqual([
-      ['sc-001', 'pending', 0], ['sc-002', 'pending', 0], ['sc-003', 'pending', 0], ['cap-001', 'pending', 0],
+      ['scenario:send-email-is-used', 'pending', 0], ['scenario:keep-history-is-used', 'pending', 0], ['scenario:combined-history', 'pending', 0], ['capability-task:mail-delivery', 'pending', 0],
     ]);
     // An architect report moves its obligation alone.
     const withReport = fixtureProjection([gate, report]).obligations;
-    expect([withReport.get('sc-001')?.status, withReport.get('sc-002')?.status, withReport.get('sc-002')?.revision]).toEqual(['pending', 'done', 1]);
+    expect([withReport.get('scenario:send-email-is-used')?.status, withReport.get('scenario:keep-history-is-used')?.status, withReport.get('scenario:keep-history-is-used')?.revision]).toEqual(['pending', 'done', 1]);
 
     // An entry scenario whose work item is not committed has no responsible architect: no obligation, and no failure.
-    const orphan = obligationsOf({ scenarios: [scenarioRecord('sc-009', 'unplanned-entry')], workItems: [], events: [] });
+    const orphan = obligationsOf({ scenarios: [scenarioRecord('scenario:unplanned-entry', 'unplanned-entry')], workItems: [], events: [] });
     expect([...orphan.obligations.keys()]).toEqual([]);
 
     // The scenario states read the same report, and nothing else.
     expect(scenarioEventTypes).toContain(report.type);
-    const events: ScenarioEvent[] = [{ type: 'obligation-reported', data: { id: 'sc-002', judgment: 'done' } }];
-    expect([...reduceScenarioStates(['sc-001', 'sc-002', 'sc-003'], events)]).toEqual([['sc-001', 'pending'], ['sc-002', 'done'], ['sc-003', 'pending']]);
+    const events: ScenarioEvent[] = [{ type: 'obligation-reported', data: { id: 'scenario:keep-history-is-used', judgment: 'done' } }];
+    expect([...reduceScenarioStates(['scenario:send-email-is-used', 'scenario:keep-history-is-used', 'scenario:combined-history'], events)]).toEqual([['scenario:send-email-is-used', 'pending'], ['scenario:keep-history-is-used', 'done'], ['scenario:combined-history', 'pending']]);
   });
 });

@@ -1,0 +1,263 @@
+{
+  "observedAt": "2026-10-22T10:52:13.061854+00:00",
+  "planId": "42-descriptive-identifiers",
+  "jobId": "20261021T092602Z-c16df0",
+  "runtimeCommit": "66c72246",
+  "auditProvider": "ramify-audit@0.12.0",
+  "assessments": [
+    {
+      "id": "as-0028",
+      "kind": "iteration",
+      "candidate": "e722e57bbfa66d819c15051cc46cae90248a0774",
+      "requestedAt": "2026-10-22T09:28:10.717Z",
+      "completedAt": "2026-10-22T09:50:09.158Z",
+      "status": "completed",
+      "stageCompletedAt": {
+        "audit": "2026-10-22T09:44:33.468Z",
+        "protection": "2026-10-22T09:44:33.527Z",
+        "documents": "2026-10-22T09:44:35.094Z",
+        "review-policy": "2026-10-22T09:44:35.099Z",
+        "review-accepted": "2026-10-22T09:47:50.722Z",
+        "review": "2026-10-22T09:47:51.789Z",
+        "reconciliation-accepted": "2026-10-22T09:50:08.717Z",
+        "reconciliation": "2026-10-22T09:50:09.087Z",
+        "approval-readiness": "2026-10-22T09:50:09.120Z"
+      },
+      "totalSeconds": 1318.441,
+      "requestToAuditSeconds": 982.751,
+      "reviewSeconds": 196.69,
+      "reconciliationSeconds": 137.298,
+      "audit": {
+        "reused": false,
+        "reportCommit": "5a443a91118538736495c564173784a314ed84c7",
+        "runRef": "refs/audited/runs/2026-10-22T09-44-33Z-e722e57bb",
+        "artifact": {
+          "path": "evidence/4f5a8ca5de7dbb92a1bd94ab3a3eb17a67e626b242e9734b6892555632f57a2d.json",
+          "sha256": "4f5a8ca5de7dbb92a1bd94ab3a3eb17a67e626b242e9734b6892555632f57a2d"
+        },
+        "mode": "ramify-partial",
+        "retainedReportDurationSeconds": 976.387,
+        "selection": {
+          "kind": "scoped",
+          "selectedCheckIds": [
+            "agent-structure",
+            "agent-tests",
+            "agent-typecheck",
+            "agent-web-build",
+            "patch-integrity"
+          ],
+          "omittedCheckIds": [
+            "agent-scenarios"
+          ],
+          "selectedTestUnitIds": [
+            "agent-check-self",
+            "agent-typecheck",
+            "agent-vitest",
+            "agent-web-build",
+            "git-diff-check"
+          ],
+          "omittedTestUnitIds": [
+            "agent-cucumber"
+          ]
+        },
+        "retainedCommandSeconds": {
+          "agent-check-self": 30.191,
+          "agent-vitest": 73.973,
+          "agent-typecheck": 12.647,
+          "agent-web-build": 0.625,
+          "git-diff-check": 0.005
+        }
+      }
+    },
+    {
+      "id": "as-0029",
+      "kind": "final",
+      "candidate": "e722e57bbfa66d819c15051cc46cae90248a0774",
+      "requestedAt": "2026-10-22T09:51:02.356Z",
+      "completedAt": "2026-10-22T10:07:08.508Z",
+      "status": "completed",
+      "stageCompletedAt": {
+        "audit": "2026-10-22T10:00:45.984Z",
+        "protection": "2026-10-22T10:00:46.032Z",
+        "documents": "2026-10-22T10:00:47.746Z",
+        "review-policy": "2026-10-22T10:00:47.751Z",
+        "review-accepted": "2026-10-22T10:05:19.904Z",
+        "review": "2026-10-22T10:05:20.803Z",
+        "reconciliation-accepted": "2026-10-22T10:07:08.138Z",
+        "reconciliation": "2026-10-22T10:07:08.462Z",
+        "approval-readiness": "2026-10-22T10:07:08.495Z"
+      },
+      "totalSeconds": 966.152,
+      "requestToAuditSeconds": 583.628,
+      "reviewSeconds": 273.052,
+      "reconciliationSeconds": 107.659,
+      "audit": {
+        "reused": true,
+        "reportCommit": "5a443a91118538736495c564173784a314ed84c7",
+        "runRef": "refs/audited/runs/2026-10-22T09-44-33Z-e722e57bb",
+        "artifact": {
+          "path": "evidence/d5ff0d67c7c7b462fda8ed97571ea107b9a1e0e20e3871b76ca1d7fb1bb75218.json",
+          "sha256": "d5ff0d67c7c7b462fda8ed97571ea107b9a1e0e20e3871b76ca1d7fb1bb75218"
+        },
+        "mode": "ramify-partial",
+        "retainedReportDurationSeconds": 976.387,
+        "selection": {
+          "kind": "scoped",
+          "omittedCheckIds": [
+            "agent-scenarios"
+          ],
+          "omittedTestUnitIds": [
+            "agent-cucumber"
+          ],
+          "selectedCheckIds": [
+            "agent-structure",
+            "agent-tests",
+            "agent-typecheck",
+            "agent-web-build",
+            "patch-integrity"
+          ],
+          "selectedTestUnitIds": [
+            "agent-check-self",
+            "agent-typecheck",
+            "agent-vitest",
+            "agent-web-build",
+            "git-diff-check"
+          ]
+        },
+        "retainedCommandSeconds": {
+          "agent-check-self": 30.191,
+          "agent-vitest": 73.973,
+          "agent-typecheck": 12.647,
+          "agent-web-build": 0.625,
+          "git-diff-check": 0.005
+        }
+      }
+    },
+    {
+      "id": "as-0030",
+      "kind": "iteration",
+      "candidate": "db7250c732ba074dae93f2e4758a79e6b63a0220",
+      "requestedAt": "2026-10-22T10:10:00.397Z",
+      "completedAt": "2026-10-22T10:29:11.204Z",
+      "status": "completed",
+      "stageCompletedAt": {
+        "audit": "2026-10-22T10:26:17.640Z",
+        "protection": "2026-10-22T10:26:17.688Z",
+        "documents": "2026-10-22T10:26:19.630Z",
+        "review-policy": "2026-10-22T10:26:19.635Z",
+        "review-accepted": "2026-10-22T10:27:46.990Z",
+        "review": "2026-10-22T10:27:47.695Z",
+        "reconciliation-accepted": "2026-10-22T10:29:10.866Z",
+        "reconciliation": "2026-10-22T10:29:11.169Z",
+        "approval-readiness": "2026-10-22T10:29:11.194Z"
+      },
+      "totalSeconds": 1150.807,
+      "requestToAuditSeconds": 977.243,
+      "reviewSeconds": 88.06,
+      "reconciliationSeconds": 83.474,
+      "audit": {
+        "reused": false,
+        "reportCommit": "d99fcbb39c5a38e5a802402b636ac37dea09dcbb",
+        "runRef": "refs/audited/runs/2026-10-22T10-26-17Z-db7250c73",
+        "artifact": {
+          "path": "evidence/8059115783a9d3df4d961154c371b3c9f005e7f495ff0d996cbc1028f84f3eb5.json",
+          "sha256": "8059115783a9d3df4d961154c371b3c9f005e7f495ff0d996cbc1028f84f3eb5"
+        },
+        "mode": "ramify-partial",
+        "retainedReportDurationSeconds": 970.388,
+        "selection": {
+          "kind": "scoped",
+          "selectedCheckIds": [
+            "agent-structure",
+            "agent-typecheck",
+            "agent-web-build",
+            "patch-integrity"
+          ],
+          "omittedCheckIds": [
+            "agent-scenarios",
+            "agent-tests"
+          ],
+          "selectedTestUnitIds": [
+            "agent-check-self",
+            "agent-typecheck",
+            "agent-web-build",
+            "git-diff-check"
+          ],
+          "omittedTestUnitIds": [
+            "agent-cucumber",
+            "agent-vitest"
+          ]
+        },
+        "retainedCommandSeconds": {
+          "agent-check-self": 30.66,
+          "agent-typecheck": 12.137,
+          "agent-web-build": 0.653,
+          "git-diff-check": 0.006
+        }
+      }
+    },
+    {
+      "id": "as-0031",
+      "kind": "final",
+      "candidate": "db7250c732ba074dae93f2e4758a79e6b63a0220",
+      "requestedAt": "2026-10-22T10:29:47.358Z",
+      "completedAt": "2026-10-22T10:48:51.762Z",
+      "status": "completed",
+      "stageCompletedAt": {
+        "audit": "2026-10-22T10:44:10.903Z",
+        "protection": "2026-10-22T10:44:10.952Z",
+        "documents": "2026-10-22T10:44:12.957Z",
+        "review-policy": "2026-10-22T10:44:12.962Z",
+        "review-accepted": "2026-10-22T10:46:28.722Z",
+        "review": "2026-10-22T10:46:29.464Z",
+        "reconciliation-accepted": "2026-10-22T10:48:51.263Z",
+        "reconciliation": "2026-10-22T10:48:51.715Z",
+        "approval-readiness": "2026-10-22T10:48:51.748Z"
+      },
+      "totalSeconds": 1144.404,
+      "requestToAuditSeconds": 863.545,
+      "reviewSeconds": 136.502,
+      "reconciliationSeconds": 142.251,
+      "audit": {
+        "reused": true,
+        "reportCommit": "d99fcbb39c5a38e5a802402b636ac37dea09dcbb",
+        "runRef": "refs/audited/runs/2026-10-22T10-26-17Z-db7250c73",
+        "artifact": {
+          "path": "evidence/b6f196f3cba829a2e0343d74395cefa6dc52043a8e35e586593e5b8791f5671f.json",
+          "sha256": "b6f196f3cba829a2e0343d74395cefa6dc52043a8e35e586593e5b8791f5671f"
+        },
+        "mode": "ramify-partial",
+        "retainedReportDurationSeconds": 970.388,
+        "selection": {
+          "kind": "scoped",
+          "omittedCheckIds": [
+            "agent-scenarios",
+            "agent-tests"
+          ],
+          "omittedTestUnitIds": [
+            "agent-cucumber",
+            "agent-vitest"
+          ],
+          "selectedCheckIds": [
+            "agent-structure",
+            "agent-typecheck",
+            "agent-web-build",
+            "patch-integrity"
+          ],
+          "selectedTestUnitIds": [
+            "agent-check-self",
+            "agent-typecheck",
+            "agent-web-build",
+            "git-diff-check"
+          ]
+        },
+        "retainedCommandSeconds": {
+          "agent-check-self": 30.66,
+          "agent-typecheck": 12.137,
+          "agent-web-build": 0.653,
+          "git-diff-check": 0.006
+        }
+      }
+    }
+  ]
+}

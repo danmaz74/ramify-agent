@@ -63,8 +63,8 @@ async function project(): Promise<{ root: string; scratch: string }> {
 }
 
 const item = {
-  schema: 'ramify-agent.work-item/1', id: 'state-note-limit', module: notes, origin: { entry: 'review-note' },
-  goal: 'State the note limit the reviewers asked for.', requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
+  schema: 'ramify-agent.work-item/2', id: 'work-item:state-note-limit', module: notes, origin: { entry: 'capability:review-note' },
+  goal: 'State the note limit the reviewers asked for.', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null,
 };
 
 /** Engineer inputs authored with no run, written to a file. */
@@ -305,10 +305,11 @@ describe('S09/S12: one engineer step in a manual run', () => {
     const inputs = await writeInputs(scratch, 'prospective-inputs.json', { ...authored, capabilityWorkflow: true });
     const future = `${notesDirectory}/src/tests/future.test.ts`;
     const need = (module: string) => ({ kind: 'capability-needed', summary: 'Need a configured note limit', request: {
+      requestKey: 'draft:capability-request:configured-note-limit',
       need: 'A note limit the reviewers configure',
       usage: [{ path: future, use: 'Test the configured limit', prospective: true, module }],
       constraints: [], knownInterface: { kind: 'none-known' },
-      examples: [{ title: 'Configured limit', code: 'expect(noteLimit()).toBe(500)', designation: 'pseudocode' }],
+      examples: [{ key: 'draft:capability-example:configured-note-limit', title: 'Configured limit', code: 'expect(noteLimit()).toBe(500)', designation: 'pseudocode' }],
       suggestedProvider: { module: 'collection-review/integration-tests', reason: 'Owns cross-module verification' },
     } });
     const { result, events } = await step(root, inputs, manualRun(root, 'm-prospective'), [
@@ -367,9 +368,9 @@ describe('S09/S12: one engineer step in a manual run', () => {
     await expect(stat(join(root, 'plans', '.harness', 'sessions'))).rejects.toThrow();
 
     // The authored work item, outline and assignment are the manual run's before its invocation.
-    await expect(json(join(run, workLayout.item('state-note-limit')))).resolves.toMatchObject({ id: 'state-note-limit', goal: item.goal });
-    await expect(json(join(run, workLayout.outline('state-note-limit', 1)))).resolves.toMatchObject({ workItem: 'state-note-limit', revision: 1 });
-    await expect(json(join(run, iterationLayout.assignment('state-note-limit', 1)))).resolves.toMatchObject({ goal: 'Raise the note limit to 500.' });
+    await expect(json(join(run, workLayout.item(item.id)))).resolves.toMatchObject({ id: item.id, goal: item.goal });
+    await expect(json(join(run, workLayout.outline(item.id, 1)))).resolves.toMatchObject({ workItem: item.id, revision: 1 });
+    await expect(json(join(run, iterationLayout.assignment(item.id, 1)))).resolves.toMatchObject({ goal: 'Raise the note limit to 500.' });
 
     // S12: the live output, in order.
     const types = events.map(event => event.type);

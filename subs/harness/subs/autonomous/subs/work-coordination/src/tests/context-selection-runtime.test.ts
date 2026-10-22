@@ -19,7 +19,7 @@ import { replacementBanner } from '../../../../../task-execution/src/delivery/bl
 import { runLayout, runRecordSchema } from '../../../../src/run/records.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { declaringScenarios, defaultTurn, withDefaultTurns } from '../../../../../../src/tests/helpers/declarations.js';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { byRole, submit, treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
 import { openUnchangedRuns, assertUnchangedGit } from '../../../../../../src/tests/helpers/unchanged-run.js';
@@ -32,6 +32,7 @@ vi.mock('node:child_process', async original =>
   (await import('../../../../../../src/tests/helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 
 const cleanups: Array<() => Promise<void>> = [];
+const authoredAnalysis = (...args: Parameters<typeof analysis>) => currentAnalysis(analysis(...args), 'document:revision-diff-plan');
 afterEach(async () => {
   try { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); assertUnchangedGit(); expectNoProcesses(); }
   finally { forgetExternalTools(); }
@@ -40,7 +41,7 @@ afterEach(async () => {
 /** The default intake over the captured plan, reading the given elements of the root plan. */
 function intake(spec: SessionSpec, elements: readonly Omit<SubmittedElement, 'document'>[]): readonly ScriptStep[] {
   const input = (defaultTurn(spec)![0] as { readonly input: Record<string, unknown> }).input;
-  return submit({ ...input, elements: elements.map(element => ({ ...element, document: 'doc-001' })) });
+  return submit({ ...input, elements: elements.map(element => ({ ...element, document: 'document:revision-diff-plan' })) });
 }
 
 /** The script with the default turns, except a selector turn the test states. */
@@ -79,11 +80,11 @@ test('one oriented local context selects once, appends the work-item package onc
     },
   };
   const agent = createScriptedAgent(declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core', 'Summarizes a review.')]))],
+    'initial-architect': [submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core', 'Summarizes a review.')]))],
     'local-architect': [submit(requestCompletion())],
   })));
   const opened = await openUnchangedRuns(fixture.root, {
-    agent, configuredAudit, inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001', 'final verification of plan "revision-diff"'],
+    agent, configuredAudit, inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'],
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('revision-diff'));
@@ -118,8 +119,8 @@ test('one oriented local context selects once, appends the work-item package onc
   expect(initial.spec.prompt).toMatch(/They are configured in [^\n]*`cucumber\.json`[^\n]*\. Open one only when a concern, or a focused command you need, depends on it\./u);
   expect(initial.spec.prompt).toContain('The gate runs these; nothing here is a command for you to run.');
   const orienting = agent.sessions.find(session => session.spec.submission.name === 'submit_work_orientation')!;
-  expect(orienting.spec.prompt).toContain('The plan asks for review-summary-request.');
-  expect(orienting.spec.prompt).toContain('The plan asks for review-summary-acceptance.');
+  expect(orienting.spec.prompt).toContain('The plan asks for draft:functional-requirement:review-summary-request.');
+  expect(orienting.spec.prompt).toContain('The plan asks for draft:functional-requirement:review-summary-acceptance.');
   // Paths are project-relative; the project root is stated once.
   expect(orienting.spec.prompt).toContain('`subs/workspace/subs/reviews/subs/core/src/tests/`');
   expect(orienting.spec.prompt).not.toContain(`${fixture.root}/subs/workspace/subs/reviews/subs/core/src/tests/`);
@@ -130,19 +131,19 @@ test('one oriented local context selects once, appends the work-item package onc
   expect(selectingSession.start.mode).toBe('fork');
   expect(selectingSession.spec.prompt).not.toContain('## Module architect briefing');
   expect(selectingSession.spec.prompt).not.toContain('## Module architect orientation');
-  expect(selectingSession.spec.prompt).not.toContain('The plan asks for review-summary-request.');
+  expect(selectingSession.spec.prompt).not.toContain('The plan asks for draft:functional-requirement:review-summary-request.');
   expect(selectingSession.spec.prompt).not.toContain('no longer applies to this task');
   expect(selectingSession.spec.prompt).not.toContain("`subs/workspace/subs/reviews/subs/core/module.ramify`");
   expect([...selectingSession.inherited, selectingSession.spec.prompt].join('\n')).toContain("`subs/workspace/subs/reviews/subs/core/module.ramify`");
   expect(agent.sessions.filter(session => session.spec.role === 'context-selector')).toHaveLength(1);
   const recorded = await recordedPackage(fixture.root, receipt.jobId, events, selections[0]!);
-  expect(recorded.selection.package).toEqual({ elements: ['fr-001', 'fr-002'], deviations: [], hash: selections[0]!.data.packageHash });
-  expect(recorded.packageText).toContain('The plan asks for review-summary-request.');
-  expect(recorded.packageText).toContain('The plan asks for review-summary-acceptance.');
+  expect(recorded.selection.package).toEqual({ elements: ['functional-requirement:review-summary-request', 'functional-requirement:review-summary-acceptance'], deviations: [], hash: selections[0]!.data.packageHash });
+  expect(recorded.packageText).toContain('The plan asks for draft:functional-requirement:review-summary-request.');
+  expect(recorded.packageText).toContain('The plan asks for draft:functional-requirement:review-summary-acceptance.');
   const organizing = agent.sessions.filter(session => session.spec.submission.name === 'submit_work_item_result');
   expect(organizing).toHaveLength(1);
   expect(organizing[0]!.start.mode).toBe('continue');
-  expect(organizing[0]!.spec.prompt).toContain('Build on the module reading and understanding already in this session.');
+  expect(organizing[0]!.spec.prompt).toContain('Build on useful understanding already in this session; refresh it');
   // The appended block preserves the package body once; the current brief
   // selects its content hash. A first delivery of the key replaces nothing,
   // so it carries no replacement banner.
@@ -162,8 +163,8 @@ test('one oriented local context selects once, appends the work-item package onc
   } finally { expect(await adapter.close()).toBe(true); }
   expect(organizing[0]!.spec.prompt).not.toContain('# Your work-item package');
   expect(organizing[0]!.spec.prompt).toContain(`Your work-item package \`${recorded.selection.package.hash}\`, already in your session`);
-  expect(organizing[0]!.spec.prompt).toContain('- Requirement: fr-001\n- Acceptance: fr-002\n- Context: none');
-  expect(selections[0]!.data.selection).toBe(runLayout.selectionVersion('wi-001', selections[0]!.data.selectionHash));
+  expect(organizing[0]!.spec.prompt).toContain('- Functional requirements: functional-requirement:review-summary-request\n- Functional acceptance: functional-requirement:review-summary-acceptance\n- Context: none');
+  expect(selections[0]!.data.selection).toBe(runLayout.selectionVersion('work-item:review-summary', selections[0]!.data.selectionHash));
 }, 120_000);
 
 test('a selected non-functional element and recommendation reach the runtime package whole', async () => {
@@ -173,16 +174,16 @@ test('a selected non-functional element and recommendation reach the runtime pac
   await writeFile(join(fixture.root, 'plans/revision-diff/plan.md'), '# Request\n\n# Acceptance\n\nThe service must preserve a 30 second timeout.\nUse Redis if practical.\n');
   const texts = ['The service must preserve a 30 second timeout.', 'Use Redis if practical.'];
   const agent = createScriptedAgent(selecting(() => submit({ selected: [
-    { id: 'nfr-001', reason: 'Service timing applies to this work item.', conditions: ['for the service'], uncertainty: '' },
-    { id: 'rec-001', reason: 'The plan suggests an optional storage choice.', conditions: [], uncertainty: 'Tentative suggestion.' },
+    { id: 'non-functional-requirement:timeout', reason: 'Service timing applies to this work item.', conditions: ['for the service'], uncertainty: '' },
+    { id: 'recommendation:redis', reason: 'The plan suggests an optional storage choice.', conditions: [], uncertainty: 'Tentative suggestion.' },
   ] }), spec => {
     if (spec.submission.name === intakeToolName) return intake(spec, [
-      { key: 'timeout', kind: 'non-functional', text: texts[0]!, conditions: [{ text: 'for the service', source: 'inferred' }], uncertainty: '' },
-      { key: 'redis', kind: 'recommendation', text: texts[1]!, conditions: [], uncertainty: 'Tentative suggestion.' },
+      { key: 'draft:non-functional-requirement:timeout', kind: 'non-functional', text: texts[0]!, conditions: [{ text: 'for the service', source: 'inferred' }], uncertainty: '' },
+      { key: 'draft:recommendation:redis', kind: 'recommendation', text: texts[1]!, conditions: [], uncertainty: 'Tentative suggestion.' },
     ]);
-    if (spec.role === 'initial-architect') return submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core', 'Summarizes a review.')]));
-    if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{ nfr: 'nfr-001', result: 'satisfied', inspectedScope: ['src/'], evidence: ['Fixture timeout inspected'], uncertainty: '' }] });
-    if (spec.role === 'local-architect') return submit({ ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] });
+    if (spec.role === 'initial-architect') return submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core', 'Summarizes a review.')]));
+    if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{ nfr: 'non-functional-requirement:timeout', result: 'satisfied', inspectedScope: ['src/'], evidence: ['Fixture timeout inspected'], uncertainty: '' }] });
+    if (spec.role === 'local-architect') return submit({ ...requestCompletion(), reports: [{ id: 'scenario:review-summary-is-used', judgment: 'done', basedOnRevision: 0 }] });
     return [];
   }));
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
@@ -190,7 +191,7 @@ test('a selected non-functional element and recommendation reach the runtime pac
       'scenarios-of-revision-diff': { tree: 'a'.repeat(40), files: {}, base: 'scenarios-of-revision-diff', changes: [] },
       ['a'.repeat(40)]: { tree: 'a'.repeat(40), files: {}, base: 'scenarios-of-revision-diff', changes: [], comparisons: { 'unchanged-fixture-revision': { changes: [] } } },
     }),
-    previewCount: 5, unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001', 'final verification of plan "revision-diff"'], });
+    previewCount: 5, unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'], });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('revision-diff'));
   await opened.service.settled('revision-diff', receipt.jobId);
@@ -200,8 +201,8 @@ test('a selected non-functional element and recommendation reach the runtime pac
   expect(selected?.type, JSON.stringify(events.map(event => ({ type: event.type, data: event.data })))).toBe('context-selection-recorded');
   if (!selected || selected.type !== 'context-selection-recorded') return;
   const recorded = await recordedPackage(fixture.root, receipt.jobId, events, selected);
-  expect(recorded.selection.selected.map(item => item.id)).toEqual(['nfr-001', 'rec-001']);
-  expect(recorded.selection.package.elements).toEqual(['fr-001', 'fr-002', 'nfr-001', 'rec-001']);
+  expect(recorded.selection.selected.map(item => item.id)).toEqual(['non-functional-requirement:timeout', 'recommendation:redis']);
+  expect(recorded.selection.package.elements).toEqual(['functional-requirement:review-summary-request', 'functional-requirement:review-summary-acceptance', 'non-functional-requirement:timeout', 'recommendation:redis']);
   expect(recorded.packageText).toContain(texts[0]);
   expect(recorded.packageText).toContain(texts[1]);
   expect(recorded.packageText).toContain('inferred: for the service');
@@ -220,9 +221,9 @@ test('invalid selector output fails within the captured retry bound before an as
   cleanups.push(fixture.remove);
   await installTestRunner(fixture.root);
   const agent = createScriptedAgent(selecting(() => submit({ selected: [
-    { id: 'nfr-999', reason: 'Invented evidence', conditions: [], uncertainty: '' },
+    { id: 'non-functional-requirement:invented', reason: 'Invented evidence', conditions: [], uncertainty: '' },
   ] }), spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]));
+    if (spec.role === 'initial-architect') return submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core')]));
     return [];
   }));
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
@@ -247,7 +248,7 @@ test('a source change during selection refuses the package before delivery', asy
     writeFileSync(join(fixture.root, 'plans/revision-diff/plan.md'), '# Request\n\nChanged after capture.\n');
     return submit({ selected: [] });
   }, spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]));
+    if (spec.role === 'initial-architect') return submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core')]));
     return [];
   }));
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
@@ -270,12 +271,12 @@ test('lost parent session reconstructs the exact package in a fresh organizing p
     if (!parent || !agent.loseSession(JSON.parse(parent.ref))) throw new Error('Expected a retained orientation point');
     return submit({ selected: [] });
   }, spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]));
-    if (spec.role === 'local-architect') return submit({ ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] });
+    if (spec.role === 'initial-architect') return submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core')]));
+    if (spec.role === 'local-architect') return submit({ ...requestCompletion(), reports: [{ id: 'scenario:review-summary-is-used', judgment: 'done', basedOnRevision: 0 }] });
     return [];
   }));
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001', 'final verification of plan "revision-diff"'], });
+    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'], });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('revision-diff'));
   await opened.service.settled('revision-diff', receipt.jobId);
@@ -287,7 +288,7 @@ test('lost parent session reconstructs the exact package in a fresh organizing p
   expect(events.find(event => event.type === 'context-package-appended')?.data.outcome).toBe('session-lost');
   const organizing = agent.sessions.find(session => session.spec.submission.name === 'submit_work_item_result');
   expect(organizing?.start.mode).toBe('fresh');
-  expect(organizing?.spec.prompt).toMatch(/If\s+this is a fresh session, read your module's README/u);
+  expect(organizing?.spec.prompt).toMatch(/In a fresh session, use the supplied paths to read the\nmodule's README/u);
   const recorded = await recordedPackage(fixture.root, receipt.jobId, events, selection);
   expect(organizing?.spec.prompt).toContain(recorded.packageText);
   expect(organizing?.spec.prompt.split(recorded.packageText)).toHaveLength(2);
@@ -306,11 +307,11 @@ test('a fresh selector receives the ordinary work brief, its complete own elemen
   });
   cleanups.push(async () => { spy.mockRestore(); });
   const agent = createScriptedAgent(declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([{ ...entry('review-summary', 'collection-review/workspace/reviews/core'), contextRefs: ['review-context'] }]))],
+    'initial-architect': [submit(authoredAnalysis([{ ...entry('review-summary', 'collection-review/workspace/reviews/core'), contextRefs: ['review-context'] }]))],
     'local-architect': [submit(requestCompletion())],
   })));
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001', 'final verification of plan "revision-diff"'], });
+    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'], });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('revision-diff'));
   await opened.service.settled('revision-diff', receipt.jobId);
@@ -318,7 +319,7 @@ test('a fresh selector receives the ordinary work brief, its complete own elemen
   const selector = agent.sessions.find(session => session.spec.role === 'context-selector')!;
   expect(selector.start.mode).toBe('fresh');
   expect(selector.inherited).toEqual([]);
-  for (const text of ['The plan asks for review-summary-request.', 'The plan asks for review-summary-acceptance.', 'The plan explains review-context.']) {
+  for (const text of ['The plan asks for draft:functional-requirement:review-summary-request.', 'The plan asks for draft:functional-requirement:review-summary-acceptance.', 'The plan explains review-context.']) {
     expect(selector.spec.prompt).toContain(text);
     expect(selector.spec.prompt.split(text)).toHaveLength(2);
   }
@@ -332,11 +333,11 @@ test('a fresh selector receives the ordinary work brief, its complete own elemen
 test.each(['missing', 'altered'] as const)('%s orientation packet takes the ordinary fresh path without repeating orientation', async loss => {
   const fixture = await copyFixture(); cleanups.push(fixture.remove); await installTestRunner(fixture.root);
   const agent = createScriptedAgent(declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]))],
+    'initial-architect': [submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core')]))],
     'local-architect': [submit(requestCompletion())],
   })));
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001', 'final verification of plan "revision-diff"'],
+    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'],
     afterWrite: async (write, jobId) => {
       if (write !== 'work-orientation-recorded') return;
       const events = await runEventsOnDisk(fixture.root, 'revision-diff', jobId);
@@ -350,7 +351,7 @@ test.each(['missing', 'altered'] as const)('%s orientation packet takes the ordi
   expect(agent.sessions.filter(session => session.spec.submission.name === 'submit_work_orientation')).toHaveLength(1);
   const selector = agent.sessions.find(session => session.spec.role === 'context-selector')!;
   expect(selector.start.mode).toBe('fresh'); expect(selector.inherited).toEqual([]);
-  expect(selector.spec.prompt).toContain('The plan asks for review-summary-request.');
+  expect(selector.spec.prompt).toContain('The plan asks for draft:functional-requirement:review-summary-request.');
   expect(selector.spec.prompt).not.toContain('altered reusable packet');
   const events = await runEventsOnDisk(fixture.root, 'revision-diff', receipt.jobId);
   const selection = events.find(event => event.type === 'context-selection-recorded')!;
@@ -360,7 +361,7 @@ test.each(['missing', 'altered'] as const)('%s orientation packet takes the ordi
 test.each(['fork', 'continue'] as const)('actual unavailable %s startup creates a new fresh invocation with full ordinary inputs', async mode => {
   const fixture = await copyFixture(); cleanups.push(fixture.remove); await installTestRunner(fixture.root);
   const agent = createScriptedAgent(declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]))],
+    'initial-architect': [submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core')]))],
     'local-architect': [submit(requestCompletion())],
   })));
   let lost = false;
@@ -378,7 +379,7 @@ test.each(['fork', 'continue'] as const)('actual unavailable %s startup creates 
     },
   }; };
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001', 'final verification of plan "revision-diff"'],
+    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'],
   }); cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('revision-diff')); await opened.service.settled('revision-diff', receipt.jobId);
   expect(onlyRun(opened.service, 'revision-diff').state).toBe('completed'); expect(lost).toBe(true);
@@ -387,7 +388,7 @@ test.each(['fork', 'continue'] as const)('actual unavailable %s startup creates 
   const fresh = events.find((event): event is RunEventOf<'invocation-ended'> => event.type === 'invocation-ended' && event.data.degraded?.requested === mode)!;
   expect(fresh.data.invocation).not.toBe(failed.data.invocation); expect(fresh.data.degraded?.actual).toBe('fresh');
   const task = agent.sessions.find(session => session.spec.submission.name === (mode === 'fork' ? contextSelectorToolName : 'submit_work_item_result') && session.start.mode === 'fresh')!;
-  expect(task.inherited).toEqual([]); expect(task.spec.prompt).toContain('The plan asks for review-summary-request.');
+  expect(task.inherited).toEqual([]); expect(task.spec.prompt).toContain('The plan asks for draft:functional-requirement:review-summary-request.');
   expect(task.spec.prompt).toContain('`subs/workspace/subs/reviews/subs/core/module.ramify`');
   if (mode === 'fork') expect(task.spec.prompt).toContain('## Module architect orientation');
 }, 120_000);
@@ -395,13 +396,13 @@ test.each(['fork', 'continue'] as const)('actual unavailable %s startup creates 
 test('exhausted work orientation proceeds with a fresh selector and architect using ordinary inputs', async () => {
   const fixture = await copyFixture(); cleanups.push(fixture.remove); await installTestRunner(fixture.root);
   const ordinary = withDefaultTurns(spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]));
-    if (spec.role === 'local-architect') return submit({ ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] });
+    if (spec.role === 'initial-architect') return submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core')]));
+    if (spec.role === 'local-architect') return submit({ ...requestCompletion(), reports: [{ id: 'scenario:review-summary-is-used', judgment: 'done', basedOnRevision: 0 }] });
     return [];
   });
   const agent = createScriptedAgent(spec => spec.submission.name === 'submit_work_orientation' ? [{ kind: 'end', message: 'No orientation submission' }] : typeof ordinary === 'function' ? ordinary(spec) : ordinary);
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001', 'final verification of plan "revision-diff"'],
+    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'],
   }); cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('revision-diff')); await opened.service.settled('revision-diff', receipt.jobId);
   expect(onlyRun(opened.service, 'revision-diff').state).toBe('completed');
@@ -414,7 +415,7 @@ test('exhausted work orientation proceeds with a fresh selector and architect us
   const selection = events.find(event => event.type === 'context-selection-recorded')!;
   expect((await recordedPackage(fixture.root, receipt.jobId, events, selection)).selection).toMatchObject({ degraded: true, orientationPoint: null, orientationInvocation: last.data.invocation });
   for (const session of agent.sessions.filter(session => [contextSelectorToolName, 'submit_work_item_result'].includes(session.spec.submission.name))) {
-    expect(session.start.mode).toBe('fresh'); expect(session.spec.prompt).toContain('The plan asks for review-summary-request.');
+    expect(session.start.mode).toBe('fresh'); expect(session.spec.prompt).toContain('The plan asks for draft:functional-requirement:review-summary-request.');
   }
 }, 120_000);
 
@@ -422,7 +423,7 @@ test('exhausted work orientation proceeds with a fresh selector and architect us
 test.each(['failed', 'unavailable', 'conflict', 'stopped'] as const)('a continued task receipt ending %s without context loss does not start a fresh retry', async status => {
   const fixture = await copyFixture(); cleanups.push(fixture.remove); await installTestRunner(fixture.root);
   const agent = createScriptedAgent(declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]))],
+    'initial-architect': [submit(authoredAnalysis([entry('review-summary', 'collection-review/workspace/reviews/core')]))],
   })));
   const bind = agent.bindSessionStore.bind(agent);
   agent.bindSessionStore = store => { const operations = bind(store); return { ...operations,

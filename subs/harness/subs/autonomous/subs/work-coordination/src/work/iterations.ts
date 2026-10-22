@@ -6,7 +6,6 @@ import { modulePathSchema } from '../../../../../../src/interfaces/protocol/evid
 import { failureAnalysisSchema, roleSchema } from '../../../../../../src/interfaces/protocol/runs.js';
 import { invocationOutcomeSchema, recordRefSchema } from '../../../../../task-execution/src/records.js';
 import { packageCitationSchema } from '../../../../../plan-evidence/src/interfaces/catalog.js';
-import { slugSchema } from '../../../planning/src/records.js';
 import { writeScopeSchema } from '../../../../../../src/work/scope.js';
 import type { WorkItemId } from './records.js';
 
@@ -21,8 +20,9 @@ import type { WorkItemId } from './records.js';
  */
 
 const text = z.string().min(1);
+const assignedCapabilitySchema = z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
-/** `wi-001.i02`, from the count of committed assignments of that work item. */
+/** An iteration identity uses its accepted work-item ID and committed assignment count. */
 export type IterationId = string;
 
 export const iterationId = (workItem: WorkItemId, count: number): IterationId =>
@@ -72,7 +72,7 @@ export const assignedBoundsSchema = z.object({
 export type AssignedBounds = z.infer<typeof assignedBoundsSchema>;
 
 export const iterationAssignmentSchema = z.object({
-  schema: z.literal('ramify-agent.iteration-assignment/1'),
+  schema: z.literal('ramify-agent.iteration-assignment/2'),
   id: text,
   workItem: text,
   outline: recordRefSchema,
@@ -96,7 +96,7 @@ export const iterationAssignmentSchema = z.object({
    */
   source: packageCitationSchema.optional(),
   externalCapabilities: z.array(z.object({
-    capability: slugSchema,
+    capability: assignedCapabilitySchema,
     owner: modulePathSchema,
     role: z.enum(['use', 'request']),
     contract: recordRefSchema.optional(),
@@ -235,13 +235,13 @@ export type IterationResult = z.infer<typeof iterationResultSchema>;
 /** Where an iteration's records are materialized, relative to the run's directory. */
 export const iterationLayout = {
   assignment: (workItem: WorkItemId, number: number): string =>
-    join('work-items', workItem, 'iterations', String(number).padStart(2, '0'), 'assignment.json'),
+    join('work-items', encodeURIComponent(workItem), 'iterations', String(number).padStart(2, '0'), 'assignment.json'),
   result: (workItem: WorkItemId, number: number): string =>
-    join('work-items', workItem, 'iterations', String(number).padStart(2, '0'), 'result.json'),
+    join('work-items', encodeURIComponent(workItem), 'iterations', String(number).padStart(2, '0'), 'result.json'),
 } as const;
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const iterationSchemas = {
-  assignment: { schema: 'ramify-agent.iteration-assignment/1', body: iterationAssignmentSchema },
+  assignment: { schema: 'ramify-agent.iteration-assignment/2', body: iterationAssignmentSchema },
   result: { schema: 'ramify-agent.iteration-result/1', body: iterationResultSchema },
 } as const;

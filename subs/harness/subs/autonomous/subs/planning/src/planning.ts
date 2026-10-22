@@ -2,12 +2,12 @@ import { renderInitialArchitectPrompt, renderExtractionPrompt } from './prompts.
 import type { DurableRecordRef as RecordRef } from '../../../../task-execution/src/records.js';
 import { coverageRecordsOf, describeCoverageLimits, type ArchitectIndex } from '../../../../evidence/src/views.js';
 import { openElementCatalog, serializeElementCatalog, type ElementKind } from '../../../../plan-evidence/src/interfaces/catalog.js';
-import { acceptIntake, acceptPrinciples, applyCheck, asValidation, checkJsonSchema, checkMessage, checkSubmissionSchema, checkToolName, intakeJsonSchema, intakeMessage, intakeSubmissionSchema, intakeToolName, principleJsonSchema, principleMessage, principleSubmissionSchema, principleToolName, type CheckState, type CheckSubmission, type ExtractionInputs, type IntakeSubmission, type PrincipleSubmission } from './extraction.js';
+import { acceptIntake, acceptPrinciples, applyCheck, asValidation, checkMessage, checkToolName, intakeJsonSchema, intakeMessage, intakeSubmissionSchema, intakeToolName, principleJsonSchema, principleMessage, principleSubmissionSchema, principleToolName, type CheckState, type ExtractionInputs, type IntakeSubmission, type PrincipleSubmission } from './extraction.js';
 import type { CatalogFinding } from './records.js';
 import { finished, kept, type SessionKeeping } from '../../../../task-execution/src/results.js';
 import { baselineScope } from '../../../../kpi/src/capture.js';
 import { acceptAnalysis } from './accept.js';
-import { acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis, type AnalysisEvidence, type InitialAnalysisSubmission } from './submission.js';
+import { incorporatedExtraction, incorporatedScenarios, initialAnalysisToolName, type AnalysisEvidence, type AnalysisRecordInputs } from './submission.js';
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -29,6 +29,9 @@ import type { RecordRef as CommitRecord } from '../../../../../src/jobs/commit.j
 import type { InvocationResult } from '../../../../task-execution/src/results.js';
 import { validateAgainst, type SubmissionValidation } from '../../../../task-execution/src/submissions.js';
 import type { JsonSchema } from '../../../../agent/src/interfaces/port.js';
+import { acceptDescriptiveArchitectElements, descriptiveInitialAnalysisJsonSchema, descriptiveInitialAnalysisSchemaId,
+  validateDescriptiveInitialAnalysis, type DescriptiveInitialAnalysisSubmission } from './descriptive.js';
+import { checkJsonSchema, checkSubmissionSchema, type CheckSubmission } from './extraction.js';
 
 /** The read-only task that planning prepares, with no scheduler or run authority. */
 export interface PlanningInvocation<T> {
@@ -73,7 +76,7 @@ export interface PlanningPorts {
   readonly fail: (reason: RunFailureReason, text: string, evidence?: readonly string[]) => Promise<void>;
   readonly stage: (path: string, text: string) => Promise<void>;
   readonly afterWrite: (write: 'analysis-evidence-staged' | 'analysis-accepted') => Promise<void>;
-  readonly captureRepairAssignment: (invocation: string, assignment: NonNullable<InitialAnalysisSubmission['contingentRepairAssignment']>) => Promise<boolean>;
+  readonly captureRepairAssignment: (invocation: string, assignment: NonNullable<AnalysisRecordInputs['contingentRepairAssignment']>) => Promise<boolean>;
   readonly commit: (event: AnalysisAcceptedTransition, records: readonly CommitRecord[]) => Promise<unknown>;
 }
 /** Plans from captured inputs; only the lifecycle commit makes its staged bundle authoritative. */
@@ -84,7 +87,8 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
   let catalog = openElementCatalog(manifestRef.hash, documents.manifest);
 
   const intake = await extract<IntakeSubmission>('intake', {
-    prompt: intakeMessage(inputs), toolName: intakeToolName, inputSchema: intakeJsonSchema, submissionSchema: 'ramify-agent.intake/1',
+    prompt: intakeMessage(inputs), toolName: intakeToolName, inputSchema: intakeJsonSchema,
+    submissionSchema: 'ramify-agent.intake/2',
     validate: input => {
       const shape = validateAgainst(intakeSubmissionSchema, input);
       return shape.ok ? asValidation(shape.value, acceptIntake(catalog, documents.manifest, shape.value)) : shape;
@@ -98,8 +102,9 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
 
   for (const document of documents.manifest.documents.filter(item => item.kind === 'principle')) {
     const extracted = await extract<PrincipleSubmission>('principles', {
-      prompt: principleMessage(inputs, document.id, intake.value.goal), toolName: principleToolName, inputSchema: principleJsonSchema,
-      submissionSchema: 'ramify-agent.principle-extraction/1',
+      prompt: principleMessage(inputs, document.id, intake.value.goal), toolName: principleToolName,
+      inputSchema: principleJsonSchema,
+      submissionSchema: 'ramify-agent.principle-extraction/2',
       validate: input => {
         const shape = validateAgainst(principleSubmissionSchema, input);
         return shape.ok ? asValidation(shape.value, acceptPrinciples(catalog, document.id, shape.value)) : shape;
@@ -127,7 +132,7 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
     [],
   );
 
-  const result = await ports.execute<InitialAnalysisSubmission>({
+  const result = await ports.execute<DescriptiveInitialAnalysisSubmission>({
     role: 'initial-architect',
     task: { kind: 'initial-analysis', goal: intake.value.goal, requirements: [planPointer(input.planId, 'Implement')], literalSections: [{ key: 'support:accepted-intake', text: `Accepted intake classifications and incorporation: ${JSON.stringify({ catalog, incorporation })}` }] },
     work: {},
@@ -138,9 +143,9 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
     start: { mode: 'fresh' },
     toolName: initialAnalysisToolName,
     description: 'Submit the run\'s initial analysis. The harness validates it; an invalid submission is returned with every error and its path, and a valid one ends this invocation.',
-    inputSchema: initialAnalysisJsonSchema,
-    submissionSchema: 'ramify-agent.initial-analysis/3',
-    validate: input => validateInitialAnalysis(input, evidence),
+    inputSchema: descriptiveInitialAnalysisJsonSchema,
+    submissionSchema: descriptiveInitialAnalysisSchemaId,
+    validate: input => validateDescriptiveInitialAnalysis(input, evidence),
     // An accepted analysis session becomes the run's architect context:
     // briefs are appended to it and every placement request forks it.
     keep: ended => (ended === 'submitted' ? kept : finished('not-kept')),
@@ -165,12 +170,13 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
 
   // Each checker reads one document once every element of it exists, and
   // corrects the catalog and the citations before any ID is final.
-  let state: CheckState = acceptArchitectElements(catalog, result.value);
+  let state: CheckState = acceptDescriptiveArchitectElements(catalog, result.value);
   const findings: CatalogFinding[] = [];
   for (const document of documents.manifest.documents) {
     const checked = await extract<CheckSubmission>('check', {
-      prompt: checkMessage(inputs, document.id, state, incorporatedScenarios(evidence)), toolName: checkToolName, inputSchema: checkJsonSchema,
-      submissionSchema: 'ramify-agent.catalog-check/1',
+      prompt: checkMessage(inputs, document.id, state, incorporatedScenarios(evidence)), toolName: checkToolName,
+      inputSchema: checkJsonSchema,
+      submissionSchema: 'ramify-agent.catalog-check/2',
       validate: input => {
         const shape = validateAgainst(checkSubmissionSchema, input);
         return shape.ok ? asValidation(shape.value, applyCheck(state, document.id, 'candidate', shape.value, evidence)) : shape;
@@ -219,6 +225,7 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
       registry: accepted.registry.length,
       workItems: accepted.workItems.length,
       scenarios: accepted.scenarios.length,
+      scenarioIds: accepted.scenarios.map(scenario => scenario.id),
       warnings: [...accepted.warnings],
       catalog: { context: count('context'), functional: count('functional'), nonFunctional: count('non-functional'),
         fixed: count('fixed'), recommendation: count('recommendation') },

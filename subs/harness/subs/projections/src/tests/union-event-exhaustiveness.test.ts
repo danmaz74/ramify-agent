@@ -9,6 +9,14 @@ import { projectEvent } from '../events.js';
     }
   });
 
+test('a committed descriptive close projects the whole batch and its coordinator invocation', () => {
+  const event = runEventSchema.parse({ sequence: 7, jobId: 'j', at: '2026-09-20T10:15:00.000Z',
+    type: 'nonfunctional-deviations-recorded', data: sampleData('nonfunctional-deviations-recorded') });
+  expect(projectEvent(event)).toMatchObject({ transition: 'nonfunctional-deviations-recorded',
+    summary: '2 non-functional deviations recorded for assessment nfa-001',
+    refs: [{ kind: 'invocation', id: 'inv-0006' }] });
+});
+
 /** The smallest data each event type's schema accepts, for the projection's exhaustiveness. */
 function sampleData(type: RunEvent['type']): unknown {
   const hash64 = 'a'.repeat(64);
@@ -35,11 +43,15 @@ function sampleData(type: RunEvent['type']): unknown {
     'candidate-prepared': { candidate: 'cand-001', tree: 'a'.repeat(40) },
     'nonfunctional-phase-started': { catalogHash: hash64, maxRounds: 3 },
     'nonfunctional-assessed': { assessment: 'nfa-001', candidate: 'cand-001', round: 1, phase: 'initial' },
-    'nonfunctional-investigated': { round: 1, invocation: 'inv-0005', assessment: 'nfa-001', nfrs: ['nfr-001'] },
-    'nonfunctional-repair-assigned': { round: 1, assignment: 'repair-001', assessment: 'nfa-001', candidate: 'cand-001', nfrs: ['nfr-001'], startingModule: 'm' },
+    'nonfunctional-investigated': { round: 1, invocation: 'inv-0005', assessment: 'nfa-001', nfrs: ['non-functional-requirement:case-001'] },
+    'nonfunctional-repair-assigned': { round: 1, assignment: 'repair-001', assessment: 'nfa-001', candidate: 'cand-001', nfrs: ['non-functional-requirement:case-001'], startingModule: 'm' },
     'nonfunctional-repair-committed': { round: 1, invocation: 'inv-0006', assignment: 'repair-001' },
     'nonfunctional-round-closed': { round: 1, record: 'round-001', outcome: 'exhausted' },
-    'nonfunctional-deviation-recorded': { deviation: 'pd-001', nfr: 'nfr-001', assessment: 'nfa-001', checkFinding: 'cf-0001', checkFindings: [] },
+    'nonfunctional-deviations-recorded': { assessment: 'nfa-001', actionInvocation: 'inv-0006',
+      deviations: [
+        { deviation: 'plan-deviation:performance', nfr: 'non-functional-requirement:performance', checkFinding: 'finding:performance' },
+        { deviation: 'plan-deviation:accessibility', nfr: 'non-functional-requirement:accessibility', checkFinding: 'finding:accessibility' },
+      ], checkFindings: [] },
     'candidate-bound-to-gate': { candidate: 'cand-001', assessment: 'nfa-001', gate: 'ga-0004', commit: 'c', tree: 'a'.repeat(40) },
     'capability-requested': { request: 'need-001', parent: 'wi-001', assignment: 'wi-001.i01', invocation: 'inv-0003' },
     'capability-qualified': { request: 'need-001', invocation: 'inv-0004', outcome: 'satisfied', evidence: ['existing API'] },
@@ -61,22 +73,22 @@ function sampleData(type: RunEvent['type']): unknown {
     'scratch-setup-complete': { commit: null, appended: false },
     'scenarios-materializing': { files: ['src/tests/features/p/e.feature'] },
     'scenarios-materialized': { commit: 'c', files: ['src/tests/features/p/e.feature'] },
-    'obligation-registered': { id: 'test-001', kind: 'test', responsible: { kind: 'work-item', id: 'wi-001' }, by: 'inv-0003', submission: hash64, description: 'The duplicate send regression test' },
-    'obligation-bound': { id: 'sc-001', fakes: ['FakeMailer'], by: 'inv-0003', submission: hash64 },
-    'obligation-reported': { id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, where: 'subs/a/src/a.ts — sendOnce', by: 'inv-0003', submission: hash64 },
+    'obligation-registered': { id: 'test:duplicate-send', kind: 'test', responsible: { kind: 'work-item', id: 'wi-001' }, by: 'inv-0003', submission: hash64, description: 'The duplicate send regression test' },
+    'obligation-bound': { id: 'scenario:case-001', fakes: ['FakeMailer'], by: 'inv-0003', submission: hash64 },
+    'obligation-reported': { id: 'scenario:case-001', judgment: 'done', basedOnRevision: 0, revision: 1, where: 'subs/a/src/a.ts — sendOnce', by: 'inv-0003', submission: hash64 },
     'consultation-started': { consultation: 'consult-inv-0003:tool-1', caller: 'inv-0003', toolCall: 'tool-1', parent: null },
     'consultation-finished': { consultation: 'consult-inv-0003:tool-1', status: 'answered', delivery: 'recorded' },
     'consultation-delivery-recorded': { consultation: 'consult-inv-0003:tool-1', revision: 2 },
-    'work-item-started': { workItem: 'wi-001', module: 'm', origin: 'integration', scenario: 'sc-003' },
+    'work-item-started': { workItem: 'wi-001', module: 'm', origin: 'integration', scenario: 'scenario:case-003' },
     'hypotheses-delivered': { workItem: 'wi-001', refs: [r] },
     'placement-requested': { request: 'pr-001', workItem: 'wi-001', requester: 'm', capability: 'c' },
     'view-refreshed': { request: 'pr-001', attempt: 1, view: { status: 'placeholder' }, unavailable: null },
     'fork-returned-partial': { request: 'pr-001', invocation: 'inv-0002', retry: 1 },
-    'unresolved-requested': { request: 'ur-001', workItem: 'wi-001', requester: 'm', invocation: 'inv-0002' },
-    'plan-deviation-recorded': { request: 'ur-001', deviation: 'pd-001', workItem: 'wi-001', invocation: 'inv-0003', checkFinding: 'cf-0001', held: false, checkFindings: [] },
-    'environment-reported': { request: 'ur-001', problem: 'ep-001', workItem: 'wi-001', invocation: 'inv-0003', checkFinding: 'cf-0001', checkFindings: [] },
-    'scenarios-rewording': { deviation: 'pd-001', rewording: 1, scenarios: ['sc-001'], files: ['src/tests/features/p/e.feature'] },
-    'scenarios-reworded': { deviation: 'pd-001', commit: 'c' },
+    'unresolved-requested': { request: 'unresolved-request:case-001', workItem: 'wi-001', requester: 'm', invocation: 'inv-0002' },
+    'plan-deviation-recorded': { request: 'unresolved-request:case-001', deviation: 'plan-deviation:case-001', workItem: 'wi-001', invocation: 'inv-0003', checkFinding: 'finding:case-0001', held: false, checkFindings: [] },
+    'environment-reported': { request: 'unresolved-request:case-001', problem: 'environment-problem:case-001', workItem: 'wi-001', invocation: 'inv-0003', checkFinding: 'finding:case-0001', checkFindings: [] },
+    'scenarios-rewording': { deviation: 'plan-deviation:case-001', rewording: 1, scenarios: ['scenario:case-001'], files: ['src/tests/features/p/e.feature'] },
+    'scenarios-reworded': { deviation: 'plan-deviation:case-001', commit: 'c' },
     'decision-accepted': { request: 'pr-001', decision: 'gd-001', workItem: 'wi-001', invocation: 'inv-0002', registry: 0, hypotheses: 0 },
     'brief-appended': { decision: 'gd-001', generation: 1, session: 'ses-0001', ref: 's', outcome: 'appended' },
     'global-context-rebuilt': { generation: 2, reason: 'lost' },

@@ -6,7 +6,7 @@ import { iterationLayout, type IterationResult } from '../../subs/autonomous/sub
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
@@ -126,7 +126,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
     const root = await target();
     const iterationAttempts = new Set<string>();
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit(assign(notes, {}, outline())),
         // The returned iteration returns here, and the architect assigns a
@@ -163,7 +163,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
 
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
     const iterationGates = (await gates(root, runId)).filter(gate => gate.checkpoint === 'iteration');
-    const returned = iterationGates.filter(gate => gate.subject.iteration === 'wi-001.i01');
+    const returned = iterationGates.filter(gate => gate.subject.iteration === 'work-item:review-note.i01');
     expect(returned.map(gate => gate.repairRound)).toEqual([0, 1, 2]);
     expect(returned.map(gate => gate.next)).toEqual(['repair', 'repair', 'return-to-local-architect']);
     expect(returned.every(gate => gate.cause === 'check-failed')).toBe(true);
@@ -172,7 +172,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
     expect(returned.map(gate => gate.commit)).toEqual([null, null, null]);
     expect(returned.map(gate => gate.audited)).toEqual([materialized, materialized, materialized]);
 
-    const result = await readResult(root, runId, 'wi-001', 1);
+    const result = await readResult(root, runId, 'work-item:review-note', 1);
     expect(result.outcome).toBe('partial');
     expect(result.gate).toBeNull();
     expect(result.commit).toBeNull();
@@ -182,7 +182,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
     expect(result.findings.some(finding => finding.includes(`check-failed at gate ${returned.at(-1)!.id}`))).toBe(true);
     // The repair iteration the architect then assigned is the one accepted,
     // and it is the only one whose commit boundary answered a revision.
-    const repaired = await readResult(root, runId, 'wi-001', 2);
+    const repaired = await readResult(root, runId, 'work-item:review-note', 2);
     expect(repaired.outcome).toBe('accepted');
     expect(repaired.commit).toBe('revision-01');
     expect(scripted.revisions()).toEqual([materialized, 'revision-01']);
@@ -197,7 +197,7 @@ describe('K8: every gate audits its committed candidate under the captured defin
     const root = await target({ limit: 500 });
     let firstIteration: string | undefined;
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: [
         // The first attempt passes the tests that exist, then writes a new
@@ -218,10 +218,10 @@ describe('K8: every gate audits its committed candidate under the captured defin
     }, {
       commits: [
         scenarios,
-        { ...added('revision-01', `${notesDirectory}/src/tests/second.test.ts`), against: materialized, subject: 'wi-001.i01' },
+        { ...added('revision-01', `${notesDirectory}/src/tests/second.test.ts`), against: materialized, subject: 'work-item:review-note.i01' },
         // The repair is asked about the same accepted boundary, which the
         // failing attempt's own commit did not move.
-        { ...modified('revision-02', `${notesDirectory}/src/tests/second.test.ts`), against: materialized, subject: 'wi-001.i01' },
+        { ...modified('revision-02', `${notesDirectory}/src/tests/second.test.ts`), against: materialized, subject: 'work-item:review-note.i01' },
         { commit: null, against: 'revision-02' },
         { commit: null, against: 'revision-02' },
       ],
@@ -265,7 +265,7 @@ describe('K8: every gate audits its committed candidate under the captured defin
   test('an owner with no test of its own is judged by the audit alone: the harness draws no empty-selection conclusion', async () => {
     const root = await target({ tests: false });
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: [submit(completionProposed('Raised the limit to 500.'), edit('notes.ts', 'noteLimit = 400', 'noteLimit = 500'))],
     }, {
@@ -279,7 +279,7 @@ describe('K8: every gate audits its committed candidate under the captured defin
     // answer, and here it passes. No command record is invented for it.
     expect(iterationGates[0]).toMatchObject({ verdict: 'passed', commit: 'revision-01', audited: 'revision-01', commands: [] });
     expect(iterationGates[0]!.audit).toMatchObject({ status: 'completed', verdict: 'pass', requestedSourceCommit: 'revision-01' });
-    expect((await readResult(root, runId, 'wi-001', 1)).outcome).toBe('accepted');
+    expect((await readResult(root, runId, 'work-item:review-note', 1)).outcome).toBe('accepted');
     expect(scripted.revisions()).toEqual([materialized, 'revision-01']);
     expectNoProcesses();
     scripted.assertComplete();
@@ -298,7 +298,7 @@ describe('K5b: an invalid session, a timeout and an exhausted limit keep distinc
     let loseOriginal: (() => void) | undefined; let didLoseOriginal = false;
     const opened = await openRuns(root, {
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [
           submit(completionProposed('I believe this is done.')),
@@ -331,7 +331,7 @@ describe('K5b: an invalid session, a timeout and an exhausted limit keep distinc
     const runId = receipt.jobId;
 
     expect(onlyRun(opened.service, 'review-notes').state).toBe('completed');
-    const result = await readResult(root, runId, 'wi-001', 1);
+    const result = await readResult(root, runId, 'work-item:review-note', 1);
     expect(result.outcome).toBe('accepted');
     expect(result.invocations).toHaveLength(2);
 
@@ -367,7 +367,7 @@ describe('K5b: an invalid session, a timeout and an exhausted limit keep distinc
   test('a test command that never answers is not-verified with cause timeout, and one infrastructure retry follows', async () => {
     const root = await target();
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: [submit(completionProposed('Done.'))],
     }, {
@@ -395,7 +395,7 @@ describe('K5b: an invalid session, a timeout and an exhausted limit keep distinc
     // proposer of both attempts.
     expect(new Set(iterationGates.map(gate => gate.proposedBy)).size).toBe(1);
 
-    const result = await readResult(root, runId, 'wi-001', 1);
+    const result = await readResult(root, runId, 'work-item:review-note', 1);
     expect(result.outcome).toBe('exhausted');
     expect(result.findings.some(finding => finding.includes('timeout'))).toBe(true);
     // Neither attempt accepted anything, so the run's boundary stayed at the

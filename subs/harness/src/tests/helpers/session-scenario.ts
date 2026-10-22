@@ -5,7 +5,7 @@ import { createScriptedAgent, type Script, type ScriptedAgent, type ScriptStep }
 import type { Role } from '../../interfaces/protocol/runs.js';
 import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import type { RunService, RunServiceOptions } from '../../run/lifecycle.js';
-import { analysis, entry, requestCompletion } from './analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './analysis.js';
 import { copyFixture } from './fixture.js';
 import { placementDecisionFixture as decisionBody, forkDecision, localDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write, type Turn } from './iterations.js';
@@ -92,7 +92,7 @@ const seam = {
 const contractNeeded = {
   kind: 'contract-needed' as const,
   need: {
-    capability: 'note-limit',
+    capability: 'capability:note-limit',
     useCases: ['a reviewer attaches a note to a review run, and a note over the limit is refused'],
     inputs: ['the note text'],
     outputs: ['whether the note is within the limit'],
@@ -106,6 +106,9 @@ const contractNeeded = {
 
 const establishedContract = {
   kind: 'established' as const,
+  contractKey: 'draft:contract:note-limit',
+  providerObligationKey: 'draft:provider-obligation:note-limit',
+  consumerRequirementKey: 'draft:consumer-requirement:notes-note-limit',
   mode: 'fake-backed' as const,
   authority: { kind: 'provider' as const, owner: provider, rationale: 'The note limit is a capability of its own, so its contract belongs with its provider.' },
   provider,
@@ -124,16 +127,16 @@ const establishedContract = {
   summary: 'The note limit is agreed, the consumer runs against its fake, and the conformance suite states what the provider owes.',
 };
 
-const placeTheLimit = localDecision(
+const placeTheLimit = { ...localDecision(
   {
     question: 'Where does the note limit belong?',
     outcome: 'reuse',
-    capability: 'note-limit',
+    capability: 'capability:note-limit',
     owner: provider,
     rationale: 'The limit is a rule of its own, and this subtree is mine to place work in.',
   },
-  [registryChange({ capability: 'note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
-);
+  [registryChange({ capability: 'capability:note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
+), decisionKey: 'draft:placement-decision:note-limit' };
 
 /** The consumer and provider modules, in `root` or in a fresh copy of the fixture. */
 async function target(cleanup: (step: () => Promise<void>) => void, given?: string) {
@@ -186,25 +189,25 @@ export async function runSessionScenario(options: SessionScenarioOptions): Promi
     commits: [
       // The run's feature files, committed once readiness has passed.
       scenariosCommitted('review-notes'),
-      accepted('wi-001.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
       // The provider's first attempt commits its work and fails; the
       // repair it is continued for finds the tree unchanged, and passes.
-      accepted('wi-002.i01', 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
-      unchanged('wi-002.i01'),
-      unchanged('wi-002'),
-      accepted('wi-001.i03', 'revision-03', modified(seam.consumer)),
-      unchanged('wi-001'),
+      accepted('work-item:provide-note-limit.i01', 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
+      unchanged('work-item:provide-note-limit.i01'),
+      unchanged('work-item:provide-note-limit'),
+      accepted('work-item:review-notes.i03', 'revision-03', modified(seam.consumer)),
+      unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
     ],
   });
   const turns: Partial<Record<Role, Turn[]>> = {
-    'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+    'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
     'local-architect': [
       // The consumer asks where its own capability belongs; the global
       // fork decides, and the same architect is continued.
-      submit(requestPlacement({ forCapability: 'review-notes', question: 'Is the reviewer note the notes module\'s own?' })),
+      submit(requestPlacement({ requestKey: 'draft:placement-request:review-notes', forCapability: 'capability:review-notes', question: 'Is the reviewer note the notes module\'s own?' })),
       submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
-      submit({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'The consumer runs against the fake and waits for the real limit.' }),
+      submit({ kind: 'yield-for-providers', requirements: ['consumer-requirement:notes-note-limit'], summary: 'The consumer runs against the fake and waits for the real limit.' }),
       // The provider work item the registration started.
       submit(assign(provider, {}, outline({ changes: 'Implement the agreed limit and run the conformance suite against it.' }))),
       submit(requestCompletion()),
@@ -213,7 +216,7 @@ export async function runSessionScenario(options: SessionScenarioOptions): Promi
       submit(requestCompletion()),
     ],
     'global-fork': [submit(forkDecision({
-      decision: decisionBody({ capability: 'review-notes', owner: consumer, rationale: 'The reviewer note is what the notes module is for.' }),
+      decision: decisionBody({ capability: 'capability:review-notes', owner: consumer, rationale: 'The reviewer note is what the notes module is for.' }),
       brief: 'The reviewer note stays with the notes module.',
     }))],
     engineer: [

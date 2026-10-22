@@ -91,6 +91,11 @@ export interface RunView {
   readonly gateAuditOutcomes: ReadonlyMap<string, CommittedBody<z.infer<typeof gateAuditOutcomeSchema>>>;
 }
 
+/** The accepted capability carried by an entry assignment under its run contract. */
+export function acceptedEntryCapability(_assignments: EntryAssignments, entry: EntryAssignments['entries'][number]): string {
+  return entry.capabilityId;
+}
+
 /** Why a declared schema is refused, under the durable owner's admission rules. */
 export const unsupportedVersion = unsupportedCommittedVersion;
 
@@ -125,16 +130,16 @@ export function runView(run: CommittedRun): RunView {
           gateAuditOutcomes.set(body.gate, { body, ...at });
           break;
         }
-        case 'ramify-agent.hypothesis/1':
+        case 'ramify-agent.hypothesis/2':
           hypothesisRevisions.push({ body: parse(hypothesisSchema, record.body, run, record.path), ...at });
           break;
-        case 'ramify-agent.work-item-outline/1':
+        case 'ramify-agent.work-item-outline/2':
           outlines.push({ body: parse(workItemOutlineSchema, record.body, run, record.path), ...at });
           break;
-        case 'ramify-agent.iteration-assignment/1':
+        case 'ramify-agent.iteration-assignment/2':
           assignments.push({ body: parse(iterationAssignmentSchema, record.body, run, record.path), ...at });
           break;
-        case 'ramify-agent.contract/2':
+        case 'ramify-agent.contract/3':
           contracts.push({ body: parse(contractRecordSchema, record.body, run, record.path), ...at });
           break;
         default:

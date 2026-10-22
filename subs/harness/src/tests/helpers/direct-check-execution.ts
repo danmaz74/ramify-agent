@@ -1,5 +1,6 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { identityTagOf } from '../../../subs/scenarios/src/rendering.js';
 
 import type { Checkpoint, GateEvidence } from '../../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { checkOutputPath, commandStart, inPlaceCheckExecution, notRun, type CheckExecutionContext, type CheckExecutionPort } from '../../../subs/autonomous/subs/acceptance/src/checks/execution.js';
@@ -511,7 +512,7 @@ function cucumberScenario(scenario: ScriptedScenario) {
     uri: scenario.file ?? `features/${scenario.id}.feature`,
     line: scenario.line ?? 1,
     name: scenario.id,
-    tags: [`@ramify-${scenario.id}`],
+    tags: [identityTagOf(scenario.id)],
     outcome,
     steps,
     messages: [],

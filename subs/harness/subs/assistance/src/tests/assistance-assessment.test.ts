@@ -5,11 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SessionOperations } from '../../../agent/src/interfaces/session-operations.js';
 import type { ConfiguredAuditResult } from '../../../audit/src/check-execution.js';
+import { configuredAuditInstabilityObservations } from '../../../audit/src/check-execution.js';
 import { scriptedCandidates, type ScriptedCommit } from '../../../autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';
 import { validateReconciliationForExecution } from '../../../reviews/src/reconciliation.js';
 import type { AssistedReviewSubmission } from '../../../reviews/src/assisted.js';
-import { findingDetails, reportReviewConcerns } from '../findings.js';
+import { factualFindingKey, findingDetails, reportReviewConcerns } from '../findings.js';
 import { AssistanceService } from '../service.js';
 import { finalizeApproval } from '../approval.js';
 import { emptyCheckFindingState } from '../../../check-findings/src/replay.js';
@@ -24,6 +25,11 @@ const protection: AssistedProtection = { baselineCommit: baseline,
 const audit = (candidate: string, state: 'passed' | 'failed' = 'passed') => ({ state, requestedSourceCommit: candidate,
   auditedSourceCommit: candidate, detail: state === 'passed' ? 'configured audit passed' : 'configured audit failed',
   result: { definition: { path: 'ramify-audit.json', blob: 'fixed-selection' } } as ConfiguredAuditResult });
+const instabilityId = (provider: unknown, path: string): string => {
+  const observation = configuredAuditInstabilityObservations({ status: 'completed', ...(provider as object) }).find(item => item.path === path);
+  if (!observation) throw new Error(`No provider instability for ${path}`);
+  return factualFindingKey('check:audit-instability', observation.key).replace(/^draft:/u, '');
+};
 const outcome = async (service: AssistanceService, jobId: string, assessmentId: string) => {
   await vi.waitFor(() => expect(service.assessmentStatus('sample', jobId, assessmentId).status).toMatch(/completed|interrupted/u));
   const detail = service.assessmentDetail('sample', jobId, assessmentId);
@@ -56,7 +62,7 @@ const source = (value: string, base: string, extras: Partial<ScriptedCommit> = {
 
 const reviewReport = (candidate: string, concern = false): AssistedReviewSubmission => ({
   inspected: ['src/feature.ts'], missing: [],
-  concerns: concern ? [{ summary: 'Feature returns 1 instead of 2', consequence: 'Acceptance behavior fails', rationale: 'The candidate returns 1',
+  concerns: concern ? [{ findingKey: 'draft:finding:feature-returns-one', summary: 'Feature returns 1 instead of 2', consequence: 'Acceptance behavior fails', rationale: 'The candidate returns 1',
     uncertainty: 'None', remedy: 'Return 2', locations: [{ path: 'src/feature.ts', startLine: 1, endLine: 1 }], suggests: null,
     risk: 'medium', ground: null }] : [],
   codeAssessment: concern ? 'Behavior is incorrect.' : 'Feature returns 2.', scopeAssessment: 'The feature is within the requested outcome.',
@@ -120,13 +126,142 @@ describe('assisted assessment pipeline with real service records', () => {
     releaseReview();
   });
 
+  it('derives a descriptive factual finding from the failed check identity and reloads it', async () => {
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = { operations: unusedOperations,
+      audit: async input => audit(input.candidateCommit, 'failed'),
+      review: async input => ({ status: 'submitted', value: reviewReport(input.candidate),
+        operationId: input.operationId, sessionId: 'source-review', eventCount: 1 }) };
+    const { service, job, assess, candidates } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) },
+      dependencies, '# Plan\nThe feature returns 2.\n');
+    const expected = factualFindingKey('check:audit', 'configured-audit').replace(/^draft:/, '');
+    expect(expected).toMatch(/^finding:audit-configured-audit-[0-9a-f]{12}$/u);
+    expect((await assess(first, baseline, 'failed-check')).outcome.gate).toBe('action-required');
+    expect(service.findings('sample', job.jobId)).toMatchObject([{ id: expected }]);
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ ...dependencies, candidates }) });
+    services.push(reopened);
+    expect(reopened.findings('sample', job.jobId)).toMatchObject([{ id: expected }]);
+  });
+  it('reads retained evidence and reconciles a named review finding across reload', async () => {
+    const namedId = 'finding:feature-returns-one';
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const tool = input.prepared.tools.definitions.find(entry => entry.name === 'assessment_evidence')!;
+        const listed = JSON.parse((await tool.execute({}, new AbortController().signal)).text) as { entries: Array<{ ref: string }> };
+        const auditRef = listed.entries.find(entry => entry.ref.endsWith('/audit.json'))?.ref;
+        expect(auditRef).toBeDefined();
+        const evidence = JSON.parse((await tool.execute({ ref: auditRef }, new AbortController().signal)).text) as { content: string };
+        expect(evidence.content).toContain('configured audit passed');
+        const original = reviewReport(input.candidate, true);
+        const proposed = { ...original, concerns: original.concerns.map(concern => ({ ...concern,
+          findingKey: 'draft:finding:feature-returns-one' })) };
+        const validated = input.prepared.validate(proposed);
+        expect(validated).toMatchObject({ ok: true });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'named-review', eventCount: 1 };
+      },
+      reconcile: async input => {
+        expect(input.message).toContain(namedId);
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: namedId,
+          rationale: 'The returned value must be corrected.', communication: { mode: 'quiet' }, action: { action: 'repair' } }],
+          next: { kind: 'correct', goal: 'Return 2.' }, brief: 'Correct the feature result.' });
+        expect(validated).toMatchObject({ ok: true });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'named-reconcile', eventCount: 1 };
+      },
+    };
+    const { service, job, candidates, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) },
+      dependencies, '# Plan\nThe feature returns 2.\n');
+    expect((await assess(first, baseline, 'named-assessment')).outcome.gate).toBe('action-required');
+    expect(service.findings('sample', job.jobId)).toMatchObject([{ id: namedId, reason: 'repair-planned' }]);
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ ...dependencies, candidates }) });
+    services.push(reopened);
+    expect(reopened.findings('sample', job.jobId)).toMatchObject([{ id: namedId, reason: 'repair-planned' }]);
+  });
+  it('returns an occupied descriptive name to the same review submission and commits its corrected name with accepted evidence', async () => {
+    let reviews = 0;
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        reviews++;
+        const report = reviewReport(input.candidate, true);
+        const propose = async (name: string) => {
+          const checked = input.prepared.validate({ ...report, concerns: report.concerns.map(concern => ({ ...concern, findingKey: `draft:finding:${name}` })) });
+          expect(checked.ok).toBe(true);
+          if (!checked.ok) throw new Error(JSON.stringify({ errors: checked.errors, message: input.prepared.message.slice(-1000) }));
+          return input.acceptValidated!(checked.value, { operationId: input.operationId, sessionId: `review-${reviews}`, eventCount: 1 });
+        };
+        if (reviews === 2) {
+          const collision = await propose('feature-returns-one');
+          expect(collision).toMatchObject({ ok: false, errors: [{ path: 'concerns.0.findingKey' }] });
+        }
+        const accepted = await propose(reviews === 1 ? 'feature-returns-one' : 'feature-returns-one-second-review');
+        expect(accepted.ok).toBe(true);
+        if (!accepted.ok) throw new Error(JSON.stringify(accepted.errors));
+        return { status: 'submitted', value: accepted.value, operationId: input.operationId, sessionId: `review-${reviews}`, eventCount: 1 };
+      },
+      reconcile: async input => ({ status: 'incomplete', reason: 'Scripted reconciliation stops after review acceptance',
+        operationId: input.operationId, eventCount: 0 }),
+    };
+    const { service, job, candidates, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline),
+      [repaired]: source('2', baseline) }, dependencies, '# Plan\nThe feature returns 2.\n');
+    await assess(first, baseline, 'first-review');
+    const second = await assess(repaired, baseline, 'second-review');
+    expect(reviews).toBe(2);
+    expect(service.findings('sample', job.jobId).map(item => item.id)).toEqual([
+      'finding:feature-returns-one', 'finding:feature-returns-one-second-review',
+    ]);
+    expect(service.assessmentDetail('sample', job.jobId, second.id).stages.filter(stage => stage.name === 'review-accepted')).toHaveLength(1);
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ ...dependencies, candidates }) });
+    services.push(reopened);
+    expect(reopened.findings('sample', job.jobId).map(item => item.id)).toEqual([
+      'finding:feature-returns-one', 'finding:feature-returns-one-second-review',
+    ]);
+  });
+  it('resumes descriptive review after an accepted tool reply is lost without replaying its finding', async () => {
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const report = reviewReport(input.candidate, true);
+        const checked = input.prepared.validate({ ...report, concerns: report.concerns.map(concern => ({ ...concern,
+          findingKey: 'draft:finding:feature-returns-one' })) });
+        if (!checked.ok) throw new Error(JSON.stringify({ errors: checked.errors, message: input.prepared.message.slice(-1000) }));
+        expect(await input.acceptValidated!(checked.value, { operationId: input.operationId, sessionId: 'lost-reply', eventCount: 1 }))
+          .toMatchObject({ ok: true });
+        throw new Error('The accepted tool reply was lost');
+      },
+    };
+    const { service, job, candidates } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) },
+      dependencies, '# Plan\nThe feature returns 2.\n');
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'lost-review' });
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    expect(service.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.filter(stage => stage.name === 'review-accepted')).toHaveLength(1);
+    expect(service.findings('sample', job.jobId).map(item => item.id)).toContain('finding:feature-returns-one');
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ candidates,
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async () => { throw new Error('Accepted review must be reused'); },
+      reconcile: async input => ({ status: 'incomplete', reason: 'Scripted reconciliation stops after review acceptance',
+        operationId: input.operationId, eventCount: 0 }),
+    }) });
+    services.push(reopened);
+    const priorRevision = reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision;
+    await reopened.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(priorRevision));
+    await outcome(reopened, job.jobId, admitted.assessmentId);
+    expect(reopened.findings('sample', job.jobId).filter(item => item.id === 'finding:feature-returns-one')).toHaveLength(1);
+  });
   it.each(['stale-decision', 'stale-relation', 'committed'] as const)('resumes accepted reconciliation without replaying a %s on a later revision', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'assistance-reconciliation-resume-')); roots.push(root);
     await mkdir(join(root, 'plans/sample'), { recursive: true });
     await writeFile(join(root, 'plans/sample/plan.md'), '# Plan\nThe feature returns 2.\n');
     const initialReport = reviewReport(first, true);
     const report = scenario === 'stale-relation' ? { ...initialReport, concerns: [
-      ...initialReport.concerns, { ...initialReport.concerns[0]!, summary: 'Dependency also returns the wrong value' },
+      ...initialReport.concerns, { ...initialReport.concerns[0]!, findingKey: 'draft:finding:dependency-returns-wrong-value', summary: 'Dependency also returns the wrong value' },
     ] } : initialReport;
     const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
       resolveCommit: async (_root, revision) => revision, assessor: async context => {
@@ -207,7 +342,7 @@ describe('assisted assessment pipeline with real service records', () => {
         expect(input.message).toContain('its flakiness creates no repair investigation, reruns or assignment');
         const isRepair = input.candidate === first;
         if (!isRepair) await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.ts' }, new AbortController().signal);
-        const submission = { relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: isRepair ? 'Behavior needs correction.' : 'Fresh candidate returns 2.',
+        const submission = { relations: [], dispositions: [{ checkFinding: 'finding:feature-returns-one', rationale: isRepair ? 'Behavior needs correction.' : 'Fresh candidate returns 2.',
           communication: { mode: 'quiet' }, action: isRepair ? { action: 'repair' } : { action: 'fixed', reassessed: ['cfr-0001'] } }],
           next: isRepair ? { kind: 'correct', goal: 'Return 2.' } : { kind: 'complete' }, brief: isRepair ? 'Repair feature.' : 'Feature repaired.' };
         const validated = await input.submission.validate(submission);
@@ -438,7 +573,7 @@ describe('assisted assessment pipeline with real service records', () => {
       kind: path.endsWith('.principles.md') ? 'principle' as const : 'plan' as const, sha256: createHash('sha256').update(text).digest('hex'), bytes: Buffer.byteLength(text),
       storedAt: index === 0 ? 'input/plan.md' : `input/documents/doc-${String(index + 1).padStart(3, '0')}.bin`, revision: { commit: null, dirty: null } }));
     const legacy: AssistanceDocuments = { baselineCommit: baseline,
-      manifest: { schema: 'ramify-agent.document-manifest/1', root: 'doc-001', documents: entries, missing: [], principlesScan: { status: 'complete', unreadable: [] } },
+      manifest: { schema: 'ramify-agent.document-manifest/2', root: 'doc-001', documents: entries, missing: [], principlesScan: { status: 'complete', unreadable: [] } },
       documents: entries.map(entry => ({ id: entry.id, path: entry.path, kind: entry.kind, sha256: entry.sha256,
         text: entry.id === 'doc-001' ? 'Historical root copy is not authority' : historicalText, adoption: 'undetermined' })),
       gaps: { missing: [], unreadablePrinciples: [] } };
@@ -514,7 +649,7 @@ describe('assisted assessment pipeline with real service records', () => {
               evidence: { kind: 'assisted-review', ref: `assessments/${context.assessment.id}/stages/review.json`, hash: `sha256:${createHash('sha256').update(`${JSON.stringify(reviewed, null, 2)}\n`).digest('hex')}` } }), 'review-reports');
             const state = context.findingState();
             const details = findingDetails(state);
-            const proposed = { relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'Historical source judgment.',
+            const proposed = { relations: [], dispositions: [{ checkFinding: 'finding:feature-returns-one', rationale: 'Historical source judgment.',
               communication: { mode: 'quiet' }, action: closure
                 ? scenario === 'applied-supersede' ? { action: 'supersede', reassessed: ['cfr-0001'], replacement: 'Historical replacement judgment.' } : { action: 'fixed', reassessed: ['cfr-0001'] }
                 : { action: 'request-user-decision', conflicts: [{ document: 'docs/authority.md', text: '\uFFFD' }],
@@ -540,7 +675,7 @@ describe('assisted assessment pipeline with real service records', () => {
               ...(scenario === 'valid-applied' || scenario === 'applied-lossy' ? { exactSourceReads: ['src/feature.ts'] } : {}) });
             if (applied) await context.recordFindings(checked.value.commands, 'reconciliation-decisions');
             if (scenario === 'user-applied') {
-              const current = context.findingState().findings.get('cf-0001')!;
+              const current = context.findingState().findings.get('finding:feature-returns-one')!;
               const common = { actor: { kind: 'user' as const, name: 'Fixture reviewer' }, source: { kind: 'tree' as const, id: 'tree-2' },
                 rationale: 'Actual subsequent user decision.', evidence: [], communication: { mode: 'quiet' as const } };
               await context.recordFindings([
@@ -590,7 +725,7 @@ describe('assisted assessment pipeline with real service records', () => {
               return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'direct-review', eventCount: 1 };
             }, reconcile: async input => {
               directReconciliations++;
-              expect(input.message).toContain('cf-0001');
+              expect(input.message).toContain('finding:feature-returns-one');
               return { status: 'incomplete', reason: 'The reopened historical concern still needs fresh resolution.', operationId: input.operationId, eventCount: 1 };
             },
           }) }); services.push(direct);
@@ -658,10 +793,10 @@ describe('assisted assessment pipeline with real service records', () => {
             return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'fresh-review', eventCount: 1 };
           }, reconcile: async input => {
             reconciliationCalls++;
-            expect(input.message).toContain('cf-0001');
+            expect(input.message).toContain('finding:feature-returns-one');
             if (!closeOnFreshEvidence) return { status: 'incomplete', reason: 'Fresh reconciliation has not established a resolution.', operationId: input.operationId, eventCount: 1 };
             await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.ts' }, new AbortController().signal);
-            const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'Fresh exact current source resolves the concern.',
+            const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'finding:feature-returns-one', rationale: 'Fresh exact current source resolves the concern.',
               communication: { mode: 'quiet' }, action: { action: 'fixed', reassessed: ['cfr-0001'] } }], next: { kind: 'complete' }, brief: 'Reassessed and fixed.' });
             if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
             return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'fresh-reconciliation', eventCount: 1 };
@@ -699,7 +834,7 @@ describe('assisted assessment pipeline with real service records', () => {
       },
       reconcile: async input => {
         reconciliationCalls++;
-        const proposed = { relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'A supposed document conflict.',
+        const proposed = { relations: [], dispositions: [{ checkFinding: 'finding:feature-returns-one', rationale: 'A supposed document conflict.',
           communication: { mode: 'quiet' }, action: { action: 'request-user-decision', conflicts: [{ document, text: '\uFFFD' }],
             options: [{ id: 'restore', summary: 'Restore source', consequence: 'Repair the candidate.' },
               { id: 'retain', summary: 'Retain source', consequence: 'Keep the candidate.' }] } }], next: { kind: 'await-user' }, brief: 'Resolve the supposed conflict.' };
@@ -774,7 +909,7 @@ describe('assisted assessment pipeline with real service records', () => {
       reconcile: async input => ({ status: 'incomplete', reason: 'Unavailable advisory reconciliation', operationId: input.operationId, eventCount: 1 }),
     });
     const initial = await assess(first, baseline, 'unmet');
-    await service.findingDecide({ planId: 'sample', jobId: job.jobId, assessmentId: initial.id, checkFinding: 'cf-0001', action: 'leave', rationale: 'Do not pursue suggestion.', commandId: 'leave-suggestion' });
+    await service.findingDecide({ planId: 'sample', jobId: job.jobId, assessmentId: initial.id, checkFinding: 'finding:feature-returns-one', action: 'leave', rationale: 'Do not pursue suggestion.', commandId: 'leave-suggestion' });
     await service.reviewContinue({ planId: 'sample', jobId: job.jobId, assessmentId: initial.id, rationale: 'Coordinator selects remaining acceptance repair.', commandId: 'continue-reconciliation' });
     const effective = service.assessmentResult('sample', job.jobId, initial.id)!;
     expect(effective.gate).toBe('action-required');
@@ -800,7 +935,7 @@ describe('assisted assessment pipeline with real service records', () => {
         expect(input.message).toContain('returns 2 reliably');
         expect(input.message).toContain('including additions to existing files');
         expect(input.message).toContain('its flakiness creates no repair investigation, reruns or assignment');
-        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001',
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: instabilityId(provider, 'src/feature.test.ts'),
           rationale: 'This test was added in the earlier plan iteration and needs reliable verification.', communication: { mode: 'quiet' }, action: { action: 'repair' } }],
           next: { kind: 'correct', goal: 'Repair the unstable test while preserving coverage.' }, brief: 'Repair the unstable test.' });
         if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
@@ -813,7 +948,7 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(followUp.outcome.gate).toBe('action-required');
     expect(followUp.outcome.repairs.join(' ')).toContain('Provider-established test instability');
     await expect(service.findingDecide({ planId: 'sample', jobId: job.jobId, assessmentId: followUp.id,
-      checkFinding: 'cf-0001', action: 'leave', rationale: 'Treat as optional.', commandId: `dismiss-${kind}` })).rejects.toThrow('cannot be waived or deferred');
+      checkFinding: instabilityId(provider, 'src/feature.test.ts'), action: 'leave', rationale: 'Treat as optional.', commandId: `dismiss-${kind}` })).rejects.toThrow('cannot be waived or deferred');
   });
 
   it('replays the retained instability report batch after reconciliation interruption', async () => {
@@ -828,7 +963,7 @@ describe('assisted assessment pipeline with real service records', () => {
       reconcile: async input => {
         if (++attempts === 1) throw new Error('Interrupted after the instability finding was ingested');
         await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.test.ts' }, new AbortController().signal);
-        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001',
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: instabilityId(provider, 'src/feature.test.ts'),
           rationale: 'The test is present in the execution baseline.', communication: { mode: 'quiet' },
           action: { action: 'supersede', reassessed: ['cfr-0001'], replacement: 'Existing test.' } }],
           next: { kind: 'complete' }, brief: 'Existing instability retained.' });
@@ -879,10 +1014,10 @@ describe('assisted assessment pipeline with real service records', () => {
         if (reconciliations === 1) await read.execute({ path: added }, new AbortController().signal);
         await read.execute({ path: existing }, new AbortController().signal);
         const dispositions = reconciliations === 1 ? [
-          { checkFinding: 'cf-0001', rationale: 'The plan added this test and must repair its flakiness.', communication: { mode: 'quiet' }, action: { action: 'repair' } },
-          { checkFinding: 'cf-0002', rationale: 'This exact test exists in the original baseline.', communication: { mode: 'quiet' },
+          { checkFinding: instabilityId({ summary: { warningDispositions: [warning(added)] } }, added), rationale: 'The plan added this test and must repair its flakiness.', communication: { mode: 'quiet' }, action: { action: 'repair' } },
+          { checkFinding: instabilityId({ summary: { warningDispositions: [warning(existing)] } }, existing), rationale: 'This exact test exists in the original baseline.', communication: { mode: 'quiet' },
             action: { action: 'supersede', reassessed: ['cfr-0002'], replacement: 'Existing test instability.' } },
-        ] : [{ checkFinding: 'cf-0001', rationale: `The ${correction} added test has equivalent reliable coverage and is stable in this audit.`,
+        ] : [{ checkFinding: instabilityId({ summary: { warningDispositions: [warning(added)] } }, added), rationale: `The ${correction} added test has equivalent reliable coverage and is stable in this audit.`,
           communication: { mode: 'quiet' }, action: { action: 'fixed', reassessed: ['cfr-0001'] } }];
         const proposal = { relations: [], dispositions,
           next: reconciliations === 1 ? { kind: 'correct', goal: 'Repair the added test.' } : { kind: 'complete' }, brief: 'Test origin and reliability verified.' };
@@ -927,7 +1062,7 @@ describe('assisted assessment pipeline with real service records', () => {
           const evidence = input.tools.find(tool => tool.name === 'assessment_evidence')!;
           expect((await evidence.execute({ ref: `baseline:${testFile}` }, new AbortController().signal)).text).toContain('returns 2');
         }
-        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001',
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: instabilityId(provider, testFile),
           rationale: origin === 'existing' ? 'The exact test was present in the original baseline.' : 'Source origin cannot yet be established.',
           communication: { mode: 'quiet' }, action }], next: origin === 'existing' ? { kind: 'complete' } : { kind: 'unresolved' },
           brief: origin === 'existing' ? 'Retain provider warning; no plan repair.' : 'Determine test origin.' });
@@ -958,14 +1093,14 @@ describe('assisted assessment pipeline with real service records', () => {
     const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline),
       [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, { operations: unusedOperations, audit: async input => audit(input.candidateCommit), review,
       reconcile: async input => {
-        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'Coordinator can select useful work.',
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'finding:feature-returns-one', rationale: 'Coordinator can select useful work.',
           communication: { mode: 'quiet' }, action: { action: 'repair' } }], next: { kind: 'correct', goal: 'Consider suggestion.' }, brief: 'Suggestion retained.' });
         if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
         return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'script', eventCount: 1 };
       } });
     const initial = await assess(first, baseline, 'initial');
     expect(initial.outcome.gate).toBe('action-required');
-    const request = { planId: 'sample', jobId: job.jobId, assessmentId: initial.id, checkFinding: 'cf-0001', action,
+    const request = { planId: 'sample', jobId: job.jobId, assessmentId: initial.id, checkFinding: 'finding:feature-returns-one', action,
       rationale: 'Optional readability work is outside useful scope.', commandId: 'ordinary-decision' };
     const receipt = await service.findingDecide(request);
     expect(await service.findingDecide(request)).toEqual(receipt);
@@ -1125,13 +1260,13 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(candidates.calls.some(call => call.includes('quality.principles.md'))).toBe(false);
   });
 
-  it('retains twenty material concerns without promoting legacy coverage prose to another required gap', async () => {
+  it('retains twenty material concerns without promoting coverage prose to another required gap', async () => {
     const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
       review: async input => {
         const base = reviewReport(input.candidate, true);
         const report = { ...base, concerns: Array.from({ length: 20 }, (_, index) => ({
-          ...base.concerns[0]!, summary: `Material behavior ${index + 1} is incorrect`,
+          ...base.concerns[0]!, findingKey: `draft:finding:material-behavior-${index + 1}`, summary: `Material behavior ${index + 1} is incorrect`,
         })), coverageGap: 'Further behavior remains unassessed after twenty concerns.' };
         const validated = input.prepared.validate(report);
         expect(validated).toMatchObject({ ok: true });
@@ -1155,11 +1290,12 @@ describe('assisted assessment pipeline with real service records', () => {
       review: async input => {
         const report = { ...reviewReport(input.candidate), requirements: reviewReport(input.candidate).requirements.map(answer => ({ ...answer,
           outcome: 'unmet' as const, explanation: 'The feature remains 1; no later correction resolved it.', evidencePaths: [],
-          ...(input.kind === 'final' ? { evidenceRefs: ['assessments/as-0001/stages/review.json'] } : {}) })) };
+          ...(input.kind === 'final' ? { evidenceRefs: ['assessments/as-0001/stages/review-accepted.json'] } : {}) })) };
         if (input.kind === 'final') {
           expect(input.prepared.message).toContain('"gate":"action-required"');
           expect(input.prepared.message).toContain('acceptance-1 unmet');
-          expect(input.prepared.validate(report).ok).toBe(true);
+          const checked = input.prepared.validate(report);
+          if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
         }
         return { status: 'submitted', value: report, operationId: input.operationId, sessionId: 'partial-review', eventCount: 1 };
       },
@@ -1209,10 +1345,11 @@ describe('assisted assessment pipeline with real service records', () => {
         expect(candidates.calls.filter(call => call.startsWith('diffPatch'))).toEqual(patchesBeforeFinal);
         expect(finalMessage).toContain('Advisory provider unavailable.');
         expect(finalMessage).toContain('whole-plan completeness');
-        const accepted = 'assessments/as-0001/stages/review.json';
+        const accepted = 'assessments/as-0001/stages/review-accepted.json';
         const report = { ...reviewReport(input.candidate), inspected: [], requirements: reviewReport(input.candidate).requirements.map(answer => ({ ...answer,
           evidencePaths: [], evidenceRefs: [accepted], explanation: 'The accepted iteration assessed these exact implementation bytes; the later unavailable review made no contrary judgment. The final audit and integration evidence are consistent.' })) };
-        expect(input.prepared.validate(report).ok).toBe(true);
+        const checked = input.prepared.validate(report);
+        if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
         for (const ref of ['assessments/as-0002/stages/review.json', 'assessments/as-0003/stages/review.json', 'assessments/as-9999/stages/review.json'])
           expect(input.prepared.validate({ ...report, requirements: report.requirements.map(answer => ({ ...answer, evidenceRefs: [ref] })) }).ok).toBe(false);
         const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;

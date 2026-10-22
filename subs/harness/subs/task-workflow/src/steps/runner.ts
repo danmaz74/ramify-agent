@@ -105,7 +105,6 @@ export interface RunnerContext {
   refused(reason: string, reader: boolean): Promise<void>;
   taskBrief<T>(request: InvocationRequest<T>, spec: SessionSpec, limits: RunPolicy['limits']): Promise<HarnessTaskBrief>;
   restore?<T>(agent: AgentPort, request: InvocationRequest<T>): Promise<RestoredInvocation<T> | null>;
-  adoptContinuity?(occurrenceId: string, authorityCurrent?: () => Promise<boolean>): Promise<void>;
   resourceInvocation?<T>(agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>>;
   readonly store: ContentStore;
   readonly index: ArchitectIndex | null;
@@ -456,7 +455,6 @@ export class InvocationRunner {
           settlementConfirmed: true };
       }
     }
-    await run.adoptContinuity?.(`manual-invocation-${run.events().filter(event => event.type === 'invocation-started').length + 1}`, this.host.authorityCurrent);
     let current = previous && request.recoveryResume
       ? this.restartTaskRequest(request, previous.data.invocation, 'Continuing the pending standalone task') : request;
     let retries = 0;

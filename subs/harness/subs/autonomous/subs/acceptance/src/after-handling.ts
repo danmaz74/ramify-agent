@@ -22,7 +22,7 @@ import { reviewLayout, reviewRequestId, reviewRequestSchema, type ForkPoint, typ
 import { reviewStateOf } from './reviews/state.js';
 
 import { committedRecords } from '../../../src/run/committed-records.js';
-import { engineerSubmissionSchema } from '../../work-coordination/src/work/engineer.js';
+import { parseRecordedEngineerSubmission } from '../../work-coordination/src/work/engineer.js';
 
 import { iterationAssignmentSchema, iterationLayout, iterationResultSchema, type IterationAssignment, type IterationResult } from '../../work-coordination/src/work/iterations.js';
 import { type WriteScope } from '../../../../../src/work/scope.js';
@@ -252,10 +252,14 @@ export class AfterHandling {
       throw new Error(`Engineer ${proposalInvocation} has changed or missing submission bytes`);
     }
     const rawSubmission = submissionBytes === undefined ? null : JSON.parse(submissionBytes.toString('utf8')) as Record<string, unknown>;
-    const submitted = rawSubmission?.schema === 'ramify-agent.engineer-submission/1'
-      ? engineerSubmissionSchema.safeParse((({ schema: _schema, ...value }) => value)(rawSubmission)) : null;
-    const startingPoints = submitted?.success && ['completion-proposed', 'partial'].includes(submitted.data.kind)
-      && 'startingPoints' in submitted.data ? submitted.data.startingPoints : undefined;
+    // An iteration can close after a contract turn. Its accepted contract
+    // submission is not an engineer proposal; only engineer envelopes are
+    // decoded here, while an unknown engineer version remains an error.
+    const submitted = typeof rawSubmission?.schema === 'string'
+      && rawSubmission.schema.startsWith('ramify-agent.engineer-submission/')
+      ? parseRecordedEngineerSubmission(rawSubmission) : null;
+    const startingPoints = submitted !== null && (submitted.kind === 'completion-proposed' || submitted.kind === 'partial')
+      ? submitted.startingPoints : undefined;
     const corrects = assignment.coordination?.kind === 'capability-task'
       ? this.events('capability-assigned').find(event => event.data.assignment === assignment.id)?.data.corrects
       : this.events('iteration-assigned').find(event => event.data.iteration === assignment.id)?.data.corrects;

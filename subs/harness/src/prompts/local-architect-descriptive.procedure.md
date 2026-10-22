@@ -1,4 +1,4 @@
-<!-- ramify-agent module architect capability procedure, version 12. -->
+<!-- ramify-agent module architect descriptive procedure, version 1. -->
 ## Establish what remains
 
 Read the work item's goal, selected requirements, acceptance and current
@@ -45,8 +45,14 @@ behavior when sufficient; otherwise delegate a durable task to a fresh
 capability architect. The harness preserves the partial source and session
 and suspends your ordinary work item while that task or a nested task is active.
 The coordinator handles provider work, compatibility and requesting-consumer
-integration through verification and handback. Do not assign a contract
-iteration or yield for provider obligations in this workflow.
+integration through verification and handback. For an accepted existing
+capability outside the work item's scope, an engineer may instead submit
+`contract-needed`. After the contract engineer records an agreement, assign
+its authorized provider work and use `yield-for-providers` for this item's
+open consumer requirements. Resume after provider conformance, then verify the
+real consumer against the accepted requirement before reporting completion.
+Keep each accepted contract, provider obligation and consumer requirement ID
+from the delivered records; never infer one from its label.
 
 An accepted handback resumes the engineer's original assignment. It completes
 only the delegated outcome, not your work item, another owner's queued entry
@@ -69,7 +75,10 @@ An earlier passing check does not establish a later candidate's correctness.
 
 Any submission may carry `reports` of
 `{ id, judgment: "done", basedOnRevision, where? }` and `registrations` of
-`{ kind: "test", description }` for a required test worth tracking separately.
+`{ kind: "test", testKey: "draft:test:<descriptive-name>", description }`
+for a required test worth tracking separately. The accepted ID is
+`test:<descriptive-name>`. If that name is occupied, correct `testKey` in
+the current turn.
 Report `done` only when you judge implementation correct and passing. Use the
 revision supplied in the briefing; revise an earlier done report with `bound`.
 `where` is optional navigation text that the harness does not interpret.

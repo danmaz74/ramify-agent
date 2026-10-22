@@ -33,7 +33,7 @@ test('recorded source-pointer preparation fault repairs once and returns origina
   expect(incident.export.state).toBe('pending');
   expect(events.filter(event => event.type === 'invocation-started' && event.data.work.automaticRepair)).toHaveLength(1);
   expect(events.find(event => event.type === 'repair-preparation-recorded')!.sequence).toBeLessThan(events.find(event => event.type === 'repair-incident-recorded')!.sequence);
-  const partial = JSON.parse(await readFile(runPath(subject.root, 'review-notes', subject.runId, iterationLayout.result('wi-001', 1)), 'utf8'));
+  const partial = JSON.parse(await readFile(runPath(subject.root, 'review-notes', subject.runId, iterationLayout.result('work-item:review-note', 1)), 'utf8'));
   expect(partial.outcome).toBe('partial');
   const architects = subject.specs.filter(spec => spec.role === 'local-architect');
   expect(architects.at(-1)!.session.mode).toBe('fresh');
@@ -102,7 +102,7 @@ test('root repair delta stays separately authorized at the subsequent ordinary g
   expect(verified).toHaveLength(1);
   expect(verified[0]!.assignment.id).toBe('root-repair');
   expect(verified[0]!.delta.changes.map(change => change.path)).toEqual(['src/repair-pointer.txt']);
-  expect(verified[0]!.delta.originalAssignment).toBe('wi-001.i01');
+  expect(verified[0]!.delta.originalAssignment).toBe('work-item:review-note.i01');
   expect(await readFile(join(subject.root, 'src/repair-pointer.txt'), 'utf8')).toBe(renamed);
   subject.boundary.assertComplete();
 });

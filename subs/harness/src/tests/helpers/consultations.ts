@@ -39,7 +39,7 @@ export async function consultationFixture(cleanup: Array<() => Promise<void>>, s
   const git = mockGit({});
   const policy = defaultRunPolicy({ projectRoot: directory.path });
   const log = await RunLog.open(join(directory.path, 'events.jsonl'), 'R');
-  const run = new ManualRun({ schema: 'ramify-agent.job/3', kind: 'manual', planId: 'P', jobId: 'R', createdAt: new Date().toISOString(), projectRoot: directory.path, base: 'B', branch: null, origin: 'step-run', policy }, directory.path, log, new WriterOwnership({ settleMs: 1000 }));
+  const run = new ManualRun({ schema: 'ramify-agent.job/4', kind: 'manual', planId: 'P', jobId: 'R', createdAt: new Date().toISOString(), projectRoot: directory.path, base: 'B', branch: null, origin: 'step-run', policy }, directory.path, log, new WriterOwnership({ settleMs: 1000 }));
   const { runner, close } = manualRunner({ projectRoot: directory.path, git, model: 'scripted-model', agent });
   cleanup.push(async () => { expect(await close()).toBe(true); expect(git.unexpected).toEqual([]); });
   function request(role: 'engineer' | 'local-architect' | 'global-fork' | 'capability-architect', goal: string): InvocationRequest<Record<string, unknown>> {

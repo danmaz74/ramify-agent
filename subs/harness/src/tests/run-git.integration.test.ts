@@ -20,12 +20,12 @@ import { submit, treeInputs, write } from './helpers/iterations.js';
 function authorizedRepair(root: string) {
   return (spec: import('../../subs/agent/src/interfaces/port.js').SessionSpec) => {
     if (spec.submission.name === intakeToolName) return submit({ goal: 'Retain an audit record.', elements: [
-      { key: 'audit', kind: 'non-functional', document: 'doc-001', text: 'The review must retain an audit record.', conditions: [], uncertainty: '' },
-    ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } });
+      { key: 'draft:non-functional-requirement:audit', kind: 'non-functional', document: 'document:review-notes-plan', text: 'The review must retain an audit record.', conditions: [], uncertainty: '' },
+    ], incorporation: { documents: [{ document: 'document:review-notes-plan', scenarios: true, uncertainty: '' }], missing: [] } });
     if (spec.role === 'initial-architect') return submit(analysis([]));
-    if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{ nfr: 'nfr-001',
+    if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{ nfr: 'non-functional-requirement:audit',
       result: spec.prompt.includes('(after-repair)') ? 'satisfied' : 'not-satisfied', inspectedScope: ['src'], evidence: ['Current source inspected'], uncertainty: '' }] });
-    if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['nfr-001'], startingModule: 'collection-review', task: 'Record the audit source.', evidence: [], uncertainty: '' });
+    if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['non-functional-requirement:audit'], startingModule: 'collection-review', task: 'Record the audit source.', evidence: [], uncertainty: '' });
     if (spec.submission.name === nonfunctionalRepairToolName) return submit({ kind: 'completed', summary: 'Audit record source added.', evidence: ['src/late.ts'], remaining: [] }, write(join(root, 'src/late.ts'), 'export const late = true;\n'));
     return [];
   };

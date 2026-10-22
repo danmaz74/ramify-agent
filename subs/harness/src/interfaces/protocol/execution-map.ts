@@ -27,9 +27,9 @@ export const executionElementKindSchema = z.enum([
 ]);
 export type ExecutionElementKind = z.infer<typeof executionElementKindSchema>;
 
-/** The durable ID is scoped by kind. Capability IDs are the registry's exact slugs. */
+/** Semantic keys are accepted durable IDs; operational keys use their graph kind. */
 export const executionElementKeySchema = z.string().regex(
-  /^(capability|scenario|work-item|iteration|placement-request|contract|requirement|session|gate):[^\s:]+$/,
+  /^(capability|scenario|work-item|iteration|placement-request|contract|consumer-requirement|session|gate):[^\s:]+$/,
 ).refine(key => !key.startsWith('capability:') || /^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key),
   'Capability identity uses the exact kebab-case registry slug');
 export type ExecutionElementKey = z.infer<typeof executionElementKeySchema>;
@@ -174,7 +174,7 @@ export const executionNodeSchema = z.discriminatedUnion('kind', [
     cause: gateCauseSchema.nullable(), evidencePresent: z.boolean(),
   }).strict(),
 ]).superRefine((node, context) => {
-  if (!node.key.startsWith(`${node.kind}:`)) context.addIssue({ code: 'custom', path: ['key'], message: 'Key kind differs from node kind' });
+  if (!node.key.startsWith(`${node.kind === 'requirement' ? 'consumer-requirement' : node.kind}:`)) context.addIssue({ code: 'custom', path: ['key'], message: 'Key kind differs from node kind' });
   if (node.kind === 'requirement' && (node.state === 'verified') !== (node.verifiedRevision === node.currentRevision)) {
     context.addIssue({ code: 'custom', path: ['verifiedRevision'], message: 'Only the current verified revision is green' });
   }

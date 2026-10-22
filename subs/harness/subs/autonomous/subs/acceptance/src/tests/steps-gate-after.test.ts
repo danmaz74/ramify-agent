@@ -46,7 +46,7 @@ const notes = 'collection-review/workspace/reviews/notes';
 const notesDirectory = 'subs/workspace/subs/reviews/subs/notes';
 const notesSource = `${notesDirectory}/src/notes.ts`;
 const planId = 'manual-notes';
-const workItem = 'state-note-limit';
+const workItem = 'work-item:state-note-limit';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
@@ -65,8 +65,8 @@ async function project(): Promise<{ root: string; scratch: string }> {
 }
 
 const item = {
-  schema: 'ramify-agent.work-item/1', id: workItem, module: notes, origin: { entry: 'review-note' },
-  goal: 'State the note limit the reviewers asked for.', requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
+  schema: 'ramify-agent.work-item/2', id: workItem, module: notes, origin: { entry: 'capability:review-note' },
+  goal: 'State the note limit the reviewers asked for.', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null,
 };
 
 /** Engineer inputs authored with no run, written to a file. */
@@ -151,7 +151,7 @@ describe('S17: after a completion proposal, with and without its gate', () => {
     // Before any gate: nothing closes, and the next step is named.
     const early = await after(run, engineer, { git });
     expect(early.exitStatus, early.lines.join('\n')).toBe(0);
-    expect(early.lines.join('\n')).toContain('Not run: the close of state-note-limit.i01 and its review requests: no committed gate audited the proposal');
+    expect(early.lines.join('\n')).toContain('Not run: the close of work-item:state-note-limit.i01 and its review requests: no committed gate audited the proposal');
     expect((await events(root, 'm-001')).filter(event => event.type === 'iteration-closed')).toEqual([]);
 
     // The iteration gate commits the candidate on the run branch and requests the configured audit.
@@ -188,7 +188,7 @@ describe('S17: after a completion proposal, with and without its gate', () => {
     expect(accepted.exitStatus, accepted.lines.join('\n')).toBe(0);
     expect(accepted.applied).toEqual([
       'the ownership of 1 changed path of cand-1, as the provider answers it now',
-      'the close of state-note-limit.i01: accepted on gate ga-0001, commit cand-1',
+      'the close of work-item:state-note-limit.i01: accepted on gate ga-0001, commit cand-1',
       'the review requests rq-0001, rq-0002, rq-0003',
     ]);
     expect(accepted.notRun.join('\n')).toContain('the review sessions of rq-0001 (code), rq-0002 (scope), rq-0003 (design)');
@@ -200,7 +200,7 @@ describe('S17: after a completion proposal, with and without its gate', () => {
     const repeated = await after(run, engineer, { git, candidates });
     expect(repeated.exitStatus, repeated.lines.join('\n')).toBe(0);
     expect(repeated.applied).toEqual([
-      'nothing more for the close: state-note-limit.i01 was already closed accepted on gate ga-0001',
+      'nothing more for the close: work-item:state-note-limit.i01 was already closed accepted on gate ga-0001',
       'nothing more for the reviews: rq-0001, rq-0002, rq-0003 were already requested',
     ]);
     expect(await readFile(join(run, runLayout.events), 'utf8')).toBe(before);
@@ -557,7 +557,7 @@ describe('S16: after a local architect\'s turn, and the inputs of its next turn'
 
       // The next turn requests completion: the reports and the completion outline; the work-item gate is named, not run.
       // The turn reports the plan's scenario done, as the completion request requires of it.
-      const completingRun = await stepHere(nextPath, [{ kind: 'submit', input: { ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] } }]);
+      const completingRun = await stepHere(nextPath, [{ kind: 'submit', input: { ...requestCompletion(), reports: [{ id: 'scenario:review-note-is-used', judgment: 'done', basedOnRevision: 0 }] } }]);
       expect(completingRun.exitStatus, answers.join('\n---\n')).toBe(0);
       const completing = invocationOf(completingRun);
       const requested = await after(run, completing, { git });
@@ -575,7 +575,7 @@ describe('S16: after a local architect\'s turn, and the inputs of its next turn'
         `nothing more: the completion outline revision 2 of ${item} was already recorded for ${completing}`]);
       expect(await readFile(join(run, runLayout.events), 'utf8')).toBe(settledLog);
       expect(afterRequest.filter(event => event.type === 'obligation-reported').map(event => event.data)).toEqual([
-        expect.objectContaining({ id: 'sc-001', judgment: 'done', by: completing })]);
+        expect.objectContaining({ id: 'scenario:review-note-is-used', judgment: 'done', by: completing })]);
 
       // S15: the work-item gate audits the completion request's candidate; the final gate then audits the run's.
       const gitAtGates = gateGit(source.root, { head: 'base-9', commits: [{ commit: null }, { commit: null }], previews: [] });
@@ -650,9 +650,10 @@ describe('S25: after an engineer\'s unsuitable report or capability need', () =>
     const engineer = invocationOf(await step(inputs, run, [
       edit('notes.ts', 'noteLimit = 400', 'noteLimit = 500'),
       { kind: 'submit', input: { kind: 'capability-needed', summary: 'The limit needs a source of truth', request: {
+        requestKey: 'draft:capability-request:configured-note-limit',
         need: 'A note limit the reviewers configure', usage: [{ path: notesSource, use: 'Read the configured limit', prospective: false }],
         constraints: [], knownInterface: { kind: 'none-known' },
-        examples: [{ title: 'configured limit', code: 'expect(noteLimit()).toBe(500)', designation: 'pseudocode' }],
+        examples: [{ key: 'draft:capability-example:configured-note-limit', title: 'configured limit', code: 'expect(noteLimit()).toBe(500)', designation: 'pseudocode' }],
       } } },
     ], git));
     // The source as the writer settled it: what changed against the accepted base, read from the tree; nothing staged.
@@ -664,7 +665,7 @@ describe('S25: after an engineer\'s unsuitable report or capability need', () =>
     };
     const needed = await after(run, engineer, { git, provisionalSourceGit: sourceGit });
     expect(needed.exitStatus, needed.lines.join('\n')).toBe(0);
-    expect(needed.applied).toEqual([expect.stringMatching(new RegExp(`^the provisional source of ${engineer} for request need-001: 1 changed path, ${run}/capabilities/snapshots/`, 'u'))]);
+    expect(needed.applied).toEqual([expect.stringMatching(new RegExp(`^the provisional source of ${engineer} for request capability-request:configured-note-limit: 1 changed path, ${run}/capabilities/snapshots/`, 'u'))]);
     expect(needed.notRun).toEqual([`the capability workflow of ${workItem}'s need in ${workItem}.i01: its request record, its architect and its return to the module engineer`]);
     const log = await readFile(join(run, runLayout.events), 'utf8');
     const repeated = await after(run, engineer, { git, provisionalSourceGit: sourceGit });

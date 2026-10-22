@@ -36,12 +36,13 @@ const shelf = 'sample/shelf';
 function record(id: string, name: string, extra: Partial<ScenarioRecord> = {}): ScenarioRecord {
   const source = [`Scenario: ${name}`, '  Given an empty shelf', `  When the user shelves "${id}"`, '  Then the shelf lists 1 book'];
   return {
-    schema: 'ramify-agent.scenario/1',
+    schema: 'ramify-agent.scenario/2',
     id,
     kind: 'entry',
-    entry: 'shelve-books',
+    entry: 'capability:shelve-books',
     owner: shelf,
     origin: { kind: 'architect', refs: [] },
+    citedElements: [],
     partOf: null,
     subScenarios: [],
     name,
@@ -53,25 +54,25 @@ function record(id: string, name: string, extra: Partial<ScenarioRecord> = {}): 
 }
 
 const records: ScenarioRecord[] = [
-  record('sc-001', 'A shelved book is listed'),
-  record('sc-002', 'A lent book is marked', { partOf: 'sc-005' }),
-  record('sc-003', 'A returned book is listed again'),
-  record('sc-004', 'Another entry\'s scenario', { entry: 'lend-books' }),
-  record('sc-005', 'A lent book is shown on the shelf', { kind: 'integration', entry: null, subScenarios: ['sc-002'], owner: 'sample' }),
+  record('scenario:book-shelved', 'A shelved book is listed'),
+  record('scenario:book-lent', 'A lent book is marked', { partOf: 'scenario:lent-book-shown' }),
+  record('scenario:book-returned', 'A returned book is listed again'),
+  record('scenario:other-entry', 'Another entry\'s scenario', { entry: 'capability:lend-books' }),
+  record('scenario:lent-book-shown', 'A lent book is shown on the shelf', { kind: 'integration', entry: null, subScenarios: ['scenario:book-lent'], owner: 'sample' }),
 ];
 
 const states = (entries: Array<[string, ScenarioState]>) => new Map<string, ScenarioState>(entries);
 
 function workItem(origin: WorkItem['origin']): WorkItem {
   return {
-    schema: 'ramify-agent.work-item/1',
-    id: 'wi-001',
+    schema: 'ramify-agent.work-item/2',
+    id: 'work-item:shelve-books',
     module: shelf,
     origin,
     goal: 'Shelve books.',
-    requirementRefs: [],
-    acceptanceRefs: [],
-    contextRefs: [],
+    functionalRequirementIds: [],
+    functionalAcceptanceIds: [],
+    contextIds: [],
     startedFor: null,
   } as WorkItem;
 }
@@ -92,7 +93,7 @@ function architectBriefing(item: WorkItem, extra: Partial<WorkItemBriefing> = {}
 /** Only what the message reads of an assignment. */
 function assignment(extra: Partial<IterationAssignment> = {}): IterationAssignment {
   return {
-    id: 'wi-001.i01',
+    id: 'work-item:shelve-books.i01',
     goal: 'Shelve books.',
     approach: 'Add the shelf.',
     completionEvidence: 'A test shelves a book.',
@@ -109,34 +110,34 @@ function assignment(extra: Partial<IterationAssignment> = {}): IterationAssignme
 
 describe('the local architect\'s briefing', () => {
   test('an entry\'s work item: a section per scenario with its ID, state, text, file and, for a sub-scenario, the integration scenario', () => {
-    const scenarios = entryScenariosOf(records, states([['sc-001', 'done'], ['sc-002', 'bound']]), 'shelve-books');
-    expect(scenarios.map(scenario => `${scenario.id} ${scenario.state}`)).toEqual(['sc-001 done', 'sc-002 bound', 'sc-003 pending']);
-    const text = workItemMessage(architectBriefing(workItem({ entry: 'shelve-books' }), { scenarios }));
+    const scenarios = entryScenariosOf(records, states([['scenario:book-shelved', 'done'], ['scenario:book-lent', 'bound']]), 'capability:shelve-books');
+    expect(scenarios.map(scenario => `${scenario.id} ${scenario.state}`)).toEqual(['scenario:book-shelved done', 'scenario:book-lent bound', 'scenario:book-returned pending']);
+    const text = workItemMessage(architectBriefing(workItem({ entry: 'capability:shelve-books' }), { scenarios }));
 
     expect(text).toContain('## The scenarios of this work item');
     expect(text).toContain('Its entry has 3 scenarios.');
     expect(text).toContain([
-      '### sc-002: A lent book is marked',
+      '### scenario:book-lent: A lent book is marked',
       '',
       `- Feature file: \`${shelfFile}\`.`,
-      '- A sub-scenario of the integration scenario `sc-005`, whose integration work item is due once every sub-scenario is reported done.',
+      '- A sub-scenario of the integration scenario `scenario:lent-book-shown`, whose integration work item is due once every sub-scenario is reported done.',
       '',
       '```gherkin',
       'Scenario: A lent book is marked',
       '  Given an empty shelf',
-      '  When the user shelves "sc-002"',
+      '  When the user shelves "scenario:book-lent"',
       '  Then the shelf lists 1 book',
       '```',
     ].join('\n'));
-    expect(text).toContain('### sc-001: A shelved book is listed');
-    expect(text).toContain('### sc-003: A returned book is listed again');
+    expect(text).toContain('### scenario:book-shelved: A shelved book is listed');
+    expect(text).toContain('### scenario:book-returned: A returned book is listed again');
     // The states, which change from turn to turn, are their own section, apart from the text, which does not.
     expect(text).toContain('## The states of these scenarios\n\n');
-    expect(text).toContain('- `sc-001`: done.\n- `sc-002`: bound.\n- `sc-003`: pending.');
-    expect(text.indexOf('## The states of these scenarios')).toBeGreaterThan(text.indexOf('### sc-003'));
+    expect(text).toContain('- `scenario:book-shelved`: done.\n- `scenario:book-lent`: bound.\n- `scenario:book-returned`: pending.');
+    expect(text.indexOf('## The states of these scenarios')).toBeGreaterThan(text.indexOf('### scenario:book-returned'));
     // Another entry's scenario and the integration scenario are not this item's.
-    expect(text).not.toContain('sc-004');
-    expect(text).not.toContain('### sc-005');
+    expect(text).not.toContain('scenario:other-entry');
+    expect(text).not.toContain('### scenario:lent-book-shown');
     // How binding and reporting work, and the refusal: a pass is evidence, never the report.
     expect(text).toContain('`assignment.obligations`');
     expect(text).toContain('A passing gate is evidence, never your\nreport');
@@ -145,7 +146,7 @@ describe('the local architect\'s briefing', () => {
   });
 
   test('a continued turn is told its outline stands, not how many revisions it has', () => {
-    const text = workItemMessage(architectBriefing(workItem({ entry: 'shelve-books' }), { outlines: [{ revision: 1 }, { revision: 2 }] as never }));
+    const text = workItemMessage(architectBriefing(workItem({ entry: 'capability:shelve-books' }), { outlines: [{ revision: 1 }, { revision: 2 }] as never }));
     expect(text).toContain("## Your outline\n\nRevision 2 is this work item's current outline, and it stands. Include `outline` only to revise it.");
     expect(text).not.toContain('Earlier outlines');
     expect(text).not.toContain('outline revision(s)');
@@ -169,43 +170,43 @@ describe('the local architect\'s briefing', () => {
   });
 
   test('the last accepted iteration carries each scenario its gate passed, with the definition that bound each step', () => {
-    const text = workItemMessage(architectBriefing(workItem({ entry: 'shelve-books' }), {
+    const text = workItemMessage(architectBriefing(workItem({ entry: 'capability:shelve-books' }), {
       lastIteration: {
-        id: 'wi-001.i01', outcome: 'accepted', findings: [], commit: 'abc',
-        scenarios: ['- `sc-001` "A shelved book is listed" passed, at `x.feature:10`, bound by:', '  - `Given an empty shelf` → `subs/other/src/tests/steps/other.steps.ts:3`'],
+        id: 'work-item:shelve-books.i01', outcome: 'accepted', findings: [], commit: 'abc',
+        scenarios: ['- `scenario:book-shelved` "A shelved book is listed" passed, at `x.feature:10`, bound by:', '  - `Given an empty shelf` → `subs/other/src/tests/steps/other.steps.ts:3`'],
       },
     }));
-    expect(text).toContain('The scenarios its gate passed, and the step definition that bound each step:\n\n- `sc-001` "A shelved book is listed" passed');
+    expect(text).toContain('The scenarios its gate passed, and the step definition that bound each step:\n\n- `scenario:book-shelved` "A shelved book is listed" passed');
     expect(text).not.toContain('reached the run through an import, which Ramify verified');
     expect(text).toContain('Step locations identify loaded definitions; they do not establish import or exposure provenance.');
   });
 });
 
 describe('the engineer\'s briefing', () => {
-  const entry = (entries: Array<[string, ScenarioState]>) => ({ kind: 'entry' as const, scenarios: entryScenariosOf(records, states(entries), 'shelve-books') });
+  const entry = (entries: Array<[string, ScenarioState]>) => ({ kind: 'entry' as const, scenarios: entryScenariosOf(records, states(entries), 'capability:shelve-books') });
 
   test('the obligations to bind with what each is, the assigned scenarios under "Scenarios to bind", the entry\'s other open ones, and the three rules', () => {
     const text = iterationMessage({
-      assignment: assignment({ obligations: ['sc-003', 'test-001'] }),
+      assignment: assignment({ obligations: ['scenario:book-returned', 'test-001'] }),
       projectRoot: '/p',
       base: 'abc',
-      scenarios: entry([['sc-001', 'done'], ['sc-002', 'bound']]),
-      obligations: [{ id: 'sc-003', text: 'scenario "A returned book is listed again"' }, { id: 'test-001', text: 'registered test: a book shelved twice is listed once' }],
+      scenarios: entry([['scenario:book-shelved', 'done'], ['scenario:book-lent', 'bound']]),
+      obligations: [{ id: 'scenario:book-returned', text: 'scenario "A returned book is listed again"' }, { id: 'test-001', text: 'registered test: a book shelved twice is listed once' }],
     });
     // PB3-D11: what the proposal must bind, and how.
-    expect(text).toContain('## Obligations to bind\n\nThe architect assigned these to this iteration:\n\n- `sc-003`: scenario "A returned book is listed again"\n- `test-001`: registered test: a book shelved twice is listed once\n');
+    expect(text).toContain('## Obligations to bind\n\nThe architect assigned these to this iteration:\n\n- `scenario:book-returned`: scenario "A returned book is listed again"\n- `test-001`: registered test: a book shelved twice is listed once\n');
     expect(text).toContain('Your completion proposal\'s `bindings` names each of them exactly once, as `{ id, fakes }`');
     expect(text).toContain('A proposal that leaves one out is\nrefused with the missing IDs; report `partial` with what is unfinished instead.');
     const bind = text.indexOf('## Scenarios to bind');
     const others = text.indexOf('## The entry\'s other scenarios');
     expect(bind).toBeGreaterThan(0);
     expect(others).toBeGreaterThan(bind);
-    expect(text.slice(bind, others)).toContain('### sc-003 (pending): A returned book is listed again');
+    expect(text.slice(bind, others)).toContain('### scenario:book-returned (pending): A returned book is listed again');
     expect(text.slice(bind, others)).toContain(`- Feature file: \`${shelfFile}\`.`);
     expect(text.slice(bind, others)).toContain('```gherkin\nScenario: A returned book is listed again\n');
-    expect(text.slice(others)).toContain('### sc-002 (bound): A lent book is marked');
+    expect(text.slice(others)).toContain('### scenario:book-lent (bound): A lent book is marked');
     // A done scenario is counted, not listed.
-    expect(text).not.toContain('### sc-001');
+    expect(text).not.toContain('### scenario:book-shelved');
     expect(text).toContain('1 more scenario of the entry is reported done already; the gates run it too.');
     // The three rules, and named imports.
     expect(text).toContain('## Binding a scenario');
@@ -222,11 +223,11 @@ describe('the engineer\'s briefing', () => {
     expect(open).toContain('## The scenarios of this work item\n\nEach scenario of its entry that is not done yet:');
     expect(open).not.toContain('## Scenarios to bind');
     expect(open).toContain('## Obligations to bind\n\nNone: this assignment names no obligation, so your completion proposal\'s `bindings` is empty (`[]`).');
-    for (const id of ['sc-001', 'sc-002', 'sc-003']) expect(open).toContain(`### ${id} (pending)`);
+    for (const id of ['scenario:book-shelved', 'scenario:book-lent', 'scenario:book-returned']) expect(open).toContain(`### ${id} (pending)`);
 
     const done = iterationMessage({
       assignment: assignment(), projectRoot: '/p', base: 'abc',
-      scenarios: entry([['sc-001', 'done'], ['sc-002', 'done'], ['sc-003', 'done']]),
+      scenarios: entry([['scenario:book-shelved', 'done'], ['scenario:book-lent', 'done'], ['scenario:book-returned', 'done']]),
     });
     expect(done).toContain('Every scenario of its entry is reported done (3).');
     expect(done).not.toContain('## Binding a scenario');
@@ -234,18 +235,18 @@ describe('the engineer\'s briefing', () => {
 
   test('an integration work item\'s engineer: the integration scenario, the step files it imports and how it is bound', () => {
     const integration: IntegrationBriefing = {
-      scenario: { id: 'sc-005', name: 'A lent book is shown on the shelf', owner: 'sample', file: 'src/tests/features/demo-plan/demo-plan.feature', source: ['Scenario: A lent book is shown on the shelf', '  Given a lent book'], steps: 'src/tests/steps' },
-      subScenarios: [{ id: 'sc-002', name: 'A lent book is marked', owner: shelf, file: shelfFile, source: [] }],
+      scenario: { id: 'scenario:lent-book-shown', name: 'A lent book is shown on the shelf', owner: 'sample', file: 'src/tests/features/demo-plan/demo-plan.feature', source: ['Scenario: A lent book is shown on the shelf', '  Given a lent book'], steps: 'src/tests/steps' },
+      subScenarios: [{ id: 'scenario:book-lent', name: 'A lent book is marked', owner: shelf, file: shelfFile, source: [] }],
       owners: [{ module: shelf, directory: 'subs/shelf/src/tests/steps', files: [shelfSteps] }],
       scope: { module: 'sample', includedChildren: [shelf] },
     };
     const text = iterationMessage({ assignment: assignment(), projectRoot: '/p', base: 'abc', scenarios: { kind: 'integration', integration, state: 'pending' } });
-    expect(text).toContain('## The integration scenario to bind: sc-005 (pending): A lent book is shown on the shelf');
+    expect(text).toContain('## The integration scenario to bind: scenario:lent-book-shown (pending): A lent book is shown on the shelf');
     expect(text).toContain('```gherkin\nScenario: A lent book is shown on the shelf\n  Given a lent book\n```');
     expect(text).toContain(`- \`${shelf}\`, in \`subs/shelf/src/tests/steps/\`: \`${shelfSteps}\`.`);
     expect(text).toContain('- Write one step file in `src/tests/steps/` that imports the step files above and defines no step of its own');
     expect(text).toContain('`expose-test`');
-    expect(text).toContain('- Bind `sc-005` in `bindings` of your completion proposal once your step file binds it, naming the fakes');
+    expect(text).toContain('- Bind `scenario:lent-book-shown` in `bindings` of your completion proposal once your step file binds it, naming the fakes');
     expect(text).not.toContain('bridging');
     expect(text).toContain('never with a symbol-free');
   });
@@ -259,42 +260,42 @@ describe('the engineer\'s briefing', () => {
 describe('assignment.obligations', () => {
   const item = (id: string, origin: WorkItem['origin']): WorkItem => ({ ...workItem(origin), id });
   const projection = obligationsOf({
-    scenarios: records, workItems: [item('wi-001', { entry: 'shelve-books' }), item('wi-002', { entry: 'lend-books' })], events: [],
+    scenarios: records, workItems: [item('work-item:shelve-books', { entry: 'capability:shelve-books' }), item('work-item:lend-books', { entry: 'capability:lend-books' })], events: [],
   });
-  const context = { actor: { kind: 'work-item' as const, id: 'wi-001' }, projection };
+  const context = { actor: { kind: 'work-item' as const, id: 'work-item:shelve-books' }, projection };
   const body = (obligations: string[] | undefined): AssignmentBody => ({ ...assign(shelf).assignment, ...(obligations === undefined ? {} : { obligations }) }) as AssignmentBody;
   const evidence = () => ({ index: null, registry: new Map(), outline: null, obligations: context });
 
   test('names this architect\'s obligations in any state; another work item\'s, an integration scenario and an unknown ID are refused at their path', () => {
-    expect(assignmentErrors(body(['sc-001', 'sc-003']), evidence())).toEqual([]);
+    expect(assignmentErrors(body(['scenario:book-shelved', 'scenario:book-returned']), evidence())).toEqual([]);
     expect(assignmentErrors(body(undefined), evidence())).toEqual([]);
-    expect(assignmentErrors(body(['sc-004', 'sc-005', 'sc-009', 'sc-002']), evidence())).toEqual([
-      { path: 'assignment.obligations.0', message: 'sc-004 is reported by the module architect of wi-002, so the module architect of wi-001 cannot assign its binding', expected: 'IDs among sc-001, sc-002, sc-003' },
-      { path: 'assignment.obligations.1', message: 'sc-005 is reported by the module architect of sc-005\'s integration work item, which does not exist yet, so the module architect of wi-001 cannot assign its binding', expected: 'IDs among sc-001, sc-002, sc-003' },
-      { path: 'assignment.obligations.2', message: '"sc-009" is no registered obligation of this run', expected: 'IDs among sc-001, sc-002, sc-003' },
+    expect(assignmentErrors(body(['scenario:other-entry', 'scenario:lent-book-shown', 'scenario:unknown', 'scenario:book-lent']), evidence())).toEqual([
+      { path: 'assignment.obligations.0', message: 'scenario:other-entry is reported by the module architect of work-item:lend-books, so the module architect of work-item:shelve-books cannot assign its binding', expected: 'IDs among scenario:book-shelved, scenario:book-lent, scenario:book-returned' },
+      { path: 'assignment.obligations.1', message: 'scenario:lent-book-shown is reported by the module architect of scenario:lent-book-shown\'s integration work item, which does not exist yet, so the module architect of work-item:shelve-books cannot assign its binding', expected: 'IDs among scenario:book-shelved, scenario:book-lent, scenario:book-returned' },
+      { path: 'assignment.obligations.2', message: '"scenario:unknown" is no registered obligation of this run', expected: 'IDs among scenario:book-shelved, scenario:book-lent, scenario:book-returned' },
     ]);
     // Without the run's obligations nothing may be named.
-    expect(assignmentErrors(body(['sc-001']), { index: null, registry: new Map(), outline: null })).toEqual([
+    expect(assignmentErrors(body(['scenario:book-shelved']), { index: null, registry: new Map(), outline: null })).toEqual([
       { path: 'assignment.obligations', message: 'This assignment has no obligation context, so it names no obligation', expected: 'an empty list' },
     ]);
   });
 
   test('the local architect\'s submission is judged with it, and a corrected list is accepted', () => {
-    const submission = { ...assign(shelf, {}, outline()), assignment: { ...assign(shelf).assignment, obligations: ['sc-004'] } };
+    const submission = { ...assign(shelf, {}, outline()), assignment: { ...assign(shelf).assignment, obligations: ['scenario:other-entry'] } };
     const refused = validateLocalArchitect(submission, { index: null, registry: new Map(), obligations: context });
     expect(refused.ok).toBe(false);
     if (refused.ok) return;
     expect(refused.errors.map(error => error.path)).toEqual(['assignment.obligations.0']);
-    const accepted = validateLocalArchitect({ ...submission, assignment: { ...submission.assignment, obligations: ['sc-003'] } }, { index: null, registry: new Map(), obligations: context });
+    const accepted = validateLocalArchitect({ ...submission, assignment: { ...submission.assignment, obligations: ['scenario:book-returned'] } }, { index: null, registry: new Map(), obligations: context });
     expect(accepted.ok).toBe(true);
   });
 });
 
 describe('no harness scenario run', () => {
   test('an engineer is told the gate\'s audit runs its scenarios through the configured check, and is offered no scope test tool', () => {
-    const entry = { kind: 'entry' as const, scenarios: entryScenariosOf(records, states([['sc-002', 'bound']]), 'shelve-books') };
-    const text = iterationMessage({ assignment: assignment({ obligations: ['sc-003'] }), projectRoot: '/p', base: 'abc', scenarios: entry,
-      obligations: [{ id: 'sc-003', text: 'scenario "A returned book is listed again"' }] });
+    const entry = { kind: 'entry' as const, scenarios: entryScenariosOf(records, states([['scenario:book-lent', 'bound']]), 'capability:shelve-books') };
+    const text = iterationMessage({ assignment: assignment({ obligations: ['scenario:book-returned'] }), projectRoot: '/p', base: 'abc', scenarios: entry,
+      obligations: [{ id: 'scenario:book-returned', text: 'scenario "A returned book is listed again"' }] });
     expect(text).toContain('Binding removes its pending tag, so the next gate\'s audit runs it through the project\'s configured scenario check; a pending scenario is not run.');
     expect(text).not.toContain('run_scope_tests');
     expect(text).not.toContain('quick mode');
@@ -321,22 +322,22 @@ function auditedGate(scenarios: readonly unknown[], passed: boolean): GateAttemp
 
 /** One scenario of a provider's parsed Cucumber run. */
 function parsed(id: string | null, line: number, outcome: 'passed' | 'failed' | 'skipped', steps: unknown[]) {
-  return { uri: shelfFile, line, name: id ?? 'An unplanned scenario', tags: id === null ? ['@smoke'] : [`@ramify-${id}`], outcome, steps };
+  return { uri: shelfFile, line, name: id ?? 'An unplanned scenario', tags: id === null ? ['@smoke'] : [`@ramify-scenario-${id.slice('scenario:'.length)}`], outcome, steps };
 }
 
 const step = (text: string, status: string, line?: number, errorMessage?: string) => ({
   text, status, definitionLocations: line === undefined ? [] : [{ uri: shelfSteps, line }], ...(errorMessage === undefined ? {} : { errorMessage }),
 });
 
-const passing = parsed('sc-001', 10, 'passed', [step('an empty shelf', 'PASSED', 8), step('the user shelves "Dune"', 'PASSED', 12), step('the shelf lists 1 book', 'PASSED', 28)]);
+const passing = parsed('scenario:book-shelved', 10, 'passed', [step('an empty shelf', 'PASSED', 8), step('the user shelves "Dune"', 'PASSED', 12), step('the shelf lists 1 book', 'PASSED', 28)]);
 
 describe('diagnostics from the raw runner output of the configured scenario check', () => {
-  const names = new Map([['sc-001', 'A shelved book is listed'], ['sc-002', 'A miscounted shelf fails'], ['sc-003', 'Lending is not defined yet']]);
+  const names = new Map([['scenario:book-shelved', 'A shelved book is listed'], ['scenario:book-lent', 'A miscounted shelf fails'], ['scenario:book-returned', 'Lending is not defined yet']]);
 
   test('per failing tracked scenario its name, check, file and line, failing step, message and undefined steps; the project\'s own failures by count', async () => {
     const gate = auditedGate([
-      parsed('sc-002', 16, 'failed', [step('an empty shelf', 'PASSED', 8), step('the shelf lists 2 books', 'FAILED', 28, 'AssertionError [ERR_ASSERTION]: 1 !== 2\n    at World.<anonymous>')]),
-      parsed('sc-003', 22, 'failed', [step('an empty shelf', 'PASSED', 8), step('the user lends "Dune" to Ada', 'UNDEFINED')]),
+      parsed('scenario:book-lent', 16, 'failed', [step('an empty shelf', 'PASSED', 8), step('the shelf lists 2 books', 'FAILED', 28, 'AssertionError [ERR_ASSERTION]: 1 !== 2\n    at World.<anonymous>')]),
+      parsed('scenario:book-returned', 22, 'failed', [step('an empty shelf', 'PASSED', 8), step('the user lends "Dune" to Ada', 'UNDEFINED')]),
       passing,
       parsed(null, 40, 'failed', [step('something unplanned', 'FAILED', 3, 'boom')]),
     ], false);
@@ -345,13 +346,13 @@ describe('diagnostics from the raw runner output of the configured scenario chec
       const text = lines.join('\n');
       expect(lines[0]).toBe('- audit `run-1:ga-0007`, the project\'s default audit of `' + 'c'.repeat(40) + '` under `ramify-audit.json`: requested ramify-partial, executed ramify-partial; composed verdict `fail`, composed fail');
       expect(text).toContain('- `agent-scenarios`: failed; the provider\'s record of it follows:');
-      expect(text).toContain(`- scenario \`sc-002\` "A miscounted shelf fails" failed in \`agent-scenarios\`, at \`${shelfFile}:16\`:\n  - The failing step: \`the shelf lists 2 books\`.\n  - Its message:`);
+      expect(text).toContain(`- scenario \`scenario:book-lent\` "A miscounted shelf fails" failed in \`agent-scenarios\`, at \`${shelfFile}:16\`:\n  - The failing step: \`the shelf lists 2 books\`.\n  - Its message:`);
       expect(text).toMatch(/AssertionError/);
       expect(text).toContain('1 !== 2');
-      expect(text).toContain(`- scenario \`sc-003\` "Lending is not defined yet" undefined in \`agent-scenarios\`, at \`${shelfFile}:22\`:`);
+      expect(text).toContain(`- scenario \`scenario:book-returned\` "Lending is not defined yet" undefined in \`agent-scenarios\`, at \`${shelfFile}:22\`:`);
       expect(text).toContain('  - No step definition matches "the user lends "Dune" to Ada".');
       // A passed scenario is not repeated as a failure; an untracked one is counted, not named.
-      expect(text).not.toContain('`sc-001` "A shelved book is listed" failed');
+      expect(text).not.toContain('`scenario:book-shelved` "A shelved book is listed" failed');
       expect(text).toContain('- 1 of the project\'s own scenarios failed.');
       expect(text).not.toContain('An unplanned scenario');
     }
@@ -360,13 +361,13 @@ describe('diagnostics from the raw runner output of the configured scenario chec
   test('a passed gate carries the binding of each scenario, and a message is bounded', async () => {
     const passed = auditedGate([passing], true);
     expect(passedScenarioLines(passed, names)).toEqual([
-      `- \`sc-001\` "A shelved book is listed" passed in \`agent-scenarios\`, at \`${shelfFile}:10\`, bound by:`,
+      `- \`scenario:book-shelved\` "A shelved book is listed" passed in \`agent-scenarios\`, at \`${shelfFile}:10\`, bound by:`,
       `  - \`an empty shelf\` → \`${shelfSteps}:8\``,
       `  - \`the user shelves "Dune"\` → \`${shelfSteps}:12\``,
       `  - \`the shelf lists 1 book\` → \`${shelfSteps}:28\``,
     ]);
 
-    const long = auditedGate([parsed('sc-001', 10, 'failed', [step('Then it fails', 'FAILED', 3, Array.from({ length: 40 }, (_, line) => `line ${line}`).join('\n'))])], false);
+    const long = auditedGate([parsed('scenario:book-shelved', 10, 'failed', [step('Then it fails', 'FAILED', 3, Array.from({ length: 40 }, (_, line) => `line ${line}`).join('\n'))])], false);
     const bounded = (await gateDiagnostics(long, 'engineer', names)).summary;
     expect(bounded).toContain('        line 11');
     expect(bounded).not.toContain('        line 12');

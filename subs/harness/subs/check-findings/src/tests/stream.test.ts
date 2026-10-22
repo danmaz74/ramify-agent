@@ -30,7 +30,7 @@ function runStream(): { state: CheckFindingState; events: CheckFindingEvent[] } 
 
 const views = (state: CheckFindingState) => ({
   all: selectCheckFindings(state, { kind: 'list', select: 'all' }),
-  attention: selectCheckFindings(state, { kind: 'list', select: 'attention', owner: { kind: 'work-item', workItem: 'wi-001' }, due: ['cf-0002'] }),
+  attention: selectCheckFindings(state, { kind: 'list', select: 'attention', owner: { kind: 'work-item', workItem: 'wi-001' }, due: ['finding:case-0002'] }),
   ordered: selectCheckFindings(state, { kind: 'list', select: 'all', order: 'attention' }),
   handler: selectCheckFindings(state, { kind: 'list', select: 'all', module: 'project/handler' }),
   details: [...state.findings.keys()].map(id => selectCheckFindings(state, { kind: 'detail', checkFinding: id })),
@@ -72,14 +72,14 @@ describe('the worked stream', () => {
     const all = selectCheckFindings(state, { kind: 'list', select: 'all' });
     if (!all.ok || all.view.kind !== 'list') throw new Error('no list');
     const byId = new Map(all.view.items.map(item => [item.id, item]));
-    expect(byId.get('cf-0003')?.group).toEqual({ canonical: 'cf-0003', members: ['cf-0003', 'cf-0004'] });
-    expect(byId.get('cf-0004')?.group).toEqual({ canonical: 'cf-0003', members: ['cf-0003', 'cf-0004'] });
-    expect(byId.get('cf-0007')?.group).toEqual({ canonical: 'cf-0006', members: ['cf-0006', 'cf-0007'] });
+    expect(byId.get('finding:case-0003')?.group).toEqual({ canonical: 'finding:case-0003', members: ['finding:case-0003', 'finding:case-0004'] });
+    expect(byId.get('finding:case-0004')?.group).toEqual({ canonical: 'finding:case-0003', members: ['finding:case-0003', 'finding:case-0004'] });
+    expect(byId.get('finding:case-0007')?.group).toEqual({ canonical: 'finding:case-0006', members: ['finding:case-0006', 'finding:case-0007'] });
     // The same-file pair was assessed distinct and stays ungrouped.
-    expect(byId.get('cf-0001')?.group).toBeNull();
-    expect(byId.get('cf-0002')?.group).toBeNull();
-    // The revocation withdrew the waiver's material-choice report; cf-0003 now awaits the user.
-    expect(byId.get('cf-0003')).toMatchObject({
+    expect(byId.get('finding:case-0001')?.group).toBeNull();
+    expect(byId.get('finding:case-0002')?.group).toBeNull();
+    // The revocation withdrew the waiver's material-choice report; finding:case-0003 now awaits the user.
+    expect(byId.get('finding:case-0003')).toMatchObject({
       standing: 'open', awaiting: 'user-decision', pendingUserDecision: 'cfd-0012', materialChoice: null, risk: 'high', credibility: 'human-reviewed',
     });
     expect(all.view.counts).toEqual({
@@ -88,15 +88,15 @@ describe('the worked stream', () => {
       reasons: { 'fixed-by-assessment': 1, deferred: 1, 'awaiting-user-decision': 1, waived: 3, 'fixed-by-check': 1 },
     });
 
-    const attention = selectCheckFindings(state, { kind: 'list', select: 'attention', owner: { kind: 'work-item', workItem: 'wi-001' }, due: ['cf-0002'] });
+    const attention = selectCheckFindings(state, { kind: 'list', select: 'attention', owner: { kind: 'work-item', workItem: 'wi-001' }, due: ['finding:case-0002'] });
     if (!attention.ok || attention.view.kind !== 'list') throw new Error('no list');
-    expect(attention.view.items.map(item => [item.id, item.attention])).toEqual([['cf-0002', 'due'], ['cf-0003', 'open']]);
-    const ordered = selectCheckFindings(state, { kind: 'list', select: 'attention', owner: { kind: 'work-item', workItem: 'wi-001' }, due: ['cf-0002'], order: 'attention' });
+    expect(attention.view.items.map(item => [item.id, item.attention])).toEqual([['finding:case-0002', 'due'], ['finding:case-0003', 'open']]);
+    const ordered = selectCheckFindings(state, { kind: 'list', select: 'attention', owner: { kind: 'work-item', workItem: 'wi-001' }, due: ['finding:case-0002'], order: 'attention' });
     if (!ordered.ok || ordered.view.kind !== 'list') throw new Error('no list');
-    expect(ordered.view.items.map(item => [item.id, item.attention, item.risk])).toEqual([['cf-0003', 'open', 'high'], ['cf-0002', 'due', 'low']]);
+    expect(ordered.view.items.map(item => [item.id, item.attention, item.risk])).toEqual([['finding:case-0003', 'open', 'high'], ['finding:case-0002', 'due', 'low']]);
     const notDue = selectCheckFindings(state, { kind: 'list', select: 'attention' });
     if (!notDue.ok || notDue.view.kind !== 'list') throw new Error('no list');
-    expect(notDue.view.items.map(item => item.id)).toEqual(['cf-0003']);
+    expect(notDue.view.items.map(item => item.id)).toEqual(['finding:case-0003']);
   });
 
   it('derives the same events when steps 16 to 18 are one assessment, as the second reconciliation commits them', () => {
@@ -116,7 +116,7 @@ describe('the worked stream', () => {
 
   it('keeps the waiver inspectable after the contradiction revoked it', () => {
     const { state } = runStream();
-    const detail = selectCheckFindings(state, { kind: 'detail', checkFinding: 'cf-0003' });
+    const detail = selectCheckFindings(state, { kind: 'detail', checkFinding: 'finding:case-0003' });
     if (!detail.ok || detail.view.kind !== 'detail') throw new Error('no detail');
     expect(detail.view.decisions.items.map(item => [item.id, item.considered, item.decision.action])).toEqual([
       ['cfd-0003', 1, 'waive'], ['cfd-0011', 2, 'revoke-waiver'], ['cfd-0012', 3, 'request-user-decision'],
@@ -129,16 +129,16 @@ describe('the worked stream', () => {
 describe('the worked stream after iteration 4b', () => {
   it('waives the re-raise of a waived issue as the harness, under the canonical\'s waiver', () => {
     const { state } = runStream();
-    const reRaise = state.findings.get('cf-0007');
+    const reRaise = state.findings.get('finding:case-0007');
     expect(reRaise).toMatchObject({ standing: 'closed', reason: 'waived', settledBy: 'cfd-0013', revision: 2 });
-    expect(reRaise?.reports[0]?.suggests).toBe('cf-0006');
+    expect(reRaise?.reports[0]?.suggests).toBe('finding:case-0006');
     expect(reRaise?.decisions[0]).toMatchObject({
       actor: { kind: 'harness' },
       source: { kind: 'tree', id: 't-05' },
       decision: { action: 'waive', authority: { kind: 'governing-record', ref: 'cfd-0005' }, acceptedRisk: 'low' },
     });
     // The canonical's own waiver is unchanged.
-    expect(state.findings.get('cf-0006')).toMatchObject({ reason: 'waived', settledBy: 'cfd-0005', revision: 2 });
+    expect(state.findings.get('finding:case-0006')).toMatchObject({ reason: 'waived', settledBy: 'cfd-0005', revision: 2 });
   });
 
   it('carries the reporter\'s risk and ground and the harness\'s credibility and modules', () => {
@@ -153,13 +153,13 @@ describe('the worked stream after iteration 4b', () => {
     });
     const { state } = runStream();
     expect([...state.findings.values()].map(entry => [entry.id, entry.risk, entry.credibility, entry.modules])).toEqual([
-      ['cf-0001', 'high', 'agent-generated', ['project/cart']],
-      ['cf-0002', 'low', 'ungrounded', ['project/cart']],
-      ['cf-0003', 'high', 'human-reviewed', ['project/cart']],
-      ['cf-0004', 'medium', 'ungrounded', ['project/cart']],
-      ['cf-0005', 'high', 'objective-reproduced', ['project/checkout']],
-      ['cf-0006', 'low', 'agent-generated', ['project/handler']],
-      ['cf-0007', 'low', 'ungrounded', ['project/handler']],
+      ['finding:case-0001', 'high', 'agent-generated', ['project/cart']],
+      ['finding:case-0002', 'low', 'ungrounded', ['project/cart']],
+      ['finding:case-0003', 'high', 'human-reviewed', ['project/cart']],
+      ['finding:case-0004', 'medium', 'ungrounded', ['project/cart']],
+      ['finding:case-0005', 'high', 'objective-reproduced', ['project/checkout']],
+      ['finding:case-0006', 'low', 'agent-generated', ['project/handler']],
+      ['finding:case-0007', 'low', 'ungrounded', ['project/handler']],
     ]);
   });
 
@@ -169,10 +169,10 @@ describe('the worked stream after iteration 4b', () => {
     if (!ordered.ok || ordered.view.kind !== 'list') throw new Error('no list');
     // High: the reproduced failure, then the human-reviewed ground, then the agent's.
     // Medium: one. Low: the agent-grounded design concern, then the two ungrounded ones, latest report first.
-    expect(ordered.view.items.map(item => item.id)).toEqual(['cf-0005', 'cf-0003', 'cf-0001', 'cf-0004', 'cf-0006', 'cf-0007', 'cf-0002']);
+    expect(ordered.view.items.map(item => item.id)).toEqual(['finding:case-0005', 'finding:case-0003', 'finding:case-0001', 'finding:case-0004', 'finding:case-0006', 'finding:case-0007', 'finding:case-0002']);
     const handler = selectCheckFindings(state, { kind: 'list', select: 'all', module: 'project/handler' });
     if (!handler.ok || handler.view.kind !== 'list') throw new Error('no list');
-    expect(handler.view.items.map(item => item.id)).toEqual(['cf-0006', 'cf-0007']);
+    expect(handler.view.items.map(item => item.id)).toEqual(['finding:case-0006', 'finding:case-0007']);
     expect(handler.view.counts).toEqual({ total: 2, standings: { open: 0, deferred: 0, closed: 2 }, reasons: { waived: 2 } });
   });
 });

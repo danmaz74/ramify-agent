@@ -16,7 +16,7 @@ import { iterationLayout, type IterationResult } from '../../../autonomous/subs/
 import { runLayout } from '../../../autonomous/src/run/records.js';
 import { type InvocationOutcome } from '../../../task-execution/src/records.js';
 import { copyFixture } from '../../../../src/tests/helpers/fixture.js';
-import { analysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, shell, submit, treeInputs } from '../../../../src/tests/helpers/iterations.js';
 import { openRuns as openRunsWithGit, onlyRun, runEventsOnDisk, runPath, startRun } from '../../../../src/tests/helpers/runs.js';
 
@@ -171,8 +171,8 @@ describe('break-discovered', () => {
 describe('a rejected submission in a run', () => {
   const completedCheckpoints = [
     scenariosCommit('review-notes'),
-    'wi-001.i01: Carry out the work in collection-review/workspace/reviews/notes.',
-    'wi-001',
+    'work-item:review-note.i01: Carry out the work in collection-review/workspace/reviews/notes.',
+    'work-item:review-note',
     'final verification of plan "review-notes"',
   ] as const;
 
@@ -203,7 +203,7 @@ describe('a rejected submission in a run', () => {
         return commandResult(request, { outcome: { kind: 'completed', exitCode: 0 }, stdout: 'ok 1 - the limit is the one the plan asks for\n' });
       },
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [[
           ...toolCalls,
@@ -269,7 +269,7 @@ describe('a rejected submission in a run', () => {
     expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 4 });
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.some(event => event.type === 'gate-attempted' && (event.data as { checkpoint: string }).checkpoint === 'iteration')).toBe(true);
-    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
+    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1)), 'utf8')) as IterationResult;
     expect(result.outcome).toBe('accepted');
   }, 300_000);
 
@@ -305,7 +305,7 @@ describe('a rejected submission in a run', () => {
     expect(observations.filter(line => line.type === 'rejection' && line.data.target === shellToolName)).toHaveLength(4);
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome('inv-0007')), 'utf8')) as InvocationOutcome;
     expect(outcome.ended).toBe('submitted');
-    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
+    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1)), 'utf8')) as IterationResult;
     expect(result.outcome).toBe('accepted');
   }, 300_000);
 
@@ -354,8 +354,8 @@ describe('a Ramify module violation in a run', () => {
     const file = `${notesDirectory}/src/notes.ts`;
     const git = scriptedGit(root, { previews: finalCandidate(root, 'fixed-source').previews, head: 'base', checkpoints: [
       scenariosCommit('review-notes'),
-      { subject: 'wi-001.i01', commit: 'fixed-source', changes: [{ status: 'M', path: file }] },
-      { subject: 'wi-001', commit: null, changes: [] },
+      { subject: 'work-item:review-note.i01', commit: 'fixed-source', changes: [{ status: 'M', path: file }] },
+      { subject: 'work-item:review-note', commit: null, changes: [] },
       { subject: 'final verification of plan "review-notes"', commit: null, changes: [] },
     ] });
     const ramify = new FakeRamifyCli();
@@ -384,7 +384,7 @@ describe('a Ramify module violation in a run', () => {
       // The module engineer's writes are what Git reports once the feature files are committed.
       afterWrite: async write => { if (write === 'scenarios-materialized') git.givenWrites(); },
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [[
           edit(join(root, file), 'noteLimit = 400;', `noteLimit = 500; ${marker}`),

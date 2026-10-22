@@ -2,7 +2,7 @@ import { readdir } from 'node:fs/promises';
 import { join, posix } from 'node:path';
 import type { ScenarioRecord } from '../../../../../scenarios/src/records.js';
 import type { ScenarioStates } from '../../../../../scenarios/src/states.js';
-import { workItemId, workItemSchema, type WorkItem } from './records.js';
+import { workItemSchema, type WorkItem } from './records.js';
 
 /*
  * Integration work items, architecture §10.
@@ -32,17 +32,19 @@ export function dueIntegrations(
     && record.subScenarios.every(id => states.get(id) === 'done'));
 }
 
-/** The work item one due integration scenario gets, numbered after the `count` already committed. */
-export function integrationWorkItem(record: ScenarioRecord, count: number): WorkItem {
+/** The work item one due integration scenario gets from its accepted scenario name. */
+export function integrationWorkItem(record: ScenarioRecord): WorkItem {
+  if (!/^scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.id))
+    throw new Error(`Integration scenario ${record.id} has no descriptive identity`);
   return workItemSchema.parse({
-    schema: 'ramify-agent.work-item/1',
-    id: workItemId(count + 1),
+    schema: 'ramify-agent.work-item/2',
+    id: `work-item:bind-${record.id.slice('scenario:'.length)}`,
     module: record.owner,
     origin: { integration: record.id },
     goal: `Bind the integration scenario ${record.id}, "${record.name}": a step file here imports, by name, the step definitions its sub-scenarios' owners wrote, exposed with expose-test along each path, and the scenario passes.`,
-    requirementRefs: [],
-    acceptanceRefs: [],
-    contextRefs: [],
+    functionalRequirementIds: [],
+    functionalAcceptanceIds: [],
+    contextIds: [],
     startedFor: null,
   } satisfies WorkItem);
 }

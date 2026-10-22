@@ -9,29 +9,31 @@ import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { executionCapabilityDetailSchema, executionMapPageSchema, executionScenarioDetailSchema } from '../interfaces/protocol/execution-map.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { entryAssignmentsSchema } from '../../subs/autonomous/subs/planning/src/records.js';
+import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { RunService } from '../run/lifecycle.js';
 import { at, constructedRun, constructedRecord, item, registered, reviews, runId } from './helpers/constructed.js';
 
 const source = ['Scenario: The full block', '  Given recorded state', '  When requested', '  Then the full block is returned'];
-const scenario = scenarioRecordSchema.parse({ schema: 'ramify-agent.scenario/1', id: 'sc-001', kind: 'entry',
-  entry: 'full-description', owner: reviews, origin: { kind: 'architect', refs: ['fr-002'] },
-  partOf: null, subScenarios: [], name: 'The full block', source, hash: scenarioSourceHash(source),
+const scenario = scenarioRecordSchema.parse({ schema: 'ramify-agent.scenario/2', id: 'scenario:full-block', kind: 'entry',
+  entry: 'capability:full-description', owner: reviews, origin: { kind: 'architect', refs: ['functional-requirement:case-002'] },
+  citedElements: ['functional-requirement:case-002'], partOf: null, subScenarios: [], name: 'The full block', source, hash: scenarioSourceHash(source),
   file: 'subs/reviews/src/tests/features/full.feature' });
 const description = `A complete capability description. ${'More detail. '.repeat(100)}`;
-const entries = entryAssignmentsSchema.parse({ schema: 'ramify-agent.entry-assignments/1',
+const entries = entryAssignmentsSchema.parse({ schema: 'ramify-agent.entry-assignments/2',
   view: { status: 'placeholder' }, entries: [{ capability: 'full-description', description, owner: reviews,
-    requirementRefs: [], acceptanceRefs: [], contextRefs: [], citations: [] }] });
+    capabilityId: 'capability:full-description', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], citations: [] }] });
 const workItems = Array.from({ length: 105 }, (_, i) => {
-  const id = `wi-${String(i).padStart(3, '0')}`;
-  return { path: `work-items/${id}/item.json`, body: item(id, { entry: 'full-description' }) };
+  const id = `work-item:case-${String(i).padStart(3, '0')}`;
+  return { path: workLayout.item(id), body: item(id, { entry: 'capability:full-description' }) };
 });
 
 async function served() {
   const root = await mkdtemp(join(tmpdir(), 'execution-http-'));
   const run = constructedRun([{ type: 'analysis-accepted', data: {}, records: [
     { path: 'analysis/entries.json', body: entries },
-    { path: at('registry', 'full-description'), body: registered('full-description') },
-    { path: 'scenarios/sc-001.json', body: scenario }, ...workItems,
+    { path: at('registry', 'capability:full-description'), body: registered('capability:full-description') },
+    { path: runLayout.scenario(scenario.id), body: scenario }, ...workItems,
   ] }], constructedRecord(), root);
   const fake = { projectRoot: root, agentName: 'scripted',
     committed: (planId: string, id: string) => planId === 'review-notes' && id === runId ? run : undefined,
@@ -67,15 +69,26 @@ test('HTTP pages the complete census and serves exact capability/scenario detail
     protocolPaths.runExecutionMap('review-notes', runId, 1, page.nextCursor!, 17))).body);
   expect(second.nodes[0]?.key).not.toBe(page.nodes[0]?.key);
   const capability = executionCapabilityDetailSchema.parse((await get(origin,
-    protocolPaths.runExecutionCapability('review-notes', runId, 'full-description', 1))).body);
+    protocolPaths.runExecutionCapability('review-notes', runId, 'capability:full-description', 1))).body);
   expect(capability.detail).toMatchObject({ state: 'available', description });
   const scenarioDetail = executionScenarioDetailSchema.parse((await get(origin,
-    protocolPaths.runExecutionScenario('review-notes', runId, 'sc-001', 1))).body);
+    protocolPaths.runExecutionScenario('review-notes', runId, scenario.id, 1))).body);
   expect(scenarioDetail.detail).toMatchObject({ state: 'available', source });
   expect((await get(origin, protocolPaths.runExecutionCapability('review-notes', runId, 'missing', 1))).status).toBe(404);
-  expect((await get(origin, protocolPaths.runExecutionScenario('review-notes', runId, 'missing', 1))).status).toBe(404);
+  for (const id of ['sc-001', 'capability:full-description']) {
+    const invalid = await get(origin, protocolPaths.runExecutionScenario('review-notes', runId, id, 1));
+    expect(invalid.status).toBe(400);
+    expect(errorResponseSchema.parse(invalid.body).error).toMatchObject({
+      code: 'invalid-request', message: expect.stringContaining('scenario:<name>'),
+    });
+    expect(errorResponseSchema.parse(invalid.body).error.message).toContain(`run ${runId}`);
+    expect(errorResponseSchema.parse(invalid.body).error.message).toContain('scenarios list');
+  }
+  const unknownScenario = await get(origin, protocolPaths.runExecutionScenario('review-notes', runId, 'scenario:unknown', 1));
+  expect(unknownScenario.status).toBe(404);
+  expect(errorResponseSchema.parse(unknownScenario.body).error.code).toBe('not-found');
   expect(errorResponseSchema.parse((await get(origin,
-    protocolPaths.runExecutionCapability('review-notes', runId, 'full-description', 0))).body).error)
+    protocolPaths.runExecutionCapability('review-notes', runId, 'capability:full-description', 0))).body).error)
     .toMatchObject({ code: 'stale-version', currentVersion: 1 });
   expect(errorResponseSchema.parse((await get(origin,
     protocolPaths.runExecutionMap('review-notes', runId, 0))).body).error)

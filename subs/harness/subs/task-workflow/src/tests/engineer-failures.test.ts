@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { Script } from '../../../agent/src/scripted.js';
 import type { AgentSession, SessionOutcome, SessionSpec } from '../../../agent/src/interfaces/port.js';
 import type { CommandRunner } from '../../../evidence/src/run-command.js';
-import { analysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
 import { commandResult } from '../../../../src/tests/helpers/command-result.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../src/tests/helpers/external-tools.js';
 import { copyFixture, temporaryDirectory } from '../../../../src/tests/helpers/fixture.js';
@@ -46,7 +46,7 @@ afterEach(async () => {
 
 const plan = 'review-notes';
 const reviews = 'collection-review/workspace/reviews';
-const checkpoints = [scenariosCommit(plan), 'wi-001', `final verification of plan "${plan}"`];
+const checkpoints = [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`];
 
 /** What each shell command asked for, as the scripted runner received it. */
 interface AskedCommand {
@@ -106,7 +106,7 @@ async function run(turns: Readonly<Record<string, readonly Turn[]>>, limits: Par
 }
 
 async function iterationResult(root: string, runId: string, number: number): Promise<IterationResult> {
-  return JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.result('wi-001', number)), 'utf8')) as IterationResult;
+  return JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.result('work-item:reviewer-note', number)), 'utf8')) as IterationResult;
 }
 
 describe('an engineer failure with revised command settings', () => {
@@ -114,7 +114,7 @@ describe('an engineer failure with revised command settings', () => {
     const asked: AskedCommand[] = [];
     const raised = { commandTimeoutMs: { ms: 1_200_000, reason: 'The whole suite runs for about fifteen minutes.' } };
     const { root, runId, service, role } = await run({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(assign(reviews, { bounds: raised })), submit(requestCompletion())],
       engineer: [
         [{ kind: 'fail', error: 'The provider refused this unsupported request' }],
@@ -129,7 +129,7 @@ describe('an engineer failure with revised command settings', () => {
       cause: 'The session failed: The provider refused this unsupported request', inFlight: [] });
     expect(result.failure!.analysis).toMatchObject({ outcome: 'analyzed', cause: 'bound-too-tight' });
     expect(role('local-architect')[1]!.prompt).toContain('Use the supported request and appropriate command maximum.');
-    const assignment = JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.assignment('wi-001', 2)), 'utf8')) as IterationAssignment;
+    const assignment = JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.assignment('work-item:reviewer-note', 2)), 'utf8')) as IterationAssignment;
     expect(assignment.bounds).toEqual(raised);
     const next = role('engineer')[1]!;
     const tool = next.tools.find(candidate => candidate.name === shellToolName)!;
@@ -141,7 +141,7 @@ describe('an engineer failure with revised command settings', () => {
 describe('a failure analysis that fails', () => {
   test('leaves the digest alone, says the analysis was unavailable, and never fails the run', async () => {
     const { root, runId, service, role } = await run({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
       engineer: [[{ kind: 'fail', error: 'the provider refused the request' }]],
       'failure-analyst': [[{ kind: 'fail', error: 'the analyst\'s provider refused the request too' }]],
@@ -161,7 +161,7 @@ describe('a failure analysis that fails', () => {
 
   test('that ends without a submission is unavailable too', async () => {
     const { root, runId, service } = await run({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
       engineer: [[{ kind: 'end', message: 'I have nothing more to add.' }]],
       'failure-analyst': [[{ kind: 'end', message: 'No account.' }]],
@@ -176,7 +176,7 @@ describe('a failure analysis that fails', () => {
 describe('every cause an analyst judges', () => {
   test('reaches the iteration\'s result and the next briefing', async () => {
     const { root, runId, service, role } = await run({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit(assign(reviews, {}, outline())),
         submit(assign(reviews)),

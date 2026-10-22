@@ -27,7 +27,7 @@ afterEach(async () => { await Promise.all(folders.splice(0).map(folder => rm(fol
 
 function writer(id: string) {
   return invocationSchema.parse({ schema: 'ramify-agent.invocation/1', id, role: 'engineer',
-    work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, attempt: 1,
+    work: { workItem: 'work-item:case-001', iteration: 'it-case-001' }, attempt: 1,
     session: { requested: 'fresh', actual: 'fresh', ref: '' },
     prompt: { package: 'engineer', hash, inputsHash: hash },
     scope: { write: null, measurement: null, size: null }, writer: true,
@@ -37,7 +37,7 @@ function writer(id: string) {
 function started(id: string, ended = true): Line[] {
   return [
     { type: 'invocation-started', data: { invocation: id, role: 'engineer', session: 'ses-0001',
-      work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, start: 'opened' },
+      work: { workItem: 'work-item:case-001', iteration: 'it-case-001' }, start: 'opened' },
     records: [{ path: runLayout.invocation(id), body: writer(id) }] },
     ...(ended ? [{ type: 'invocation-ended' as const, data: { invocation: id, ended: 'failed', submission: null,
       session: 'ses-0001', kept: false, finished: 'not-kept' } }] : []),
@@ -86,7 +86,7 @@ describe('execution module relations and captured writer changes', () => {
       expect.objectContaining({ element: 'scenario:sc-status', role: 'owner' }),
       expect.objectContaining({ element: 'session:ses-local-status', role: 'local-architect' }),
       expect.objectContaining({ element: 'session:ses-engineer', role: 'engineer' }),
-      expect.objectContaining({ element: 'requirement:req-status', role: 'consumer' }),
+      expect.objectContaining({ element: 'consumer-requirement:status', role: 'consumer' }),
     ]));
     expect(theme.direct).toEqual(expect.arrayContaining([
       expect.objectContaining({ element: 'contract:ct-theme', role: 'provider' }),
@@ -100,8 +100,8 @@ describe('execution module relations and captured writer changes', () => {
   });
 
   it('keeps scope-only and ancestor nodes neutral while session reach and started work mark direct modules', async () => {
-    const assignment = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/1', id: 'wi-001.i01', workItem: 'wi-001',
-      outline: { id: 'wi-001', revision: 1, hash }, stage: 0, kind: 'ordinary', goal: 'Do work.', approach: 'Implement.',
+    const assignment = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/2', id: 'it-case-001', workItem: 'work-item:case-001',
+      outline: { id: 'work-item:case-001', revision: 1, hash }, stage: 0, kind: 'ordinary', goal: 'Do work.', approach: 'Implement.',
       scope: { revision: 1, base: { module: reviews, included: [] },
         extra: [{ path: 'subs/workspace/subs/other/src/allowed.ts', purpose: 'contract' }], read: [], bootstrap: [], rationale: 'Allowed.',
         resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: [], files: [], view: { status: 'placeholder' } } },
@@ -110,16 +110,16 @@ describe('execution module relations and captured writer changes', () => {
       guarded: [], authorizations: [] });
     const view = await setup([
       { type: 'analysis-accepted', data: {}, records: [
-        { path: at('registry', 'review-notes'), body: registered('review-notes') },
-        { path: 'work-items/wi-001/item.json', body: item('wi-001', { entry: 'review-notes' }) }] },
+        { path: at('registry', 'capability:review-notes'), body: registered('capability:review-notes') },
+        { path: 'work-items/wi-001/item.json', body: item('work-item:case-001', { entry: 'capability:review-notes' }) }] },
       { type: 'iteration-assigned', data: {}, records: [{ path: 'assignments/wi-001.i01.json', body: assignment }] },
-      { type: 'work-item-started', data: { workItem: 'wi-001' } },
+      { type: 'work-item-started', data: { workItem: 'work-item:case-001' } },
     ]);
-    const source = { kind: 'work-item' as const, id: 'wi-001', sequence: 1, revision: 1 };
+    const source = { kind: 'work-item' as const, id: 'work-item:case-001', sequence: 1, revision: 1 };
     const nodes = [
-      { ...executionMapFixtureNodes.find(node => node.kind === 'work-item')!, key: 'work-item:wi-001', module: reviews,
+      { ...executionMapFixtureNodes.find(node => node.kind === 'work-item')!, key: 'work-item:case-001', module: reviews,
         modules: [{ module: reviews, role: 'owner' as const, source }] },
-      { ...executionMapFixtureNodes.find(node => node.kind === 'iteration')!, key: 'iteration:wi-001.i01',
+      { ...executionMapFixtureNodes.find(node => node.kind === 'iteration')!, key: 'iteration:it-case-001',
         modules: [{ module: reviews, role: 'owner' as const, source }] },
     ];
     const captured = await capturedLinesOf(view);
@@ -127,7 +127,7 @@ describe('execution module relations and captured writer changes', () => {
     expect(map.tree).toMatchObject({ revision: 'current-revision' });
     expect(map.modules.find(module => module.module === reviews)?.workedIn).toBe(true);
     expect(map.modules.find(module => module.module === other)).toMatchObject({ workedIn: false,
-      direct: [{ element: 'iteration:wi-001.i01', role: 'authorized-scope' }] });
+      direct: [{ element: 'iteration:it-case-001', role: 'authorized-scope' }] });
     expect(map.modules.find(module => module.module === workspace)).toMatchObject({ workedIn: false, involvedDescendants: 1 });
   });
 

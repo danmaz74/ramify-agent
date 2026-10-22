@@ -57,12 +57,12 @@ describe('CheckFindings of a driven run', () => {
       ...Array.from({ length: 3 }, () => service.recordCheckFindings(plan, runId, { cause, commands: [report(concern())] })),
       service.recordCheckFindings(plan, runId, {
         cause: { kind: 'producer', producer: 'check:scenario', attempt: 'ga-0005' },
-        commands: [report(failure({ attempt: 'ga-0005', subject: 'scenario:sc-004', tree: 't-02' }))],
+        commands: [report(failure({ attempt: 'ga-0005', subject: 'scenario:review-notes-is-used', tree: 't-02', findingKey: 'draft:finding:case-0002' }))],
       }),
     ]);
     expect(deliveries.map(delivery => delivery?.kind).sort()).toEqual(['committed', 'committed', 'replayed', 'replayed']);
     const list = service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' });
-    expect(list).toMatchObject({ ok: true, view: { total: 2, items: [{ id: 'cf-0001', standing: 'open' }, { id: 'cf-0002', standing: 'open', verification: { kind: 'check', required: true } }] } });
+    expect(list).toMatchObject({ ok: true, view: { total: 2, items: [{ id: 'finding:case-0001', standing: 'open' }, { id: 'finding:case-0002', standing: 'open', verification: { kind: 'check', required: true } }] } });
     expect((await runEventsOnDisk(root, plan, runId)).filter(event => event.type === 'check-findings-recorded')).toHaveLength(2);
     expect(await service.recordCheckFindings(plan, 'no-such-run', { cause, commands: [report(concern())] })).toBeUndefined();
 
@@ -92,12 +92,12 @@ describe('CheckFindings of a driven run', () => {
     await crashed.service.recordCheckFindings(plan, runId, { cause, commands: [report(concern())] });
     const planned = await crashed.service.recordCheckFindings(plan, runId, {
       cause: { kind: 'recovery', detail: 'a reconciliation planned the repair' },
-      commands: [dispose('cf-0001', 1, decision({ action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } }))],
+      commands: [dispose('finding:case-0001', 1, decision({ action: 'plan-repair', repair: { kind: 'intent', ref: 'work-item:review-notes.rc01' } }))],
     });
     expect(planned).toMatchObject({ kind: 'committed' });
     const list = crashed.service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' });
-    const detail = crashed.service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0001' });
-    expect(detail).toMatchObject({ ok: true, view: { summary: { reason: 'repair-planned', repair: { kind: 'intent', ref: 'wi-001.rc01' } } } });
+    const detail = crashed.service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0001' });
+    expect(detail).toMatchObject({ ok: true, view: { summary: { reason: 'repair-planned', repair: { kind: 'intent', ref: 'work-item:review-notes.rc01' } } } });
 
     // The crash loses the record copies too; the log is the authority.
     await rm(runPath(root, plan, runId, 'check-findings'), { recursive: true });
@@ -109,9 +109,9 @@ describe('CheckFindings of a driven run', () => {
     expect(restarted.recovery.rematerialized).toEqual([`${plan}/${runId}: 2 record file(s)`]);
     expect(restarted.agent).toBeUndefined();
     expect(restarted.service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' })).toEqual(list);
-    expect(restarted.service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0001' })).toEqual(detail);
-    expect(JSON.parse(await readFile(runPath(root, plan, runId, checkFindingLayout.decision('cf-0001', 'cfd-0001')), 'utf8')))
-      .toMatchObject({ schema: 'ramify-agent.check-finding-decision/1', checkFinding: 'cf-0001', revision: 2 });
+    expect(restarted.service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0001' })).toEqual(detail);
+    expect(JSON.parse(await readFile(runPath(root, plan, runId, checkFindingLayout.decision('finding:case-0001', 'cfd-0001')), 'utf8')))
+      .toMatchObject({ schema: 'ramify-agent.check-finding-decision/2', checkFinding: 'finding:case-0001', revision: 2 });
 
     // Projection-only reopening preserves the intentional review hold and its findings.
     expect(onlyRun(restarted.service, plan)).toMatchObject({ state: 'running', phase: 'awaiting-review' });

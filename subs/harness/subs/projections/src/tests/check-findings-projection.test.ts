@@ -104,67 +104,69 @@ const query = (extra: Partial<CheckFindingListQuery> = {}): CheckFindingListQuer
  * request, repair-planned and left unresolved at completion.
  *
  * | ID | Work item | Risk | Standing |
- * | cf-0001 | wi-001 | medium | fixed by assessment |
- * | cf-0002 | wi-001 | low | superseded, reported as a material choice |
- * | cf-0003 | wi-001 | high | waived by the architect, reported (open without `waive`) |
- * | cf-0004 | wi-001 | high | open, from the latest review; unresolved, rounds exhausted |
- * | cf-0005 | wi-001 | low | open; unresolved, below the floor |
- * | cf-0006 | wi-002 | medium | open, awaiting a user's decision; two modules |
- * | cf-0007 | wi-002 | high | a required scenario, fixed by check |
- * | cf-0008 | wi-002 | low | deferred |
- * | cf-0009 | wi-002 | high | open, repair planned |
+ * | finding:case-0001 | work-item:cart | medium | fixed by assessment |
+ * | finding:case-0002 | work-item:cart | low | superseded, reported as a material choice |
+ * | finding:case-0003 | work-item:cart | high | waived by the architect, reported (open without `waive`) |
+ * | finding:case-0004 | work-item:cart | high | open, from the latest review; unresolved, rounds exhausted |
+ * | finding:case-0005 | work-item:cart | low | open; unresolved, below the floor |
+ * | finding:case-0006 | work-item:checkout | medium | open, awaiting a user's decision; two modules |
+ * | finding:case-0007 | work-item:checkout | high | a required scenario, fixed by check |
+ * | finding:case-0008 | work-item:checkout | low | deferred |
+ * | finding:case-0009 | work-item:checkout | high | open, repair planned |
  */
 function fullRun(options: { readonly waive?: boolean; readonly unresolved?: ReadonlyArray<{ checkFinding: string; reason: string }> } = {}) {
   const stream = new Stream()
-    .line(request('rq-0001', 'wi-001', 'wi-001.i01', 'code', 'c-01'))
-    .line(request('rq-0002', 'wi-001', 'wi-001.i01', 'scope', 'c-01'))
-    .line(request('rq-0003', 'wi-001', 'wi-001.i01', 'design', 'c-01'))
-    .line(finished('rq-0001', 'rq-0001.a01', { result: 'complete', inspected, concerns: 3, assessment: 'Relevant behavior assessed.', limitations: ['Unrelated artifact unread.'] }, ['cf-0001', 'cf-0002', 'cf-0005']))
-    .line(finished('rq-0002', 'rq-0002.a01', { result: 'partial', inspected, missing: [{ path: 'src/b.ts', reason: 'binary' }], concerns: 1 }, ['cf-0003']))
+    .line(request('rq-0001', 'work-item:cart', 'work-item:cart.i01', 'code', 'c-01'))
+    .line(request('rq-0002', 'work-item:cart', 'work-item:cart.i01', 'scope', 'c-01'))
+    .line(request('rq-0003', 'work-item:cart', 'work-item:cart.i01', 'design', 'c-01'))
+    .line(finished('rq-0001', 'rq-0001.a01', { result: 'complete', inspected, concerns: 3, assessment: 'Relevant behavior assessed.', limitations: ['Unrelated artifact unread.'] }, ['finding:case-0001', 'finding:case-0002', 'finding:case-0005']))
+    .line(finished('rq-0002', 'rq-0002.a01', { result: 'partial', inspected, missing: [{ path: 'src/b.ts', reason: 'binary' }], concerns: 1 }, ['finding:case-0003']))
     .line(finished('rq-0003', 'rq-0003.a01', { result: 'not-verified', reason: 'timed-out', detail: 'The attempt ran past its limit' }))
-    .line(request('rq-0004', 'wi-001', 'wi-001.i02', 'code', 'c-02'))
-    .line(finished('rq-0004', 'rq-0004.a01', { result: 'complete', inspected, concerns: 1 }, ['cf-0004']))
-    .line(request('rq-0005', 'wi-002', 'wi-002.i01', 'code', 'c-03'));
+    .line(request('rq-0004', 'work-item:cart', 'work-item:cart.i02', 'code', 'c-02'))
+    .line(finished('rq-0004', 'rq-0004.a01', { result: 'complete', inspected, concerns: 1 }, ['finding:case-0004']))
+    .line(request('rq-0005', 'work-item:checkout', 'work-item:checkout.i01', 'code', 'c-03'));
   const at = (bound: ReturnType<typeof concern>, risk: 'high' | 'medium' | 'low', modules?: string[]) =>
-    ({ ...bound, judgment: { ...bound.judgment!, risk }, ...(modules ? { modules } : {}) });
+    ({ ...bound, owner: bound.owner.kind === 'work-item' && bound.owner.workItem === 'work-item:review-notes'
+      ? { kind: 'work-item' as const, workItem: 'work-item:cart' } : bound.owner,
+      judgment: { ...bound.judgment!, risk }, ...(modules ? { modules } : {}) });
   stream.record([
     report(at(concern({ key: 'concern-01', summary: 'The total rounds early' }), 'medium')),
     report(at(concern({ key: 'concern-02', summary: 'A name reads oddly' }), 'low')),
   ], producerCause('rq-0001.a01'));
-  stream.record([report(at(concern({ attempt: 'rq-0002.a01', summary: 'The scope added a cache' }), 'high'))], producerCause('rq-0002.a01'));
-  stream.record([report(at(concern({ attempt: 'rq-0004.a01', summary: 'The cache is never invalidated' }), 'high'))], producerCause('rq-0004.a01'));
-  stream.record([report(at(concern({ key: 'concern-03', summary: 'The coupon path is untested' }), 'low'))], producerCause('rq-0001.a01'));
+  stream.record([report(at(concern({ attempt: 'rq-0002.a01', findingKey: 'draft:finding:case-0003', summary: 'The scope added a cache' }), 'high'))], producerCause('rq-0002.a01'));
+  stream.record([report(at(concern({ attempt: 'rq-0004.a01', findingKey: 'draft:finding:case-0004', summary: 'The cache is never invalidated' }), 'high'))], producerCause('rq-0004.a01'));
+  stream.record([report(at(concern({ key: 'concern-03', findingKey: 'draft:finding:case-0005', summary: 'The coupon path is untested' }), 'low'))], producerCause('rq-0001.a01'));
   stream.record([
-    dispose('cf-0001', 1, decision({ action: 'fix-by-assessment', reassessed: ['cfr-0001'] })),
-    dispose('cf-0002', 1, decision({ action: 'supersede', reassessed: ['cfr-0002'], replacement: 'The name follows the module\'s glossary' },
+    dispose('finding:case-0001', 1, decision({ action: 'fix-by-assessment', reassessed: ['cfr-0001'] })),
+    dispose('finding:case-0002', 1, decision({ action: 'supersede', reassessed: ['cfr-0002'], replacement: 'The name follows the module\'s glossary' },
       { communication: { mode: 'report', choice: 'kept the glossary name', uncertainty: 'the plan does not name it', reason: 'a reader may expect the plan\'s word' } })),
     ...(options.waive === false ? [] : [
-      dispose('cf-0003', 1, decision({ action: 'waive', authority: { kind: 'work-item-assessment', ref: 'wi-001.rc01' }, acceptedRisk: 'high', uncertainty: 'little' },
+      dispose('finding:case-0003', 1, decision({ action: 'waive', authority: { kind: 'work-item-assessment', ref: 'work-item:cart.rc01' }, acceptedRisk: 'high', uncertainty: 'little' },
         { communication: { mode: 'report', choice: 'kept the cache', uncertainty: 'a later change may need invalidation', reason: 'a high risk was accepted' } })),
     ]),
   ], { kind: 'recovery', detail: 'the reconciliation' });
-  stream.record([report(at(concern({ attempt: 'rq-0005.a01', workItem: 'wi-002', summary: 'The API conflicts with the plan' }), 'medium', ['project/checkout', 'project/cart']))], producerCause('rq-0005.a01'));
-  stream.record([report({ ...failure({ attempt: 'ga-0010', subject: 'scenario:sc-004', tree: 't-02' }), owner: { kind: 'work-item', workItem: 'wi-002' } })],
+  stream.record([report(at(concern({ attempt: 'rq-0005.a01', findingKey: 'draft:finding:case-0006', workItem: 'work-item:checkout', summary: 'The API conflicts with the plan' }), 'medium', ['project/checkout', 'project/cart']))], producerCause('rq-0005.a01'));
+  stream.record([report({ ...failure({ attempt: 'ga-0010', subject: 'scenario:case-004', tree: 't-02', findingKey: 'draft:finding:case-0007' }), owner: { kind: 'work-item', workItem: 'work-item:checkout' } })],
     { kind: 'producer', producer: 'check:scenario', attempt: 'ga-0010' });
-  stream.record([report(at(concern({ attempt: 'rq-0005.a01', key: 'concern-02', workItem: 'wi-002', summary: 'Logging is verbose' }), 'low', ['project/checkout']))], producerCause('rq-0005.a01'));
-  stream.record([report(at(concern({ attempt: 'rq-0005.a01', key: 'concern-03', workItem: 'wi-002', summary: 'The retry never stops' }), 'high', ['project/checkout']))], producerCause('rq-0005.a01'));
+  stream.record([report(at(concern({ attempt: 'rq-0005.a01', key: 'concern-02', findingKey: 'draft:finding:case-0008', workItem: 'work-item:checkout', summary: 'Logging is verbose' }), 'low', ['project/checkout']))], producerCause('rq-0005.a01'));
+  stream.record([report(at(concern({ attempt: 'rq-0005.a01', key: 'concern-03', findingKey: 'draft:finding:case-0009', workItem: 'work-item:checkout', summary: 'The retry never stops' }), 'high', ['project/checkout']))], producerCause('rq-0005.a01'));
   stream.record([
-    dispose('cf-0006', 1, decision({
-      action: 'request-user-decision', authority: { kind: 'work-item-assessment', ref: 'wi-002.rc01' },
+    dispose('finding:case-0006', 1, decision({
+      action: 'request-user-decision', authority: { kind: 'work-item-assessment', ref: 'work-item:checkout.rc01' },
       conflicts: [{ text: 'The API returns a list.', document: 'plans/review-notes/plan.md', revision: 'sha256:plan' }],
       options: [{ id: 'keep', summary: 'Keep the page', consequence: 'The plan text is not met' }, { id: 'list', summary: 'Return a list', consequence: 'Callers change' }],
     })),
-    dispose('cf-0008', 1, decision({ action: 'defer', authority: { kind: 'work-item-assessment', ref: 'wi-002.rc01' }, responsible: { kind: 'work-item', workItem: 'wi-002' }, revisit: { kind: 'condition', condition: 'when logging is configured' } })),
-    dispose('cf-0009', 1, decision({ action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-002.rc01' } })),
+    dispose('finding:case-0008', 1, decision({ action: 'defer', authority: { kind: 'work-item-assessment', ref: 'work-item:checkout.rc01' }, responsible: { kind: 'work-item', workItem: 'work-item:checkout' }, revisit: { kind: 'condition', condition: 'when logging is configured' } })),
+    dispose('finding:case-0009', 1, decision({ action: 'plan-repair', repair: { kind: 'intent', ref: 'work-item:checkout.rc01' } })),
   ], { kind: 'recovery', detail: 'the reconciliation' });
-  stream.line({ type: 'iteration-assigned', data: { workItem: 'wi-002', iteration: 'wi-002.i02', kind: 'engineer', scopeRevision: 1, invocation: 'inv-0029', decisions: [], corrects: 'wi-002.rc01' } });
-  stream.line({ type: 'invocation-started', data: { invocation: 'inv-0030', role: 'engineer', session: 'ses-0009', work: { workItem: 'wi-002', iteration: 'wi-002.i02' }, start: 'opened' } });
-  stream.record([dispose('cf-0007', 1, decision({ action: 'fix-by-check', candidate: { kind: 'tree', id: 't-03' }, witness: {
-    producer: 'check:scenario', attempt: 'ga-0012', obligation: { subject: 'scenario:sc-004', revision: 1 }, selection: 'quick/identity',
+  stream.line({ type: 'iteration-assigned', data: { workItem: 'work-item:checkout', iteration: 'work-item:checkout.i02', kind: 'engineer', scopeRevision: 1, invocation: 'inv-0029', decisions: [], corrects: 'work-item:checkout.rc01' } });
+  stream.line({ type: 'invocation-started', data: { invocation: 'inv-0030', role: 'engineer', session: 'ses-0009', work: { workItem: 'work-item:checkout', iteration: 'work-item:checkout.i02' }, start: 'opened' } });
+  stream.record([dispose('finding:case-0007', 1, decision({ action: 'fix-by-check', candidate: { kind: 'tree', id: 't-03' }, witness: {
+    producer: 'check:scenario', attempt: 'ga-0012', obligation: { subject: 'scenario:case-004', revision: 1 }, selection: 'quick/identity',
     source: { kind: 'tree', id: 't-03' }, coverage: 'complete', outcome: 'passed', evidence: [{ kind: 'gate-attempt', ref: 'gates/ga-0012.json', hash: null }],
   } }, { actor: { kind: 'harness', reason: 'the scenario adapter' }, source: { kind: 'tree', id: 't-03' } }))], { kind: 'producer', producer: 'check:scenario', attempt: 'ga-0012' });
-  stream.line({ type: 'work-item-completed', data: { workItem: 'wi-001', gate: 'ga-0009', unresolved: options.unresolved ?? [
-    { checkFinding: 'cf-0004', reason: 'rounds-exhausted' }, { checkFinding: 'cf-0005', reason: 'below-floor' },
+  stream.line({ type: 'work-item-completed', data: { workItem: 'work-item:cart', gate: 'ga-0009', unresolved: options.unresolved ?? [
+    { checkFinding: 'finding:case-0004', reason: 'rounds-exhausted' }, { checkFinding: 'finding:case-0005', reason: 'below-floor' },
   ] } });
   return stream;
 }
@@ -175,10 +177,10 @@ function byId(items: readonly CheckFindingSummaryView[]): Record<string, CheckFi
 
 describe('CheckFinding lists', () => {
   test('a deliberately omitted correction remains visible without a fabricated completed review or pending request', () => {
-    const view = runView(constructedRun([{ type: 'iteration-closed', data: { workItem: 'wi-001', iteration: 'wi-001.i02',
+    const view = runView(constructedRun([{ type: 'iteration-closed', data: { workItem: 'work-item:cart', iteration: 'work-item:cart.i02',
       outcome: 'accepted', gate: 'ga-0002', commit: 'c-02', notices: [],
       reviewPolicy: { mode: 'not-run', reason: 'Selected correction verified through its configured gate.' } } }], reviewed));
-    const result = reviewListResponseSchema.parse(reviewListOf(view, { workItem: 'wi-001', after: null, limit: 50 }));
+    const result = reviewListResponseSchema.parse(reviewListOf(view, { workItem: 'work-item:cart', after: null, limit: 50 }));
     expect(result.requests).toEqual([]);
     expect(result.coverage).toEqual({ state: 'available', requested: 0, complete: 0, partial: 0, notVerified: 0, pending: 0, notRun: 1 });
   });
@@ -188,59 +190,59 @@ describe('CheckFinding lists', () => {
     const list = checkFindingListResponseSchema.parse(checkFindingListOf(runView(constructedRun(stream.lines, reviewed)), query()));
     expect(list.version).toBe(stream.lines.length);
     expect(list.items.map(item => [item.id, item.risk, item.credibility])).toEqual([
-      ['cf-0007', 'high', 'objective'],
-      ['cf-0009', 'high', 'ungrounded'],
-      ['cf-0004', 'high', 'ungrounded'],
-      ['cf-0003', 'high', 'ungrounded'],
-      ['cf-0006', 'medium', 'ungrounded'],
-      ['cf-0001', 'medium', 'ungrounded'],
-      ['cf-0008', 'low', 'ungrounded'],
-      ['cf-0005', 'low', 'ungrounded'],
-      ['cf-0002', 'low', 'ungrounded'],
+      ['finding:case-0007', 'high', 'objective'],
+      ['finding:case-0009', 'high', 'ungrounded'],
+      ['finding:case-0004', 'high', 'ungrounded'],
+      ['finding:case-0003', 'high', 'ungrounded'],
+      ['finding:case-0006', 'medium', 'ungrounded'],
+      ['finding:case-0001', 'medium', 'ungrounded'],
+      ['finding:case-0008', 'low', 'ungrounded'],
+      ['finding:case-0005', 'low', 'ungrounded'],
+      ['finding:case-0002', 'low', 'ungrounded'],
     ]);
     const items = byId(list.items);
-    expect(items['cf-0001']).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', settlement: { kind: 'fixed-by-assessment', by: { kind: 'agent', role: 'local-architect' } }, materialChoice: null, userCommands: [] });
-    expect(items['cf-0002']).toMatchObject({ standing: 'closed', reason: 'superseded', settlement: { kind: 'superseded', replacement: 'The name follows the module\'s glossary' },
+    expect(items['finding:case-0001']).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', settlement: { kind: 'fixed-by-assessment', by: { kind: 'agent', role: 'local-architect' } }, materialChoice: null, userCommands: [] });
+    expect(items['finding:case-0002']).toMatchObject({ standing: 'closed', reason: 'superseded', settlement: { kind: 'superseded', replacement: 'The name follows the module\'s glossary' },
       materialChoice: { action: 'supersede', choice: 'kept the glossary name' } });
-    expect(items['cf-0003']).toMatchObject({ standing: 'closed', reason: 'waived', settlement: { kind: 'waived', by: { kind: 'agent', role: 'local-architect' }, acceptedRisk: 'high' },
+    expect(items['finding:case-0003']).toMatchObject({ standing: 'closed', reason: 'waived', settlement: { kind: 'waived', by: { kind: 'agent', role: 'local-architect' }, acceptedRisk: 'high' },
       materialChoice: { choice: 'kept the cache' }, unresolved: null, latestReview: false, userCommands: ['revoke'] });
-    expect(items['cf-0004']).toMatchObject({ standing: 'open', reason: 'new', unresolved: 'rounds-exhausted', latestReview: true, settlement: null, userCommands: ['waive'] });
-    expect(items['cf-0005']).toMatchObject({ standing: 'open', unresolved: 'below-floor', risk: 'low', latestReview: false });
-    expect(items['cf-0006']).toMatchObject({ standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision', risk: 'medium', userCommands: ['respond'],
+    expect(items['finding:case-0004']).toMatchObject({ standing: 'open', reason: 'new', unresolved: 'rounds-exhausted', latestReview: true, settlement: null, userCommands: ['waive'] });
+    expect(items['finding:case-0005']).toMatchObject({ standing: 'open', unresolved: 'below-floor', risk: 'low', latestReview: false });
+    expect(items['finding:case-0006']).toMatchObject({ standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision', risk: 'medium', userCommands: ['respond'],
       unresolved: null, pendingUserDecision: { request: 'cfd-0004', conflicts: [{ text: 'The API returns a list.', revision: 'sha256:plan' }], options: [{ id: 'keep' }, { id: 'list' }] } });
-    expect(items['cf-0007']).toMatchObject({ standing: 'closed', reason: 'fixed-by-check', verification: 'check', required: true, obligation: 'scenario:sc-004@1', userCommands: [],
+    expect(items['finding:case-0007']).toMatchObject({ standing: 'closed', reason: 'fixed-by-check', verification: 'check', required: true, obligation: 'scenario:case-004@1', userCommands: [],
       settlement: { kind: 'fixed-by-check', by: { kind: 'harness' }, witness: { attempt: 'ga-0012', coverage: 'complete', outcome: 'passed', source: { id: 't-03' } } } });
-    expect(items['cf-0008']).toMatchObject({ standing: 'deferred', settlement: { kind: 'deferred', revisit: 'when logging is configured' }, userCommands: ['waive'] });
-    expect(items['cf-0009']).toMatchObject({ standing: 'open', reason: 'repair-planned', awaiting: 'repair', repair: { kind: 'intent', ref: 'wi-002.rc01' }, unresolved: null });
+    expect(items['finding:case-0008']).toMatchObject({ standing: 'deferred', settlement: { kind: 'deferred', revisit: 'when logging is configured' }, userCommands: ['waive'] });
+    expect(items['finding:case-0009']).toMatchObject({ standing: 'open', reason: 'repair-planned', awaiting: 'repair', repair: { kind: 'intent', ref: 'work-item:checkout.rc01' }, unresolved: null });
     // A decision request is not a risk level, and a high risk asks nobody anything.
-    expect(items['cf-0009']!.pendingUserDecision).toBeNull();
+    expect(items['finding:case-0009']!.pendingUserDecision).toBeNull();
     expect(list.counts).toEqual({ total: 9, open: 4, deferred: 1, closed: 4, fixed: 2, waived: 1, superseded: 1, unresolved: 2, awaitingUser: 1 });
     expect(list.coverage).toEqual({ state: 'available', requested: 5, complete: 2, partial: 1, notVerified: 1, pending: 1 });
   });
 
   test('an open signal of a completed work item carries its unresolved reason, and one of non-low risk from the latest review is marked', () => {
     const stream = fullRun();
-    // After wi-001 completed, a person revokes cf-0003's waiver: it is open again, after the last round's basis.
-    stream.record([dispose('cf-0003', stream.revision('cf-0003'), decision({ action: 'revoke-waiver', reason: 'the cache matters' }, { actor: { kind: 'user', name: 'dan' } }))]);
+    // After work-item:cart completed, a person revokes finding:case-0003's waiver: it is open again, after the last round's basis.
+    stream.record([dispose('finding:case-0003', stream.revision('finding:case-0003'), decision({ action: 'revoke-waiver', reason: 'the cache matters' }, { actor: { kind: 'user', name: 'dan' } }))]);
     const items = byId(checkFindingListOf(runView(constructedRun(stream.lines, reviewed)), query()).items);
-    expect(items['cf-0003']).toMatchObject({ standing: 'open', reason: 'waiver-revoked', unresolved: 'raised-after-last-round', latestReview: true, materialChoice: null, settlement: null });
-    expect(items['cf-0004']).toMatchObject({ unresolved: 'rounds-exhausted', risk: 'high', latestReview: true });
-    expect(items['cf-0005']).toMatchObject({ unresolved: 'below-floor', risk: 'low', latestReview: false });
+    expect(items['finding:case-0003']).toMatchObject({ standing: 'open', reason: 'waiver-revoked', unresolved: 'raised-after-last-round', latestReview: true, materialChoice: null, settlement: null });
+    expect(items['finding:case-0004']).toMatchObject({ unresolved: 'rounds-exhausted', risk: 'high', latestReview: true });
+    expect(items['finding:case-0005']).toMatchObject({ unresolved: 'below-floor', risk: 'low', latestReview: false });
     // An open signal of a work item that has not completed is not unresolved.
-    expect(items['cf-0006']).toMatchObject({ unresolved: null, latestReview: false });
+    expect(items['finding:case-0006']).toMatchObject({ unresolved: null, latestReview: false });
 
     // A high signal left unresolved that surfaced in an earlier iteration's review is unresolved, not marked.
     const earlier = byId(checkFindingListOf(runView(constructedRun(fullRun({ waive: false, unresolved: [
-      { checkFinding: 'cf-0003', reason: 'rounds-exhausted' }, { checkFinding: 'cf-0004', reason: 'rounds-exhausted' }, { checkFinding: 'cf-0005', reason: 'below-floor' },
+      { checkFinding: 'finding:case-0003', reason: 'rounds-exhausted' }, { checkFinding: 'finding:case-0004', reason: 'rounds-exhausted' }, { checkFinding: 'finding:case-0005', reason: 'below-floor' },
     ] }).lines, reviewed)), query()).items);
-    expect(earlier['cf-0003']).toMatchObject({ unresolved: 'rounds-exhausted', risk: 'high', latestReview: false });
-    expect(earlier['cf-0004']).toMatchObject({ unresolved: 'rounds-exhausted', risk: 'high', latestReview: true });
+    expect(earlier['finding:case-0003']).toMatchObject({ unresolved: 'rounds-exhausted', risk: 'high', latestReview: false });
+    expect(earlier['finding:case-0004']).toMatchObject({ unresolved: 'rounds-exhausted', risk: 'high', latestReview: true });
   });
 
   test('the default selections: attention holds the open ones, reported adds settled material choices, all holds every standing', () => {
     const view = runView(constructedRun(fullRun().lines, reviewed));
-    expect(checkFindingListOf(view, query({ select: 'attention' })).items.map(item => item.id)).toEqual(['cf-0009', 'cf-0004', 'cf-0006', 'cf-0005']);
-    expect(checkFindingListOf(view, query({ select: 'reported' })).items.map(item => item.id)).toEqual(['cf-0009', 'cf-0004', 'cf-0003', 'cf-0006', 'cf-0005', 'cf-0002']);
+    expect(checkFindingListOf(view, query({ select: 'attention' })).items.map(item => item.id)).toEqual(['finding:case-0009', 'finding:case-0004', 'finding:case-0006', 'finding:case-0005']);
+    expect(checkFindingListOf(view, query({ select: 'reported' })).items.map(item => item.id)).toEqual(['finding:case-0009', 'finding:case-0004', 'finding:case-0003', 'finding:case-0006', 'finding:case-0005', 'finding:case-0002']);
     const attention = checkFindingListOf(view, query({ select: 'attention' }));
     // Counts cover every CheckFinding of the selection's owner and module, whatever the page shows.
     expect(attention.total).toBe(4);
@@ -249,11 +251,11 @@ describe('CheckFinding lists', () => {
 
   test('the work item and module filters, and per-module counts that do not sum to the run\'s', () => {
     const view = runView(constructedRun(fullRun().lines, reviewed));
-    const wi2 = checkFindingListOf(view, query({ workItem: 'wi-002' }));
-    expect(wi2.items.map(item => item.id).sort()).toEqual(['cf-0006', 'cf-0007', 'cf-0008', 'cf-0009']);
+    const wi2 = checkFindingListOf(view, query({ workItem: 'work-item:checkout' }));
+    expect(wi2.items.map(item => item.id).sort()).toEqual(['finding:case-0006', 'finding:case-0007', 'finding:case-0008', 'finding:case-0009']);
     expect(wi2.coverage).toEqual({ state: 'available', requested: 1, complete: 0, partial: 0, notVerified: 0, pending: 1 });
     const checkout = checkFindingListOf(view, query({ module: 'project/checkout' }));
-    expect(checkout.items.map(item => item.id).sort()).toEqual(['cf-0006', 'cf-0007', 'cf-0008', 'cf-0009']);
+    expect(checkout.items.map(item => item.id).sort()).toEqual(['finding:case-0006', 'finding:case-0007', 'finding:case-0008', 'finding:case-0009']);
     expect(checkout.query).toEqual({ workItem: null, module: 'project/checkout', select: 'all', order: 'attention' });
 
     const modules = checkFindingModuleCountsSchema.parse(checkFindingModulesOf(view));
@@ -262,7 +264,7 @@ describe('CheckFinding lists', () => {
       { module: 'project/checkout', open: 2, deferred: 1, unresolved: 0, highestOpenRisk: 'high', pendingUserDecisions: 1 },
     ]);
     const run = checkFindingListOf(view, query());
-    // cf-0006 concerns both modules and counts in each row.
+    // finding:case-0006 concerns both modules and counts in each row.
     expect(modules.modules.reduce((sum, row) => sum + row.open, 0)).toBeGreaterThan(run.counts.open);
   });
 
@@ -270,10 +272,11 @@ describe('CheckFinding lists', () => {
     const stream = new Stream();
     const risks = ['low', 'medium', 'high'] as const;
     stream.record(Array.from({ length: 3 }, (_, index) => {
-      const bound = concern({ key: `concern-${index}`, summary: `Concern ${index}` });
+      const bound = concern({ key: `concern-${index}`, findingKey: `draft:finding:case-000${index + 1}`, summary: `Concern ${index}` });
       return report({ ...bound, judgment: { ...bound.judgment!, risk: risks[index % 3]! } });
     }));
-    stream.record(Array.from({ length: 2 }, (_, index) => report(concern({ attempt: 'rq-0002.a01', key: `concern-${index}`, summary: `Late ${index}` }))), producerCause('rq-0002.a01'));
+    stream.record(Array.from({ length: 2 }, (_, index) => report(concern({ attempt: 'rq-0002.a01', key: `concern-${index}`,
+      findingKey: `draft:finding:case-000${index + 4}`, summary: `Late ${index}` }))), producerCause('rq-0002.a01'));
     const view = runView(constructedRun(stream.lines, reviewed));
     const first = checkFindingListOf(view, query({ limit: 2 }));
     expect(first).toMatchObject({ total: 5, shown: 2 });
@@ -289,11 +292,11 @@ describe('CheckFinding lists', () => {
     expect(seen.map(item => item.id)).toEqual(checkFindingListOf(view, query({ limit: 5 })).items.map(item => item.id));
     expect(new Set(seen.map(item => item.id)).size).toBe(5);
     // Within one risk level the most recent report comes first.
-    const highs = seen.filter(item => item.risk === 'high').map(item => Number(item.id.slice(3)));
+    const highs = seen.filter(item => item.risk === 'high').map(item => Number(item.id.split('-').at(-1)));
     expect(highs).toEqual([...highs].sort((a, b) => b - a));
     const byIdOrder = checkFindingListOf(view, query({ order: 'id', limit: 3 }));
-    expect(byIdOrder.items.map(item => item.id)).toEqual(['cf-0001', 'cf-0002', 'cf-0003']);
-    expect(() => checkFindingListOf(view, query({ after: 'cf-9999' }))).toThrow(ProjectionError);
+    expect(byIdOrder.items.map(item => item.id)).toEqual(['finding:case-0001', 'finding:case-0002', 'finding:case-0003']);
+    expect(() => checkFindingListOf(view, query({ after: 'finding:case-9999' }))).toThrow(ProjectionError);
   });
 
   test('a run whose policy requested no reviews reports its coverage as unavailable, never clean, and still lists its CheckFindings', () => {
@@ -319,33 +322,33 @@ describe('CheckFinding lists', () => {
 describe('CheckFinding detail and reviews', () => {
   test('the detail puts the history beside its work item, attempt, candidate diff and repair session', () => {
     const view = runView(constructedRun(fullRun().lines, reviewed));
-    const detail = checkFindingDetailSchema.parse(checkFindingDetailOf(view, 'cf-0009'));
-    expect(detail.summary).toMatchObject({ id: 'cf-0009', workItem: 'wi-002' });
+    const detail = checkFindingDetailSchema.parse(checkFindingDetailOf(view, 'finding:case-0009'));
+    expect(detail.summary).toMatchObject({ id: 'finding:case-0009', workItem: 'work-item:checkout' });
     expect(detail.reports.items).toEqual([expect.objectContaining({ id: 'cfr-0009', producer: 'review:code', attempt: 'rq-0005.a01',
       judgment: expect.objectContaining({ risk: 'high', by: { kind: 'agent', role: 'reviewer', invocation: 'inv-0010' } }) })]);
-    expect(detail.decisions).toEqual({ total: 1, items: [expect.objectContaining({ action: { action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-002.rc01' } } })] });
-    expect(detail.attempts).toEqual([{ report: 'cfr-0009', kind: 'review', attempt: 'rq-0005.a01', request: 'rq-0005', iteration: 'wi-002.i01', gate: 'ga-0005',
+    expect(detail.decisions).toEqual({ total: 1, items: [expect.objectContaining({ action: { action: 'plan-repair', repair: { kind: 'intent', ref: 'work-item:checkout.rc01' } } })] });
+    expect(detail.attempts).toEqual([{ report: 'cfr-0009', kind: 'review', attempt: 'rq-0005.a01', request: 'rq-0005', iteration: 'work-item:checkout.i01', gate: 'ga-0005',
       session: null, invocation: null, candidate: { base: 'base-of-c-03', commit: 'c-03', tree: 'tree-of-c-03' } }]);
-    expect(detail.repairs).toEqual([{ decision: 'cfd-0006', reconciliation: 'wi-002.rc01', iteration: 'wi-002.i02',
+    expect(detail.repairs).toEqual([{ decision: 'cfd-0006', reconciliation: 'work-item:checkout.rc01', iteration: 'work-item:checkout.i02',
       sessions: [{ session: 'ses-0009', invocation: 'inv-0030', role: 'engineer' }] }]);
 
-    const reviewedFinding = checkFindingDetailOf(view, 'cf-0001');
+    const reviewedFinding = checkFindingDetailOf(view, 'finding:case-0001');
     expect(reviewedFinding.attempts[0]).toMatchObject({ session: 'ses-9000', invocation: 'inv-r0001', request: 'rq-0001', candidate: { base: 'base-of-c-01', commit: 'c-01' } });
-    const factual = checkFindingDetailOf(view, 'cf-0007');
+    const factual = checkFindingDetailOf(view, 'finding:case-0007');
     expect(factual.attempts[0]).toMatchObject({ kind: 'other', attempt: 'ga-0010', candidate: { tree: 't-02' } });
-    expect(factual.decisions.items.at(-1)!.action).toMatchObject({ action: 'fix-by-check', witness: { attempt: 'ga-0012', obligation: 'scenario:sc-004@1' } });
-    expect(() => checkFindingDetailOf(view, 'cf-0099')).toThrow(ProjectionError);
+    expect(factual.decisions.items.at(-1)!.action).toMatchObject({ action: 'fix-by-check', witness: { attempt: 'ga-0012', obligation: 'scenario:case-004@1' } });
+    expect(() => checkFindingDetailOf(view, 'finding:case-0099')).toThrow(ProjectionError);
   });
 
   test('historical elapsed-review reasons remain visible without manufacturing current review outcomes', () => {
     // Compatibility records only: current review execution never emits elapsed expiry.
     for (const reason of ['deadline', 'no-time-before-deadline'] as const) {
       const stream = new Stream()
-        .line(request('rq-0001', 'wi-001', 'wi-001.i01', 'code', 'c-01'))
+        .line(request('rq-0001', 'work-item:cart', 'work-item:cart.i01', 'code', 'c-01'))
         .line(finished('rq-0001', 'rq-0001.a01', { result: 'not-verified', reason, detail: 'Retained historical elapsed-review outcome' }));
       const before = JSON.stringify(stream.lines);
       const view = runView(constructedRun(stream.lines, reviewed));
-      const select = { workItem: 'wi-001', after: null, limit: 50 };
+      const select = { workItem: 'work-item:cart', after: null, limit: 50 };
       const first = reviewListResponseSchema.parse(reviewListOf(view, select));
       expect(first.requests).toEqual([expect.objectContaining({ id: 'rq-0001', result: 'not-verified',
         attempts: [expect.objectContaining({ id: 'rq-0001.a01', reason })] })]);
@@ -357,16 +360,16 @@ describe('CheckFinding detail and reviews', () => {
 
   test('reviews list each request with its settling result and attempts, bounded and paged', () => {
     const view = runView(constructedRun(fullRun().lines, reviewed));
-    const all = reviewListResponseSchema.parse(reviewListOf(view, { workItem: 'wi-001', after: null, limit: 2 }));
-    expect(all).toMatchObject({ total: 4, shown: 2, next: 'rq-0002', workItem: 'wi-001' });
+    const all = reviewListResponseSchema.parse(reviewListOf(view, { workItem: 'work-item:cart', after: null, limit: 2 }));
+    expect(all).toMatchObject({ total: 4, shown: 2, next: 'rq-0002', workItem: 'work-item:cart' });
     expect(all.requests[0]).toMatchObject({ id: 'rq-0001', kind: 'code', result: 'complete', base: 'base-of-c-01', candidate: 'c-01',
-      attempts: [{ id: 'rq-0001.a01', state: 'finished', result: 'complete', inspected: 1, concerns: 3, assessment: 'Relevant behavior assessed.', limitations: ['Unrelated artifact unread.'], checkFindings: ['cf-0001', 'cf-0002', 'cf-0005'] }] });
-    const rest = reviewListOf(view, { workItem: 'wi-001', after: 'rq-0002', limit: 50 });
+      attempts: [{ id: 'rq-0001.a01', state: 'finished', result: 'complete', inspected: 1, concerns: 3, assessment: 'Relevant behavior assessed.', limitations: ['Unrelated artifact unread.'], checkFindings: ['finding:case-0001', 'finding:case-0002', 'finding:case-0005'] }] });
+    const rest = reviewListOf(view, { workItem: 'work-item:cart', after: 'rq-0002', limit: 50 });
     expect(rest.requests.map(entry => [entry.id, entry.result, entry.attempts[0]?.reason ?? null])).toEqual([
       ['rq-0003', 'not-verified', 'timed-out'], ['rq-0004', 'complete', null],
     ]);
     expect(rest.next).toBeNull();
-    expect(reviewListOf(view, { workItem: 'wi-002', after: null, limit: 50 }).requests).toEqual([
+    expect(reviewListOf(view, { workItem: 'work-item:checkout', after: null, limit: 50 }).requests).toEqual([
       expect.objectContaining({ id: 'rq-0005', result: null, attempts: [] }),
     ]);
   });
@@ -374,13 +377,13 @@ describe('CheckFinding detail and reviews', () => {
 
 describe('A run waiting for a person\'s decision', () => {
   const snapshot = (lines: readonly Line[]) => runSnapshotSchema.parse(snapshotOf(runView(constructedRun(lines, reviewed))));
-  const held = { open: 1, waiting: true, workItems: [{ workItem: 'wi-002', requests: [{ checkFinding: 'cf-0006', request: 'cfd-0004' }] }] };
+  const held = { open: 1, waiting: true, workItems: [{ workItem: 'work-item:checkout', requests: [{ checkFinding: 'finding:case-0006', request: 'cfd-0004' }] }] };
 
   test('the snapshot names the open request and the work item it holds, and says the run waits; the answer clears it', () => {
     const stream = fullRun();
     expect(snapshot(stream.lines).decisionRequests).toEqual(held);
 
-    stream.record([dispose('cf-0006', stream.revision('cf-0006'), decision({ action: 'answer-user-decision', request: 'cfd-0004', option: 'keep' },
+    stream.record([dispose('finding:case-0006', stream.revision('finding:case-0006'), decision({ action: 'answer-user-decision', request: 'cfd-0004', option: 'keep' },
       { actor: { kind: 'user', name: 'dana' } }))], { kind: 'user-response', command: 'answer-0001' });
     expect(snapshot(stream.lines).decisionRequests).toEqual({ open: 0, waiting: false, workItems: [] });
   });
@@ -393,7 +396,7 @@ describe('A run waiting for a person\'s decision', () => {
     const ended = fullRun().line({ type: 'job-stopped', data: { settled: true } });
     expect(snapshot(ended.lines)).toMatchObject({ state: 'stopped', decisionRequests: { ...held, waiting: false } });
     // A run begun before CheckFindings: no CheckFinding event, so no request.
-    const before = snapshot([request('rq-0001', 'wi-001', 'wi-001.i01', 'code', 'c-01')]);
+    const before = snapshot([request('rq-0001', 'work-item:cart', 'work-item:cart.i01', 'code', 'c-01')]);
     expect(before.decisionRequests).toEqual({ open: 0, waiting: false, workItems: [] });
   });
 
@@ -414,7 +417,7 @@ describe('A run waiting for a person\'s decision', () => {
       runVersions: () => [],
     });
     const waits = queries.decisionWaits('review-notes');
-    expect(waits).toEqual([{ runId, requests: 1, workItems: ['wi-002'] }]);
+    expect(waits).toEqual([{ runId, requests: 1, workItems: ['work-item:checkout'] }]);
     expect(waits.map(wait => planDecisionWaitSchema.parse(wait))).toEqual(waits);
   });
 });

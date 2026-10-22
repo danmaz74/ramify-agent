@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { checkFindingIdSchema, checkFindingLocationSchema, checkFindingRiskSchema } from '../../../check-findings/src/interfaces/check-findings.js';
+import { checkFindingIdSchema, checkFindingLocationSchema, checkFindingRiskSchema, draftCheckFindingKeySchema } from '../../../check-findings/src/interfaces/check-findings.js';
 
 /**
  * What a reviewer names as grounding a concern: a file of the candidate it
@@ -15,6 +15,7 @@ export type ReviewGround = z.infer<typeof reviewGroundSchema>;
 
 /** One concern of a reviewer's submission, as the agent writes it. */
 export const reviewConcernSchema = z.object({
+  findingKey: draftCheckFindingKeySchema.describe('A local finding key, for example draft:finding:missing-world-companion-exports. An accepted finding ID is invalid here.'),
   summary: z.string().min(1).max(4000),
   consequence: z.string().min(1).max(4000),
   rationale: z.string().min(1).max(4000),
@@ -28,10 +29,7 @@ export const reviewConcernSchema = z.object({
   ground: reviewGroundSchema.nullable(),
 }).strict();
 export type ReviewConcern = z.infer<typeof reviewConcernSchema>;
-
-/** A supported assessment, actionable concerns and meaningful limitations.
- * Legacy inspected/missing inventories remain readable but do not govern acceptance.
- */
+/** A supported assessment, actionable concerns and meaningful limitations. */
 export const reviewSubmissionSchema = z.object({
   inspected: z.array(z.string().min(1)).max(500).default([]),
   missing: z.array(z.object({ path: z.string().min(1), reason: z.string().min(1).max(1000) }).strict()).max(500).default([]),

@@ -36,6 +36,8 @@ export interface GitAnswers {
   readonly head: string;
   /** Exact ordered candidate tree answers; omitted means no preview may be requested. */
   readonly previews?: readonly CandidateTreePreview[] | undefined;
+  /** For composed runs, Git's candidate tree follows the last scripted accepted commit. */
+  readonly currentTree?: string | undefined;
   readonly commits: readonly CommitResponse[];
   /**
    * Revisions Git reports for a gate's identity trailers, or a scenario
@@ -99,6 +101,10 @@ export function answeredGit(root: string, answers: GitAnswers): AnsweredGit {
   const git = mockGit({
     ...scratch.answers,
     async previewCandidateTree(project) {
+      if (answers.currentTree !== undefined) {
+        check('previewCandidateTree', () => expect(project).toBe(root));
+        return { repositoryRoot: root, head, tree: answers.currentTree };
+      }
       const answer = answers.previews?.[previewIndex];
       check('previewCandidateTree', () => {
         expect(project).toBe(root);
@@ -201,7 +207,7 @@ export function answeredGit(root: string, answers: GitAnswers): AnsweredGit {
       expect(failures).toEqual([]);
       expect(git.unexpected).toEqual([]);
       expect(index).toBe(answers.commits.length);
-      expect(previewIndex).toBe(answers.previews?.length ?? 0);
+      if (answers.currentTree === undefined) expect(previewIndex).toBe(answers.previews?.length ?? 0);
     },
   });
 }

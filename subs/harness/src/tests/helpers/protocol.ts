@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 
 import type { RunPolicy } from '../../../subs/autonomous/src/run/records.js';
 import { copyFixture } from './fixture.js';
-import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
+import { analysis, currentAnalysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import {
   addModule, assign, byWork, completionProposed, edit, installMiniRunner, outline, read, shell, submit, write,
 } from './iterations.js';
@@ -60,7 +60,7 @@ export function protocolPolicy(projectRoot: string): RunPolicy {
 /** The script: two work items, one of which creates a module, each declaring its scenario with its completion request. */
 export function protocolScript(root: string) {
   return declaringScenarios(byWork({
-    'initial-architect': [submit(analysis(
+    'initial-architect': [submit(currentAnalysis(analysis(
       [
         entry('review-note', notes, 'The notes module holds a reviewer\'s note and its limit.'),
         entry('note-drafts', drafts, 'A module keeps a reviewer\'s unsent drafts.', {
@@ -68,19 +68,19 @@ export function protocolScript(root: string) {
         }),
       ],
       [hypothesis('note-search', { change: 'create', suggestedOwner: notes, rationale: 'Notes may need to be searched later.' })],
-    ))],
-    'local-architect:wi-001': [submit(assign(notes, {}, outline())),
+    ), 'document:review-notes-plan'))],
+    'local-architect:work-item:review-note': [submit(assign(notes, {}, outline())),
       submit(assign(reviews, { goal: 'Account for and remove the foreign shell artifact before accepting the note change.',
         scope: { base: { module: reviews, included: [{ directory: notesDirectory, reason: 'The previous notes patch remains dirty.', instructions: 'Retain the permitted note limit while removing the reviews-owned shell artifact.' }] }, extra: [], read: [], rationale: 'Both captured owners account for this candidate.' } })), submit(requestCompletion())],
-    'local-architect:wi-002': [submit(assign(drafts, {}, outline())), submit(requestCompletion())],
-    'engineer:wi-001': [submit(
+    'local-architect:work-item:note-drafts': [submit(assign(drafts, {}, outline())), submit(requestCompletion())],
+    'engineer:work-item:review-note': [submit(
       completionProposed('Raised the note limit where the test asks for it.'),
       read(join(root, 'subs/workspace/subs/reviews/src/router.ts')),
       edit('notes.ts', 'noteLimit = 400', 'noteLimit = 500'),
       shell(`printf 'export const outside = true;\\n' > '${join(root, outsidePath)}'`),
     ), submit(completionProposed('Removed the reviews-owned foreign artifact and retained the note change.'),
       shell(`rm '${join(root, outsidePath)}'`))],
-    'engineer:wi-002': [submit(
+    'engineer:work-item:note-drafts': [submit(
       completionProposed('Created the drafts module with its first behavior and the test that states it.'),
       write('../module.ramify', 'ramify 1\nmodule drafts\n'),
       write('../README.md', '# drafts\n\nKeeps a reviewer\'s unsent drafts.\n'),

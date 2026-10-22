@@ -62,7 +62,7 @@ export function integrationItemsDue(history: CoordinationHistory, scenario: stri
   const records: CommitRecord[] = [];
   for (const integration of dueIntegrations(tracked.records, after, items)) {
     if (!integration.subScenarios.includes(scenario)) continue;
-    const item = integrationWorkItem(integration, items.length);
+    const item = integrationWorkItem(integration);
     items.push(item);
     records.push({ path: workLayout.item(item.id), id: item.id, revision: 1, body: item });
   }

@@ -25,11 +25,11 @@ export interface ScheduleState {
   readonly yielded: ReadonlyMap<WorkItemId, readonly RequirementId[]>;
   /** Every requirement at its highest committed revision. */
   readonly requirements: ReadonlyMap<RequirementId, ConsumerRequirement>;
-  /** `ob-ct-001@1` for every obligation revision a provider has conformed at. */
+  /** `provider-obligation:preview-output@1` for every obligation revision a provider has conformed at. */
   readonly conformed: ReadonlySet<string>;
   /**
-   * The work item responsible for each subject revision, keyed `rq-001@2`
-   * and `ob-ct-001@2`. A revision may bind a subject to a work item that
+   * The work item responsible for each subject revision, keyed `consumer-requirement:preview-visible@2`
+   * and `provider-obligation:preview-output@2`. A revision may bind a subject to a work item that
    * already exists, so the binding and not the record's own field is what
    * says whose work it is.
    */

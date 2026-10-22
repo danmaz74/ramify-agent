@@ -90,38 +90,38 @@ describe('ST01, ST02, ST03: the sessions of a scripted run', () => {
       "ses-0003 opened: catalog-extractor | ses-0002 suspended, ses-0003 live",
       "inv-0003 opens ses-0003 | ses-0002 suspended, ses-0003 live",
       "inv-0003 ended, ses-0003 finished: not-kept | ses-0002 suspended",
-      "ses-0004 opened: local-architect wi-001 | ses-0002 suspended, ses-0004 live",
+      "ses-0004 opened: local-architect work-item:review-notes | ses-0002 suspended, ses-0004 live",
       "inv-0004 opens ses-0004 | ses-0002 suspended, ses-0004 live",
       "inv-0004 ended, ses-0004 kept | ses-0002 suspended, ses-0004 suspended",
-      "ses-0005 opened: context-selector wi-001, forked from ses-0004 at inv-0004 (context-selection, generation undefined, briefs []) | ses-0002 suspended, ses-0004 suspended, ses-0005 live",
+      "ses-0005 opened: context-selector work-item:review-notes, forked from ses-0004 at inv-0004 (context-selection, generation undefined, briefs []) | ses-0002 suspended, ses-0004 suspended, ses-0005 live",
       "inv-0005 opens ses-0005 | ses-0002 suspended, ses-0004 suspended, ses-0005 live",
       "inv-0005 ended, ses-0005 finished: not-kept | ses-0002 suspended, ses-0004 suspended",
       "inv-0006 continues ses-0004 from ses-0004 at inv-0004 (context-selected) | ses-0002 suspended, ses-0004 live",
       "inv-0006 ended, ses-0004 kept | ses-0002 suspended, ses-0004 suspended",
-      "ses-0006 opened: global-fork wi-001, forked from ses-0002 at inv-0002 (placement-request, generation 1, briefs []) | ses-0002 suspended, ses-0004 suspended, ses-0006 live",
+      "ses-0006 opened: global-fork work-item:review-notes, forked from ses-0002 at inv-0002 (placement-request, generation 1, briefs []) | ses-0002 suspended, ses-0004 suspended, ses-0006 live",
       "inv-0007 opens ses-0006 | ses-0002 suspended, ses-0004 suspended, ses-0006 live",
       "inv-0007 ended, ses-0006 finished: not-kept | ses-0002 suspended, ses-0004 suspended",
-      "gd-001 appended to ses-0002 | ses-0002 suspended, ses-0004 suspended",
+      "placement-decision:placement-review-notes appended to ses-0002 | ses-0002 suspended, ses-0004 suspended",
       "inv-0008 continues ses-0004 from ses-0004 at inv-0006 (placement-answered) | ses-0002 suspended, ses-0004 live",
       "inv-0008 ended, ses-0004 kept | ses-0002 suspended, ses-0004 suspended",
-      "ses-0007 opened: engineer wi-001 | ses-0002 suspended, ses-0004 suspended, ses-0007 live",
+      "ses-0007 opened: engineer work-item:review-notes | ses-0002 suspended, ses-0004 suspended, ses-0007 live",
       "inv-0009 opens ses-0007 | ses-0002 suspended, ses-0004 suspended, ses-0007 live",
       "inv-0009 ended, ses-0007 finished: work-closed | ses-0002 suspended, ses-0004 suspended",
-      "ses-0008 opened: contract-engineer wi-001, requested by inv-0009 (contract-needed) | ses-0002 suspended, ses-0004 suspended, ses-0008 live",
+      "ses-0008 opened: contract-engineer work-item:review-notes, requested by inv-0009 (contract-needed) | ses-0002 suspended, ses-0004 suspended, ses-0008 live",
       "inv-0010 opens ses-0008 | ses-0002 suspended, ses-0004 suspended, ses-0008 live",
       "inv-0010 ended, ses-0008 kept | ses-0002 suspended, ses-0004 suspended, ses-0008 suspended",
       "ses-0008 finished: work-closed | ses-0002 suspended, ses-0004 suspended",
       "inv-0011 continues ses-0004 from ses-0004 at inv-0008 (iteration-closed) | ses-0002 suspended, ses-0004 live",
       "inv-0011 ended, ses-0004 finished: not-kept | ses-0002 suspended",
-      "ses-0009 opened: local-architect wi-002 | ses-0002 suspended, ses-0009 live",
+      "ses-0009 opened: local-architect work-item:provide-note-limit | ses-0002 suspended, ses-0009 live",
       "inv-0012 opens ses-0009 | ses-0002 suspended, ses-0009 live",
       "inv-0012 ended, ses-0009 kept | ses-0002 suspended, ses-0009 suspended",
-      "ses-0010 opened: context-selector wi-002, forked from ses-0009 at inv-0012 (context-selection, generation undefined, briefs []) | ses-0002 suspended, ses-0009 suspended, ses-0010 live",
+      "ses-0010 opened: context-selector work-item:provide-note-limit, forked from ses-0009 at inv-0012 (context-selection, generation undefined, briefs []) | ses-0002 suspended, ses-0009 suspended, ses-0010 live",
       "inv-0013 opens ses-0010 | ses-0002 suspended, ses-0009 suspended, ses-0010 live",
       "inv-0013 ended, ses-0010 finished: not-kept | ses-0002 suspended, ses-0009 suspended",
       "inv-0014 continues ses-0009 from ses-0009 at inv-0012 (context-selected) | ses-0002 suspended, ses-0009 live",
       "inv-0014 ended, ses-0009 kept | ses-0002 suspended, ses-0009 suspended",
-      "ses-0011 opened: engineer wi-002 | ses-0002 suspended, ses-0009 suspended, ses-0011 live",
+      "ses-0011 opened: engineer work-item:provide-note-limit | ses-0002 suspended, ses-0009 suspended, ses-0011 live",
       "inv-0015 opens ses-0011 | ses-0002 suspended, ses-0009 suspended, ses-0011 live",
       "inv-0015 ended, ses-0011 kept | ses-0002 suspended, ses-0009 suspended, ses-0011 suspended",
       "inv-0016 continues ses-0011 from ses-0011 at inv-0015 (repair) | ses-0002 suspended, ses-0009 suspended, ses-0011 live",
@@ -130,10 +130,10 @@ describe('ST01, ST02, ST03: the sessions of a scripted run', () => {
       "inv-0017 continues ses-0009 from ses-0009 at inv-0014 (iteration-closed) | ses-0002 suspended, ses-0009 live",
       "inv-0017 ended, ses-0009 kept | ses-0002 suspended, ses-0009 suspended",
       "ses-0009 finished: work-closed | ses-0002 suspended",
-      "ses-0012 opened: local-architect wi-001 | ses-0002 suspended, ses-0012 live",
+      "ses-0012 opened: local-architect work-item:review-notes | ses-0002 suspended, ses-0012 live",
       "inv-0018 opens ses-0012 | ses-0002 suspended, ses-0012 live",
       "inv-0018 ended, ses-0012 kept | ses-0002 suspended, ses-0012 suspended",
-      "ses-0013 opened: engineer wi-001 | ses-0002 suspended, ses-0012 suspended, ses-0013 live",
+      "ses-0013 opened: engineer work-item:review-notes | ses-0002 suspended, ses-0012 suspended, ses-0013 live",
       "inv-0019 opens ses-0013 | ses-0002 suspended, ses-0012 suspended, ses-0013 live",
       "inv-0019 ended, ses-0013 kept | ses-0002 suspended, ses-0012 suspended, ses-0013 suspended",
       "ses-0013 finished: work-closed | ses-0002 suspended, ses-0012 suspended",
@@ -157,12 +157,12 @@ describe('ST01, ST02, ST03: the sessions of a scripted run', () => {
     // continuation of the module engineer whose gate failed.
     const invocation = async (id: string) => JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.invocation(id)), 'utf8')) as Invocation;
     expect((await invocation('inv-0007')).session).toMatchObject({ requested: 'fork', actual: 'fork' });
-    expect(await invocation('inv-0016')).toMatchObject({ work: { iteration: 'wi-002.i01' }, attempt: 2, session: { requested: 'continued' } });
+    expect(await invocation('inv-0016')).toMatchObject({ work: { iteration: 'work-item:provide-note-limit.i01' }, attempt: 2, session: { requested: 'continued' } });
     const gates = events.flatMap(event => (event.type === 'gate-attempted' && event.data.checkpoint === 'iteration' ? [[event.data.verdict, event.data.next]] : []));
     expect(gates).toEqual([['failed', 'repair'], ['passed', 'accept'], ['passed', 'accept']]);
     // The work each session is for is the work of its invocations.
-    expect(sessions.get('ses-0011')!.work).toEqual({ workItem: 'wi-002', iteration: 'wi-002.i01' });
-    expect(sessions.get('ses-0006')!.work).toEqual({ workItem: 'wi-001', request: 'pr-001' });
+    expect(sessions.get('ses-0011')!.work).toEqual({ workItem: 'work-item:provide-note-limit', iteration: 'work-item:provide-note-limit.i01' });
+    expect(sessions.get('ses-0006')!.work).toEqual({ workItem: 'work-item:review-notes', request: 'placement-request:review-notes' });
 
     // ST03: every start that is not fresh names its harness point and its
     // reason. A continuation names its own session's previous invocation, a
@@ -183,7 +183,7 @@ describe('ST01, ST02, ST03: the sessions of a scripted run', () => {
     }
     expect(sessions.get('ses-0006')!.fork).toEqual({ from: { session: 'ses-0002', invocation: 'inv-0002' }, reason: 'placement-request', generation: 1, briefs: [] });
     expect(sessions.get('ses-0008')!.requestedBy).toEqual({ invocation: 'inv-0009', reason: 'contract-needed' });
-    expect(events.find(event => event.type === 'contract-requested')!.data).toMatchObject({ invocation: 'inv-0009', iteration: 'wi-001.i02' });
+    expect(events.find(event => event.type === 'contract-requested')!.data).toMatchObject({ invocation: 'inv-0009', iteration: 'work-item:review-notes.i02' });
 
     // No relation names an executor's ref: every ref the executor handed
     // back is absent from the lineage the log records.

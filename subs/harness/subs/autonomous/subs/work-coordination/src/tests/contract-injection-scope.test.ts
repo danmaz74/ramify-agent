@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, readDeclaredTree, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
@@ -46,7 +46,7 @@ const provider = 'collection-review/workspace/reviews/limits';
 const providerDirectory = 'subs/workspace/subs/reviews/subs/limits';
 
 const need = {
-  capability: 'note-limit',
+  capability: 'capability:note-limit',
   useCases: ['a note over the limit is refused'],
   inputs: ['the note text'],
   outputs: ['whether the note is within the limit'],
@@ -85,7 +85,7 @@ describe('where a fake may be injected', () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     const index = await readDeclaredTree(fixture.root);
-    const seams = { index, consumer, providerOf: (capability: string) => capability === 'note-limit' ? provider : undefined };
+    const seams = { index, consumer, providerOf: (capability: string) => capability === 'capability:note-limit' ? provider : undefined };
     const contractNeeded = (injectionSites: string[]) => ({ kind: 'contract-needed', need, summary: 'The limit is owned elsewhere.', injectionSites });
 
     // The fixture's tree has neither module; the rule is judged on one that does.
@@ -121,6 +121,8 @@ describe('where a fake may be injected', () => {
     // The established agreement is held to the same rule.
     const established = (fakeInjections: string[]) => ({
       kind: 'established',
+      contractKey: 'draft:contract:note-limit', providerObligationKey: 'draft:provider-obligation:note-limit',
+      consumerRequirementKey: 'draft:consumer-requirement:notes-note-limit',
       mode: 'fake-backed',
       authority: { kind: 'provider', owner: provider, rationale: 'The limit belongs with its implementation.' },
       provider,
@@ -145,14 +147,16 @@ describe('where a fake may be injected', () => {
   });
 });
 
-const placeTheLimit = localDecision(
-  { question: 'Where does the note limit belong?', outcome: 'reuse', capability: 'note-limit', owner: provider, rationale: 'The limit is a rule of its own.' },
-  [registryChange({ capability: 'note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
-);
+const placeTheLimit = { ...localDecision(
+  { question: 'Where does the note limit belong?', outcome: 'reuse', capability: 'capability:note-limit', owner: provider, rationale: 'The limit is a rule of its own.' },
+  [registryChange({ capability: 'capability:note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
+), decisionKey: 'draft:placement-decision:note-limit' };
 
 /** The agreement: the fake is injected where the provider's report is made, and the consumer reads the report. */
 const establishedContract = {
   kind: 'established' as const,
+  contractKey: 'draft:contract:note-limit', providerObligationKey: 'draft:provider-obligation:note-limit',
+  consumerRequirementKey: 'draft:consumer-requirement:notes-note-limit',
   mode: 'fake-backed' as const,
   authority: { kind: 'provider' as const, owner: provider, rationale: 'The note limit belongs with its implementation.' },
   provider,
@@ -191,10 +195,10 @@ describe('the contract iteration writes the named injection sites', () => {
   test('a provider-side site the need names is writable, one it does not name is refused, and the provider retires the fake there', async () => {
     const root = await target();
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
-        submit({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'Waiting for the real limit.' }),
+        submit({ kind: 'yield-for-providers', requirements: ['consumer-requirement:notes-note-limit'], summary: 'Waiting for the real limit.' }),
         submit(assign(provider, {}, outline({ changes: 'Implement the agreed limit and make the report with it.' }))),
         submit(requestCompletion()),
         submit(assign(consumer, { kind: 'verification', goal: 'Confirm the notes run against the real limit.' })),
@@ -217,11 +221,11 @@ describe('the contract iteration writes the named injection sites', () => {
         write(seam.unnamed, 'export const store = [];\n'),
         write(seam.consumer, consumerReadingReport))],
     }, [
-      accepted('wi-001.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.conformance), ...modified(seam.report, seam.consumer)]),
-      accepted('wi-002.i01', 'revision-02', [...added(seam.real), ...modified(seam.report)]),
-      unchanged('wi-002'),
-      accepted('wi-001.i03', 'revision-03', modified(seam.consumer)),
-      unchanged('wi-001'),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.conformance), ...modified(seam.report, seam.consumer)]),
+      accepted('work-item:provide-note-limit.i01', 'revision-02', [...added(seam.real), ...modified(seam.report)]),
+      unchanged('work-item:provide-note-limit'),
+      accepted('work-item:review-notes.i03', 'revision-03', modified(seam.consumer)),
+      unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
     ], 'revision-03');
     expect(onlyRun(service, 'review-notes').failure).toBeNull();
@@ -232,7 +236,7 @@ describe('the contract iteration writes the named injection sites', () => {
     await expect(stat(join(root, seam.unnamed))).rejects.toThrow();
 
     // The contract assignment's scope names the site, and its resolved files hold it.
-    const assignment = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('wi-001', 2));
+    const assignment = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('work-item:review-notes', 2));
     expect(assignment.kind).toBe('contract');
     expect(assignment.scope.extra).toContainEqual({ path: seam.report, purpose: 'fake-injection' });
     expect(assignment.scope.extra.map(extra => extra.path)).not.toContain(seam.unnamed);
@@ -245,7 +249,7 @@ describe('the contract iteration writes the named injection sites', () => {
     const gateIds = [...new Set(log.filter(event => event.type === 'gate-attempted').map(event => event.data.gate))];
     const attempts = await Promise.all(gateIds.map(id => readJson<GateAttempt>(root, runId, runLayout.gate(id))));
     expect(attempts.find(attempt => attempt.checkpoint === 'contract')!.verdict).toBe('passed');
-    const requirement = await readJson<ConsumerRequirement>(root, runId, contractsLayout.requirement('rq-001', 1));
+    const requirement = await readJson<ConsumerRequirement>(root, runId, contractsLayout.requirement('consumer-requirement:notes-note-limit', 1));
     expect(requirement.evidence.fakeInjections).toEqual([seam.report]);
     expect(log.map(event => event.type)).toContain('requirement-verified');
     git.assertAnswered();

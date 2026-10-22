@@ -1,7 +1,7 @@
 import { Acceptance } from '../../acceptance/src/acceptance.js';
 
 
-import type { CapabilityInput } from './capability/ledger.js';
+import { CapabilityNameConflictError, type CapabilityInput } from './capability/ledger.js';
 
 import { viewIdentityOf as projectViewIdentity } from './project-facts.js';
 import type { BriefAppend } from '../../acceptance/src/completion.js';
@@ -24,7 +24,7 @@ import type { ProvisionalSourceGit } from '../../../../evidence/src/provisional-
 import { type CommandRunner } from '../../../../evidence/src/run-command.js';
 import { z } from 'zod';
 import { compactionReviewSchema } from './compaction-review.js';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import type { AgentPort, JsonSchema } from '../../../../agent/src/interfaces/port.js';
 import { type CandidateSource, type GitService } from '../../../../evidence/src/git.js';
@@ -238,10 +238,9 @@ import { readScopeMeasurement, writeScopeMeasurement } from '../../../../kpi/src
 import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../../../../kpi/src/lines.js';
 import { writeFileAtomic } from '../../../../ledger/src/atomic.js';
 
-import { nextCheckFinding } from '../../acceptance/src/deviations/finding.js';
 
 
-import { contractsLayout, obligationId, type ConsumerRequirement } from './contracts/records.js';
+import { contractsLayout, type ConsumerRequirement } from './contracts/records.js';
 import { conformanceKey } from './contracts/schedule.js';
 import { type EstablishedContract } from './contracts/submission.js';
 
@@ -250,14 +249,14 @@ import { type ShellCallRecord } from './work/engineer-equipment.js';
 
 
 import { engineerWorkingDirectory } from './work/engineer-directory.js';
-import { engineerSubmissionSchema, iterationAcceptance, type AssignedObligation, validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews } from './work/engineer.js';
+import { capabilityNameErrors, iterationAcceptance, parseRecordedEngineerSubmission, type AssignedObligation, validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews } from './work/engineer.js';
 import { iterationAssignmentSchema, iterationLayout, type FailureDigest } from './work/iterations.js';
 
 import { digestLines, failureAnalysisJsonSchema, failureAnalysisMessage, failureAnalysisSubmissionDescription, failureAnalysisToolName, failureDigest, validateFailureAnalysis, type AnalysisEvidence as FailureEvidence, type DigestShellCall, type FailureAnalysisSubmission } from './work/failure.js';
 
 import { scopeConfigurationPaths, captureGuardedFiles, guardedScopeOf, resolveWriteScope } from '../../../../../src/work/scope.js';
 
-import { workLayout, workItemId, type WorkItem } from './work/records.js';
+import { workLayout, type WorkItem } from './work/records.js';
 import { prepareAssignedCucumber, type ReconciliationBriefing } from './work/session.js';
 import { type GateAudience } from '../../acceptance/src/checks/diagnostics.js';
 import { scenarioResultsOf } from '../../acceptance/src/checks/scenario-results.js';
@@ -339,7 +338,7 @@ import type { GuardedScope } from '../../../../../src/guard/write-guard.js';
 
 import { captureProvisionalSource } from './capability/source.js';
 
-import { capabilityRequestId, capabilityTaskId, capabilityAssignmentId, identifyCapabilityNeed, type CapabilityNeedInput, type CapabilityExchange, type CapabilityHandback } from './capability/records.js';
+import { capabilityAssignmentId, identifyCapabilityNeed, type CapabilityNeedInput, type CapabilityExchange, type CapabilityHandback } from './capability/records.js';
 import { captureCapabilityLimits } from './capability/policy.js';
 
 import { qualificationActionSchema, capabilityActionSchema, capabilityPlanUpdateSchema, buildCapabilityPlanRevision, unreportedByHandback, validateCapabilityAction, validateCapabilityPlanUpdate, type QualificationAction } from './capability/submission.js';
@@ -389,22 +388,22 @@ import { baselineScope } from '../../../../kpi/src/capture.js';
 
 import { acceptDecision } from './architecture/accept.js';
 import { briefText, type GlobalContext } from './architecture/context.js';
-import { architectureLayout, architectureSchemas, globalDecisionId, localDecisionId, placementRequestSchema, requestId, type PlacementDecision, type PlacementRequest } from './architecture/records.js';
+import { architectureLayout, architectureSchemas, globalDecisionId, placementRequestSchema, type PlacementDecision, type PlacementRequest } from './architecture/records.js';
 import { forkMessage, unresolvedForkMessage } from './architecture/session.js';
-import { defaultMaxPlanDeviations, deviationLayout, environmentProblemId, environmentProblemSchema, packageDeviation, planDeviationId, planDeviationSchema, unresolvedRequestId, unresolvedRequestSchema, type DeviationBody, type EnvironmentBody, type EnvironmentProblem, type PlanDeviation, type UnresolvedRequest } from '../../acceptance/src/deviations/records.js';
+import { defaultMaxPlanDeviations, deviationLayout, environmentProblemSchema, packageDeviation, planDeviationSchema, unresolvedRequestSchema, type DeviationBody, type EnvironmentBody, type EnvironmentProblem, type PlanDeviation, type UnresolvedRequest } from '../../acceptance/src/deviations/records.js';
 import { deviationCommands } from '../../acceptance/src/deviations/finding.js';
 
 import { environmentCommands, environmentOptions } from '../../acceptance/src/deviations/environment.js';
 import { forkJsonSchema, forkSubmissionSchema, forkToolName, validateFork, type ForkSubmission, type PlacementRequestBody } from './architecture/submission.js';
-import { registerContract, registrationNeeded, type AttachedConsumer } from './contracts/accept.js';
+import { ContractPublicationError, registerContract, registrationNeeded, executionRetirements, type AttachedConsumer } from './contracts/accept.js';
 import { cycleClosedBy, cycleIdentity, type DependencyCycle, type DependencyEdge } from './contracts/graph.js';
 import { fakeNamingViolations, type NamedFile } from './contracts/naming.js';
 
-import { contractId, contractOfObligation, requirementId, type ContractRecord, type ProviderObligation } from './contracts/records.js';
+import { executionRetirementPath, executionRetirementSchema, type ContractRecord, type ProviderObligation } from './contracts/records.js';
 import { bindingKey, nextWorkItem, openRequirements, providerItemOf, type ScheduleState } from './contracts/schedule.js';
 import { reopenEvidence } from './contracts/revision.js';
 import { contractMessage, type RevisionBriefing } from './contracts/session.js';
-import { contractJsonSchema, contractToolName, validateContract, type ContractSubmission, type NeedAsBehavior } from './contracts/submission.js';
+import { contractAuthorJsonSchema, contractIdentityErrors, contractToolName, validateContract, type ContractIdentityContext, type ContractSubmission, type NeedAsBehavior } from './contracts/submission.js';
 
 import type { Hypothesis, RegistryEntry } from '../../planning/src/records.js';
 
@@ -647,6 +646,24 @@ export interface CoordinationPorts {
   write(input: RunEventInput, records?: readonly CommitRecord[], at?: Date): Promise<'committed' | 'already-committed' | 'ended'>;
 }
 
+function capabilityRequirementErrors(references: readonly string[], catalog: ElementCatalog): Array<{ path: string; message: string; expected: string }> {
+  const active = new Map(catalog.elements.map(element => [element.id, element]));
+  return references.flatMap((id, index) => {
+    const element = active.get(id);
+    const source = `the accepted functional-requirement IDs in this run's work-item package (catalog ${catalog.manifestHash})`;
+    if (element?.kind === 'functional') return [];
+    const reason = catalog.retired.includes(id) ? 'retired' : element === undefined ? 'unknown or foreign to this run' : `a ${element.kind} element`;
+    return [{ path: `requirementRefs.${index}`, message: `${id} is ${reason}; a provider plan requires an active functional requirement of this run`, expected: source }];
+  });
+}
+
+function capabilityRetirement(id: string, kind: 'capability-request' | 'capability-task', replacement: string,
+  iteration: string, reason: string): CommitRecord {
+  const body = executionRetirementSchema.parse({ schema: 'ramify-agent.execution-retirement/1', id, kind,
+    replacements: [replacement], authority: { iteration, reason } });
+  return { path: executionRetirementPath(id), id, revision: 1, body };
+}
+
 export class WorkCoordination {
   private readonly preparedScopes = new WeakMap<AssignmentBody, WriteScope>();
   constructor(private readonly input: CoordinationInputs, private readonly ports: CoordinationPorts) {}
@@ -719,7 +736,7 @@ export class WorkCoordination {
     baseline: MeasurementSnapshot): Promise<boolean> {
     const state = replayCapabilityState(this.observe().history.events);
     const activeId = state.stack.at(-1);
-    if (activeId === undefined || !activeId.startsWith('cap-')) return true;
+    if (activeId === undefined || !(activeId.startsWith('cap-') || activeId.startsWith('capability-task:'))) return true;
     const active = state.tasks.get(activeId);
     if (active === undefined) throw new Error(`Active capability frame ${activeId} has no task`);
     if (active.status !== 'coordinating' && active.status !== 'implementing' && active.status !== 'awaiting-consumer' && active.status !== 'verifying') {
@@ -746,6 +763,7 @@ export class WorkCoordination {
       }
       const action: Extract<CapabilityAction, { kind: 'consult-consumer' }> = {
         kind: 'consult-consumer', task: task.id, planRevision: exchange.planRevision, invocation: opened.data.invocation,
+        exchangeKey: `draft:${exchange.id}`,
         question: exchange.question, references: [...exchange.references], sections: ['Recovered pending consultation'],
         registrations: [], reports: [],
       };
@@ -916,7 +934,7 @@ export class WorkCoordination {
       return { kind: 'failed' };
     }
     const orientationRequirements = [this.planPackage(evidence.catalog,
-      [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs])];
+      [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds])];
     const orientationViews = await this.localViewInputs(item.module);
     // The orientation is built from its inputs by the module architect's own
     // constructor, which `step render` uses too.
@@ -1007,7 +1025,7 @@ export class WorkCoordination {
     if (orientationInvocation === undefined) throw new Error('Work orientation has no recorded attempt');
     const orientationPoint = usable ? orientation!.data.point : null;
     const source: SelectionSource = { catalog: evidence.catalog, planDeviations: this.planDeviationsOf(),
-      workItemElements: [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs] };
+      workItemElements: [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds] };
     const parentStarted = this.events('invocation-started').find(event => event.data.invocation === orientationInvocation);
     const parentSession = orientationPoint === null ? undefined : parentStarted?.data.session;
     let selectionEvent = this.events('context-selection-recorded').find(event => event.data.workItem === item.id);
@@ -1100,7 +1118,7 @@ export class WorkCoordination {
         `Placement decision \`${decision.id}\` placed \`${decision.capability}\` in \`${decision.owner}\`, an owner this work item did not have. Select the elements for the work as it now stands; the package it replaces held ${current.citation.elements.join(', ') || 'no element'}.`,
       ].join('\n');
       const selected = await this.selectElements(agent, selector, item,
-        { catalog, planDeviations: this.planDeviationsOf(), workItemElements: [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs] },
+        { catalog, planDeviations: this.planDeviationsOf(), workItemElements: [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds] },
         { packet, update: packet, orientationInvocation: from.invocation, point: from.point, session: from.session });
       if (selected === 'failed') return null;
       if (selected === undefined) {
@@ -1258,7 +1276,8 @@ export class WorkCoordination {
     for (const requirement of records.requirements.values()) {
       const bound = bindings.get(bindingKey(requirement.id, requirement.revision)) ?? requirement.workItem;
       if (bound !== workItem) continue;
-      contracts.add(contractOfObligation(requirement.obligation));
+      const contract = this.observe().records.obligations.get(requirement.obligation)?.contract.id;
+      if (contract !== undefined) contracts.add(contract);
     }
     return contracts;
   }
@@ -1385,18 +1404,23 @@ export class WorkCoordination {
         const assignment = saved.assignments.get(unqualified.assignment);
         const raw = await readIfExists(this.path(runLayout.submission(unqualified.invocation)));
         const submitted = raw === undefined ? null : JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
-        const parsed = submitted === null ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(submitted));
-        if (assignment === undefined || !parsed?.success || parsed.data.kind !== 'capability-needed') {
+        let parsed: EngineerSubmission | undefined;
+        try { if (submitted !== null) parsed = parseRecordedEngineerSubmission(submitted); }
+        catch (error) {
+          await this.ports.fail('recovery-exhausted', `Pending request ${unqualified.id} has an invalid recorded engineer submission: ${message(error)}`);
+          return null;
+        }
+        if (assignment === undefined || parsed?.kind !== 'capability-needed') {
           await this.ports.fail('recovery-exhausted', `Pending request ${unqualified.id} cannot recover its original module engineer submission`);
           return null;
         }
-        const suspended: SuspendedCapabilityOutcome = { kind: 'capability-needed', summary: parsed.data.summary,
-          need: parsed.data.request, invocation: unqualified.invocation,
+        const suspended: SuspendedCapabilityOutcome = { kind: 'capability-needed', summary: parsed.summary,
+          need: parsed.request, invocation: unqualified.invocation,
           session: unqualified.continuation.session, point: unqualified.continuation.point ?? '' };
         const answer = await this.coordinateCapabilityNeed(agent, packages, baseline, item, assignment, suspended,
           undefined, { session: undefined, point: undefined, workingDirectory }, unqualified);
         if (answer === null || answer.kind === 'delegated') return null;
-        session = answer.parent.session; sessionRef = answer.parent.point || undefined;
+        if (answer.kind === 'satisfied') { session = answer.parent.session; sessionRef = answer.parent.point || undefined; }
         lastAssignment = assignment;
         let resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
           session: suspended.session, point: suspended.point, priorInvocation: suspended.invocation, guidance: answer.guidance,
@@ -1406,7 +1430,7 @@ export class WorkCoordination {
           const next = await this.coordinateCapabilityNeed(agent, packages, baseline, item, assignment, resumed, undefined,
             { session, point: sessionRef, workingDirectory });
           if (next === null || next.kind === 'delegated') return null;
-          session = next.parent.session; sessionRef = next.parent.point || undefined;
+          if (next.kind === 'satisfied') { session = next.parent.session; sessionRef = next.parent.point || undefined; }
           resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
             session: resumed.session, point: resumed.point, priorInvocation: resumed.invocation, guidance: next.guidance,
           });
@@ -1445,7 +1469,7 @@ export class WorkCoordination {
           const answer = await this.coordinateCapabilityNeed(agent, packages, baseline, item, assignment, resumed, undefined,
             { session, point: sessionRef, workingDirectory });
           if (answer === null || answer.kind === 'delegated') return null;
-          session = answer.parent.session; sessionRef = answer.parent.point || undefined;
+          if (answer.kind === 'satisfied') { session = answer.parent.session; sessionRef = answer.parent.point || undefined; }
           resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
             session: resumed.session, point: resumed.point, priorInvocation: resumed.invocation, guidance: answer.guidance,
           });
@@ -1513,7 +1537,8 @@ export class WorkCoordination {
       revisionReports ??= this.pendingRevisionReports(current, item.id).map(event => ({
         obligation: event.data.obligation.id,
         revision: event.data.obligation.revision,
-        contract: contractOfObligation(event.data.obligation.id),
+        contract: this.observe().records.obligations.get(event.data.obligation.id)?.contract.id
+          ?? (() => { throw new Error(`Provider obligation ${event.data.obligation.id} has no accepted contract relationship`); })(),
         iteration: event.data.iteration,
         detail: (current.results.get(event.data.iteration)?.findings ?? []).join('; '),
       }));
@@ -1624,7 +1649,7 @@ export class WorkCoordination {
       // The turn is built from its inputs by the module architect's own
       // constructor, which `step render` uses too.
       const requirements = contextPackage === undefined
-        ? [this.planPackage(await this.frozenCatalog(), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs])] : [];
+        ? [this.planPackage(await this.frozenCatalog(), [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds])] : [];
       const oriented = await this.orientationStartingPoints(item.id);
       const orientedEvent = this.events('work-orientation-recorded').find(event => event.data.workItem === item.id);
       const projection = this.obligationProjection();
@@ -1653,6 +1678,7 @@ export class WorkCoordination {
         const turn = validateWorkTurnInputs({
           schema: stepInputsSchemaId, role: 'local-architect', phase: 'work-turn', consultation: localConsultationInputs(this.observe().history.events, item.id), run: { planId: this.input.record.planId, runId: this.input.record.jobId },
           work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: this.observe().policy.limits,
+
           context: contextPolicyOf(this.observe().policy, 'local-architect'), workingDirectory: this.projectRelative(workingDirectory),
           briefing: workBriefingInputs(briefing),
           ...(contextPackage === undefined ? {} : {
@@ -1857,7 +1883,8 @@ export class WorkCoordination {
         // under, an environment problem the run holds for until the
         // operator resumes it, or nothing possible, which ends the run.
         const resolution = await this.resolveUnresolved(agent, packages, baseline, item, {
-          invocation: result.id, conflict: result.value.conflict, evidence: result.value.evidence,
+          invocation: result.id, requestKey: result.value.requestKey,
+          conflict: result.value.conflict, evidence: result.value.evidence,
         });
         if (resolution === null) return null;
         unresolvedRequest = undefined;
@@ -1930,7 +1957,7 @@ export class WorkCoordination {
             { session, point: sessionRef, workingDirectory });
           if (answer === null) return null;
           if (answer.kind === 'delegated') return 'reported';
-          session = answer.parent.session; sessionRef = answer.parent.point || undefined;
+          if (answer.kind === 'satisfied') { session = answer.parent.session; sessionRef = answer.parent.point || undefined; }
           outcome = await this.takeIteration(agent, packages, baseline, item, assigned, index, {
             session: outcome.session, point: outcome.point, priorInvocation: outcome.invocation, guidance: answer.guidance,
           });
@@ -1983,6 +2010,7 @@ export class WorkCoordination {
 
       if (await this.ports.handling.reviseOutline({
         item, invocation: result.id, outline: result.value.outline,
+
         hypothesesSeen: hypotheses.map(hypothesis => refOf(hypothesis.id, hypothesis.revision, hypothesis)),
         architectRef: architectRefOf(result),
       }) === null) return null;
@@ -2093,7 +2121,9 @@ export class WorkCoordination {
     const started = [...this.events('invocation-started')].reverse().find(event =>
       event.data.role === 'global-fork' && event.data.work.request === request);
     if (started === undefined || this.events('fork-returned-partial').some(event =>
-      event.data.request === request && event.data.invocation === started.data.invocation)) return undefined;
+      event.data.request === request && event.data.invocation === started.data.invocation)
+      || this.events('fork-name-rejected').some(event =>
+        event.data.request === request && event.data.invocation === started.data.invocation)) return undefined;
     const ended = this.events('invocation-ended').find(event => event.data.invocation === started.data.invocation);
     if (ended?.data.ended !== 'submitted' || ended.data.submission === null) return undefined;
     const priorView = [...this.events('view-refreshed')].reverse().find(event =>
@@ -2113,7 +2143,7 @@ export class WorkCoordination {
     const raw = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
     const { schema: _schema, ...body } = raw;
     const parsed = forkSubmissionSchema.safeParse(body);
-    if (raw.schema !== 'ramify-agent.fork-submission/1' || !parsed.success) {
+    if (raw.schema !== 'ramify-agent.fork-submission/2' || !parsed.success) {
       await this.ports.fail('recovery-exhausted', `Fork of ${request} has an invalid accepted result`);
       return null;
     }
@@ -2134,7 +2164,7 @@ export class WorkCoordination {
     const raw = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
     const { schema: _schema, ...body } = raw;
     const parsed = forkSubmissionSchema.safeParse(body);
-    if (raw.schema !== 'ramify-agent.fork-submission/1' || !parsed.success || parsed.data.kind !== 'partial') {
+    if (raw.schema !== 'ramify-agent.fork-submission/2' || !parsed.success || parsed.data.kind !== 'partial') {
       throw new Error(`The partial fork of ${request} has invalid accepted evidence`);
     }
     return { attempt: partial.data.retry, findings: [...parsed.data.findings], gaps: [...parsed.data.gaps] };
@@ -2156,10 +2186,35 @@ export class WorkCoordination {
 
     const count = this.events('placement-requested').length + 1;
 
-    const id = existingId ?? requestId(count);
+    const id = existingId ?? body.requestKey.slice('draft:'.length);
     const committed = this.observe().records;
+    {
+      const subject = body.forCapability;
+      const belongsToItem = (id: string, seen = new Set<string>()): boolean => {
+        if (seen.has(id) || committed.retirements.has(id)) return false;
+        seen.add(id);
+        if (id.startsWith('capability-request:')) {
+          const request = committed.capabilityRequests.get(id);
+          return request !== undefined && belongsToItem(request.parent.id, seen);
+        }
+        if (id.startsWith('capability-task:')) {
+          const task = committed.capabilityTasks.get(id);
+          return task !== undefined && belongsToItem(task.parent.id, seen);
+        }
+        return id === item.id;
+      };
+      const accepted = committed.retirements.has(subject) ? false : subject.startsWith('capability-task:') || subject.startsWith('capability-request:')
+        ? belongsToItem(subject)
+        : subject.startsWith('capability:')
+          ? committed.registry.some(entry => entry.capability === subject)
+          : false;
+      if (!accepted) {
+        await this.ports.fail('inputs-changed', `Placement subject ${subject} is not an accepted capability, request or task of ${item.id}`);
+        return null;
+      }
+    }
     const request = existingId === undefined ? placementRequestSchema.parse({
-      schema: 'ramify-agent.placement-request/1',
+      schema: 'ramify-agent.placement-request/2',
       id,
       workItem: item.id,
       requester: item.module,
@@ -2217,6 +2272,7 @@ export class WorkCoordination {
 
       const attempt = this.events('view-refreshed').filter(event => event.data.request === id).length + 1;
       const index = await this.ports.refreshIndex();
+
       const view = await this.viewIdentityOf(index);
       // A failed refresh does not make an older view current; what it could
       // not establish stays explicit in the decision's own gaps.
@@ -2263,7 +2319,7 @@ export class WorkCoordination {
         toolName: forkToolName,
         description: 'End this fork with its decision, or with the findings and gaps of a fork that could not decide. The harness validates it; an invalid submission is returned with every error and its path.',
         inputSchema: forkJsonSchema,
-        submissionSchema: 'ramify-agent.fork-submission/1',
+        submissionSchema: 'ramify-agent.fork-submission/2',
         validate: input => validateFork(input, placementEvidenceOf(current, index)),
         scope: {
           write: null,
@@ -2392,7 +2448,7 @@ export class WorkCoordination {
     packages: ReadonlyMap<string, LoadedPackage>,
     baseline: MeasurementSnapshot,
     item: WorkItem,
-    answer: { readonly invocation: string; readonly conflict: string; readonly evidence: readonly string[] },
+    answer: { readonly invocation: string; readonly requestKey: string; readonly conflict: string; readonly evidence: readonly string[] },
     existingId?: string,
   ): Promise<UnresolvedResolution | null> {
     const loaded = packages.get('global-fork');
@@ -2402,9 +2458,9 @@ export class WorkCoordination {
     }
     // Unresolved requests retain their own stable identities across recovery.
 
-    const id = existingId ?? unresolvedRequestId(this.events('unresolved-requested').length + 1);
+    const id = existingId ?? answer.requestKey.slice('draft:'.length);
     const request = existingId === undefined ? unresolvedRequestSchema.parse({
-      schema: 'ramify-agent.unresolved-request/1',
+      schema: 'ramify-agent.unresolved-request/2',
       id,
       workItem: item.id,
       requester: item.module,
@@ -2452,7 +2508,7 @@ export class WorkCoordination {
     try {
       catalog = await this.frozenCatalog();
       workElements = (await this.currentSelection(item.id))?.selection.package.elements
-        ?? [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs];
+        ?? [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds];
     } catch (error) {
       await this.ports.fail('inputs-changed', `The package of ${item.id} cannot be read for its unresolved request: ${message(error)}`);
       return null;
@@ -2507,6 +2563,7 @@ export class WorkCoordination {
           deviations: this.deviationsOf().length,
           deviationLimit: this.deviationLimit(),
           environmentProblems: this.environmentProblemsOf(),
+          nameRejection: this.events('fork-name-rejected').filter(event => event.data.request === id).at(-1)?.data,
           view,
           ...(unavailable === null ? {} : { viewUnavailable: unavailable }),
           registry: current.registry,
@@ -2524,7 +2581,7 @@ export class WorkCoordination {
         toolName: forkToolName,
         description: 'End this fork with its answer to the unresolved request: a placement decision, a plan deviation, an environment problem, nothing possible, or the findings and gaps of a fork that could not decide. The harness validates it; an invalid submission is returned with every error and its path.',
         inputSchema: forkJsonSchema,
-        submissionSchema: 'ramify-agent.fork-submission/1',
+        submissionSchema: 'ramify-agent.fork-submission/2',
         validate: async input => {
           const checked = validateFork(input, placementEvidenceOf(current, index), {
           kind: 'unresolved',
@@ -2576,10 +2633,19 @@ export class WorkCoordination {
         return null;
       }
       if (value.kind === 'deviation') {
-        return this.recordDeviation(item, id, result.id, value.deviation, { path: planFile, text: plan }, catalog);
+        const accepted = await this.recordDeviation(item, id, result.id, value.deviation, { path: planFile, text: plan }, catalog);
+        if (accepted?.kind === 'retry') {
+          await this.ports.write({ type: 'fork-name-rejected', data: { request: id, invocation: result.id,
+            field: accepted.field, message: accepted.reason } });
+          await this.ports.afterWrite('fork-name-rejected', this.input.record.jobId);
+          continue;
+        }
+        return accepted;
       }
       if (value.kind === 'environment') {
-        return this.reportEnvironment(item, request, result.id, value);
+        const reported = await this.reportEnvironment(item, request, result.id, value);
+        if (reported === 'retry-name') continue;
+        return reported;
       }
 
       // A placement fix: the evidence must still be what the fork decided on.
@@ -2613,10 +2679,10 @@ export class WorkCoordination {
     body: DeviationBody,
     plan: { readonly path: string; readonly text: string },
     catalog: ElementCatalog,
-  ): Promise<UnresolvedResolution | null> {
+  ): Promise<UnresolvedResolution | { readonly kind: 'retry'; readonly field: string; readonly reason: string } | null> {
     const recorded = this.events('plan-deviation-recorded').length;
-    const held = recorded >= this.deviationLimit();
-    const id = planDeviationId(recorded + 1);
+    let held = recorded >= this.deviationLimit();
+    const id = body.deviationKey.slice('draft:'.length);
     const current = this.observe().records;
     const workItems = [...new Set([item.id, ...body.workItems])];
     const modules = [...new Set(workItems.flatMap(workItem => {
@@ -2632,8 +2698,12 @@ export class WorkCoordination {
     let deviation: PlanDeviation | undefined;
     const committed = await this.ports.commitFinding(({ history, state }) => {
       if (eventsOf(history.events, 'plan-deviation-recorded').some(event => event.data.request === request)) return { stale: `${request} is already answered with a deviation` };
+      held = eventsOf(history.events, 'plan-deviation-recorded').length >= this.deviationLimit();
+      if ((eventsOf(history.events, 'plan-deviation-recorded').some(event => event.data.deviation === id)
+        || eventsOf(history.events, 'nonfunctional-deviations-recorded').some(event => event.data.deviations.some(entry => entry.deviation === id))))
+        return { stale: `deviation.deviationKey ${id} conflicts with an accepted plan deviation; propose another descriptive name` };
       const record = planDeviationSchema.parse({
-        schema: 'ramify-agent.plan-deviation/1',
+        schema: 'ramify-agent.plan-deviation/2',
         id,
         request,
         workItem: item.id,
@@ -2650,12 +2720,12 @@ export class WorkCoordination {
         workItems,
         modules,
         scenarios,
-        checkFinding: nextCheckFinding(state),
+        checkFinding: body.findingKey.slice('draft:'.length),
         held,
       } satisfies PlanDeviation);
       deviation = record;
       return {
-        commands: deviationCommands(state, record),
+        commands: deviationCommands(record),
         compose: decided => ({
           event: {
             type: 'plan-deviation-recorded',
@@ -2666,6 +2736,10 @@ export class WorkCoordination {
       };
     }, this.ports.now());
     if (committed.kind === 'refused' && committed.refusal.reason === 'run-ended') return null;
+    if (committed.kind === 'refused' && (committed.refusal.reason === 'stale-basis'
+      || (committed.refusal.reason === 'check-finding' && committed.refusal.rejection.code === 'finding-name-conflict'))) {
+      return { kind: 'retry', field: committed.refusal.reason === 'check-finding' ? 'deviation.findingKey' : 'deviation.deviationKey', reason: committed.refusal.message };
+    }
     if (committed.kind !== 'committed' || deviation === undefined) {
       await this.ports.fail('internal', `Plan deviation ${id} of ${request} could not be recorded: ${committed.kind === 'refused' ? committed.refusal.message : 'it was already recorded'}`);
       return null;
@@ -2688,24 +2762,26 @@ export class WorkCoordination {
     request: UnresolvedRequest,
     invocation: string,
     body: EnvironmentBody,
-  ): Promise<UnresolvedResolution | null> {
-    const id = environmentProblemId(this.events('environment-reported').length + 1);
+  ): Promise<UnresolvedResolution | 'retry-name' | null> {
+    const id = body.problemKey.slice('draft:'.length);
     let problem: EnvironmentProblem | undefined;
     const committed = await this.ports.commitFinding(({ history, state }) => {
       if (eventsOf(history.events, 'environment-reported').some(event => event.data.request === request.id)) return { stale: `${request.id} is already answered with an environment problem` };
+      if (eventsOf(history.events, 'environment-reported').some(event => event.data.problem === id)) return { stale: `${id} is already an accepted environment problem in this run` };
       const record = environmentProblemSchema.parse({
-        schema: 'ramify-agent.environment-problem/1',
+        schema: 'ramify-agent.environment-problem/2',
         id,
         request: request.id,
         workItem: item.id,
         invocation,
         diagnosis: body.diagnosis,
         suggestion: body.suggestion,
-        checkFinding: nextCheckFinding(state),
-      } satisfies EnvironmentProblem);
+        findingKey: body.findingKey,
+        checkFinding: body.findingKey.slice('draft:'.length),
+      });
       problem = record;
       return {
-        commands: environmentCommands(state, record, request, item.module),
+        commands: environmentCommands(record, request, item.module),
         compose: decided => ({
           event: {
             type: 'environment-reported',
@@ -2716,6 +2792,20 @@ export class WorkCoordination {
       };
     }, this.ports.now());
     if (committed.kind === 'refused' && committed.refusal.reason === 'run-ended') return null;
+    if (committed.kind === 'refused') {
+      const refusal = committed.refusal;
+      const field = refusal.reason === 'stale-basis' && refusal.message.includes(id)
+        ? 'problemKey'
+        : refusal.reason === 'check-finding' && refusal.rejection.code === 'finding-name-conflict'
+          ? 'findingKey' : null;
+      if (field !== null) {
+        await this.ports.write({ type: 'fork-name-rejected', data: {
+          request: request.id, invocation, field, message: refusal.message,
+        } });
+        await this.ports.afterWrite('fork-name-rejected', this.input.record.jobId);
+        return 'retry-name';
+      }
+    }
     if (committed.kind !== 'committed' || problem === undefined) {
       await this.ports.fail('internal', `Environment problem ${id} of ${request.id} could not be recorded: ${committed.kind === 'refused' ? committed.refusal.message : 'it was already recorded'}`);
       return null;
@@ -3000,7 +3090,7 @@ export class WorkCoordination {
     readonly externalCapabilities?: IterationAssignment['externalCapabilities'] | undefined;
     readonly revisesContract?: RecordRef | undefined;
   }): Promise<IterationAssignment> {
-    return iterationAssignmentOf(this.projectRoot, input,
+    return iterationAssignmentOf(this.projectRoot, { ...input,  },
       { scenarioFiles: await this.guardedScenarioFiles(), preparationPaths: await this.auditPreparationPaths() });
   }
 
@@ -3092,7 +3182,7 @@ export class WorkCoordination {
     for (const local of submission.localDecisions) {
       decided += 1;
       const accepted = acceptDecision({
-        id: localDecisionId(item.id, decided),
+        id: local.decisionKey.slice('draft:'.length),
         authority: 'local',
         request: null,
         workItem: item.id,
@@ -3135,7 +3225,7 @@ export class WorkCoordination {
         // The agreement in force names where its fake is held; the revision
         // rewrites the fake where it is.
         injectionSites: [...committed.requirements.values()]
-          .filter(requirement => contractOfObligation(requirement.obligation) === revised.id)
+          .filter(requirement => committed.obligations.get(requirement.obligation)?.contract.id === revised.id)
           .flatMap(requirement => requirement.evidence.fakeInjections),
         rationale: `The revision of ${revised.id}: the contract, its conformance suite, its fake, the files that hold it and this consumer's integration. ${body.scope.rationale}`,
       })
@@ -3157,6 +3247,7 @@ export class WorkCoordination {
     if (submission.outline !== undefined) {
       const revised = await this.ports.handling.reviseOutline({
         item, invocation, outline: submission.outline, hypothesesSeen: delivery?.data.refs ?? [],
+
       });
       if (revised === null) return null;
       if (revised.written) outlines = [...outlines, revised.outline];
@@ -3285,7 +3376,8 @@ export class WorkCoordination {
       bounds: this.observe().policy.limits,
       refresh: () => this.ports.refreshIndex(),
       index: () => this.observe().index,
-      submissions: { legalOutcomes: this.workflow === null ? ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'] : ['completion-proposed', 'partial', 'unsuitable', 'capability-needed'], completionOutcome: 'completion-proposed' },
+      submissions: { legalOutcomes: this.workflow === null ? ['completion-proposed', 'partial', 'unsuitable', 'contract-needed']
+        : ['completion-proposed', 'partial', 'unsuitable', 'capability-needed', 'contract-needed'], completionOutcome: 'completion-proposed' },
       ...options,
       outputPath: (kind, invocation, number) => this.path(kind === 'shell'
         ? runLayout.shellOutput(invocation, number)
@@ -3328,7 +3420,7 @@ export class WorkCoordination {
     const raw = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
     const { schema: _schema, ...body } = raw;
     const parsed = qualificationActionSchema.safeParse(body);
-    if (raw.schema !== 'ramify-agent.capability-qualification/1' || !parsed.success ||
+    if (raw.schema !== ('ramify-agent.capability-qualification/2') || !parsed.success ||
       parsed.data.request !== request.id || parsed.data.invocation !== request.invocation) {
       await this.ports.fail('recovery-exhausted', `Qualification of ${request.id} has an invalid accepted action`);
       return null;
@@ -3347,16 +3439,26 @@ export class WorkCoordination {
     contextPackage: WorkPackage | undefined,
     parent: { readonly session: SessionId | undefined; readonly point: string | undefined; readonly workingDirectory: string },
     existingRequest?: CapabilityRequest,
-  ): Promise<{ readonly kind: 'satisfied'; readonly guidance: string; readonly parent: { readonly session: SessionId; readonly point: string } } | { readonly kind: 'delegated' } | null> {
+  ): Promise<{ readonly kind: 'satisfied'; readonly guidance: string; readonly parent: { readonly session: SessionId; readonly point: string } }
+    | { readonly kind: 'retry-name'; readonly guidance: string } | { readonly kind: 'delegated' } | null> {
     if (this.workflow === null || !supportedCapabilityPolicy(this.observe().policy.version)) {
       await this.ports.fail('internal', 'A capability request reached a run without its captured workflow');
       return null;
     }
     this.ports.writer.requireSettled('A capability request cannot suspend an unsettled writer');
-    const requestId = existingRequest?.id ?? capabilityRequestId(this.observe().records.capabilityRequests.size + 1);
+    const correctionTask = suspended.need.revises === undefined ? undefined
+      : this.observe().records.capabilityTasks.get(suspended.need.revises.task);
+    if (existingRequest === undefined && suspended.need.revises !== undefined &&
+      (correctionTask?.parent.id !== item.id || !this.observe().records.capabilityHandbacks.has(correctionTask.id)
+        || this.observe().records.retirements.has(correctionTask.request) || this.observe().records.retirements.has(correctionTask.id))) {
+      await this.ports.fail('inputs-changed', `The correction task ${suspended.need.revises.task} is not an active accepted handback of ${item.id}`);
+      return null;
+    }
+    const requestId = existingRequest?.id ?? suspended.need.requestKey.slice('draft:'.length);
     const source = existingRequest?.source ?? await captureProvisionalSource({ git: this.git, sourceGit: this.options.provisionalSourceGit,
       projectRoot: this.projectRoot, runDirectory: this.input.directory, request: requestId,
       acceptedBase: this.accepted(), writerSettledBy: suspended.invocation,
+      invocationScoped: true,
       changedPaths: await this.git.changedPaths(this.projectRoot, this.accepted()),
     });
     if (existingRequest === undefined) {
@@ -3367,16 +3469,39 @@ export class WorkCoordination {
       ? { id: runLayout.capturedPlan, revision: 1, hash: sha256(await readFile(this.path(runLayout.capturedPlan))) }
       : { id: contextPackage.selection, revision: 1, hash: contextPackage.citation.hash };
     const request: CapabilityRequest = existingRequest ?? {
-      schema: 'ramify-agent.capability-request/1', id: requestId,
+      schema: 'ramify-agent.capability-request/2', id: requestId,
       parent: { kind: 'work-item', id: item.id }, assignment: assignment.id,
       invocation: suspended.invocation, consumer: item.module,
       requirementPackage: packageRef, continuation: { session: suspended.session, point: suspended.point || null },
-      source, summary: suspended.summary, original: identifyCapabilityNeed(requestId, suspended.need),
+      source, summary: suspended.summary, original: identifyCapabilityNeed(suspended.need),
     };
-    if (existingRequest === undefined) await this.ports.commitCapability({
+    const retiredRequest = correctionTask?.request;
+    if (existingRequest === undefined) try { await this.ports.commitCapability({
       type: 'capability-requested', data: { request: request.id, parent: item.id,
-        assignment: assignment.id, invocation: suspended.invocation },
-    }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
+        assignment: assignment.id, invocation: suspended.invocation,
+        ...(retiredRequest === undefined ? {} : { retiredRequest }) },
+    }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request },
+      ...(retiredRequest === undefined ? [] : [capabilityRetirement(retiredRequest, 'capability-request', request.id,
+        assignment.id, request.original.revises!.reason)])]); } catch (error) {
+      if (error instanceof CapabilityNameConflictError
+        && 'requestKey' in suspended.need) {
+        const current = this.observe().records;
+        const errors = capabilityNameErrors(suspended.need, {
+          requests: new Set(current.capabilityRequests.keys()),
+          examples: new Set([...current.capabilityRequests.values()].flatMap(entry => entry.original.examples.map(example => example.id))),
+        });
+        if (errors.length > 0) {
+          if (![...current.capabilityRequests.values()].some(accepted => accepted.source.snapshot === source.snapshot))
+            await unlink(this.path(source.snapshot)).catch(() => {});
+          return { kind: 'retry-name', guidance: `The serialized request acceptance refused this proposal. Correct the same task with a meaningful qualifier: ${errors.map(entry => `${entry.path}: ${entry.message}; expected ${entry.expected}`).join(' | ')}` };
+        }
+      }
+      if (error instanceof CapabilityNameConflictError && existingRequest === undefined
+        && ![...this.observe().records.capabilityRequests.values()].some(accepted => accepted.source.snapshot === source.snapshot))
+        await unlink(this.path(source.snapshot)).catch(() => {});
+      await this.ports.fail('invalid-submission', `Capability request ${request.id} was refused: ${message(error)}`);
+      return null;
+    }
 
     const local = packages.get('local-architect');
     if (local === undefined) {
@@ -3397,7 +3522,7 @@ export class WorkCoordination {
         literalSections: [
           { key: 'support:capability-request', text: `Original request: ${JSON.stringify(request, null, 2)}` },
           { key: 'support:work-item-package', text: contextPackage?.text ?? (await this.currentSelection(item.id))?.packageText
-            ?? this.planPackage(await this.frozenCatalog(), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs]) },
+            ?? this.planPackage(await this.frozenCatalog(), [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds]) },
         ] }, work: { workItem: item.id, request: request.id },
       attempt: this.events('invocation-started').filter(event => event.data.work.workItem === item.id && event.data.work.request === request.id).length + 1,
       loaded: local, systemPrompt: renderLocalArchitectPrompt(local, this.projectRoot, parent.workingDirectory),
@@ -3409,6 +3534,7 @@ export class WorkCoordination {
         `Registry clues: ${JSON.stringify(registry.map(entry => ({ capability: entry.capability, owner: entry.owner })))}`,
         'Read the actual exposed API and use sites. A matching name is not proof of sufficient behavior, and a missing name is not proof of absence.',
         'Submit satisfy-with-existing with concrete API evidence, delegate-capability with placement reasoning, request-placement, or unresolved.',
+        'For delegate-capability, propose taskKey draft:capability-task:<provider-behavior-name>. It resolves to an accepted task ID during ordinary delegation.',
         `Use request ${request.id} and invocation ${request.invocation} in the action.`,
         ...(returned === '' ? [] : [`# Boundary decision\n\n${returned}`]),
         ...(this.events('invocation-started').filter(event => event.data.work.request === request.id && event.data.role === 'local-architect').length >= 3
@@ -3425,12 +3551,20 @@ export class WorkCoordination {
       toolName: 'submit_capability_qualification',
       description: 'Qualify this exact request using current behavior and placement evidence.',
       inputSchema: z.toJSONSchema(qualificationActionSchema) as JsonSchema,
-      submissionSchema: 'ramify-agent.capability-qualification/1',
-      validate: input => {
+      submissionSchema: 'ramify-agent.capability-qualification/2',
+      validate: async input => {
         const parsed = validateAgainst(qualificationActionSchema, input);
         if (!parsed.ok) return parsed;
         if (parsed.value.request !== request.id || parsed.value.invocation !== request.invocation) {
           return { ok: false, errors: [{ path: 'request', message: 'The request or originating invocation is stale', expected: `${request.id} and ${request.invocation}` }] };
+        }
+        if (parsed.value.kind === 'delegate-capability'  ) {
+          const errors = capabilityRequirementErrors(parsed.value.requirementRefs, await this.frozenCatalog());
+          const taskId = parsed.value.taskKey?.slice('draft:'.length);
+          if (taskId !== undefined && this.observe().records.capabilityTasks.has(taskId)) errors.push({
+            path: 'taskKey', message: `"${taskId}" is already accepted or retired`, expected: 'an unused draft:capability-task:<name>',
+          });
+          if (errors.length > 0) return { ok: false, errors };
         }
         return parsed;
       },
@@ -3444,7 +3578,7 @@ export class WorkCoordination {
       const pending = qualification.value;
       if (pending.kind === 'request-placement') {
         const resolution = await this.requestPlacement(agent, packages, baseline, item, {
-          forCapability: request.id, question: pending.problem, requiredBehavior: request.original.need,
+          requestKey: pending.placementRequestKey, forCapability: request.id, question: pending.problem, requiredBehavior: request.original.need,
           findings: pending.evidence.map(text => ({ text, citations: [] })),
           candidates: request.original.suggestedProvider === undefined ? [] : [{ owner: request.original.suggestedProvider.module,
             note: request.original.suggestedProvider.reason }],
@@ -3461,7 +3595,8 @@ export class WorkCoordination {
       }
       if (pending.kind === 'unresolved') {
         const resolution = await this.resolveUnresolved(agent, packages, baseline, item, {
-          invocation: qualification.id, conflict: pending.problem, evidence: pending.evidence,
+          invocation: qualification.id, requestKey: pending.unresolvedRequestKey,
+          conflict: pending.problem, evidence: pending.evidence,
         }, this.events('unresolved-requested').find(event => event.data.invocation === qualification!.id)?.data.request);
         if (resolution === null) return null;
         returned = `The responsible plan architect answered the unresolved request: ${JSON.stringify(resolution)}`;
@@ -3470,8 +3605,6 @@ export class WorkCoordination {
         qualification = undefined;
         continue;
       }
-      break;
-    }
     if (qualification?.value === undefined ||
       (qualification.value.kind !== 'satisfy-with-existing' && qualification.value.kind !== 'delegate-capability')) {
       await this.ports.fail('internal', `Qualification of ${request.id} produced no final decision`);
@@ -3495,10 +3628,10 @@ export class WorkCoordination {
       await this.ports.fail('inputs-changed', `Revision request ${request.id} names no accepted handback of ${item.id}: ${request.original.revises.task}`);
       return null;
     }
-    const taskId = capabilityTaskId(records.capabilityTasks.size + 1);
+    const taskId = decision.taskKey.slice('draft:'.length);
     const providerItems = records.workItems.filter(entry => entry.module === decision.provider);
     const task: CapabilityTask = {
-      schema: 'ramify-agent.capability-task/1', id: taskId, request: request.id,
+      schema: 'ramify-agent.capability-task/2', id: taskId, request: request.id,
       parent: request.parent, originatingAssignment: assignment.id, consumer: item.module,
       provider: decision.provider, placementReason: decision.placementReason,
       authority: [
@@ -3513,7 +3646,7 @@ export class WorkCoordination {
       limits: captureCapabilityLimits(this.observe().policy),
     };
     let plan: CapabilityPlan = {
-      schema: 'ramify-agent.capability-plan/1', task: task.id, revision: 1, basedOn: 0,
+      schema: 'ramify-agent.capability-plan/2', task: task.id, revision: 1, basedOn: 0,
       updatedBy: qualification.id, revisionReason: 'Initial qualified request',
       need: request.original.need, proposedInterface: 'Undecided; the capability architect examines actual source and use',
       useCases: request.original.examples.map(example => ({ id: example.id, expectedBehavior: example.title, derivedFrom: [example.id] })),
@@ -3523,13 +3656,27 @@ export class WorkCoordination {
       openQuestions: [], requirementRefs: [...decision.requirementRefs],
       originalExamples: request.original.examples.map(example => example.id),
     };
-    await this.ports.commitCapability({
+    try { await this.ports.commitCapability({
       type: 'capability-delegated', data: { task: task.id, request: request.id, parent: item.id,
-        invocation: qualification.id, planRevision: 1 },
+        invocation: qualification.id, planRevision: 1,
+        ...(request.original.revises !== undefined ? { retiredTask: request.original.revises.task } : {}) },
     }, [
       { path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
       { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
-    ]);
+      ...(request.original.revises !== undefined
+        ? [capabilityRetirement(request.original.revises.task, 'capability-task', task.id, assignment.id, request.original.revises.reason)] : []),
+    ]); } catch (error) {
+      const current = this.observe().records;
+      if (error instanceof CapabilityNameConflictError   && decision.taskKey !== undefined
+        && (current.capabilityTasks.has(taskId) || current.retirements.has(taskId))) {
+        returned = `The serialized delegation refused taskKey: "${decision.taskKey}" resolves to ${taskId}, already accepted or retired. Propose an unused draft:capability-task:<name> with a meaningful qualifier in this same qualification task.`;
+        point = qualification.ref || undefined;
+        parentSession = qualification.kept ? qualification.session : undefined;
+        qualification = undefined;
+        continue;
+      }
+      throw error;
+    }
 
     // The provider entry's recorded decisions belong in the fresh briefing.
     // It receives the selected source package whole, while its own transcript
@@ -3548,8 +3695,8 @@ export class WorkCoordination {
       const expanded = await this.selectElements(agent, selector, item, {
         catalog, planDeviations: this.planDeviationsOf(),
         workItemElements: [...new Set([
-          ...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs,
-          ...providerItems.flatMap(entry => [...entry.requirementRefs, ...entry.acceptanceRefs, ...entry.contextRefs]),
+          ...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds,
+          ...providerItems.flatMap(entry => [...entry.functionalRequirementIds, ...entry.functionalAcceptanceIds, ...entry.contextIds]),
         ])],
       }, {
         packet: [
@@ -3576,6 +3723,7 @@ export class WorkCoordination {
     // Qualification advanced this exact local action session. Hand its accepted
     // point back explicitly; the earlier context checkpoint remains fork authority.
     return coordinated?.kind === 'satisfied' ? { ...coordinated, parent: { session: qualification.session, point: qualification.ref } } : coordinated;
+    }
   }
 
   /** Drives one delegated task; the same path is used for a nested child. */
@@ -3816,13 +3964,14 @@ export class WorkCoordination {
     } else if (chosen.kind === 'request-placement' || chosen.kind === 'unresolved') {
       const resolution = chosen.kind === 'request-placement'
         ? await this.requestPlacement(agent, packages, baseline, item, {
-          forCapability: task.id, question: chosen.problem, requiredBehavior: plan.need,
+          requestKey: chosen.placementRequestKey, forCapability: task.id, question: chosen.problem, requiredBehavior: plan.need,
           findings: chosen.evidence.map(text => ({ text, citations: [] })),
           candidates: [{ owner: task.provider, note: task.placementReason }], unresolved: [chosen.problem],
           hypotheses: [], localDecisions: [],
         })
         : await this.resolveUnresolved(agent, packages, baseline, item, {
-          invocation: action.id, conflict: chosen.problem, evidence: chosen.evidence,
+          invocation: action.id, requestKey: chosen.unresolvedRequestKey,
+          conflict: chosen.problem, evidence: chosen.evidence,
         });
       if (resolution === null) return null;
       progress = `Boundary decision returned to capability task ${task.id}: ${JSON.stringify(resolution)}`;
@@ -3859,9 +4008,8 @@ export class WorkCoordination {
     existingExchange?: CapabilityExchange,
   ): Promise<{ readonly exchange: CapabilityExchange; readonly point: string; readonly session: SessionId } | null> {
     this.ports.writer.requireSettled('Consumer consultation requires a settled writer');
-    const existing = this.observe().records.capabilityExchanges.size;
-    const id = existingExchange?.id ?? `${task.id}-ex${String(existing + 1).padStart(2, '0')}`;
-    const exchange: CapabilityExchange = existingExchange ?? { schema: 'ramify-agent.capability-exchange/1', id,
+    const id = existingExchange?.id ?? action.exchangeKey.slice('draft:'.length);
+    const exchange: CapabilityExchange = existingExchange ?? { schema: 'ramify-agent.capability-exchange/2', id,
       task: task.id, request: request.id, planRevision: plan.revision, question: action.question,
       references: [...action.references], answer: null };
     if (existingExchange === undefined) await this.ports.commitCapability({
@@ -3964,7 +4112,7 @@ export class WorkCoordination {
       const body = this.ports.committedBody(reviewLayout.request(entry.id));
       return body === undefined ? [] : [refOf(entry.id, 1, body)];
     });
-    const handback = { schema: 'ramify-agent.capability-handback/1' as const, task: task.id, request: request.id,
+    const handback = { schema: 'ramify-agent.capability-handback/2' as const, task: task.id, request: request.id,
       plan: refOf(task.id, plan.revision, plan), sourceRevision: gate.audited, returnedTree: tree,
       deltaFromSuspension: delta.map(change => change.path), summary: action.summary,
       interfaces: action.interfaces, compatibility: [...plan.compatibility],
@@ -4030,34 +4178,63 @@ export class WorkCoordination {
     coordinator: { readonly point: string | undefined; readonly session: SessionId | undefined },
     existingRequest?: CapabilityRequest,
   ): Promise<{ readonly guidance: string; readonly coordinatorPoint: string; readonly coordinatorSession: SessionId;
-    readonly coordinatorInvocation: string } | null> {
+    readonly coordinatorInvocation: string } | { readonly kind: 'retry-name'; readonly guidance: string } | null> {
     if (suspended.ended !== 'submitted' || suspended.value?.kind !== 'capability-needed') {
       await this.ports.fail('invalid-submission', `Nested need from ${assignment.id} has no retained requesting module engineer`);
       return null;
     }
     const assignmentOwner = 'module' in assignment.scope.base ? assignment.scope.base.module : parentTask.consumer;
     this.ports.writer.requireSettled(`Nested request from ${assignment.id} cannot suspend an unsettled writer`);
-    const requestId = existingRequest?.id ?? capabilityRequestId(this.observe().records.capabilityRequests.size + 1);
+    const correctionTask = suspended.value.request.revises === undefined ? undefined
+      : this.observe().records.capabilityTasks.get(suspended.value.request.revises.task);
+    if (existingRequest === undefined && suspended.value.request.revises !== undefined &&
+      (correctionTask?.parent.id !== parentTask.id || !this.observe().records.capabilityHandbacks.has(correctionTask.id)
+        || this.observe().records.retirements.has(correctionTask.request) || this.observe().records.retirements.has(correctionTask.id))) {
+      await this.ports.fail('inputs-changed', `The nested correction task ${suspended.value.request.revises.task} is not an active accepted handback of ${parentTask.id}`);
+      return null;
+    }
+    const requestId = existingRequest?.id ?? suspended.value.request.requestKey.slice('draft:'.length);
     const source = existingRequest?.source ?? await captureProvisionalSource({ git: this.git, sourceGit: this.options.provisionalSourceGit, projectRoot: this.projectRoot, runDirectory: this.input.directory,
       request: requestId, acceptedBase: this.accepted(), writerSettledBy: suspended.id,
+      invocationScoped: true,
       changedPaths: await this.git.changedPaths(this.projectRoot, this.accepted()) });
     if (existingRequest === undefined) {
       await this.ports.afterWrite('capability-source-captured', this.input.record.jobId);
       if (this.ports.ignoring()) return null;
     }
-    const request: CapabilityRequest = existingRequest ?? { schema: 'ramify-agent.capability-request/1', id: requestId,
+    const request: CapabilityRequest = existingRequest ?? { schema: 'ramify-agent.capability-request/2', id: requestId,
       parent: { kind: 'capability-task', id: parentTask.id }, assignment: assignment.id,
       invocation: suspended.id, consumer: assignmentOwner,
       requirementPackage: refOf(parentTask.id, parentPlan.revision, parentPlan),
       continuation: { session: suspended.session, point: suspended.ref || null }, source,
-      summary: suspended.value.summary, original: identifyCapabilityNeed(requestId, suspended.value.request) };
+      summary: suspended.value.summary, original: identifyCapabilityNeed(suspended.value.request) };
     try {
       if (existingRequest === undefined) {
+      const retiredRequest = correctionTask?.request;
       await this.ports.commitCapability({ type: 'capability-requested', data: {
         request: request.id, parent: parentTask.id, assignment: assignment.id, invocation: suspended.id,
-      } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
+        ...(retiredRequest === undefined ? {} : { retiredRequest }),
+      } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request },
+        ...(retiredRequest === undefined ? [] : [capabilityRetirement(retiredRequest, 'capability-request', request.id,
+          assignment.id, request.original.revises!.reason)])]);
       }
     } catch (error) {
+      if (error instanceof CapabilityNameConflictError && existingRequest === undefined
+        && 'requestKey' in suspended.value.request) {
+        const current = this.observe().records;
+        const errors = capabilityNameErrors(suspended.value.request, {
+          requests: new Set(current.capabilityRequests.keys()),
+          examples: new Set([...current.capabilityRequests.values()].flatMap(entry => entry.original.examples.map(example => example.id))),
+        });
+        if (errors.length > 0) {
+          if (![...current.capabilityRequests.values()].some(accepted => accepted.source.snapshot === source.snapshot))
+            await unlink(this.path(source.snapshot)).catch(() => {});
+          return { kind: 'retry-name', guidance: `The serialized nested request acceptance refused this proposal. Correct the same task with a meaningful qualifier: ${errors.map(entry => `${entry.path}: ${entry.message}; expected ${entry.expected}`).join(' | ')}` };
+        }
+      }
+      if (error instanceof CapabilityNameConflictError && existingRequest === undefined
+        && ![...this.observe().records.capabilityRequests.values()].some(accepted => accepted.source.snapshot === source.snapshot))
+        await unlink(this.path(source.snapshot)).catch(() => {});
       await this.ports.fail('unresolvable-requirement', `Nested need ${request.id} could not be recorded: ${message(error)}`);
       return null;
     }
@@ -4090,6 +4267,7 @@ export class WorkCoordination {
       prompt: [`# Qualify nested request ${request.id}`, `Parent task ${parentTask.id} waits with ${assignment.id} unfinished.`,
         `Complete request ${request.id} is in support:capability-request; current parent plan is in support:capability-plan.`,
         `Use request ${request.id} and invocation ${suspended.id} in the action.`,
+        'For delegation propose taskKey draft:capability-task:<provider-behavior-name>.',
         'Inspect the actual API and use. Satisfy with existing behavior or delegate a fresh child; matching module names do not establish reuse.',
         ...(returned === '' ? [] : [`# Boundary decision\n\n${returned}`]),
         ...(this.events('invocation-started').filter(event => event.data.work.request === request.id && event.data.role === 'capability-architect').length >= 3
@@ -4100,11 +4278,20 @@ export class WorkCoordination {
         : { session: session!, continuing: 'capability-coordination' as const }),
       toolName: 'submit_capability_qualification', description: 'Qualify this nested need under the parent task.',
       inputSchema: z.toJSONSchema(qualificationActionSchema) as JsonSchema,
-      submissionSchema: 'ramify-agent.capability-qualification/1',
-      validate: input => { const checked = validateAgainst(qualificationActionSchema, input);
+      submissionSchema: 'ramify-agent.capability-qualification/2',
+      validate: async input => { const checked = validateAgainst(qualificationActionSchema, input);
         if (!checked.ok) return checked;
-        return checked.value.request === request.id && checked.value.invocation === suspended.id ? checked
-          : { ok: false, errors: [{ path: 'request', message: 'The nested request basis is stale', expected: `${request.id} and ${suspended.id}` }] }; },
+        if (checked.value.request !== request.id || checked.value.invocation !== suspended.id)
+          return { ok: false, errors: [{ path: 'request', message: 'The nested request basis is stale', expected: `${request.id} and ${suspended.id}` }] };
+        if (checked.value.kind === 'delegate-capability'  ) {
+          const errors = capabilityRequirementErrors(checked.value.requirementRefs, await this.frozenCatalog());
+          const taskId = checked.value.taskKey?.slice('draft:'.length);
+          if (taskId !== undefined && this.observe().records.capabilityTasks.has(taskId)) errors.push({
+            path: 'taskKey', message: `"${taskId}" is already accepted or retired`, expected: 'an unused draft:capability-task:<name>',
+          });
+          if (errors.length > 0) return { ok: false, errors };
+        }
+        return checked; },
       scope: { write: null, measurement: null, size: null }, keep: () => kept,
       equip: () => ({ builtinTools: ['read', 'grep', 'ls'], tools: [] }),
     });
@@ -4116,13 +4303,14 @@ export class WorkCoordination {
       const pending = qualification.value;
       const resolution = pending.kind === 'request-placement'
         ? await this.requestPlacement(agent, packages, baseline, item, {
-          forCapability: request.id, question: pending.problem, requiredBehavior: request.original.need,
+          requestKey: pending.placementRequestKey, forCapability: request.id, question: pending.problem, requiredBehavior: request.original.need,
           findings: pending.evidence.map(text => ({ text, citations: [] })),
           candidates: [{ owner: parentTask.provider, note: parentTask.placementReason }],
           unresolved: [pending.problem], hypotheses: [], localDecisions: [],
         }, this.events('placement-requested').find(event => event.data.capability === request.id)?.data.request)
         : await this.resolveUnresolved(agent, packages, baseline, item, {
-          invocation: qualification.id, conflict: pending.problem, evidence: pending.evidence,
+          invocation: qualification.id, requestKey: pending.unresolvedRequestKey,
+          conflict: pending.problem, evidence: pending.evidence,
         }, this.events('unresolved-requested').find(event => event.data.invocation === qualification!.id)?.data.request);
       if (resolution === null) return null;
       returned = `The responsible plan architect answered the nested boundary request: ${JSON.stringify(resolution)}`;
@@ -4130,8 +4318,6 @@ export class WorkCoordination {
       session = qualification.kept ? qualification.session : undefined;
       qualification = undefined;
       continue;
-    }
-    break;
     }
     if (qualification?.value === undefined ||
       (qualification.value.kind !== 'satisfy-with-existing' && qualification.value.kind !== 'delegate-capability')) {
@@ -4148,16 +4334,22 @@ export class WorkCoordination {
         coordinatorInvocation: qualification.id };
     }
     const records = this.observe().records;
-    const taskId = capabilityTaskId(records.capabilityTasks.size + 1);
+    const taskId = decision.taskKey.slice('draft:'.length);
+    const priorHandback = request.original.revises === undefined ? undefined : records.capabilityHandbacks.get(request.original.revises.task);
     const providerItems = records.workItems.filter(entry => entry.module === decision.provider);
-    const child: CapabilityTask = { schema: 'ramify-agent.capability-task/1', id: taskId, request: request.id,
+    const child: CapabilityTask = { schema: 'ramify-agent.capability-task/2', id: taskId, request: request.id,
       parent: request.parent, originatingAssignment: assignment.id, consumer: assignmentOwner,
       provider: decision.provider, placementReason: decision.placementReason,
       authority: [{ owner: assignmentOwner, reason: 'Requesting consumer integration and task-local architecture' },
         ...(decision.provider === assignmentOwner ? [] : [{ owner: decision.provider, reason: decision.placementReason }])],
       relatedEntries: providerItems.map(entry => ({ entry: entry.id, reason: 'Provider entry remains separate from this task' })),
-      deferredWorkItems: providerItems.map(entry => entry.id), source, limits: captureCapabilityLimits(this.observe().policy) };
-    const plan: CapabilityPlan = { schema: 'ramify-agent.capability-plan/1', task: child.id, revision: 1, basedOn: 0,
+      deferredWorkItems: providerItems.map(entry => entry.id), source,
+      ...(priorHandback === undefined || request.original.revises === undefined ? {} : { revises: {
+        handback: refOf(priorHandback.task, 1, priorHandback), sourceRevision: priorHandback.sourceRevision,
+        reason: request.original.revises.reason,
+      } }),
+      limits: captureCapabilityLimits(this.observe().policy) };
+    const plan: CapabilityPlan = { schema: 'ramify-agent.capability-plan/2', task: child.id, revision: 1, basedOn: 0,
       updatedBy: qualification.id, revisionReason: 'Initial nested request', need: request.original.need,
       proposedInterface: 'Undecided; inspect actual source and consumer use',
       useCases: request.original.examples.map(example => ({ id: example.id, expectedBehavior: example.title, derivedFrom: [example.id] })),
@@ -4166,12 +4358,26 @@ export class WorkCoordination {
       decisions: [{ decision: `Coordinate in ${decision.provider}`, reason: decision.placementReason,
         evidence: [...decision.requirementRefs] }], openQuestions: [], requirementRefs: [...decision.requirementRefs],
       originalExamples: request.original.examples.map(example => example.id) };
-    await this.ports.commitCapability({ type: 'capability-delegated', data: {
+    try { await this.ports.commitCapability({ type: 'capability-delegated', data: {
       task: child.id, request: request.id, parent: parentTask.id, invocation: qualification.id, planRevision: 1,
+      ...(request.original.revises !== undefined ? { retiredTask: request.original.revises.task } : {}),
     } }, [
       { path: capabilityLayout.task(child.id), id: child.id, revision: 1, body: child },
       { path: capabilityLayout.plan(child.id, 1), id: child.id, revision: 1, body: plan },
-    ]);
+      ...(request.original.revises !== undefined
+        ? [capabilityRetirement(request.original.revises.task, 'capability-task', child.id, assignment.id, request.original.revises.reason)] : []),
+    ]); } catch (error) {
+      const current = this.observe().records;
+      if (error instanceof CapabilityNameConflictError   && decision.taskKey !== undefined
+        && (current.capabilityTasks.has(taskId) || current.retirements.has(taskId))) {
+        returned = `The serialized nested delegation refused taskKey: "${decision.taskKey}" resolves to ${taskId}, already accepted or retired. Propose an unused draft:capability-task:<name> with a meaningful qualifier in this same qualification task.`;
+        point = qualification.ref || undefined;
+        session = qualification.kept ? qualification.session : undefined;
+        qualification = undefined;
+        continue;
+      }
+      throw error;
+    }
     const providerDecisions = [...records.decisions.values()].filter(entry => entry.owner === decision.provider);
     const selected = new TextDecoder().decode(await readFile(this.path(runLayout.capturedPlan)));
     const childItem = records.workItems.find(entry => entry.module === assignmentOwner) ?? item;
@@ -4180,6 +4386,7 @@ export class WorkCoordination {
     if (result === null || result.kind !== 'satisfied') return null;
     return { guidance: result.guidance, coordinatorPoint: qualification.ref, coordinatorSession: qualification.session,
       coordinatorInvocation: qualification.id };
+    }
   }
 
   /** Capability tasks issue the same durable assignment and use the same
@@ -4286,13 +4493,18 @@ export class WorkCoordination {
           this.observe().history.events.findIndex(event => event.type === 'invocation-started' && event.data.invocation === request.invocation)));
       if (pending !== undefined) {
         const raw = await readIfExists(this.path(runLayout.submission(pending.invocation)));
-        const parsed = raw === undefined ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(JSON.parse(raw.toString('utf8')) as Record<string, unknown>));
-        if (!parsed?.success || parsed.data.kind !== 'capability-needed') {
+        let parsed: EngineerSubmission | undefined;
+        try { if (raw !== undefined) parsed = parseRecordedEngineerSubmission(JSON.parse(raw.toString('utf8'))); }
+        catch (error) {
+          await this.ports.fail('recovery-exhausted', `Nested request ${pending.id} has an invalid recorded engineer submission: ${message(error)}`);
+          return null;
+        }
+        if (parsed?.kind !== 'capability-needed') {
           await this.ports.fail('recovery-exhausted', `Nested request ${pending.id} cannot recover its engineer continuation`);
           return null;
         }
         const suspended: InvocationResult<EngineerSubmission> = {
-          id: pending.invocation, ended: 'submitted', value: parsed.data,
+          id: pending.invocation, ended: 'submitted', value: parsed,
           ref: pending.continuation.point ?? '', session: pending.continuation.session, kept: true, outcomeKind: 'submitted',
         };
         const childId = replayCapabilityState(this.observe().history.events).requests.get(pending.id)?.task;
@@ -4304,7 +4516,7 @@ export class WorkCoordination {
           const nested = await this.coordinateNestedCapability(agent, packages, baseline, item, task, plan,
             assignment, suspended, coordinator, pending);
           if (nested === null) return null;
-          coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
+          if (!('kind' in nested)) coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
             invocation: nested.coordinatorInvocation };
           guidance = nested.guidance;
         }
@@ -4322,7 +4534,7 @@ export class WorkCoordination {
       const nested = await this.coordinateNestedCapability(agent, packages, baseline, item, task, plan,
         assignment, suspended, coordinatorAfterNested ?? coordinator);
       if (nested === null) return null;
-      coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
+      if (!('kind' in nested)) coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
         invocation: nested.coordinatorInvocation };
       outcome = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
         session: outcome.session, point: outcome.point, priorInvocation: outcome.invocation, guidance: nested.guidance,
@@ -4451,7 +4663,7 @@ export class WorkCoordination {
       return null;
     }
     const reported = this.events('revision-needed')
-      .filter(event => contractOfObligation(event.data.obligation.id) === contract.id)
+      .filter(event => this.observe().records.obligations.get(event.data.obligation.id)?.contract.id === contract.id)
       .at(-1);
     const report = reported === undefined
       ? undefined
@@ -4571,7 +4783,7 @@ export class WorkCoordination {
     // A contract iteration inherits its requester's assignment package by
     // record: the same elements, deviations and hash.
     const assignment = iterationAssignmentSchema.parse({
-      schema: 'ramify-agent.iteration-assignment/1',
+      schema: 'ramify-agent.iteration-assignment/2',
       id,
       workItem: item.id,
       outline: refOf(item.id, outline.revision, outline),
@@ -4741,6 +4953,43 @@ export class WorkCoordination {
       });
       const index = await this.ports.refreshIndex();
 
+      const identityRecords = this.observe().records;
+      const acceptedAgreement = assignment.revisesContract === undefined
+        ? [...identityRecords.contracts.values()].find(record => record.capability.id === subject.capability && record.provider === subject.provider)
+        : identityRecords.contracts.get(assignment.revisesContract.id);
+      const acceptedObligation = acceptedAgreement === undefined ? undefined
+        : [...identityRecords.obligations.values()].find(record => record.contract.id === acceptedAgreement.id);
+      const agreementRequirements = acceptedObligation === undefined ? []
+        : [...identityRecords.requirements.values()].filter(record => record.obligation === acceptedObligation.id);
+      const currentBindings = this.bindingsOf();
+      const ownAcceptedRequirement = acceptedAgreement === undefined || assignment.revisesContract === undefined ? undefined
+        : agreementRequirements.find(record =>
+          (currentBindings.get(bindingKey(record.id, record.revision)) ?? record.workItem) === item.id);
+      const conversionBlockers: string[] = [];
+      if (assignment.revisesContract !== undefined && acceptedAgreement?.mode === 'fake-backed') {
+        if (acceptedObligation === undefined || !this.events('provider-conformed').some(event =>
+          event.data.obligation === acceptedObligation.id && event.data.revision === acceptedObligation.revision))
+          conversionBlockers.push(`provider obligation ${acceptedObligation?.id ?? '<missing>'} has not conformed at its current revision`);
+        const providerWork = acceptedObligation === undefined ? undefined
+          : providerItemOf(identityRecords.workItems, acceptedObligation.id, acceptedObligation.revision, currentBindings);
+        if (providerWork === undefined) conversionBlockers.push('the current provider obligation has no bound provider work item');
+        else if (!this.events('work-item-completed').some(event => event.data.workItem === providerWork.id))
+          conversionBlockers.push(`provider work item ${providerWork.id} has not completed`);
+        for (const requirement of agreementRequirements) {
+          if (!this.events('requirement-verified').some(event =>
+            event.data.requirement === requirement.id && event.data.revision === requirement.revision))
+            conversionBlockers.push(`consumer requirement ${requirement.id} has not been verified at its current revision`);
+        }
+      }
+      const identity: ContractIdentityContext = acceptedAgreement === undefined ? { kind: 'fresh' }
+        : assignment.revisesContract === undefined
+          ? { kind: 'attach', contractId: acceptedAgreement.id, providerObligationId: acceptedObligation?.id ?? null, provider: acceptedAgreement.provider }
+          : { kind: 'revise', contractId: acceptedAgreement.id, providerObligationId: acceptedObligation?.id ?? null,
+            consumerRequirementId: ownAcceptedRequirement?.id ?? null, provider: acceptedAgreement.provider,
+            mode: acceptedAgreement.mode, consumerWorkItem: item.id,
+            consumerRequirements: agreementRequirements.map(record => ({ id: record.id,
+              workItem: currentBindings.get(bindingKey(record.id, record.revision)) ?? record.workItem })),
+            conversionBlockers };
       // The requester's assignment package reaches the session once.
       let assignmentPackage: string | undefined;
       try {
@@ -4761,6 +5010,8 @@ export class WorkCoordination {
         systemPrompt,
         prompt: contractMessage({
           assignment,
+
+          identity,
           projectRoot: this.projectRoot,
           base: this.accepted(),
           ...(subject.need === undefined ? {} : { need: subject.need }),
@@ -4783,13 +5034,31 @@ export class WorkCoordination {
         },
         toolName: contractToolName,
         description: 'End your turn with the result of this contract iteration. The harness validates it; an invalid submission is returned with every error and its path, and a valid one ends this invocation.',
-        inputSchema: contractJsonSchema,
-        submissionSchema: 'ramify-agent.contract-submission/2',
-        validate: input => validateContract(input, {
+        inputSchema: contractAuthorJsonSchema(identity),
+        submissionSchema: 'ramify-agent.contract-submission/3',
+        validate: async input => {
+          const checked = await validateContract(input, {
           index,
           consumer: item.module,
               exists: (path: string) => stat(join(this.projectRoot, path)).then(found => found.isFile(), () => false),
-        }),
+          }, identity);
+          if (!checked.ok || checked.value.kind !== 'established') return checked;
+          const submission = checked.value;
+          const current = this.observe().records;
+          const occupied = new Map<string, string>([
+            ...[...current.contracts.keys()].map(id => [id, 'has an accepted contract'] as const),
+            ...[...current.obligations.keys()].map(id => [id, 'has an accepted provider obligation'] as const),
+            ...[...current.requirements.keys()].map(id => [id, 'has an accepted consumer requirement'] as const),
+            ...[...current.retirements.keys()].map(id => [id, 'has a retired execution identity'] as const),
+          ]);
+          const retainedContract = subject.revision === undefined
+            ? [...current.contracts.values()].find(record => record.capability.id === subject.capability && record.provider === submission.provider)
+            : current.contracts.get(subject.revision.contract);
+          const retained = new Set<string>(retainedContract === undefined ? [] : [retainedContract.id,
+            ...[...current.obligations.values()].filter(record => record.contract.id === retainedContract.id).map(record => record.id)]);
+          const errors = contractIdentityErrors(submission, occupied);
+          return errors.length === 0 ? checked : { ok: false, errors };
+        },
         scope: {
           write: assignment.scope.revision,
           measurement: this.input.record.baseline && 'measurement' in this.input.record.baseline ? this.input.record.baseline.measurement : null,
@@ -4864,7 +5133,17 @@ export class WorkCoordination {
       if (gate === null) return null;
 
       if (gate.verdict === 'passed') {
-        const registration = await this.registerAgreement(item, assignment, gate.id, established);
+        let registration: Awaited<ReturnType<typeof this.registerAgreement>>;
+        try { registration = await this.registerAgreement(item, assignment, gate.id, established); }
+        catch (error) {
+          if (!(error instanceof ContractPublicationError)) throw error;
+          findings.push(`the accepted agreement name collided with an intervening publication: ${error.message}`);
+          const closed = await this.ports.handling.closeIteration(item, subject.number, assignment, {
+            outcome: 'partial', invocations, findings, gate: gate.id, commit: gate.audited,
+          });
+          await this.ports.finishSession(session, 'work-closed');
+          return this.ports.ignoring() ? null : { findings, result: closed };
+        }
         if (registration === null) return null;
         findings.push(...registration.findings);
         const closed = await this.ports.handling.closeIteration(item, subject.number, assignment, {
@@ -4996,12 +5275,14 @@ export class WorkCoordination {
       await this.ports.fail('internal', `${assignment.id} revises "${revises.id}", which this run has not registered`);
       return null;
     }
-    const contract = existing?.id ?? contractId(records.contracts.size + 1);
+    const contract = 'contractKey' in submission ? submission.contractKey.slice('draft:'.length)
+      : 'contractId' in submission ? submission.contractId : existing?.id;
+    if (contract === undefined) throw new Error('An established agreement needs a proposed or accepted contract identity');
     const revision = existing === undefined ? 1 : revises === undefined ? existing.revision : existing.revision + 1;
 
     const bindings = this.bindingsOf();
     const attached = [...records.requirements.values()]
-      .filter(requirement => contractOfObligation(requirement.obligation) === contract);
+      .filter(requirement => records.obligations.get(requirement.obligation)?.contract.id === (existing?.id ?? contract));
     // Only a revision carries a consumer's existing requirement forward. An
     // engineer that asks for the same agreement again is a further
     // attachment, with a requirement of its own.
@@ -5010,21 +5291,39 @@ export class WorkCoordination {
       : attached.find(requirement =>
         (bindings.get(bindingKey(requirement.id, requirement.revision)) ?? requirement.workItem) === item.id);
 
-    const consumer: AttachedConsumer = {
-      requirement: mine?.id ?? requirementId(records.requirements.size + 1),
+    const splitKeys = 'consumerRequirementKeys' in submission ? submission.consumerRequirementKeys : null;
+    const mergeSubmission = 'scope' in submission && submission.mode === 'fake-backed'
+      && 'consumerRequirementKey' in submission && 'retirements' in submission ? submission : null;
+    const mergeIds = mergeSubmission === null ? null : new Set(mergeSubmission.retirements.map(entry => entry.id));
+    const mergedKey = mergeSubmission?.consumerRequirementKey ?? null;
+    const mergeSources = mergeIds === null ? [] : attached.filter(requirement => mergeIds.has(requirement.id));
+    const mergeTests = mergeSources.length === 0 ? undefined : {
+      policy: mergeSources.some(requirement => requirement.evidence.tests.policy === 'all-project')
+        ? 'all-project' as const : 'owned-by-scope' as const,
+      exactOwners: [...new Set(mergeSources.flatMap(requirement => requirement.evidence.tests.exactOwners))],
+      subtrees: [...new Set(mergeSources.flatMap(requirement => requirement.evidence.tests.subtrees))],
+      extraSuites: [...new Set(mergeSources.flatMap(requirement => requirement.evidence.tests.extraSuites))],
+    };
+    const consumer: AttachedConsumer | null = submission.mode === 'access-only' ? null : {
+      requirement: splitKeys !== null ? splitKeys[0]!.slice('draft:'.length) : mergedKey !== null ? mergedKey.slice('draft:'.length)
+        : mine?.id ?? ('consumerRequirementId' in submission ? submission.consumerRequirementId
+        : 'consumerRequirementKey' in submission ? submission.consumerRequirementKey.slice('draft:'.length)
+        : (() => { throw new Error('An attached consumer needs a proposed or accepted requirement identity'); })()),
       workItem: mine?.workItem ?? item.id,
       module: item.module,
       forCapability,
-      tests: mine?.evidence.tests ?? testPolicyOf('ordinary', { module: item.module, included: [] }, []),
-      fakeInjections: submission.fakeInjections,
+      tests: mergeTests ?? mine?.evidence.tests ?? testPolicyOf('ordinary', { module: item.module, included: [] }, []),
+      fakeInjections: mergeSources.length === 0 ? submission.fakeInjections
+        : [...new Set([...submission.fakeInjections, ...mergeSources.flatMap(requirement => requirement.evidence.fakeInjections)])],
     };
     // Every consumer of the agreement is reopened at the new revision; each
     // keeps its own identity, its own tests and its own injection sites,
     // and the revising consumer takes the ones this session just wrote.
-    const consumers: readonly AttachedConsumer[] = revises === undefined
+    const consumers: readonly AttachedConsumer[] = consumer === null ? [] : revises === undefined
       ? [consumer]
       : [
-        ...attached.map(requirement => (requirement.id === consumer.requirement ? consumer : {
+        ...attached.filter(requirement => (splitKeys === null || requirement.id !== mine?.id) && !mergeIds?.has(requirement.id))
+          .map(requirement => (requirement.id === consumer.requirement ? consumer : {
           requirement: requirement.id,
           workItem: requirement.workItem,
           module: requirement.consumer,
@@ -5032,10 +5331,16 @@ export class WorkCoordination {
           tests: requirement.evidence.tests,
           fakeInjections: requirement.evidence.fakeInjections,
         })),
-        ...(mine === undefined ? [consumer] : []),
+        ...(splitKeys !== null ? splitKeys.map(key => ({ ...consumer, requirement: key.slice('draft:'.length) }))
+          : mergedKey !== null ? [consumer]
+          : mine === undefined ? [consumer] : []),
       ];
 
-    const obligation = submission.mode === 'access-only' ? null : obligationId(contract);
+    const proposedObligation = submission.mode === 'access-only' ? null : 'providerObligationKey' in submission
+      ? submission.providerObligationKey.slice('draft:'.length) : 'providerObligationId' in submission
+        ? submission.providerObligationId : [...records.obligations.values()].find(entry => entry.contract.id === contract)?.id;
+    if (submission.mode !== 'access-only' && proposedObligation === undefined) throw new Error('A fake-backed agreement needs a proposed or accepted provider obligation identity');
+    const obligation = proposedObligation ?? null;
     const prior = [
       ...this.events('contract-registered').map(event => ({
         contract: event.data.contract,
@@ -5060,6 +5365,7 @@ export class WorkCoordination {
       : providerItemOf(records.workItems, obligation, revision, bindings);
     const registration = registerContract({
       contract,
+      ...(obligation === null ? {} : { obligation }),
       revision,
       capability: { ref: refOf(registryEntry.capability, registryEntry.revision, registryEntry), slug: registryEntry.capability, decision: registryEntry.decision },
       submission,
@@ -5073,7 +5379,33 @@ export class WorkCoordination {
         ? { kind: 'none' }
         : existingProvider !== undefined
           ? { kind: 'existing', id: existingProvider.id }
-          : { kind: 'create', id: workItemId(records.workItems.length + 1), goal: `Implement ${registryEntry.capability} in ${submission.provider} so that the agreed conformance suite passes against the real provider.`, startedFor: item.id },
+          : { kind: 'create', id: `work-item:provide-${obligation!.slice('provider-obligation:'.length)}`, goal: `Implement ${registryEntry.capability} in ${submission.provider} so that the agreed conformance suite passes against the real provider.`, startedFor: item.id },
+    });
+
+    const kindChangeSubmission = submission.mode === 'access-only' && 'contractKey' in submission
+      && 'retirements' in submission ? submission : null;
+    const retirementEntries = mergeSubmission !== null
+      ? mergeSubmission.retirements.map(entry => ({ id: entry.id, kind: 'consumer-requirement' as const,
+        replacements: [mergedKey!.slice('draft:'.length)] }))
+      : kindChangeSubmission !== null && revises !== undefined && existing !== undefined
+        ? kindChangeSubmission.retirements.map(entry => ({ id: entry.id, kind: entry.kind,
+          replacements: [contract] }))
+      : 'consumerRequirementKeys' in submission
+      ? [{ id: mine!.id, kind: 'consumer-requirement' as const,
+        replacements: submission.consumerRequirementKeys.map(key => key.slice('draft:'.length)) }]
+      : revises !== undefined && 'contractKey' in submission && existing !== undefined
+        ? [{ id: existing.id, kind: 'contract' as const, replacements: [contract] },
+          { id: [...records.obligations.values()].find(entry => entry.contract.id === existing.id)!.id,
+            kind: 'provider-obligation' as const, replacements: [obligation!] }]
+        : [];
+    const retirementRecords = retirementEntries.length === 0 ? [] : executionRetirements({
+      retirements: retirementEntries,
+      authority: { iteration: assignment.id, reason: 'retirements' in submission
+        ? submission.retirements.map(entry => entry.reason).join('; ') : 'Authorized agreement revision' },
+      accepted: new Set([...records.contracts.keys(), ...records.obligations.keys(), ...records.requirements.keys(),
+        ...records.capabilityRequests.keys(), ...records.capabilityTasks.keys()]),
+      retired: new Set(records.retirements.keys()),
+      published: registration.records,
     });
 
     if (revises !== undefined) {
@@ -5085,6 +5417,9 @@ export class WorkCoordination {
         records,
         bindings,
         cause: `${assignment.id} revised ${contract} from revision ${existing!.revision} to ${revision}`,
+        retirementRecords,
+        previousContract: existing!.id,
+        previousObligation: [...records.obligations.values()].find(entry => entry.contract.id === existing!.id)?.id ?? null,
       });
       if (reopened === null) return null;
       const findings = [
@@ -5097,7 +5432,7 @@ export class WorkCoordination {
         : await this.checkDependencyGraph(item, {
           from: forCapability,
           to: registration.obligation.capability,
-          requirement: consumer.requirement,
+          requirement: consumer!.requirement,
           workItem: item.id,
         });
       if (cycle === undefined) return null;
@@ -5128,14 +5463,14 @@ export class WorkCoordination {
 
     const findings = [submission.mode === 'access-only'
       ? `the agreement ${contract} establishes access to existing behavior: no obligation and no fake`
-      : `the agreement ${contract} is registered; ${consumer.requirement} is open and ${obligation} is owed by ${submission.provider}`];
+      : `the agreement ${contract} is registered; ${consumer!.requirement} is open and ${obligation} is owed by ${submission.provider}`];
 
     const cycle = registration.obligation === null
       ? null
       : await this.checkDependencyGraph(item, {
         from: forCapability,
         to: registration.obligation.capability,
-        requirement: consumer.requirement,
+        requirement: consumer!.requirement,
         workItem: item.id,
       });
     if (cycle === undefined) return null;
@@ -5164,6 +5499,9 @@ export class WorkCoordination {
       readonly records: ReturnType<typeof committedRecords>;
       readonly bindings: ReadonlyMap<string, string>;
       readonly cause: string;
+      readonly retirementRecords: readonly CommitRecord[];
+      readonly previousContract: string;
+      readonly previousObligation: string | null;
     },
   ): Promise<{ readonly findings: string[] } | null> {
     const { records, bindings } = subject;
@@ -5171,11 +5509,11 @@ export class WorkCoordination {
     // subject has one at a time, whatever revision it was bound at.
     const previous = new Map<string, string>();
     if (registration.obligation !== null) {
-      const held = providerItemOf(records.workItems, registration.obligation.id, subject.previousRevision, bindings);
+      const held = providerItemOf(records.workItems, subject.previousObligation ?? registration.obligation.id, subject.previousRevision, bindings);
       if (held !== undefined) previous.set(registration.obligation.id, held.id);
     }
     for (const requirement of records.requirements.values()) {
-      if (contractOfObligation(requirement.obligation) !== subject.contract) continue;
+      if (records.obligations.get(requirement.obligation)?.contract.id !== subject.previousContract) continue;
       previous.set(requirement.id, bindings.get(bindingKey(requirement.id, requirement.revision)) ?? requirement.workItem);
     }
     for (const requirement of registration.requirements) {
@@ -5212,8 +5550,9 @@ export class WorkCoordination {
           ? []
           : [{ workItem: followUp.id, follows: followUp.follows }])),
         superseded: reopening.superseded.map(result => result.iteration),
+        ...(subject.retirementRecords.length === 0 ? {} : { retired: subject.retirementRecords.map(record => record.id) }),
       },
-    }, [...registration.records, ...reopening.records]);
+    }, [...registration.records, ...reopening.records, ...subject.retirementRecords]);
     await this.ports.afterWrite('evidence-reopened', this.input.record.jobId);
     await this.ports.handling.cleanupClosedScratch();
     if (this.ports.ignoring()) return null;
@@ -5401,9 +5740,8 @@ export class WorkCoordination {
       const bytes = await readIfExists(this.path(runLayout.submission(invocation))).catch(() => undefined);
       if (bytes !== undefined && outcome?.submission?.hash === sha256(bytes)) {
         try {
-          const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-          const proposal = schema === 'ramify-agent.engineer-submission/1' ? engineerSubmissionSchema.safeParse(body) : undefined;
-          if (proposal?.success && proposal.data.kind === 'completion-proposed') points = proposal.data.startingPoints;
+          const proposal = parseRecordedEngineerSubmission(JSON.parse(bytes.toString('utf8')));
+          if (proposal.kind === 'completion-proposed') points = proposal.startingPoints;
         } catch { /* An unavailable optional hint leaves the ordinary review intact. */ }
       }
     }
@@ -5683,9 +6021,7 @@ export class WorkCoordination {
         if (!outcome.submission) continue;
         const bytes = await readIfExists(this.path(runLayout.submission(invocation)));
         if (!bytes || sha256(bytes) !== outcome.submission.hash) throw new Error('Original iteration destination changed');
-        const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-        if (schema !== 'ramify-agent.engineer-submission/1') throw new Error('Original iteration destination schema changed');
-        const parsed = engineerSubmissionSchema.parse(body);
+        const parsed = parseRecordedEngineerSubmission(JSON.parse(bytes.toString('utf8')));
         if (parsed.kind === 'contract-needed') return { kind: 'closed', result: savedResult, need: { need: parsed.need, suggestedProvider: parsed.suggestedProvider, injectionSites: parsed.injectionSites, invocation } };
       }
       return { kind: 'closed', result: savedResult };
@@ -5745,8 +6081,13 @@ export class WorkCoordination {
           return null;
         }
         const raw = bytes === undefined ? null : JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-        const parsed = raw === null ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(raw));
-        if (recorded.ended === 'submitted' && (raw?.schema !== 'ramify-agent.engineer-submission/1' || !parsed?.success)) {
+        let parsed: EngineerSubmission | undefined;
+        try { if (raw !== null) parsed = parseRecordedEngineerSubmission(raw); }
+        catch (error) {
+          await this.ports.fail('recovery-exhausted', `Engineer ${latestStart.data.invocation} has an invalid committed submission: ${message(error)}`);
+          return null;
+        }
+        if (recorded.ended === 'submitted' && parsed === undefined) {
           await this.ports.fail('recovery-exhausted', `Engineer ${latestStart.data.invocation} has no valid committed submission`);
           return null;
         }
@@ -5754,7 +6095,7 @@ export class WorkCoordination {
           && (['stopped', 'resource-pending', 'context-budget-reached'].includes(recorded.ended) || recorded.ended === 'failed' && recorded.interruption !== undefined);
         if (resourceRestart) resourceRestartPredecessor = latestStart.data.invocation;
         else replay = { id: latestStart.data.invocation, ended: recorded.ended,
-          value: parsed?.success ? parsed.data : undefined,
+          value: parsed,
           ref: recorded.session?.ref ?? '', session: latestStart.data.session, kept: ended.data.kept,
           outcomeKind: recorded.ended, ...(recorded.interruption === undefined ? {} : { interruption: recorded.interruption }),
           ...(recorded.error === undefined ? {} : { error: recorded.error }), elapsedMs: recorded.elapsedMs,
@@ -5916,6 +6257,11 @@ export class WorkCoordination {
         beforeSubmission: async (input, signal) => { await tools.findingsAtCompletion(input, signal); },
         validate: async input => {
           const validated = await validateEngineerWithOwnership(input, {
+
+            occupiedCapabilityNames: {
+              requests: new Set(this.observe().records.capabilityRequests.keys()),
+              examples: new Set([...this.observe().records.capabilityRequests.values()].flatMap(request => request.original.examples.map(example => example.id))),
+            },
             capabilityWorkflow: step.validator.capabilityWorkflow,
             obligation: step.validator.obligation,
             kind: step.validator.kind,
@@ -6188,6 +6534,7 @@ export class WorkCoordination {
       run: { planId: this.input.record.planId, runId: this.input.record.jobId },
       base: this.accepted(),
       capabilityWorkflow: this.workflow !== null,
+
       capabilityPolicy: supportedCapabilityPolicy(this.observe().policy.version),
       workingDirectory: this.projectRelative(collected.workingDirectory),
       testAreas: await this.ownedTestAreas(assignment.gate.tests),

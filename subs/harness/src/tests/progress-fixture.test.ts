@@ -102,49 +102,47 @@ describe('the capability-progress fixture over HTTP', () => {
     // suggested for the core and is implemented in the panel. Implemented
     // only: revision-chain, absent from revision 1.
     expect(rows(comparison, core)).toEqual([
-      'compare-revisions: entry-owner | implemented',
-      'field-diff: suggested-owner',
-      'revision-chain: - | implemented',
+      'capability:compare-revisions: entry-owner | implemented',
+      'capability:field-diff: suggested-owner',
+      'capability:revision-chain: - | implemented',
     ]);
     expect(rows(comparison, panel)).toEqual([
-      'compare-panel: entry-owner | implemented',
-      'field-diff: - | implemented',
-      'note-preview: suggested-owner',
+      'capability:compare-panel: entry-owner | implemented',
+      'capability:field-diff: - | implemented',
+      'capability:note-preview: suggested-owner',
     ]);
-    expect(rows(comparison, contracts)).toEqual(['field-diff: involved']);
-    expect(rows(comparison, reviewsCore)).toEqual(['review-digest: suggested-owner']);
-    expect(rows(comparison, sharedUi)).toEqual(['digest-format: suggested-owner', 'text-wrap: suggested-owner']);
-    expect(rows(comparison, validation)).toEqual(['draft-sync: suggested-owner', 'draft-merge: suggested-owner']);
+    expect(rows(comparison, contracts)).toEqual(['capability:field-diff: involved']);
+    expect(rows(comparison, reviewsCore)).toEqual(['capability:review-digest: suggested-owner']);
+    expect(rows(comparison, sharedUi)).toEqual(['capability:digest-format: suggested-owner', 'capability:text-wrap: suggested-owner']);
+    expect(rows(comparison, validation)).toEqual(['capability:draft-sync: suggested-owner', 'capability:draft-merge: suggested-owner']);
     expect(comparison.coverage).toEqual({ state: 'complete', capabilities: 10, implemented: 4 });
     // CM09: nothing about activity, commits, changes, lines or deployment.
     expect(JSON.stringify(comparison)).not.toMatch(/"(activity|commit|changed|lines|deployed)"|%/i);
   });
 
-  test('placements: dependency depth, a shared dependency, a cycle, tentative links and an omitted target', async () => {
+  test('placements: dependency depth, a shared dependency, a cycle and tentative links', async () => {
     const { capabilities } = await answers('placements');
     expect(capabilities.total).toBe(capabilities.capabilities.length);
     const edges = Object.fromEntries(capabilities.capabilities.map(entry =>
       [entry.capability, entry.dependsOn.map(link => `${link.capability}${link.tentative ? '?' : ''}`)]));
     expect(edges).toEqual({
-      'compare-revisions': ['revision-chain'],
-      'compare-panel': ['field-diff'],
-      'field-diff': ['text-wrap?'],
-      'revision-chain': [],
-      'review-digest': ['digest-format?'],
-      'digest-format': ['text-wrap?'],
-      'text-wrap': [],
-      'note-preview': ['text-wrap?', 'spell-check?'],
-      'draft-sync': ['draft-merge?'],
-      'draft-merge': ['draft-sync?'],
+      'capability:compare-revisions': ['capability:revision-chain'],
+      'capability:compare-panel': ['capability:field-diff'],
+      'capability:field-diff': ['hypothesis:text-wrap?'],
+      'capability:revision-chain': [],
+      'capability:review-digest': ['hypothesis:digest-format?'],
+      'capability:digest-format': ['hypothesis:text-wrap?'],
+      'capability:text-wrap': [],
+      'capability:note-preview': ['hypothesis:text-wrap?'],
+      'capability:draft-sync': ['hypothesis:draft-merge?'],
+      'capability:draft-merge': ['hypothesis:draft-sync?'],
     });
-    // spell-check is a target no returned capability answers.
-    expect(capabilities.capabilities.some(entry => entry.capability === 'spell-check')).toBe(false);
     const state = Object.fromEntries(capabilities.capabilities.map(entry => [entry.capability, `${entry.state}${entry.tentative ? ' (tentative)' : ''}`]));
     expect(state).toMatchObject({
-      'compare-revisions': 'completed', 'compare-panel': 'completed', 'field-diff': 'completed', 'revision-chain': 'completed',
-      'text-wrap': 'todo (tentative)', 'draft-sync': 'todo (tentative)',
+      'capability:compare-revisions': 'completed', 'capability:compare-panel': 'completed', 'capability:field-diff': 'completed', 'capability:revision-chain': 'completed',
+      'capability:text-wrap': 'todo (tentative)', 'capability:draft-sync': 'todo (tentative)',
     });
-    expect(capabilities.capabilities.find(entry => entry.capability === 'field-diff')!.owner).toBe(panel);
+    expect(capabilities.capabilities.find(entry => entry.capability === 'capability:field-diff')!.owner).toBe(panel);
   });
 
   test('proposed: a module proposed at start and absent from the tree, a registered todo and a failure at run level only', async () => {
@@ -157,12 +155,12 @@ describe('the capability-progress fixture over HTTP', () => {
     const proposed = comparison.modules.find(entry => entry.module === archive)!;
     expect(proposed.placement).toBe('proposed');
     expect(proposed.proposedAtStart).toEqual({ parent: sharedUi, purpose: 'Keeps retired status badges.', tags: [] });
-    expect(rows(comparison, archive)).toEqual(['badge-archive: entry-owner']);
-    expect(rows(comparison, sharedUi)).toEqual(['badge-legend: entry-owner', 'badge-tones: suggested-owner']);
+    expect(rows(comparison, archive)).toEqual(['capability:badge-archive: entry-owner']);
+    expect(rows(comparison, sharedUi)).toEqual(['capability:badge-legend: entry-owner', 'capability:badge-tones: suggested-owner']);
     expect(comparison.coverage).toEqual({ state: 'complete', capabilities: 3, implemented: 0 });
     // A registered todo, a working capability and a tentative forecast todo.
     expect(capabilities.capabilities.map(entry => [entry.capability, entry.state, entry.tentative])).toEqual([
-      ['badge-archive', 'working', false], ['badge-legend', 'todo', false], ['badge-tones', 'todo', true],
+      ['capability:badge-archive', 'working', false], ['capability:badge-legend', 'todo', false], ['capability:badge-tones', 'todo', true],
     ]);
     expect(capabilityStateSchema.options).toEqual(['todo', 'working', 'completed']);
   });

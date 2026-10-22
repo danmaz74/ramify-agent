@@ -49,8 +49,8 @@ const tree = { status: 'available' as const, revision: 'tree-r1', input: 'input-
 const moduleMap: ExecutionMapSnapshot['moduleMap'] = { tree, modules: [
   { ...tree.modules[0]!, direct: [], workedIn: false, involvedDescendants: 2, lines: line(0, 0, 'complete') },
   { ...tree.modules[1]!, direct: [direct('scenario:sc-status', 'owner'), direct('scenario:sc-status', 'consumer'), direct('work-item:wi-status', 'owner'),
-    direct('requirement:req-status', 'consumer')], workedIn: true, involvedDescendants: 0, lines: line(10, 4, 'partial') },
-  { ...tree.modules[2]!, direct: [direct('capability:theme-tokens', 'owner'), direct('requirement:req-status', 'provider')],
+    direct('consumer-requirement:status', 'consumer')], workedIn: true, involvedDescendants: 0, lines: line(10, 4, 'partial') },
+  { ...tree.modules[2]!, direct: [direct('capability:theme-tokens', 'owner'), direct('consumer-requirement:status', 'provider')],
     workedIn: true, involvedDescendants: 0, lines: line(5, 2, 'complete') },
   { ...tree.modules[3]!, direct: [], workedIn: false, involvedDescendants: 0, lines: line(0, 0, 'unavailable') },
 ], outsideTree: [{ module: 'project/legacy', direct: [direct('gate:ga-005', 'owner')], workedIn: false,
@@ -59,7 +59,7 @@ proposed: [{ module: 'project/proposed', parent: 'project', directory: 'subs/pro
 unplaced: [{ element: 'work-item:wi-provider', reason: 'No current placement.' }],
 unmapped: line(0, 0, 'unavailable'), lines: line(15, 6, 'partial') };
 const map: ExecutionMapSnapshot = { ...canvasMap, tree, moduleMap,
-  nodes: canvasMap.nodes.map(node => node.key === 'requirement:req-status' ? { ...node,
+  nodes: canvasMap.nodes.map(node => node.key === 'consumer-requirement:status' ? { ...node,
     modules: [{ module: 'project/ui', role: 'consumer' as const, source }, { module: 'project/theme', role: 'provider' as const, source }] } : node),
   coverage: { ...canvasMap.coverage, modules: { shown: 6, total: 6 }, moduleRelations: { shown: 6, total: 6 } } };
 function client(snapshot: ExecutionMapSnapshot = map): ProtocolClient { return { getExecutionMap: async () => snapshot,

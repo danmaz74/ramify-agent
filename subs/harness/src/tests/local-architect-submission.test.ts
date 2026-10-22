@@ -11,14 +11,14 @@ import { architectIndex, moduleEntry } from './helpers/views.js';
 import type { RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
 import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import {
-  capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectToolName, unchangedOutlineReason, unreportedByCompletion, validateLocalArchitect,
+  localArchitectJsonSchema, localArchitectToolName, unchangedOutlineReason, unreportedByCompletion, validateLocalArchitect,
 } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
-import { analysis, entry, requestCompletion, unresolved } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion, unresolved } from './helpers/analysis.js';
 import { forkNothingPossible } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { localContext, registered as registeredEvent, reported, submissionHash } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/obligations.js';
@@ -54,11 +54,11 @@ const index: ArchitectIndex = {
 };
 
 const registered: RegistryEntry = {
-  schema: 'ramify-agent.capability/1',
-  capability: 'send-email', revision: 1, behavior: 'Sends the customer an email.',
+  schema: 'ramify-agent.capability/2',
+  capability: 'capability:send-email', revision: 1, behavior: 'Sends the customer an email.',
   owner: 'shop/orders', origin: 'entry', decision: null, consumers: [],
 };
-const registry = new Map([['send-email', registered]]);
+const registry = new Map([['capability:send-email', registered]]);
 const evidence = { index, registry };
 
 describe('the schema', () => {
@@ -122,12 +122,12 @@ describe('the outline of a completion request', () => {
     expect(result.value.outline).toEqual(revised.outline);
   });
 
-  test('the capability tool lets it be omitted, while the historical one requires it', () => {
+  test('the author tool allows omission of an unchanged outline', () => {
     const completion = (schema: unknown) => ((schema as { oneOf?: unknown[]; anyOf?: unknown[] }).oneOf ?? (schema as { anyOf: unknown[] }).anyOf)
       .map(member => member as { properties: { kind: { const: string } }; required?: string[] })
       .find(member => member.properties.kind.const === 'request-completion')!;
-    expect(completion(capabilityLocalArchitectJsonSchema).required ?? []).not.toContain('outline');
-    expect(completion(localArchitectJsonSchema).required).toContain('outline');
+    expect(completion(localArchitectJsonSchema).required ?? []).not.toContain('outline');
+    expect(JSON.stringify(localArchitectJsonSchema)).toContain('yield-for-providers');
   });
 });
 
@@ -220,17 +220,17 @@ describe('the rules the schema cannot hold', () => {
   });
 
   test('reuse names a module of the view, and agrees with where the registry places the capability', () => {
-    const absent = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'send-email', owner: 'shop/nowhere', role: 'provider' }] }), evidence);
+    const absent = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'capability:send-email', owner: 'shop/nowhere', role: 'provider' }] }), evidence);
     expect(absent.ok).toBe(false);
     if (absent.ok) return;
     expect(absent.errors[0]!.path).toBe('outline.reuse.0.owner');
 
-    const misplaced = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'send-email', owner: 'shop', role: 'provider' }] }), evidence);
+    const misplaced = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'capability:send-email', owner: 'shop', role: 'provider' }] }), evidence);
     expect(misplaced.ok).toBe(false);
     if (misplaced.ok) return;
     expect(misplaced.errors[0]!.expected).toBe('shop/orders');
 
-    const agreed = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'send-email', owner: 'shop/orders', role: 'provider' }] }), evidence);
+    const agreed = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'capability:send-email', owner: 'shop/orders', role: 'provider' }] }), evidence);
     expect(agreed.ok).toBe(true);
   });
 
@@ -252,8 +252,13 @@ describe('the rules the schema cannot hold', () => {
   });
 
   test('without a view the rules that need one are not applied', () => {
-    const result = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'send-email', owner: 'shop/nowhere', role: 'provider' }] }), { index: null, registry: new Map() });
+    const noView = { index: null, registry: new Map([['capability:send-email', { ...registered, owner: 'shop/nowhere' }]]) };
+    const result = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'capability:send-email', owner: 'shop/nowhere', role: 'provider' }] }), noView);
     expect(result.ok).toBe(true);
+    const assignment = validateLocalArchitect(assign('shop/orders', { externalCapabilities: [
+      { capability: 'capability:send-email', owner: 'shop/nowhere', role: 'request' },
+    ] }, outline()), noView);
+    expect(assignment.ok, JSON.stringify(assignment)).toBe(true);
   });
 });
 
@@ -283,8 +288,8 @@ describe('the rules an assignment must satisfy', () => {
     // An accepted entry that proposes the module is the authority the
     // harness needs, and a hypothesis is never one.
     const proposing = new Map(registry);
-    proposing.set('note-store', {
-      ...registered, capability: 'note-store', owner: 'shop/billing',
+    proposing.set('capability:note-store', {
+      ...registered, capability: 'capability:note-store', owner: 'shop/billing',
       proposed: { parent: 'shop', directory: 'subs/billing', purpose: 'Holds the note.', tags: [] },
     });
     expect(validateLocalArchitect(over('shop/billing'), { index, registry: proposing }).ok).toBe(true);
@@ -312,14 +317,14 @@ describe('the rules an assignment must satisfy', () => {
     expect(outside.errors[0]!.path).toBe('assignment.scope.extra.0.path');
 
     const unknown = validateLocalArchitect(over('shop/orders', {
-      externalCapabilities: [{ capability: 'send-post', owner: 'shop', role: 'use' }],
+      externalCapabilities: [{ capability: 'capability:send-post', owner: 'shop', role: 'use' }],
     }), evidence);
     expect(unknown.ok).toBe(false);
     if (unknown.ok) return;
     expect(unknown.errors[0]!.path).toBe('assignment.externalCapabilities.0.capability');
 
     const misplaced = validateLocalArchitect(over('shop/orders', {
-      externalCapabilities: [{ capability: 'send-email', owner: 'shop', role: 'use' }],
+      externalCapabilities: [{ capability: 'capability:send-email', owner: 'shop', role: 'use' }],
     }), evidence);
     expect(misplaced.ok).toBe(false);
     if (misplaced.ok) return;
@@ -370,7 +375,7 @@ describe('extra locations: module contents, paths outside modules and guarded fi
     expect(errorsOf(validateLocalArchitect(withExtra([{ path: 'src/interfaces/orders.ts', purpose: 'contract', kind: 'file' },
       { path: 'subs/orders/module.ramify', purpose: 'exposure-declaration' }]), evidence))).toEqual([]);
     expect(errorsOf(validateLocalArchitect(withExtra([{ path: 'subs/orders/src/fakes', purpose: 'fake', kind: 'directory' }]), evidence)).map(error => error.path)).toEqual(['assignment.scope.extra.0.kind']);
-    const proposing = new Map(registry); proposing.set('note-store', { ...registered, capability: 'note-store', owner: 'shop/billing',
+    const proposing = new Map(registry); proposing.set('capability:note-store', { ...registered, capability: 'capability:note-store', owner: 'shop/billing',
       proposed: { parent: 'shop', directory: 'subs/physical-billing/', purpose: 'Holds the note.', tags: [] } });
     expect(errorsOf(validateLocalArchitect(assign('shop/billing', { scope: { base: { module: 'shop/billing', included: [] },
       extra: [{ path: 'subs/physical-billing/scripts/x.ts', purpose: 'consumer' }], read: [], rationale: 'r' } }, outline()), { index, registry: proposing }))).toEqual([]);
@@ -428,69 +433,69 @@ describe('PB3-D01 PB3-D02 PB3-D04: registrations and reports', () => {
 
   test('outcome-only tracking needs no registration, and a separate required test is registered only by explicit choice', () => {
     // The default: the scenarios the analysis accepted and the delegated outcome are already obligations.
-    expect([...localContext().projection.obligations.keys()]).toEqual(['sc-001', 'sc-002', 'sc-003', 'cap-001']);
+    expect([...localContext().projection.obligations.keys()]).toEqual(['scenario:send-email-is-used', 'scenario:keep-history-is-used', 'scenario:combined-history', 'capability-task:mail-delivery']);
     expect(localContext().projection.tests).toBe(0);
     expect(judged({})).toEqual([]);
-    // A separate test is the architect's explicit choice, numbered by the harness.
-    expect(judged({ registrations: [{ kind: 'test', description: 'The duplicate send regression test' }] })).toEqual([]);
-    // A capability case belongs to its task's architect, and an agent never supplies a test ID.
-    expect(judged({ registrations: [{ kind: 'scenario', case: 'need-001.ex01' }] }).map(error => error.path)).toEqual(['registrations.0.kind']);
-    expect(judged({ registrations: [{ kind: 'test', id: 'test-007', description: 'Named by the agent' }] }).map(error => error.path)).toEqual(['registrations.0']);
+    // A separate test is the architect's explicit named choice.
+    expect(judged({ registrations: [{ kind: 'test', testKey: 'draft:test:regression-test', description: 'The duplicate send regression test' }] })).toEqual([]);
+    // A capability case belongs to its task's architect, and an agent proposes a test key rather than an accepted ID.
+    expect(judged({ registrations: [{ kind: 'scenario', case: 'capability-example:send-email' }] }).map(error => error.path)).toEqual(['registrations.0.kind']);
+    expect(judged({ registrations: [{ kind: 'test', testKey: 'draft:test:author-assigned', id: 'test:author-assigned', description: 'Named by the agent' }] }).map(error => error.path)).toEqual(['registrations.0']);
     // The same test twice, in one submission or after an accepted registration, is a conflicting repeat.
-    const twice = [{ kind: 'test', description: 'The regression test' }, { kind: 'test', description: 'The regression test' }];
+    const twice = [{ kind: 'test', testKey: 'draft:test:regression-test', description: 'The regression test' }, { kind: 'test', testKey: 'draft:test:another-regression-test', description: 'The regression test' }];
     expect(judged({ registrations: twice }).map(error => error.path)).toEqual(['registrations.1.description']);
-    const existing = registeredEvent({ id: 'test-001', kind: 'test', responsible: { kind: 'work-item', id: 'wi-001' }, by: 'inv-0003',
+    const existing = registeredEvent({ id: 'test:regression-test', kind: 'test', responsible: { kind: 'work-item', id: 'work-item:send-email' }, by: 'inv-0003',
       submission: submissionHash('a'), description: 'The regression test' });
-    expect(judged({ registrations: [twice[0]] }, localContext([existing]))[0]!.message).toBe('This test is already registered as test-001');
+    expect(judged({ registrations: [twice[1]] }, localContext([existing]))[0]!.message).toBe('This test is already registered as test:regression-test');
     // Another architect's test of the same description is its own.
-    expect(judged({ registrations: [twice[0]] }, localContext([existing], 'wi-002'))).toEqual([]);
+    expect(judged({ registrations: [twice[1]] }, localContext([existing], 'work-item:keep-history'))).toEqual([]);
   });
 
   test('only the responsible architect reports, on IDs that exist, at the current revision, and "bound" only revises a "done"', () => {
     const errors = judged({ reports: [
-      { id: 'sc-404', judgment: 'done', basedOnRevision: 0 },
-      { id: 'sc-002', judgment: 'done', basedOnRevision: 0 },
-      { id: 'sc-003', judgment: 'done', basedOnRevision: 0 },
-      { id: 'cap-001', judgment: 'done', basedOnRevision: 0 },
-      { id: 'sc-001', judgment: 'bound', basedOnRevision: 0 },
+      { id: 'scenario:unknown', judgment: 'done', basedOnRevision: 0 },
+      { id: 'scenario:keep-history-is-used', judgment: 'done', basedOnRevision: 0 },
+      { id: 'scenario:combined-history', judgment: 'done', basedOnRevision: 0 },
+      { id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0 },
+      { id: 'scenario:send-email-is-used', judgment: 'bound', basedOnRevision: 0 },
     ] });
     expect(errors.map(error => [error.path, error.message])).toEqual([
-      ['reports.0.id', '"sc-404" is no registered obligation of this run'],
-      ['reports.1.id', 'sc-002 is reported by the module architect of wi-002, not by the module architect of wi-001'],
-      ['reports.2.id', 'sc-003 is reported by the module architect of sc-003\'s integration work item, which does not exist yet, not by the module architect of wi-001'],
-      ['reports.3.id', 'cap-001 is reported by the capability architect of cap-001, not by the module architect of wi-001'],
-      ['reports.4.judgment', 'sc-001 is pending; "bound" only revises an earlier "done" report'],
+      ['reports.0.id', '"scenario:unknown" is no registered obligation of this run'],
+      ['reports.1.id', 'scenario:keep-history-is-used is reported by the module architect of work-item:keep-history, not by the module architect of work-item:send-email'],
+      ['reports.2.id', 'scenario:combined-history is reported by the module architect of scenario:combined-history\'s integration work item, which does not exist yet, not by the module architect of work-item:send-email'],
+      ['reports.3.id', 'capability-task:mail-delivery is reported by the capability architect of capability-task:mail-delivery, not by the module architect of work-item:send-email'],
+      ['reports.4.judgment', 'scenario:send-email-is-used is pending; "bound" only revises an earlier "done" report'],
     ]);
     // A duplicate in one submission, and a report based on a superseded revision, are refused.
-    expect(judged({ reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }, { id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] })
+    expect(judged({ reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0 }, { id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0 }] })
       .map(error => error.path)).toEqual(['reports.1.id']);
-    const done = reported({ id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0003', submission: submissionHash('a') });
-    expect(judged({ reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] }, localContext([done]))[0]!.path).toBe('reports.0.basedOnRevision');
+    const done = reported({ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0003', submission: submissionHash('a') });
+    expect(judged({ reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0 }] }, localContext([done]))[0]!.path).toBe('reports.0.basedOnRevision');
     // A distinct deliberate report names the current revision: a changed hint, or a revision back to bound.
-    expect(judged({ reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 1, where: 'subs/a/src/send.ts — sendOnce' }] }, localContext([done]))).toEqual([]);
-    expect(judged({ reports: [{ id: 'sc-001', judgment: 'bound', basedOnRevision: 1 }] }, localContext([done]))).toEqual([]);
+    expect(judged({ reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 1, where: 'subs/a/src/send.ts — sendOnce' }] }, localContext([done]))).toEqual([]);
+    expect(judged({ reports: [{ id: 'scenario:send-email-is-used', judgment: 'bound', basedOnRevision: 1 }] }, localContext([done]))).toEqual([]);
     // Without the run's obligations nothing can be reported.
-    expect(errorsOf(validateLocalArchitect(reporting({ reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] }), evidence))
+    expect(errorsOf(validateLocalArchitect(reporting({ reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0 }] }), evidence))
       .map(error => error.path)).toEqual(['reports']);
   });
 
   test('a registered test is reported in the submission that registers it; where is optional text, never a path the harness checks', () => {
     expect(judged({
-      registrations: [{ kind: 'test', description: 'The duplicate send regression test' }],
-      reports: [{ id: 'test-001', judgment: 'done', basedOnRevision: 0 }, { id: 'sc-001', judgment: 'done', basedOnRevision: 0, where: 'subs/never/src/absent.ts — noSuchSymbol' }],
+      registrations: [{ kind: 'test', testKey: 'draft:test:regression-test', description: 'The duplicate send regression test' }],
+      reports: [{ id: 'test:regression-test', judgment: 'done', basedOnRevision: 0 }, { id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0, where: 'subs/never/src/absent.ts — noSuchSymbol' }],
     })).toEqual([]);
-    expect(judged({ reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0, where: '   ' }] }).map(error => error.path)).toEqual(['reports.0.where']);
-    expect(judged({ reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0, where: 'x'.repeat(301) }] }).map(error => error.path)).toEqual(['reports.0.where']);
+    expect(judged({ reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0, where: '   ' }] }).map(error => error.path)).toEqual(['reports.0.where']);
+    expect(judged({ reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0, where: 'x'.repeat(301) }] }).map(error => error.path)).toEqual(['reports.0.where']);
   });
 
   test('reports ride on an ongoing assignment, a placement request and an unresolved request alike', () => {
-    const report = { reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] };
+    const report = { reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0 }] };
     const context = { ...evidence, obligations: localContext() };
     expect(validateLocalArchitect({ ...assign('shop/orders', {}, outline()), ...report }, context).ok).toBe(true);
     expect(validateLocalArchitect({ ...unresolved(), ...report }, context).ok).toBe(true);
     expect(validateLocalArchitect({ ...requestCompletion(), ...report }, context).ok).toBe(true);
     // An invalid report refuses the whole submission, with the action's own errors beside it.
-    const both = errorsOf(validateLocalArchitect({ ...assign('shop/orders'), reports: [{ id: 'sc-404', judgment: 'done', basedOnRevision: 0 }] }, context));
+    const both = errorsOf(validateLocalArchitect({ ...assign('shop/orders'), reports: [{ id: 'scenario:unknown', judgment: 'done', basedOnRevision: 0 }] }, context));
     expect(both.map(error => error.path)).toEqual(['outline', 'reports.0.id']);
   });
 });
@@ -506,33 +511,33 @@ describe('PB3-C01: a completion request owes a done report for each registered o
 
   test('a request missing one is rejected naming it; its own report resolves it, with or without where', () => {
     const context = { ...evidence, obligations: localContext() };
-    expect(errorsOf(validateLocalArchitect({ ...requestCompletion(), reports: [] }, context))).toEqual([owing('sc-001')]);
-    expect(unreportedByCompletion({ ...requestCompletion(), reports: [] }, context.obligations)).toEqual(['sc-001']);
-    expect(validateLocalArchitect({ ...requestCompletion(), reports: [done('sc-001')] }, context).ok).toBe(true);
-    expect(validateLocalArchitect({ ...requestCompletion(), reports: [{ ...done('sc-001'), where: 'subs/never/src/absent.ts' }] }, context).ok).toBe(true);
-    // Only this architect's own: wi-002's scenario, the integration scenario and the capability outcome are owed by others.
-    expect(unreportedByCompletion({ ...requestCompletion(), reports: [] }, localContext([], 'wi-002'))).toEqual(['sc-002']);
+    expect(errorsOf(validateLocalArchitect({ ...requestCompletion(), reports: [] }, context))).toEqual([owing('scenario:send-email-is-used')]);
+    expect(unreportedByCompletion({ ...requestCompletion(), reports: [] }, context.obligations)).toEqual(['scenario:send-email-is-used']);
+    expect(validateLocalArchitect({ ...requestCompletion(), reports: [done('scenario:send-email-is-used')] }, context).ok).toBe(true);
+    expect(validateLocalArchitect({ ...requestCompletion(), reports: [{ ...done('scenario:send-email-is-used'), where: 'subs/never/src/absent.ts' }] }, context).ok).toBe(true);
+    // Only this architect's own: work-item:keep-history's scenario, the integration scenario and the capability outcome are owed by others.
+    expect(unreportedByCompletion({ ...requestCompletion(), reports: [] }, localContext([], 'work-item:keep-history'))).toEqual(['scenario:keep-history-is-used']);
   });
 
   test('a test it registers is owed in the same request, a done obligation is not, and a revision to bound owes it again', () => {
     const context = { ...evidence, obligations: localContext() };
-    const registering = { ...requestCompletion(), registrations: [{ kind: 'test', description: 'Writing a note twice keeps one note' }] };
-    expect(errorsOf(validateLocalArchitect({ ...registering, reports: [done('sc-001')] }, context))).toEqual([owing('test-001')]);
-    expect(validateLocalArchitect({ ...registering, reports: [done('sc-001'), done('test-001')] }, context).ok).toBe(true);
-    const reportedDone = reported({ id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0003', submission: submissionHash('a') });
+    const registering = { ...requestCompletion(), registrations: [{ kind: 'test', testKey: 'draft:test:regression-test', description: 'Writing a note twice keeps one note' }] };
+    expect(errorsOf(validateLocalArchitect({ ...registering, reports: [done('scenario:send-email-is-used')] }, context))).toEqual([owing('test:regression-test')]);
+    expect(validateLocalArchitect({ ...registering, reports: [done('scenario:send-email-is-used'), done('test:regression-test')] }, context).ok).toBe(true);
+    const reportedDone = reported({ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0003', submission: submissionHash('a') });
     const after = { ...evidence, obligations: localContext([reportedDone]) };
     expect(validateLocalArchitect({ ...requestCompletion(), reports: [] }, after).ok).toBe(true);
-    expect(errorsOf(validateLocalArchitect({ ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'bound', basedOnRevision: 1 }] }, after)))
-      .toEqual([owing('sc-001')]);
+    expect(errorsOf(validateLocalArchitect({ ...requestCompletion(), reports: [{ id: 'scenario:send-email-is-used', judgment: 'bound', basedOnRevision: 1 }] }, after)))
+      .toEqual([owing('scenario:send-email-is-used')]);
   });
 
   test('unfinished work and blockers owe no report, and an invalid report is judged first', () => {
     const context = { ...evidence, obligations: localContext() };
-    expect(validateLocalArchitect(assign('shop/orders', { obligations: ['sc-001'] }, outline()), context).ok).toBe(true);
+    expect(validateLocalArchitect(assign('shop/orders', { obligations: ['scenario:send-email-is-used'] }, outline()), context).ok).toBe(true);
     expect(validateLocalArchitect(unresolved(), context).ok).toBe(true);
-    const stale = validateLocalArchitect({ ...requestCompletion(), reports: [done('sc-001', 4)] }, context);
+    const stale = validateLocalArchitect({ ...requestCompletion(), reports: [done('scenario:send-email-is-used', 4)] }, context);
     expect(errorsOf(stale).map(error => error.path)).toEqual(['reports.0.basedOnRevision']);
-    expect(unreportedByCompletion({ ...requestCompletion(), reports: [done('sc-001', 4)] }, context.obligations)).toEqual([]);
+    expect(unreportedByCompletion({ ...requestCompletion(), reports: [done('scenario:send-email-is-used', 4)] }, context.obligations)).toEqual([]);
     // The request's own rules and the missing report are answered together.
     const staged = requestCompletion({ decomposition: { kind: 'staged', rationale: 'It is big.' }, stages: [] });
     expect(errorsOf(validateLocalArchitect({ ...staged, reports: [] }, context)).map(error => error.path)).toEqual(['outline.stages', 'reports']);
@@ -547,7 +552,7 @@ describe('a rejected submission in a run', () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);
-    const submitted = analysis([entry('reviewer-note', reviews)]);
+    const submitted = currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan');
     const { service, agent } = await openRuns(fixture.root, {
       unchangedCheckpoints,
       ...(ramify === undefined ? {} : { ramify }),
@@ -564,26 +569,26 @@ describe('a rejected submission in a run', () => {
   test('PB3-D01 PB3-D02 PB3-D04: an invalid report is refused before any effect; the accepted one records the test, the judgments and the where text as written', async () => {
     const missing = 'subs/nowhere/src/missing.ts — notThere';
     const refused = { ...requestCompletion(), reports: [
-      { id: 'sc-404', judgment: 'done', basedOnRevision: 0 },
-      { id: 'sc-001', judgment: 'bound', basedOnRevision: 0 },
+      { id: 'scenario:unknown', judgment: 'done', basedOnRevision: 0 },
+      { id: 'scenario:reviewer-note-is-used', judgment: 'bound', basedOnRevision: 0 },
     ] };
     const corrected = { ...requestCompletion(),
-      registrations: [{ kind: 'test', description: 'Writing a note twice keeps one note' }],
+      registrations: [{ kind: 'test', testKey: 'draft:test:writing-a-note-twice-keeps-one-note', description: 'Writing a note twice keeps one note' }],
       reports: [
-        { id: 'sc-001', judgment: 'done', basedOnRevision: 0, where: missing },
-        { id: 'test-001', judgment: 'done', basedOnRevision: 0 },
+        { id: 'scenario:reviewer-note-is-used', judgment: 'done', basedOnRevision: 0, where: missing },
+        { id: 'test:writing-a-note-twice-keeps-one-note', judgment: 'done', basedOnRevision: 0 },
       ] };
     const { root, runId, service, agent } = await run([refused, corrected],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"']);
 
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     // The briefing names what this architect reports on, apart from engineer and audit results.
     expect(local.spec.prompt).toContain('# Registered obligations');
-    expect(local.spec.prompt).toContain('- sc-001 (scenario): pending, revision 0; not bound; no report yet');
+    expect(local.spec.prompt).toContain('- scenario:reviewer-note-is-used (scenario): pending, revision 0; not bound; no report yet');
     const answer = JSON.parse((local.verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { errors: Array<{ path: string; message: string }> };
     expect(answer.errors.map(error => error.path)).toEqual(['reports.0.id', 'reports.1.judgment']);
-    expect(answer.errors[0]!.message).toBe('"sc-404" is no registered obligation of this run');
+    expect(answer.errors[0]!.message).toBe('"scenario:unknown" is no registered obligation of this run');
     expect(local.verdicts[1]).toEqual({ accepted: true });
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
@@ -591,10 +596,10 @@ describe('a rejected submission in a run', () => {
     const ended = events.find(event => event.type === 'invocation-ended' && event.data.invocation === architect.invocation)!.data as { submission: string };
     const recorded = events.filter(event => event.type === 'obligation-registered' || event.type === 'obligation-reported');
     expect(recorded.map(event => [event.type, event.data])).toEqual([
-      ['obligation-registered', { id: 'test-001', kind: 'test', responsible: { kind: 'work-item', id: 'wi-001' }, by: architect.invocation,
+      ['obligation-registered', { id: 'test:writing-a-note-twice-keeps-one-note', kind: 'test', responsible: { kind: 'work-item', id: 'work-item:reviewer-note' }, by: architect.invocation,
         submission: ended.submission, description: 'Writing a note twice keeps one note' }],
-      ['obligation-reported', { id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, where: missing, by: architect.invocation, submission: ended.submission }],
-      ['obligation-reported', { id: 'test-001', judgment: 'done', basedOnRevision: 0, revision: 1, by: architect.invocation, submission: ended.submission }],
+      ['obligation-reported', { id: 'scenario:reviewer-note-is-used', judgment: 'done', basedOnRevision: 0, revision: 1, where: missing, by: architect.invocation, submission: ended.submission }],
+      ['obligation-reported', { id: 'test:writing-a-note-twice-keeps-one-note', judgment: 'done', basedOnRevision: 0, revision: 1, by: architect.invocation, submission: ended.submission }],
     ]);
     // Recorded before the completion's outline and its gate: reports apply with the accepted submission.
     const completion = events.findIndex(event => event.type === 'outline-revised');
@@ -609,15 +614,15 @@ describe('a rejected submission in a run', () => {
     const tracked = trackedScenarios(lines);
     const projection = obligationsOf({ scenarios: tracked.records, workItems: committedRecords(lines).workItems, events: log.events });
     expect([...projection.obligations.values()].map(one => [one.id, one.status, one.revision, one.report?.where ?? null])).toEqual([
-      ['sc-001', 'done', 1, missing], ['test-001', 'done', 1, null],
+      ['scenario:reviewer-note-is-used', 'done', 1, missing], ['test:writing-a-note-twice-keeps-one-note', 'done', 1, null],
     ]);
-    expect(tracked.states.get('sc-001')).toBe('done');
+    expect(tracked.states.get('scenario:reviewer-note-is-used')).toBe('done');
   }, 300_000);
 
   test('a broken schema returns every error to the same session, and a corrected input is accepted', async () => {
     const { root, runId, service, agent } = await run(
       [{ kind: 'request-completion', summary: 'done' }, requestCompletion()],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'],
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"'],
     );
 
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
@@ -629,7 +634,7 @@ describe('a rejected submission in a run', () => {
     expect(local.verdicts[1]).toEqual({ accepted: true });
 
     // Nothing was written for the input that failed: one outline, at revision 1.
-    expect(existsSync(runPath(root, 'review-notes', runId, workLayout.outline('wi-001', 2)))).toBe(false);
+    expect(existsSync(runPath(root, 'review-notes', runId, workLayout.outline('work-item:reviewer-note', 2)))).toBe(false);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const organizing = events.filter(event => event.type === 'invocation-started' && event.data.role === 'local-architect').at(-1)!;
     const observations = await readFile(runPath(root, 'review-notes', runId, runLayout.observations((organizing.data as { invocation: string }).invocation)), 'utf8');
@@ -647,9 +652,9 @@ describe('a rejected submission in a run', () => {
 
   test('an assignment citing an ID outside its work-item package is rejected at submission, with the path of the ID', async () => {
     // The trial's sentence-as-heading citation, and an element of the catalog outside this work item's package.
-    const outside = assign(reviews, { citedElements: ['fr-001', 'Every note is kept', 'nfr-009'] }, outline());
+    const outside = assign(reviews, { citedElements: ['functional-requirement:reviewer-note-request', 'Every note is kept', 'non-functional-requirement:outside-catalog'] }, outline());
     const { service, agent } = await run([outside, requestCompletion()],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"']);
 
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     expect(local.verdicts[0]).toMatchObject({ accepted: false });
@@ -663,9 +668,9 @@ describe('a rejected submission in a run', () => {
 
   test('a rule the schema cannot hold remains correctable after four rejections', async () => {
     const broken = requestCompletion({ decomposition: { kind: 'staged', rationale: 'It is big.' }, stages: [] });
-    const corrected = { ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] };
+    const corrected = { ...requestCompletion(), reports: [{ id: 'scenario:reviewer-note-is-used', judgment: 'done', basedOnRevision: 0 }] };
     const { root, runId, service, agent } = await run([broken, broken, broken, broken, corrected],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"']);
 
     const snapshot = onlyRun(service, 'review-notes');
     expect(snapshot.state).toBe('completed');
@@ -690,16 +695,16 @@ describe('a rejected submission in a run', () => {
   const forgotten = { ...requestCompletion(), reports: [] };
 
   test('PB3-C01: a completion request missing a report is rejected naming the ID before any outline or gate; the same turn reports it and completes', async () => {
-    const { root, runId, service, agent } = await run([forgotten, { ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] }],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+    const { root, runId, service, agent } = await run([forgotten, { ...requestCompletion(), reports: [{ id: 'scenario:reviewer-note-is-used', judgment: 'done', basedOnRevision: 0 }] }],
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"']);
 
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
     const local = agent!.sessions.filter(session => session.spec.submission.name === localArchitectToolName);
     // One turn: the rejection and the accepted request are verdicts of the same session.
     expect(local).toHaveLength(1);
     const answer = answerOf(local[0]!.verdicts[0]);
-    expect(answer.errors).toEqual([{ path: 'reports', message: expect.stringContaining('This completion request leaves sc-001 without a done report.'),
-      expected: 'a done report for each of sc-001' }]);
+    expect(answer.errors).toEqual([{ path: 'reports', message: expect.stringContaining('This completion request leaves scenario:reviewer-note-is-used without a done report.'),
+      expected: 'a done report for each of scenario:reviewer-note-is-used' }]);
     expect(answer).not.toHaveProperty('remainingAttempts');
     expect(local[0]!.verdicts[1]).toEqual({ accepted: true });
 
@@ -709,25 +714,25 @@ describe('a rejected submission in a run', () => {
     expect(events.filter(event => event.type === 'gate-committing' && (event.data as { checkpoint: string }).checkpoint === 'work-item')).toHaveLength(1);
     expect(events.findIndex(event => event.type === 'obligation-reported')).toBeLessThan(events.findIndex(event => event.type === 'outline-revised'));
     expect(events.filter(event => event.type === 'obligation-reported').map(event => event.data)).toEqual([
-      expect.objectContaining({ id: 'sc-001', judgment: 'done', revision: 1 }),
+      expect.objectContaining({ id: 'scenario:reviewer-note-is-used', judgment: 'done', revision: 1 }),
     ]);
     const invocation = (events.filter(event => event.type === 'invocation-started' && event.data.role === 'local-architect').at(-1)!.data as { invocation: string }).invocation;
     const rejections = (await readFile(runPath(root, 'review-notes', runId, runLayout.observations(invocation)), 'utf8')).split('\n').filter(Boolean)
       .map(line => JSON.parse(line) as { type: string; data: { errors?: Array<{ path: string; message: string }> } })
       .filter(line => line.type === 'rejection');
-    expect(rejections.map(line => line.data.errors)).toEqual([[{ path: 'reports', message: expect.stringContaining('leaves sc-001 without a done report') }]]);
+    expect(rejections.map(line => line.data.errors)).toEqual([[{ path: 'reports', message: expect.stringContaining('leaves scenario:reviewer-note-is-used without a done report') }]]);
   }, 300_000);
 
   test('PB3-C03: repeated incomplete requests can be corrected before the gate', async () => {
-    const corrected = { ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] };
+    const corrected = { ...requestCompletion(), reports: [{ id: 'scenario:reviewer-note-is-used', judgment: 'done', basedOnRevision: 0 }] };
     const { root, runId, service, agent } = await run([forgotten, forgotten, forgotten, forgotten, corrected],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"']);
 
     const snapshot = onlyRun(service, 'review-notes');
     expect(snapshot.state).toBe('completed');
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     expect(local.verdicts).toHaveLength(5);
-    expect(answerOf(local.verdicts[3]).errors[0]!.message).toContain('leaves sc-001 without a done report');
+    expect(answerOf(local.verdicts[3]).errors[0]!.message).toContain('leaves scenario:reviewer-note-is-used without a done report');
     expect(local.verdicts.at(-1)).toEqual({ accepted: true });
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
@@ -759,7 +764,7 @@ describe('a rejected submission in a run', () => {
     assign(reviews, { scope: { base: { module: reviews, included: scope.included ?? [] }, extra: scope.extra ?? [], read: [], rationale: 'r' } }, outline());
 
   test('the briefing states the default write scope: the owner directory and the only directories included may name', async () => {
-    const { root, runId, agent } = await run([requestCompletion()], [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+    const { root, runId, agent } = await run([requestCompletion()], [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"']);
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     const inheritedScope = local.inherited.join('\n\n');
     const events = await runEventsOnDisk(root, 'review-notes', runId);
@@ -792,7 +797,7 @@ describe('a rejected submission in a run', () => {
   test('an included directory inside the owner is rejected at submission with its path, and the same turn resubmits', async () => {
     const own = scoped({ included: [{ directory: `${reviewsDirectory}/src/tests`, reason: 'The owner\'s tests are part of this work item', instructions: 'Keep them with the source' }] });
     const { root, runId, service, agent } = await run([own, requestCompletion()],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"']);
 
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     const answer = answerOf(local.verdicts[0]);
@@ -809,13 +814,13 @@ describe('a rejected submission in a run', () => {
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.some(event => event.type === 'iteration-assigned')).toBe(false);
     expect(events.filter(event => event.type === 'outline-revised')).toHaveLength(1);
-    expect(existsSync(runPath(root, 'review-notes', runId, workLayout.outline('wi-001', 2)))).toBe(false);
+    expect(existsSync(runPath(root, 'review-notes', runId, workLayout.outline('work-item:reviewer-note', 2)))).toBe(false);
   }, 300_000);
 
   test('a directory that is not an immediate child is rejected the same way', async () => {
     const grandchild = scoped({ included: [{ directory: `${reviewsDirectory}/subs/core/subs/tasks`, reason: 'r', instructions: 'i' }] });
     const { service, agent } = await run([grandchild, requestCompletion()],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"']);
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     expect(answerOf(local.verdicts[0]).errors).toEqual([expect.objectContaining({ path: 'assignment.scope.base.included.0.directory',
       message: `"${reviewsDirectory}/subs/core/subs/tasks" is neither an immediate child module directory of "${reviews}" nor an owned nested-project root` })]);
@@ -836,7 +841,7 @@ describe('a rejected submission in a run', () => {
       }
     }
     const { root, runId, service, agent } = await run([scoped({ extra: [{ path: marker, purpose: 'consumer' }] }), requestCompletion()],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'], {}, new OwnerlessAnswer());
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"'], {}, new OwnerlessAnswer());
 
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     const answer = answerOf(local.verdicts[0]);
@@ -852,7 +857,7 @@ describe('a rejected submission in a run', () => {
   test('a first assignment without an outline is rejected before scheduling and can be corrected in the same session', async () => {
     const { root, runId, service, agent } = await run(
       [assign(reviews), requestCompletion()],
-      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'],
+      [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"'],
     );
 
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;

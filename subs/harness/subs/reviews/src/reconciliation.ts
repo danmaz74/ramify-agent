@@ -30,7 +30,7 @@ const reference = z.string().min(1).max(500);
 
 /** A document a user decision cites, and its exact conflicting text. The harness binds its revision. */
 const citedConflictSchema = z.object({
-  /** An element ID of the run's catalog, such as `fr-002`, or a path of a file in the basis source. */
+  /** An element ID of the run's catalog, such as `functional-requirement:preview-limit`, or a path of a file in the basis source. */
   document: reference,
   text: prose,
 }).strict();

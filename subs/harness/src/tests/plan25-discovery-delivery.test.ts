@@ -15,7 +15,7 @@ import { startingPointsSection, type StartingPointGroup } from '../../subs/auton
 import { nonfunctionalSourceAllows } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
 import type { CandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
 import { assign, completionProposed, outline, submit, write } from './helpers/iterations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { byRole, treeInputs } from './helpers/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { declaringScenarios } from './helpers/declarations.js';
@@ -35,7 +35,7 @@ const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 const blockKey = 'brief:support:starting-points';
 const set = (text: string) => `# Block ${blockKey}\nCurrent value; replaces any earlier value for this key.\n${text}`;
 function group(note: string, producer = 'architect assignment'): StartingPointGroup {
-  return { origin: { producer, workItem: 'wi-001', iteration: 'wi-001.i01', invocation: 'iv-001', boundary: 'recorded-source' },
+  return { origin: { producer, workItem: 'work-item:review-note', iteration: 'work-item:review-note.i01', invocation: 'iv-001', boundary: 'recorded-source' },
     points: [{ path: 'subs/owner/src/caller.ts', note }] };
 }
 function request(operationId: string, ref?: string, groups: readonly StartingPointGroup[] = [group('A')]): HarnessOperationInput {
@@ -238,7 +238,7 @@ test('D4/D5/D11: actual engineer, architect, code/scope/design tasks carry only 
     const packet = await packetAt(root, run.runId, started.data.invocation);
     const discovery = packet.additions.find(item => item.block?.key === blockKey)!;
     for (const point of assignmentPoints[number]!) expect(discovery.text).toContain(JSON.stringify({ path: point.path, note: point.note }).slice(1, -1));
-    expect(discovery.text).toContain(`"iteration":"wi-001.i0${number + 1}"`);
+    expect(discovery.text).toContain(`"iteration":"work-item:review-notes.i0${number + 1}"`);
     expect(discovery.text).toContain('"producer":"architect assignment"');
     expect(packet.message.split('## Recorded starting points')).toHaveLength(2);
   }
@@ -276,12 +276,12 @@ test('D5: an actual partial engineer result is navigation help labeled partial f
   const fixed = { tree: 'a'.repeat(40), files: {}, base: 'scenarios-of-review-notes', changes: [] };
   const source = scriptedCandidates(fixture.root, { 'scenarios-of-review-notes': fixed, 'unchanged-fixture-revision': fixed, ['a'.repeat(40)]: fixed });
   const agent = createScriptedAgent(declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([entry('review-note', 'collection-review/workspace/reviews')]))],
+    'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', 'collection-review/workspace/reviews')]), 'document:review-notes-plan'))],
     'local-architect': [submit(assign('collection-review/workspace/reviews', {}, outline())), submit(requestCompletion())],
     engineer: [submit({ kind: 'partial', done: ['Inspected caller'], unfinished: ['Implement behavior'], findings: [], startingPoints: [point] })],
   })));
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(), candidates: source,
-    unchangedCheckpoints: [scenariosCommit(plan), 'wi-001', `final verification of plan "${plan}"`] });
+    unchangedCheckpoints: [scenariosCommit(plan), 'work-item:review-note', `final verification of plan "${plan}"`] });
   cleanups.push(() => opened.service.close()); const receipt = await opened.service.execute(startRun(plan)); await opened.service.settled(plan, receipt.jobId);
   expect(onlyRun(opened.service, plan).state).toBe('completed');
   const returned = agent.sessions.find(session => session.spec.prompt.includes('"producer":"engineer partial result"'))!;
@@ -301,7 +301,7 @@ test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'l
       return input.spec.submission.name === 'submit_work_orientation' ? { ...session, ref: '' } : session;
     }); cleanups.push(async () => { spy.mockRestore(); });
   }
-  const rest = declaringScenarios(byRole({ 'initial-architect': [submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]))], 'local-architect': [submit(requestCompletion())] }));
+  const rest = declaringScenarios(byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]), 'document:revision-diff-plan'))], 'local-architect': [submit(requestCompletion())] }));
   const agent = createScriptedAgent(spec => {
     if (spec.submission.name === 'submit_work_orientation') return submit({ focus: 'Caller', currentUnderstanding: 'Inspect compatibility', questions: [], ...(mode.startsWith('legacy') ? {} : { startingPoints: [point] }) });
     if (mode === 'lost-parent' && spec.role === 'context-selector') {
@@ -311,7 +311,7 @@ test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'l
     return typeof rest === 'function' ? rest(spec) : rest;
   });
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001', 'final verification of plan "revision-diff"'],
+    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'],
     afterWrite: async (write, jobId) => {
       if (!['missing-packet', 'legacy-missing-submission'].includes(mode) || write !== 'work-orientation-recorded') return;
       const events = await runEventsOnDisk(fixture.root, 'revision-diff', jobId);

@@ -7,7 +7,7 @@ import { capabilityProjectionLines as lines, capabilityContractRun } from '../..
 
 test('CA24: registry/contract decoding keeps its contract records', () => {
   const run = capabilityContractRun();
-  expect(runView(run).records.contracts.get('ct-001')).toMatchObject({ mode: 'fake-backed',
+  expect(runView(run).records.contracts.get('contract:format-b-fact')).toMatchObject({ mode: 'fake-backed',
     artifacts: { fake: [{ path: 'subs/reviews/src/fakes/fact.fake.ts' }] } });
 });
 

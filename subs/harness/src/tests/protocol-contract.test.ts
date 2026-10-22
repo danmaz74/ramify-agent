@@ -34,7 +34,7 @@ describe('queries', () => {
   });
 
   test('a plan names its runs that wait for a decision, each holding at least one work item and request', () => {
-    const wait = { runId: '20260921T080000Z-c0ffee', requests: 1, workItems: ['wi-002'] };
+    const wait = { runId: '20260921T080000Z-c0ffee', requests: 1, workItems: ['work-item:case-002'] };
     expect(planDecisionWaitSchema.parse(wait)).toEqual(wait);
     expect(planDecisionWaitSchema.safeParse({ ...wait, requests: 0 }).success).toBe(false);
     expect(planDecisionWaitSchema.safeParse({ ...wait, workItems: [] }).success).toBe(false);
@@ -43,9 +43,9 @@ describe('queries', () => {
 
   test('a run\'s decision requests: none, or the work items they hold, each with a request', () => {
     expect(runDecisionRequestsSchema.safeParse({ open: 0, waiting: false, workItems: [] }).success).toBe(true);
-    const held = { open: 2, waiting: true, workItems: [{ workItem: 'wi-002', requests: [{ checkFinding: 'cf-0006', request: 'cfd-0004' }] }] };
+    const held = { open: 2, waiting: true, workItems: [{ workItem: 'work-item:case-002', requests: [{ checkFinding: 'finding:case-0006', request: 'cfd-0004' }] }] };
     expect(runDecisionRequestsSchema.parse(held)).toEqual(held);
-    expect(runDecisionRequestsSchema.safeParse({ ...held, workItems: [{ workItem: 'wi-002', requests: [] }] }).success).toBe(false);
+    expect(runDecisionRequestsSchema.safeParse({ ...held, workItems: [{ workItem: 'work-item:case-002', requests: [] }] }).success).toBe(false);
     expect(runDecisionRequestsSchema.safeParse({ ...held, deadline: '2026-09-25T12:00:00.000Z' }).success).toBe(false);
   });
 
@@ -114,7 +114,7 @@ test('paths encode their IDs', () => {
   expect(protocolPaths.commands).toBe('/api/v1/commands');
   expect(protocolPaths.runs('a b')).toBe('/api/v1/plans/a%20b/runs');
   expect(protocolPaths.runEvents('p', 'r/1', 7)).toBe('/api/v1/plans/p/runs/r%2F1/events?after=7');
-  expect(protocolPaths.runWorkItem('p', 'r', 'wi-001')).toBe('/api/v1/plans/p/runs/r/work-items/wi-001');
+  expect(protocolPaths.runWorkItem('p', 'r', 'work-item:case-001')).toBe('/api/v1/plans/p/runs/r/work-items/work-item%3Acase-001');
   expect(protocolPaths.runGate('p', 'r', 'ga 1')).toBe('/api/v1/plans/p/runs/r/gates/ga%201');
   for (const path of [protocolPaths.runAnalysis('p', 'r'), protocolPaths.runDecisions('p', 'r'), protocolPaths.runWorkItems('p', 'r'), protocolPaths.runCapabilities('p', 'r'), protocolPaths.runMetrics('p', 'r')]) {
     expect(path.startsWith('/api/v1/plans/p/runs/r/')).toBe(true);
@@ -171,7 +171,7 @@ describe('the evidence a run works from', () => {
 describe('the module-capability comparison', () => {
   const tree = { status: 'available' as const, revision: 'rev/1', input: 'input/1', modules: [{ module: 'app', dir: '', parent: null }, { module: 'app/notes', dir: 'subs/notes', parent: 'app' }] };
   const valid = {
-    identityPolicy: 'exact-capability-slug/1',
+    identityPolicy: 'exact-accepted-capability-id/2',
     runVersion: 12,
     initialView: { status: 'placeholder' },
     tree,
@@ -179,7 +179,7 @@ describe('the module-capability comparison', () => {
       { module: 'app', placement: 'declared', proposedAtStart: null, capabilities: [] },
       {
         module: 'app/notes', placement: 'declared', proposedAtStart: null, capabilities: [
-          { capability: 'review-note', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'wi-001 passed its work-item gate ga-0002', evidence: ['ga-0002'] } },
+          { capability: 'review-note', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'work-item:case-001 passed its work-item gate ga-0002', evidence: ['ga-0002'] } },
           { capability: 'note-search', initial: [{ role: 'suggested-owner', hypothesis: 'note-search' }, { role: 'involved', hypothesis: 'note-search' }], implementedHere: null },
         ],
       },
@@ -286,12 +286,12 @@ describe('the module-capability comparison', () => {
 describe('the acceptance scenarios a client reads', () => {
   const plan = { kind: 'plan', planScenario: 'ps-01', lines: [12, 16] };
   const gateResult = {
-    gate: 'ga-0004', checkpoint: 'iteration', subject: { workItem: 'wi-003', iteration: 'wi-003.i01' }, verdict: 'failed',
+    gate: 'ga-0004', checkpoint: 'iteration', subject: { workItem: 'work-item:case-003', iteration: 'work-item:case-003.i01' }, verdict: 'failed',
     check: 'scenarios', command: 'cucumber', status: 'failed', failure: { step: 'Then it is shown', message: 'expected one' }, undefined: [],
   };
   const scenario = {
-    id: 'sc-003', kind: 'integration', name: 'A note is shown with its tag', state: 'bound', origin: plan,
-    entry: null, partOf: null, subScenarios: ['sc-001', 'sc-002'], workItem: 'wi-003', owner: 'app/reviews',
+    id: 'scenario:case-003', kind: 'integration', name: 'A note is shown with its tag', state: 'bound', origin: plan,
+    entry: null, partOf: null, subScenarios: ['scenario:case-001', 'scenario:case-002'], workItem: 'work-item:case-003', owner: 'app/reviews',
     file: 'subs/reviews/src/tests/features/p/integration.feature', gates: [gateResult],
   };
 
@@ -305,7 +305,7 @@ describe('the acceptance scenarios a client reads', () => {
   test('the scenario list: a scenario with its origin, work item and gates, strictly', () => {
     const list = { scenarios: [scenario], total: 1, obligations: [] };
     expect(scenarioListResponseSchema.parse(list)).toEqual(list);
-    const architect = { ...scenario, kind: 'entry', entry: 'show-note', partOf: 'sc-005', subScenarios: [], origin: { kind: 'architect', refs: ['fr-002', 'fr-003'] } };
+    const architect = { ...scenario, kind: 'entry', entry: 'show-note', partOf: 'scenario:case-005', subScenarios: [], origin: { kind: 'architect', refs: ['functional-requirement:case-002', 'functional-requirement:case-003'] } };
     expect(scenarioListResponseSchema.safeParse({ scenarios: [architect], total: 1, obligations: [] }).success).toBe(true);
     expect(scenarioListResponseSchema.safeParse({ scenarios: [{ ...scenario, state: 'failed' }], total: 1, obligations: [] }).success).toBe(false);
     expect(scenarioListResponseSchema.safeParse({ scenarios: [{ ...scenario, extra: 1 }], total: 1, obligations: [] }).success).toBe(false);
@@ -316,7 +316,7 @@ describe('the acceptance scenarios a client reads', () => {
   test('PB3-D04: an obligation carries its architect report and optional where text apart from any gate result', () => {
     const hash = 'b'.repeat(64);
     const reported = {
-      id: 'sc-003', kind: 'scenario', responsible: { kind: 'work-item', id: 'wi-003' }, status: 'done', revision: 1,
+      id: 'scenario:case-003', kind: 'scenario', responsible: { kind: 'work-item', id: 'work-item:case-003' }, status: 'done', revision: 1,
       case: null, description: null, registeredBy: null, binding: { fakes: ['FakeNoteStore'], invocation: 'inv-0006', submission: hash, sequence: 30, at: '2026-10-07T11:00:00.000Z' },
       report: { judgment: 'done', revision: 1, basedOnRevision: 0, where: 'subs/missing/src/nowhere.ts — notAFunction', invocation: 'inv-0007', submission: hash, sequence: 41, at: '2026-10-07T12:00:00.000Z' },
     };
@@ -332,10 +332,10 @@ describe('the acceptance scenarios a client reads', () => {
 
   test('the review: the accepted analysis carries each scenario\'s text and the warnings, and counts the scenarios', () => {
     const text = {
-      id: 'sc-003', kind: 'integration', entry: null, owner: 'app/reviews', origin: plan, partOf: null, subScenarios: ['sc-001'],
+      id: 'scenario:case-003', kind: 'integration', entry: null, owner: 'app/reviews', origin: plan, partOf: null, subScenarios: ['scenario:case-001'],
       name: 'A note is shown', source: ['Scenario: A note is shown', '  Then it is shown'], file: 'subs/reviews/src/tests/features/p/integration.feature',
     };
-    const warning = { kind: 'sub-scenario-shares-no-step', scenarios: ['sc-001'], message: 'sc-001 picks no step of sc-003' };
+    const warning = { kind: 'sub-scenario-shares-no-step', scenarios: ['scenario:case-001'], message: 'scenario:case-001 picks no step of scenario:case-003' };
     const accepted = {
       plan: { markdown: '# P', hash: 'a'.repeat(64) },
       analysis: { status: 'accepted', view: { status: 'placeholder' }, entries: [], hypotheses: [], scenarios: [text], warnings: [warning], total: { entries: 0, hypotheses: 0, scenarios: 1 } },
@@ -363,7 +363,7 @@ describe('the acceptance scenarios a client reads', () => {
       fallbackReason: null, reuse: { auditedCommit: 'a'.repeat(40), ignoredChangedPaths: ['docs/a.md'], requestedMode: 'ramify-partial', resolution: 'defaulted' },
       verdict: 'fail', detail: 'a check failed', nested: false, projects: null, discovery: null,
     };
-    const result = { id: 'sc-003', check: 'scenarios', command: 'cucumber', status: 'undefined', file: 'f.feature', line: 3, failure: null, undefined: ['Then it is shown'] };
+    const result = { id: 'scenario:case-003', check: 'scenarios', command: 'cucumber', status: 'undefined', file: 'f.feature', line: 3, failure: null, undefined: ['Then it is shown'] };
     const gate = {
       id: 'ga-0004', checkpoint: 'iteration', subject: {}, repairRound: 0, infrastructureAttempt: 0, head: 'a', commit: null, audited: null,
       evidence: null, audit, scenarios: [result], verdict: 'failed', cause: 'check-failed', next: 'repair', guardedChanges: [], rules: [], commands: [],
@@ -399,7 +399,7 @@ describe('the acceptance scenarios a client reads', () => {
   });
 
   test('a projected event may refer to a scenario', () => {
-    const event = { sequence: 4, at: '2026-09-23T08:00:00.000Z', transition: 'obligation-reported', summary: 'The responsible architect reported sc-001 done at revision 1', refs: [{ kind: 'scenario', id: 'sc-001' }, { kind: 'invocation', id: 'inv-0003' }] };
+    const event = { sequence: 4, at: '2026-09-23T08:00:00.000Z', transition: 'obligation-reported', summary: 'The responsible architect reported scenario:case-001 done at revision 1', refs: [{ kind: 'scenario', id: 'scenario:case-001' }, { kind: 'invocation', id: 'inv-0003' }] };
     expect(projectedRunEventSchema.parse(event)).toEqual(event);
   });
 });
@@ -408,9 +408,9 @@ describe('sessions', () => {
   const at = '2026-09-23T10:00:00.000Z';
   const run = { source: 'run', planId: 'review-notes', runId: '20260923T100000Z-a1b2c3', session: 'ses-0001' } as const;
   const entry = {
-    ref: run, state: 'live', finished: null, role: 'engineer', work: { workItem: 'wi-001', iteration: 'wi-001.i01' },
+    ref: run, state: 'live', finished: null, role: 'engineer', work: { workItem: 'work-item:case-001', iteration: 'work-item:case-001.i01' },
     executor: 'scripted', model: null, invocations: 1, degradedStarts: 0,
-    reaches: { kind: 'work-item', workItem: 'wi-001', capability: 'review-note', module: 'app/notes' },
+    reaches: { kind: 'work-item', workItem: 'work-item:case-001', capability: 'review-note', module: 'app/notes' },
     startedAt: at, changedAt: at,
   };
   const page = { file: 'present', entries: [], cursor: 3, more: false, partial: false, unreadable: [] };
@@ -443,9 +443,9 @@ describe('sessions', () => {
     for (const state of ['live', 'suspended', 'finished', 'interrupted']) expect(sessionListEntrySchema.safeParse({ ...entry, state }).success).toBe(true);
     expect(sessionListEntrySchema.safeParse({ ...entry, state: 'running' }).success).toBe(false);
     expect(sessionListEntrySchema.safeParse({ ...entry, agent: 'scripted' }).success).toBe(false);
-    for (const reaches of [{ kind: 'run' }, { kind: 'request', request: 'pr-001', workItem: 'wi-001', capability: null },
-      { kind: 'work-item', workItem: 'wi-001', capability: 'notes', module: 'app/notes' },
-      { kind: 'capability-task', task: 'ct-001', request: null, assignment: null, module: 'app/notes' }]) {
+    for (const reaches of [{ kind: 'run' }, { kind: 'request', request: 'pr-001', workItem: 'work-item:case-001', capability: null },
+      { kind: 'work-item', workItem: 'work-item:case-001', capability: 'notes', module: 'app/notes' },
+      { kind: 'capability-task', task: 'capability-task:provide-fact', request: null, assignment: null, module: 'app/notes' }]) {
       expect(sessionListEntrySchema.safeParse({ ...entry, reaches }).success).toBe(true);
     }
     expect(sessionListEntrySchema.safeParse({ ...entry, reaches: { kind: 'module', module: 'app/notes' } }).success).toBe(false);
@@ -468,9 +468,9 @@ describe('sessions', () => {
 
   test('a run session\'s invocations carry their moments, points and evaluation; the poll answers views and pages', () => {
     const view = {
-      session: 'ses-0002', state: 'suspended', finished: null, role: 'local-architect', work: { workItem: 'wi-001' },
+      session: 'ses-0002', state: 'suspended', finished: null, role: 'local-architect', work: { workItem: 'work-item:case-001' },
       executor: 'scripted', model: 'provider/model-7',
-      reaches: { kind: 'work-item', workItem: 'wi-001', capability: 'review-note', module: 'app/notes' },
+      reaches: { kind: 'work-item', workItem: 'work-item:case-001', capability: 'review-note', module: 'app/notes' },
       opened: { sequence: 9, at }, changed: { sequence: 12, at }, awaiting: null,
       point: { session: 'ses-0002', invocation: 'inv-0002' },
       invocations: [{

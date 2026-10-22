@@ -3,64 +3,67 @@ import { acceptElements, openElementCatalog, reviseCatalog, serializeElementCata
 import { documentManifestSchema } from '../interfaces/contracts.js';
 
 const hash = 'a'.repeat(64);
-const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/1', root: 'doc-001', documents: [
-  { id: 'doc-001', path: 'plans/example/plan.md', kind: 'plan', sha256: hash, bytes: 1, storedAt: 'input/documents/doc-001.bin', revision: { commit: null, dirty: null } },
+const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/2', root: 'document:example-plan', documents: [
+  { id: 'document:example-plan', path: 'plans/example/plan.md', kind: 'plan', sha256: hash, bytes: 1, storedAt: 'input/documents/document:example-plan.bin', revision: { commit: null, dirty: null } },
 ], missing: [], principlesScan: { status: 'empty', unreadable: [] } });
-const element = (key: string, kind: SubmittedElement['kind'] = 'functional'): SubmittedElement => ({ key, kind, document: 'doc-001', text: `Requirement ${key}`, conditions: [], uncertainty: '' });
+const element = (key: string, kind: SubmittedElement['kind'] = 'functional'): SubmittedElement => ({ key, kind, document: 'document:example-plan', text: `Requirement ${key}`, conditions: [], uncertainty: '' });
 const field = (citations: readonly string[], allowedKinds: ElementReferenceList['allowedKinds'] = ['functional']): ElementReferenceList => ({ path: 'entries.cap-a.requirementRefs', citations, allowedKinds });
 
 describe('Plan 23 C01/C02 catalog local-key validation', () => {
   test('missing and wrong-kind references name submitted keys before IDs are allocated; retry keeps the same next ID', () => {
     const catalog = openElementCatalog(hash, manifest); const before = serializeElementCatalog(catalog);
-    const rejected = acceptElements(catalog, [element('req-a'), element('hyp-a', 'context')], [field(['req-a', 'missing-key', 'hyp-a'])]);
+    const rejected = acceptElements(catalog, [element('draft:functional-requirement:req-a'), element('draft:context:hyp-a', 'context')], [field(['draft:functional-requirement:req-a', 'draft:functional-requirement:missing-key', 'draft:context:hyp-a'])]);
     expect(rejected).toEqual({ ok: false, errors: [
-      'entries.cap-a.requirementRefs.1: unknown element reference "missing-key"',
-      'entries.cap-a.requirementRefs.2: reference "hyp-a" is context; expected functional',
+      'entries.cap-a.requirementRefs.1: "draft:functional-requirement:missing-key" is unknown or foreign to this run; this field requires an active reference from this run catalog in functional-requirement',
+      'entries.cap-a.requirementRefs.2: "draft:context:hyp-a" is context; this field requires functional-requirement from this submission',
     ] });
     expect(serializeElementCatalog(catalog)).toBe(before);
-    const retry = acceptElements(catalog, [element('req-a'), element('hyp-a', 'context')], [field(['req-a']), field(['hyp-a'], ['context'])]);
-    expect(retry.ok && [...retry.ids]).toEqual([['req-a', 'fr-001'], ['hyp-a', 'ctx-001']]);
-    expect(retry).toEqual(acceptElements(catalog, [element('req-a'), element('hyp-a', 'context')], [field(['req-a']), field(['hyp-a'], ['context'])]));
+    const retry = acceptElements(catalog, [element('draft:functional-requirement:req-a'), element('draft:context:hyp-a', 'context')], [field(['draft:functional-requirement:req-a']), field(['draft:context:hyp-a'], ['context'])]);
+    expect(retry.ok && [...retry.ids]).toEqual([['draft:functional-requirement:req-a', 'functional-requirement:req-a'], ['draft:context:hyp-a', 'context:hyp-a']]);
+    expect(retry).toEqual(acceptElements(catalog, [element('draft:functional-requirement:req-a'), element('draft:context:hyp-a', 'context')], [field(['draft:functional-requirement:req-a']), field(['draft:context:hyp-a'], ['context'])]));
   });
   test('duplicate and malformed submitted elements identify their original keys and leave issued IDs untouched', () => {
     const catalog = openElementCatalog(hash, manifest);
-    const duplicate = acceptElements(catalog, [element('cap-a'), element('cap-a')]);
-    expect(duplicate).toEqual({ ok: false, errors: ['1.key: duplicate submission-local key cap-a'] });
-    const invalid = acceptElements(catalog, [{ ...element('req-a'), text: '' }]);
-    expect(invalid.ok ? [] : invalid.errors).toEqual(['0.text: Too small: expected string to have >=1 characters (submitted key "req-a")']);
-    expect(acceptElements(catalog, [element('cap-a')])).toMatchObject({ ok: true, ids: new Map([['cap-a', 'fr-001']]) });
+    const duplicate = acceptElements(catalog, [element('draft:functional-requirement:cap-a'), element('draft:functional-requirement:cap-a')]);
+    expect(duplicate).toEqual({ ok: false, errors: ['1.key: duplicate submission-local key draft:functional-requirement:cap-a', '1.key: "draft:functional-requirement:cap-a" duplicates another proposal in this submission'] });
+    const invalid = acceptElements(catalog, [{ ...element('draft:functional-requirement:req-a'), text: '' }]);
+    expect(invalid.ok ? [] : invalid.errors).toEqual(['0.text: Too small: expected string to have >=1 characters (submitted key "draft:functional-requirement:req-a")']);
+    expect(acceptElements(catalog, [element('draft:functional-requirement:cap-a')])).toMatchObject({ ok: true, ids: new Map([['draft:functional-requirement:cap-a', 'functional-requirement:cap-a']]) });
     expect(catalog.elements).toEqual([]);
   });
-  test('retire-only revisions succeed without additions and never reissue the retired identity', () => {
-    const initial = acceptElements(openElementCatalog(hash, manifest), [element('req-a'), element('cap-a')]); if (!initial.ok) throw new Error('fixture');
-    const retired = reviseCatalog(initial.catalog, { rewrite: [], retire: ['fr-002'], add: [], references: [field(['fr-001'])] });
-    expect(retired).toMatchObject({ ok: true, ids: new Map(), catalog: { elements: [{ id: 'fr-001' }], retired: ['fr-002'] } });
+  test('replacement revisions retire an identity that cannot be reused', () => {
+    const initial = acceptElements(openElementCatalog(hash, manifest), [element('draft:functional-requirement:req-a'), element('draft:functional-requirement:cap-a')]); if (!initial.ok) throw new Error('fixture');
+    const retired = reviseCatalog(initial.catalog, { rewrite: [], retire: ['functional-requirement:cap-a'],
+      add: [element('draft:functional-requirement:next')], replacements: [{ retired: 'functional-requirement:cap-a', with: ['draft:functional-requirement:next'] }],
+      references: [field(['functional-requirement:req-a'])] });
+    expect(retired).toMatchObject({ ok: true, ids: new Map([['draft:functional-requirement:next', 'functional-requirement:next']]), catalog: { retired: ['functional-requirement:cap-a'] } });
     if (!retired.ok) throw new Error('retirement rejected');
-    expect(acceptElements(retired.catalog, [element('next')])).toMatchObject({ ok: true, ids: new Map([['next', 'fr-003']]) });
+    expect(acceptElements(retired.catalog, [element('draft:functional-requirement:cap-a')]).ok).toBe(false);
   });
   test('revision references reject retired IDs/new wrong-kind keys atomically and retry does not advance IDs', () => {
-    const initial = acceptElements(openElementCatalog(hash, manifest), [element('req-a')]); if (!initial.ok) throw new Error('fixture');
+    const initial = acceptElements(openElementCatalog(hash, manifest), [element('draft:functional-requirement:req-a')]); if (!initial.ok) throw new Error('fixture');
     const before = serializeElementCatalog(initial.catalog);
-    expect(reviseCatalog(initial.catalog, { rewrite: [], retire: ['fr-001'], add: [element('replacement')], references: [field(['fr-001'])] }))
-      .toEqual({ ok: false, errors: ['entries.cap-a.requirementRefs.0: unknown element reference "fr-001"'] });
+    expect(reviseCatalog(initial.catalog, { rewrite: [], retire: ['functional-requirement:req-a'], add: [element('draft:functional-requirement:replacement')], references: [field(['functional-requirement:req-a'])] }))
+      .toEqual({ ok: false, errors: ['entries.cap-a.requirementRefs.0: "functional-requirement:req-a" is retired; this field requires an active reference from this run catalog in functional-requirement'] });
     expect(serializeElementCatalog(initial.catalog)).toBe(before);
-    expect(reviseCatalog(initial.catalog, { rewrite: [], retire: ['fr-001'], add: [element('replacement')], references: [field(['replacement'])] }))
-      .toMatchObject({ ok: true, ids: new Map([['replacement', 'fr-002']]), catalog: { retired: ['fr-001'] } });
+    expect(reviseCatalog(initial.catalog, { rewrite: [], retire: ['functional-requirement:req-a'], add: [element('draft:functional-requirement:replacement')],
+      replacements: [{ retired: 'functional-requirement:req-a', with: ['draft:functional-requirement:replacement'] }], references: [field(['draft:functional-requirement:replacement'])] }))
+      .toMatchObject({ ok: true, ids: new Map([['draft:functional-requirement:replacement', 'functional-requirement:replacement']]), catalog: { retired: ['functional-requirement:req-a'] } });
   });
   test('each list enforces its supplied kind set, including multiple legal kinds and no permitted kind', () => {
-    const catalog = openElementCatalog(hash, manifest); const submitted = [element('req-a'), element('context-a', 'context'), element('recommend-a', 'recommendation')];
-    expect(validateElementReferences([field(['req-a', 'recommend-a'], ['functional', 'recommendation']), field(['context-a'], ['context'])], catalog, submitted)).toEqual([]);
-    expect(validateElementReferences([field(['context-a']), field(['req-a'], [])], catalog, submitted)).toEqual([
-      'entries.cap-a.requirementRefs.0: reference "context-a" is context; expected functional',
-      'entries.cap-a.requirementRefs.0: reference "req-a" is functional; expected no element kinds',
+    const catalog = openElementCatalog(hash, manifest); const submitted = [element('draft:functional-requirement:req-a'), element('draft:context:context-a', 'context'), element('draft:recommendation:recommend-a', 'recommendation')];
+    expect(validateElementReferences([field(['draft:functional-requirement:req-a', 'draft:recommendation:recommend-a'], ['functional', 'recommendation']), field(['draft:context:context-a'], ['context'])], catalog, submitted)).toEqual([]);
+    expect(validateElementReferences([field(['draft:context:context-a']), field(['draft:functional-requirement:req-a'], [])], catalog, submitted)).toEqual([
+      'entries.cap-a.requirementRefs.0: "draft:context:context-a" is context; this field requires functional-requirement from this submission',
+      'entries.cap-a.requirementRefs.0: "draft:functional-requirement:req-a" is functional-requirement; this field requires no permitted element kinds from this submission',
     ]);
   });
   test('Gherkin remains valid element text, while a separate gherkin field is refused', () => {
     const catalog = openElementCatalog(hash, manifest);
     const text = 'Scenario: A caller receives a result\n Given a valid request\n When the caller submits it\n Then the result is returned';
-    expect(acceptElements(catalog, [{ ...element('req-a'), text }])).toMatchObject({ ok: true, catalog: { elements: [{ id: 'fr-001', text }] } });
-    const rejected = acceptElements(catalog, [{ ...element('req-a'), gherkin: text }]);
+    expect(acceptElements(catalog, [{ ...element('draft:functional-requirement:req-a'), text }])).toMatchObject({ ok: true, catalog: { elements: [{ id: 'functional-requirement:req-a', text }] } });
+    const rejected = acceptElements(catalog, [{ ...element('draft:functional-requirement:req-a'), gherkin: text }]);
     expect(rejected.ok).toBe(false); if (rejected.ok) return;
-    expect(rejected.errors.join(' ')).toContain('gherkin'); expect(rejected.errors.join(' ')).toContain('req-a');
+    expect(rejected.errors.join(' ')).toContain('gherkin'); expect(rejected.errors.join(' ')).toContain('draft:functional-requirement:req-a');
   });
 });

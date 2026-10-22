@@ -8,7 +8,7 @@ import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
 import { createConfiguredAudit } from '../../subs/audit/src/check-execution.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import {
   addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline,
   submit, viewedInputs, write,
@@ -83,7 +83,7 @@ describe('G8: one small work item completes in one iteration', () => {
     const opened = await openRuns(root, {
       git: gitService,
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [
           submit(assign(notes, {}, outline())),
           submit(requestCompletion({ changes: 'The iteration carried the goal; the work item is ready.', revisionReason: 'The iteration is accepted.' })),
@@ -118,8 +118,8 @@ describe('G8: one small work item completes in one iteration', () => {
     // the gate runs.
     expect(types.indexOf('writer-acquired')).toBeLessThan(types.indexOf('writer-released'));
 
-    const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('wi-001', 1)), 'utf8')) as IterationAssignment;
-    expect(assignment.id).toBe('wi-001.i01');
+    const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('work-item:review-note', 1)), 'utf8')) as IterationAssignment;
+    expect(assignment.id).toBe('work-item:review-note.i01');
     expect(assignment.gate).toEqual({
       checkpoint: 'iteration',
       tests: { policy: 'owned-by-scope', exactOwners: [notes], subtrees: [], extraSuites: [] },
@@ -127,7 +127,7 @@ describe('G8: one small work item completes in one iteration', () => {
     expect(assignment.scope.resolved.roots.some(path => path.endsWith(notesDirectory))).toBe(true);
     expect(assignment.guarded.map(file => file.path)).toContain('package.json');
 
-    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
+    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1)), 'utf8')) as IterationResult;
     expect(result.outcome).toBe('accepted');
     expect(result.gate).not.toBeNull();
     expect(result.commit).not.toBeNull();
@@ -136,7 +136,7 @@ describe('G8: one small work item completes in one iteration', () => {
     // harness listed no test of its own.
     const gate = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.gate(result.gate!)), 'utf8')) as GateAttempt;
     expect(gate.verdict).toBe('passed');
-    expect(gate.subject).toEqual({ workItem: 'wi-001', iteration: 'wi-001.i01' });
+    expect(gate.subject).toEqual({ workItem: 'work-item:review-note', iteration: 'work-item:review-note.i01' });
     expect(gate.commands).toEqual([]);
     expect(gate.audit).toMatchObject({ status: 'completed', verdict: 'pass', mode: 'project-default',
       requestedSourceCommit: result.commit, auditedSourceCommit: result.commit });
@@ -151,7 +151,7 @@ describe('G8: one small work item completes in one iteration', () => {
     // and the audit evidence attached separately under the audit notes ref.
     const log = await git(root, 'log', '--format=%H%x1f%B%x1e', `ramify-agent-run/${runId}`);
     const commits = log.split('').map(part => part.trim()).filter(Boolean);
-    const accepted = commits.find(commit => commit.includes('Ramify-Iteration: wi-001.i01'));
+    const accepted = commits.find(commit => commit.includes('Ramify-Iteration: work-item:review-note.i01'));
     expect(accepted).toBeDefined();
     expect(accepted).toContain('Raised the note limit to the 500 characters the plan asks for.');
     expect(accepted).not.toContain('Checks:');

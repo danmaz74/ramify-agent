@@ -256,7 +256,7 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(procedure).toContain('Reviews may still be running; the work-item gate waits for them.');
     expect(procedure).not.toContain('review/gate requirement');
     const ordinaryProcedure = buildTaskPacket(input(ordinary.get('local-architect')!, 'completion')).additions.find(item => item.kind === 'procedure')!.text;
-    expect(ordinaryProcedure).toContain('Without it, the last committed outline stays.');
+    expect(ordinaryProcedure).toContain('Include `outline` only to change its current revision.');
     expect(packet.roleInstructions).toContain('Use only the supplied view paths and preserve their coverage limitations.');
     expect(packet.roleInstructions).toContain('Pages mirror defining source paths with `.md`');
     expect(packet.roleInstructions).not.toContain('.ramify/children');
@@ -269,8 +269,8 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     const discovery = 'subs/harness/src/prompts/discovery-read-only.procedure.md';
     const procedureSources = (loaded: LoadedPackage, kind: TaskKind) =>
       buildTaskPacket(input(loaded, kind)).manifest.entries.filter(entry => entry.kind === 'procedure').flatMap(entry => entry.sources.map(source => source.path));
-    expect(procedureSources(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect-capability.procedure.md', planning, writeScope, engineering]);
-    expect(procedureSources(ordinary.get('local-architect')!, 'completion')).toEqual(['subs/harness/src/prompts/local-architect.procedure.md', planning, writeScope, engineering]);
+    expect(procedureSources(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect-descriptive.procedure.md', planning, writeScope, engineering]);
+    expect(procedureSources(ordinary.get('local-architect')!, 'completion')).toEqual(['subs/harness/src/prompts/local-architect-descriptive.procedure.md', planning, writeScope, engineering]);
     expect(procedureSources(current.get('capability-architect')!, 'capability')).toEqual(['subs/harness/src/prompts/capability-architect.procedure.md', planning, writeScope, engineering]);
     expect(buildTaskPacket(input(local, 'assignment')).message).toContain('An included child module brings its whole subtree:');
     // A replaced procedure embeds no section, so its entry names only its own file.
@@ -283,7 +283,7 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(deliveredSupportPaths(local, 'assignment')).toEqual(manifestSources);
     // Role-specific read-only guidance is embedded; no new reference read is required.
     expect(deliveredSupportPaths(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect.system.md', discovery,
-      'subs/harness/src/prompts/local-architect-capability.procedure.md', planning, writeScope, engineering]);
+      'subs/harness/src/prompts/local-architect-descriptive.procedure.md', planning, writeScope, engineering]);
     expect(local.files.map(file => file.path)).toEqual(expect.arrayContaining(['local-architect.schema.json', 'subs/harness/src/prompts/reconciliation.procedure.md']));
     expect(deliveredSupportPaths(local, 'reconciliation')).toEqual(['subs/harness/src/prompts/local-architect.system.md', discovery, 'subs/harness/src/prompts/reconciliation.procedure.md']);
     expect(deliveredSupportPaths(current.get('initial-architect')!, 'initial-analysis')).toEqual(['subs/harness/src/prompts/initial-architect.system.md', 'skills/module-architect/SKILL.md', discovery, 'subs/harness/src/prompts/initial-analysis.procedure.md']);
@@ -400,8 +400,7 @@ describe('P04: manifests reflect supplied/inherited instructions and truthful re
       expect(stableRoleInstructions(loaded)).toContain('those refusals make no\nchange and trigger no mutation check');
       expect(stableRoleInstructions(loaded)).toContain('After an executed mutation');
     }
-    expect(ordinary.get('local-architect')!.procedure).toContain('is imported only when the evidence records that import');
-    expect(ordinary.get('local-architect')!.procedure).toContain('provenance is unavailable');
+    expect(ordinary.get('local-architect')!.procedure).toContain('Use the architect view for ownership questions');
     expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('requirementRefs names functional');
     expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('Copying Gherkin alone warrants no correction');
     expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('Correct omitted');

@@ -29,7 +29,7 @@ export function pause(extra: Partial<BreakpointState> = {}): BreakpointState {
   return breakpointStateSchema.parse({
     kind: 'breakpoint', planId: debugPlanId, runId: debugRunId, pauseId: 'bp-0001', revision: 1, cursor: 14, state: 'paused', role: 'engineer',
     work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, goal: 'Attach a note to a review', nextAction: 'execute the iteration',
-    taskState: 'pending', summary: 'The module engineer for wi-001.i01 is prepared and waits for resume.',
+    taskState: 'pending', summary: 'The module engineer for work-item:case-001.i01 is prepared and waits for resume.',
     ...extra,
   });
 }

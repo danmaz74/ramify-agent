@@ -7,7 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type LineEventSummary } from '../../subs/kpi/src/run-records.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 
@@ -45,10 +45,10 @@ describe('a run captures each writer\'s line events when the observation happens
     const final = finalCandidate(root, 'source-revision');
     const git = scriptedGit(root, { head: 'base', checkpoints: [
       scenariosCommit('review-notes'),
-      { subject: 'wi-001.i01', commit: 'source-revision', changes: [
+      { subject: 'work-item:review-note.i01', commit: 'source-revision', changes: [
         { status: 'M', path: `${notesDirectory}/src/notes.ts` }, { status: 'A', path: `${notesDirectory}/src/store.ts` },
       ] },
-      { subject: 'wi-001', commit: null, changes: [] },
+      { subject: 'work-item:review-note', commit: null, changes: [] },
       { subject: 'final verification of plan "review-notes"', commit: null, changes: [] },
     ], previews: final.previews });
     const counts = vi.spyOn(git, 'worktreeLineChanges')
@@ -59,7 +59,7 @@ describe('a run captures each writer\'s line events when the observation happens
       git, candidates: final.candidates,
       afterWrite: async write => { if (write === 'scenarios-materialized') git.givenWrites(); },
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [submit(
           completionProposed('Raised the limit and added the store.'),

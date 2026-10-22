@@ -356,9 +356,9 @@ export function workItemMessage(briefing: WorkItemBriefing, packages: readonly s
     '',
     '## What the plan asks',
     '',
-    `- Requirement: ${ids(item.requirementRefs)}`,
-    `- Acceptance: ${ids(item.acceptanceRefs)}`,
-    `- Context: ${ids(item.contextRefs)}`,
+    `- Functional requirements: ${ids(item.functionalRequirementIds)}`,
+    `- Functional acceptance: ${ids(item.functionalAcceptanceIds)}`,
+    `- Context: ${ids(item.contextIds)}`,
     '',
     briefing.package === undefined
       ? 'The requirement, acceptance and context elements are supplied with this task. Non-functional, fixed and recommendation elements are selected after orientation.'

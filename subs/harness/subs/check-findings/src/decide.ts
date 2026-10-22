@@ -6,7 +6,7 @@ import {
   type CheckFindingReportInput, type CheckFindingState,
 } from './interfaces/check-findings.js';
 import {
-  checkFindingId, decisionId, ingestionKey, issueKeyMatches, relationId, reportId, sameObligation, sameOwner,
+  decisionId, ingestionKey, issueKeyMatches, proposedFindingId, relationId, reportId, sameObligation, sameOwner,
   sameSource, scopedIssueKey,
 } from './identity.js';
 import { applyCheckFindingEvent } from './replay.js';
@@ -86,9 +86,15 @@ function decideReport(state: CheckFindingState, report: CheckFindingReportInput)
       return reject('ambiguous-issue-key', `issue key ${report.issueKey} names ${matches.map(entry => entry.id).join(', ')}; a report attaches to exactly one`);
     }
     const [match] = matches;
-    if (match !== undefined) return attach(state, match, next);
+    if (match !== undefined) {
+      if (report.findingKey !== undefined && proposedFindingId(report.findingKey) !== match.id)
+        return reject('finding-name-conflict', `${report.findingKey} names ${proposedFindingId(report.findingKey)}, but issue key ${report.issueKey} belongs to ${match.id}`);
+      return attach(state, match, next);
+    }
   }
-  const id = checkFindingId(state.counters.findings + 1);
+  if (report.findingKey === undefined) return reject('invalid-report', 'a new finding needs a draft:finding:<descriptive-name> key');
+  const id = proposedFindingId(report.findingKey);
+  if (state.findings.has(id)) return reject('finding-name-conflict', `${report.findingKey} conflicts with accepted finding ${id}; propose a distinct name in this submission`);
   return accepted([{ type: 'check-finding-opened', data: { version: checkFindingEventVersion, checkFinding: id, revision: 1, report: next } }], [id]);
 }
 
@@ -132,7 +138,7 @@ function decideDisposal(state: CheckFindingState, id: CheckFindingId, expectedRe
   if (entry === undefined) return reject('unknown-check-finding', `${id} is no CheckFinding`);
   if (entry.revision !== expectedRevision) return reject('stale-revision', `the decision considered ${id} at revision ${expectedRevision}, but it is at ${entry.revision}`);
   const action = input.decision;
-  if (entry.pendingUserDecision !== null && action.action !== 'answer-user-decision' && !acceptsDeviation(entry, input)) {
+  if (entry.pendingUserDecision !== null && action.action !== 'answer-user-decision' && action.action !== 'supersede-protection-request' && !acceptsDeviation(entry, input)) {
     return reject('awaiting-user-decision', `${id} awaits the user's answer to ${entry.pendingUserDecision}`);
   }
   const refusal = refusalOf(entry, input);
@@ -236,6 +242,17 @@ function refusalOf(entry: CheckFindingEntry, input: CheckFindingDecisionInput): 
       const request = entry.decisions.find(decision => decision.id === action.request);
       const options = request?.decision.action === 'request-user-decision' ? request.decision.options : [];
       if (!options.some(option => option.id === action.option)) return reject('unknown-option', `${action.request} offers no option ${action.option}`);
+      return null;
+    }
+    case 'supersede-protection-request': {
+      if (entry.pendingUserDecision !== action.request || entry.verification.kind !== 'assessment') {
+        return reject('no-pending-user-decision', `${id} has no matching pending assessment request ${action.request}`);
+      }
+      if (input.actor.kind !== 'harness') return reject('insufficient-authority', 'only the harness supersedes a protection request after exact authorization');
+      if (entry.decisions.find(decision => decision.id === action.request)?.decision.action !== 'request-user-decision') {
+        return reject('invalid-command', `${action.request} is no request on ${id}`);
+      }
+      if (new Set(action.paths).size !== action.paths.length) return reject('invalid-command', 'protection paths must be distinct');
       return null;
     }
     case 'revise-obligation':

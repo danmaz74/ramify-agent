@@ -2,8 +2,12 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { modulePathSchema, sha256Schema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import { recordRefSchema } from '../../../../../task-execution/src/records.js';
-import { slugSchema } from '../../../planning/src/records.js';
 import { testSelectionPolicySchema } from '../work/iterations.js';
+
+const capabilityIdSchema = z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const contractIdSchema = z.string().regex(/^contract:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const obligationIdSchema = z.string().regex(/^provider-obligation:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const requirementIdSchema = z.string().regex(/^consumer-requirement:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 /*
  * The durable records of one agreement between a consumer and a provider:
@@ -22,19 +26,12 @@ import { testSelectionPolicySchema } from '../work/iterations.js';
 
 const text = z.string().min(1);
 
-/** `ct-001`, the count of committed contracts. */
+/** Accepted agreement identity. */
 export type ContractId = string;
-/** `ob-ct-001`, derived from the contract it belongs to. */
+/** Accepted provider obligation identity. */
 export type ObligationId = string;
-/** `rq-001`, the count of committed requirements. */
+/** Accepted consumer requirement identity. */
 export type RequirementId = string;
-
-export const contractId = (count: number): ContractId => `ct-${String(count).padStart(3, '0')}`;
-export const obligationId = (contract: ContractId): ObligationId => `ob-${contract}`;
-export const requirementId = (count: number): RequirementId => `rq-${String(count).padStart(3, '0')}`;
-
-/** The contract a requirement's obligation belongs to, from the obligation's derived name. */
-export const contractOfObligation = (obligation: ObligationId): ContractId => obligation.replace(/^ob-/, '');
 
 /**
  * Where the contract-authority rule places the agreement: with the
@@ -96,8 +93,8 @@ export type StandsFor = z.infer<typeof standsForSchema>;
 const fakeArtifact = artifact.extend({ standsFor: z.array(standsForSchema) }).strict();
 
 export const contractRecordSchema = z.object({
-  schema: z.literal('ramify-agent.contract/2'),
-  id: text,
+  schema: z.literal('ramify-agent.contract/3'),
+  id: contractIdSchema,
   revision: z.int().positive(),
   /** The registry entry of the capability this agreement is for. */
   capability: recordRefSchema,
@@ -127,12 +124,12 @@ export const contractRecordSchema = z.object({
 export type ContractRecord = z.infer<typeof contractRecordSchema>;
 
 export const providerObligationSchema = z.object({
-  schema: z.literal('ramify-agent.provider-obligation/1'),
-  id: text,
+  schema: z.literal('ramify-agent.provider-obligation/2'),
+  id: obligationIdSchema,
   /** Equal to the contract revision it was registered at. */
   revision: z.int().positive(),
   contract: recordRefSchema,
-  capability: slugSchema,
+  capability: capabilityIdSchema,
   provider: modulePathSchema,
   behavior: text,
   /** The conformance suite, run against the real provider and against nothing else. */
@@ -141,16 +138,16 @@ export const providerObligationSchema = z.object({
 export type ProviderObligation = z.infer<typeof providerObligationSchema>;
 
 export const consumerRequirementSchema = z.object({
-  schema: z.literal('ramify-agent.consumer-requirement/1'),
-  id: text,
+  schema: z.literal('ramify-agent.consumer-requirement/2'),
+  id: requirementIdSchema,
   /** Equal to the contract revision. */
   revision: z.int().positive(),
   /** The original consumer work item; the identity stays stable across revisions. */
   workItem: text,
   consumer: modulePathSchema,
   /** The capability the consumer is implementing: the tail of the dependency edge. */
-  forCapability: slugSchema,
-  obligation: text,
+  forCapability: capabilityIdSchema,
+  obligation: obligationIdSchema,
   contractRevision: z.int().positive(),
   behavior: text,
   /** What verification replaces: the consumer's own tests, and where the fake is held. */
@@ -163,14 +160,32 @@ export type ConsumerRequirement = z.infer<typeof consumerRequirementSchema>;
 
 /** Where an agreement's records are materialized, relative to the run's directory. */
 export const contractsLayout = {
-  contract: (id: ContractId, revision: number): string => join('contracts', id, `${revision}.json`),
-  obligation: (id: ObligationId, revision: number): string => join('obligations', id, `${revision}.json`),
-  requirement: (id: RequirementId, revision: number): string => join('requirements', id, `${revision}.json`),
+  contract: (id: ContractId, revision: number): string => join('contracts', encodeURIComponent(id), `${revision}.json`),
+  obligation: (id: ObligationId, revision: number): string => join('obligations', encodeURIComponent(id), `${revision}.json`),
+  requirement: (id: RequirementId, revision: number): string => join('requirements', encodeURIComponent(id), `${revision}.json`),
 } as const;
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const contractSchemas = {
-  contract: { schema: 'ramify-agent.contract/2', body: contractRecordSchema },
-  obligation: { schema: 'ramify-agent.provider-obligation/1', body: providerObligationSchema },
-  requirement: { schema: 'ramify-agent.consumer-requirement/1', body: consumerRequirementSchema },
+  contract: { schema: 'ramify-agent.contract/3', body: contractRecordSchema },
+  obligation: { schema: 'ramify-agent.provider-obligation/2', body: providerObligationSchema },
+  requirement: { schema: 'ramify-agent.consumer-requirement/2', body: consumerRequirementSchema },
 } as const;
+
+/** An immutable authorization to retire one accepted execution identity. */
+export const executionRetirementSchema = z.object({
+  schema: z.literal('ramify-agent.execution-retirement/1'),
+  id: z.string().regex(/^(?:contract|provider-obligation|consumer-requirement|capability-request|capability-task):[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  kind: z.enum(['contract', 'provider-obligation', 'consumer-requirement', 'capability-request', 'capability-task']),
+  replacements: z.array(z.string().regex(/^(?:contract|provider-obligation|consumer-requirement|capability-request|capability-task):[a-z0-9]+(?:-[a-z0-9]+)*$/)).min(1),
+  authority: z.object({ iteration: text, reason: text }).strict(),
+}).strict().superRefine((record, ctx) => {
+  if (!record.id.startsWith(`${record.kind}:`))
+    ctx.addIssue({ code: 'custom', path: ['kind'], message: `kind must match ${record.id}` });
+  if (new Set(record.replacements).size !== record.replacements.length)
+    ctx.addIssue({ code: 'custom', path: ['replacements'], message: 'each replacement is named once' });
+  if (record.replacements.includes(record.id))
+    ctx.addIssue({ code: 'custom', path: ['replacements'], message: 'a retired ID cannot replace itself' });
+});
+export type ExecutionRetirement = z.infer<typeof executionRetirementSchema>;
+export const executionRetirementPath = (id: string): string => join('retirements', `${encodeURIComponent(id)}.json`);

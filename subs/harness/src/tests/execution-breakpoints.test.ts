@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { breakpointStateSchema, startRunCommandSchema, type DebugResumeCommand } from '../interfaces/protocol/runs.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import { analysis, entry } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
@@ -48,7 +48,7 @@ async function ordinary(options: Parameters<typeof openUnchangedRuns>[1] = {}) {
   const root = await fixture();
   const opened = await openUnchangedRuns(root, { inputs: treeInputs(),
     unchangedCheckpoints: [scenariosCommit(plan)],
-    script: byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
+    script: byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(module, {}, outline())), submit(assign(module))],
       engineer: [submit(completionProposed())] }), ...options });
   cleanups.push(() => opened.service.close());
@@ -69,7 +69,7 @@ test('B01 B04 B15: prepared engineer pause has no model invocation or writer; st
   const { service, agent, runId } = await ordinary();
   const state = breakpointStateSchema.parse(await paused(service, runId));
   expect(state).toMatchObject({ kind: 'breakpoint', role: 'engineer', revision: 1, taskState: 'pending',
-    work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, goal: `Carry out the work in ${module}.` });
+    work: { workItem: 'work-item:review-note', iteration: 'work-item:review-note.i01' }, goal: `Carry out the work in ${module}.` });
   expect(state.summary).toContain('engineer not yet invoked');
   expect(service.getRun(plan, runId)?.state).toBe('running');
   await expect(service.execute({ commandId: 'ordinary-approval-while-paused', expectedVersion: state.cursor,
@@ -79,7 +79,7 @@ test('B01 B04 B15: prepared engineer pause has no model invocation or writer; st
   const before = service.events(plan, runId)!.length;
   // Discarding one client view and taking another changes no state or evidence.
   state.work.iteration = 'caller-mutated';
-  expect(service.debugState(plan, runId)?.work.iteration).toBe('wi-001.i01');
+  expect(service.debugState(plan, runId)?.work.iteration).toBe('work-item:review-note.i01');
   expect(service.events(plan, runId)!.length).toBe(before);
   expect((await new RunQueries(createQuerySource(service)).events(plan, runId, service.events(plan, runId)!.at(-1)!.sequence - 1)).events.at(-1)?.transition).toBe('debug-paused');
   await stop(service, runId);
@@ -92,7 +92,7 @@ test('B01 B04 B15: prepared engineer pause has no model invocation or writer; st
 test('B01 B03: caller waiting preserves the run budget, exact resume retry releases once, and the next assignment is a new occurrence', async () => {
   let clock = new Date('2026-10-10T12:00:00Z');
   const { service, runId, agent } = await ordinary({ now: () => clock,
-    unchangedCheckpoints: [scenariosCommit(plan), 'wi-001.i01'],
+    unchangedCheckpoints: [scenariosCommit(plan), 'work-item:review-note.i01'],
     policy: root => { const policy = testPolicy(root); return { ...policy,
       limits: { ...policy.limits, runAbsoluteMs: 1_000 } }; } });
   const first = await paused(service, runId);
@@ -103,7 +103,7 @@ test('B01 B03: caller waiting preserves the run budget, exact resume retry relea
   await expect(service.execute({ ...command, payload: { ...command.payload, expectedRevision: 2 } })).rejects.toMatchObject({ code: 'conflict' });
   const second = await paused(service, runId);
   expect(second.pauseId).not.toBe(first.pauseId);
-  expect(second.work.iteration).toBe('wi-001.i02');
+  expect(second.work.iteration).toBe('work-item:review-note.i02');
   expect(agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
   await expect(service.execute(resume(runId, first.pauseId, 'stale-occurrence'))).rejects.toMatchObject({ code: 'conflict' });
   await stop(service, runId);
@@ -122,7 +122,7 @@ test('B03: elapsed run age preserves a usable breakpoint for healthy pending wor
 
 test('B01: a repair continuation reaches a second occurrence of the prepared assignment', async () => {
   const { service, runId, agent } = await ordinary({
-    unchangedCheckpoints: [scenariosCommit(plan), 'wi-001.i01'],
+    unchangedCheckpoints: [scenariosCommit(plan), 'work-item:review-note.i01'],
     checkScript: ({ context, check }) => context.attemptId === 'ga-0002' && check.kind === 'tests'
       ? { outcome: { kind: 'completed', exitCode: 1 }, stdout: 'A declared test failed' } : {},
   });
@@ -321,8 +321,7 @@ test('B02: unavailable frozen review setup remains actionable and restored evide
   expect(opened.service.events(plan, opened.runId)!.filter(event => event.type === 'review-attempt-started')).toHaveLength(0);
   available = true;
   await opened.service.execute({ commandId: 'restored-frozen-review-evidence', expectedVersion: 0, type: 'resume-recovery', payload: {
-    planId: plan, jobId: opened.runId, occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision,
-    repair: { areas: ['environment'], explanation: 'The exact original frozen pending-binding evidence is available again' } } });
+    planId: plan, jobId: opened.runId } });
   await paused(opened.service, opened.runId);
   const events = opened.service.events(plan, opened.runId)!;
   expect(events.filter(event => event.type === 'review-request-recorded')).toHaveLength(1);
@@ -338,8 +337,8 @@ test.each(['scenarios-materializing', 'gate-committing'] as const)('B14: server 
   let crashed = false;
   let resumed = false;
   const first = await openUnchangedRuns(root, { inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit(plan), ...(boundary === 'gate-committing' ? ['wi-001.i01'] : [])],
-    script: byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
+    unchangedCheckpoints: [scenariosCommit(plan), ...(boundary === 'gate-committing' ? ['work-item:review-note.i01'] : [])],
+    script: byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(module, {}, outline()))], engineer: [submit(completionProposed())] }),
     afterWrite: async write => { if (write === boundary || (boundary === 'gate-committing' && resumed && write === 'gate-attempted')) { crashed = true; await freeze(); } },
   });
@@ -411,10 +410,10 @@ test('B04: stop during pausing settles its admitted reader and prevents pause pu
 
 test('B03: healthy resumed model execution remains eligible after a long caller wait and elapsed run age', async () => {
   let clock = new Date('2026-10-10T12:00:00Z');
-  const script = byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
+  const script = byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan'))],
     'local-architect': [submit(assign(module, {}, outline())), submit(assign(module))], engineer: [submit(completionProposed())] });
   const { service, runId, agent } = await ordinary({ now: () => clock,
-    unchangedCheckpoints: [scenariosCommit(plan), 'wi-001.i01'],
+    unchangedCheckpoints: [scenariosCommit(plan), 'work-item:review-note.i01'],
     policy: root => { const policy = testPolicy(root); return { ...policy,
       limits: { ...policy.limits, runAbsoluteMs: 1_000 } }; },
     script: spec => { if (spec.role === 'engineer') clock = new Date(clock.getTime() + 2_000); return typeof script === 'function' ? script(spec) : script; },

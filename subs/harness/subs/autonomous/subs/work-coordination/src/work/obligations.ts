@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { ScenarioRecord } from '../../../../../scenarios/src/records.js';
 import { boundState, reportedState } from '../../../../../scenarios/src/states.js';
@@ -10,10 +11,10 @@ import { integrationScenarioOf, type WorkItem } from './records.js';
  * as Plan 21's iteration 0 contract freezes them.
  *
  * An obligation is something a responsible architect reports on: an
- * accepted initial-analysis scenario (`sc-NNN`), a delegated capability
- * task's default outcome (`cap-NNN`), a capability-plan use case its task's
- * architect explicitly registered (`<task>.case.<case>`), or a required test
- * an architect explicitly registered (`test-NNN`). Ordinary tests never
+ * accepted initial-analysis scenario, a delegated capability task's default
+ * outcome, a capability-plan use case its task's architect explicitly
+ * registered, or a required test an architect explicitly registered.
+ * Ordinary tests never
  * register themselves, and registration never removes a requirement.
  *
  * Each obligation is `pending`, `bound` or `done`, and each state is
@@ -39,8 +40,9 @@ export const whereSchema = text.max(300);
 
 /** An explicit registration. A scenario registration names a use case of the task's current plan. */
 export const obligationRegistrationSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('scenario'), case: text }).strict(),
-  z.object({ kind: z.literal('test'), description: text }).strict(),
+  z.object({ kind: z.literal('scenario'), case: z.string().regex(/^capability-(?:example|case):[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
+  z.object({ kind: z.literal('test'), testKey: z.string().regex(/^draft:test:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/)
+    .describe('A fresh draft:test:<descriptive-name> key; accepted as test:<descriptive-name>.'), description: text }).strict(),
 ]);
 export type ObligationRegistration = z.infer<typeof obligationRegistrationSchema>;
 
@@ -75,14 +77,26 @@ export const obligationRegisteredDataSchema = z.object({
   by: text,
   /** The SHA-256 of that accepted submission. */
   submission: z.string().regex(/^[0-9a-f]{64}$/),
-  case: text.optional(),
+  case: z.string().regex(/^capability-(?:example|case):[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   description: text.optional(),
 }).strict().superRefine((data, context) => {
   if (data.kind === 'scenario' && (data.case === undefined || data.description !== undefined)) {
     context.addIssue({ code: 'custom', path: ['case'], message: 'A scenario registration names its case and no description' });
   }
+  if (data.kind === 'scenario' && data.responsible.kind !== 'capability-task') {
+    context.addIssue({ code: 'custom', path: ['responsible'], message: 'A registered case belongs to its capability task' });
+  }
   if (data.kind === 'test' && (data.description === undefined || data.case !== undefined)) {
     context.addIssue({ code: 'custom', path: ['description'], message: 'A test registration names its description and no case' });
+  }
+  if (data.kind === 'scenario' && !/^registered-case:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(data.id)) {
+    context.addIssue({ code: 'custom', path: ['id'], message: 'A registered case has a descriptive registered-case ID' });
+  }
+  if (data.kind === 'scenario' && data.case !== undefined && data.id !== caseObligationId(data.responsible.id, data.case)) {
+    context.addIssue({ code: 'custom', path: ['id'], message: 'The registered case ID must derive from its responsible task and accepted case' });
+  }
+  if (data.kind === 'test' && !/^test:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(data.id)) {
+    context.addIssue({ code: 'custom', path: ['id'], message: 'A registered test has a descriptive test ID' });
   }
 });
 export type ObligationRegisteredData = z.infer<typeof obligationRegisteredDataSchema>;
@@ -106,7 +120,7 @@ export const fakeNameSchema = text.max(200).refine(carriesFakeDesignation, 'A fa
 
 /** One binding of a module engineer's completion proposal: an assigned obligation and the fakes it relies on, none by default. */
 export const obligationBindingSchema = z.object({
-  id: text.describe('An obligation id the assignment names, such as sc-003'),
+  id: text.describe('An obligation id the assignment names, such as scenario:preview-visible'),
   fakes: z.array(fakeNameSchema).max(100).default([])
     .describe('The fake class or export names the binding relies on, as the tests name them, each carrying "Fake" (the fake-naming rule), such as FakeClock; empty where it runs against the real provider'),
 }).strict();
@@ -202,18 +216,20 @@ export interface ObligationSources {
 export interface ObligationProjection {
   /** Every obligation, in registration order. */
   readonly obligations: ReadonlyMap<string, Obligation>;
-  /** Accepted test registrations, which number the next `test-NNN`. */
+  /** Accepted test registrations, for projection counts only. */
   readonly tests: number;
 }
 
-/** `test-001`, `test-002`, … numbered by accepted test registrations in the run. */
-export function testObligationId(count: number): string {
-  return `test-${String(count).padStart(3, '0')}`;
+/** An author-proposed test key becomes its accepted identity without renaming. */
+export function testObligationId(key: string): string {
+  return key.slice('draft:'.length);
 }
 
-/** The stable ID of a registered capability-plan case. */
+/** A case retains both accepted source names and a digest that separates ambiguous joined slugs. */
 export function caseObligationId(task: string, useCase: string): string {
-  return `${task}.case.${useCase}`;
+  const slug = (value: string) => value.replace(/^[^:]+:/u, '').toLowerCase().replace(/[^a-z0-9]+/gu, '-').replace(/^-|-$/gu, '');
+  const digest = createHash('sha256').update(JSON.stringify([task, useCase])).digest('hex').slice(0, 8);
+  return `registered-case:${slug(task)}-${slug(useCase)}-${digest}`;
 }
 
 /**
@@ -337,14 +353,12 @@ export interface PlannedRegistration {
  * own key for the case.
  */
 export function plannedRegistrations(
-  registrations: readonly ObligationRegistration[], actor: ObligationActor, tests: number,
+  registrations: readonly ObligationRegistration[], actor: ObligationActor,
 ): PlannedRegistration[] {
   const responsible = { kind: actor.kind, id: actor.id };
-  let count = tests;
   return registrations.map(registration => {
     if (registration.kind === 'test') {
-      count += 1;
-      return { id: testObligationId(count), kind: 'test', responsible, description: registration.description };
+      return { id: testObligationId(registration.testKey), kind: 'test', responsible, description: registration.description };
     }
     return { id: caseObligationId(actor.id, registration.case), kind: 'scenario', responsible, case: registration.case };
   });
@@ -365,10 +379,11 @@ export function obligationSubmissionErrors(
   const at = (rest: string) => `${path}${rest}`;
   const { actor, projection } = context;
   const errors: SubmissionError[] = [];
-  const planned = plannedRegistrations(submission.registrations, actor, projection.tests);
+  const planned = plannedRegistrations(submission.registrations, actor);
   const known = new Map(projection.obligations);
   const seenCases = new Set<string>();
   const seenTests = new Set<string>();
+  const proposedTests = new Set<string>();
   submission.registrations.forEach((registration, index) => {
     const entry = planned[index]!;
     if (registration.kind === 'scenario') {
@@ -394,6 +409,12 @@ export function obligationSubmissionErrors(
       }
       seenCases.add(entry.id);
     } else {
+      if (known.has(entry.id) || proposedTests.has(entry.id)) {
+        errors.push({ path: at(`registrations.${index}.testKey`), message: `${entry.id} is already registered`,
+          expected: 'a new draft:test:<descriptive-name> key' });
+        return;
+      }
+      proposedTests.add(entry.id);
       const description = registration.description.trim();
       const existing = [...known.values()].find(obligation => obligation.kind === 'test'
         && obligation.responsible.kind === actor.kind && obligation.responsible.id === actor.id
@@ -469,7 +490,7 @@ export function assignedObligationErrors(
   path = 'assignment.obligations',
 ): SubmissionError[] {
   const { actor, projection } = context;
-  const planned = new Set(plannedRegistrations(context.registrations ?? [], actor, projection.tests).map(entry => entry.id));
+  const planned = new Set(plannedRegistrations(context.registrations ?? [], actor).map(entry => entry.id));
   const owned = [...obligationsOwnedBy(projection, actor).map(obligation => obligation.id), ...planned];
   const expected = owned.length === 0 ? 'an obligation this architect reports on' : `IDs among ${owned.join(', ')}`;
   const errors: SubmissionError[] = [];
@@ -584,8 +605,7 @@ export function obligationEventsToRecord(
   const registered = events.filter(line => line.type === 'obligation-registered' && own(line))
     .map(line => line.data as ObligationRegisteredData);
   const reported = events.filter(line => line.type === 'obligation-reported' && own(line)).length;
-  const testsBefore = projection.tests - registered.filter(data => data.kind === 'test').length;
-  const registrations: ObligationEventInput[] = plannedRegistrations(submission.registrations, actor, testsBefore)
+  const registrations: ObligationEventInput[] = plannedRegistrations(submission.registrations, actor)
     .slice(registered.length)
     .map(entry => ({ type: 'obligation-registered', data: {
       id: entry.id, kind: entry.kind, responsible: { ...entry.responsible }, by: identity.by, submission: identity.submission,
@@ -624,7 +644,7 @@ export function outstandingReports(
   const judged = new Map(submission.reports.map(report => [report.id, report.judgment] as const));
   const owned = [
     ...obligationsOwnedBy(projection, actor).map(obligation => ({ id: obligation.id, status: obligation.status })),
-    ...plannedRegistrations(submission.registrations, actor, projection.tests).map(entry => ({ id: entry.id, status: 'pending' as const })),
+    ...plannedRegistrations(submission.registrations, actor).map(entry => ({ id: entry.id, status: 'pending' as const })),
   ];
   return owned.filter(entry => (judged.get(entry.id) ?? entry.status) !== 'done').map(entry => entry.id);
 }

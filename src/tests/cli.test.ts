@@ -19,6 +19,24 @@ test('help without a command', () => {
   expect(parseCommandLine(['--help'])).toEqual({ command: 'help' });
 });
 
+test('inspect selects one accepted entity and rejects ambiguous selection', () => {
+  const base = ['inspect', '--server', 'http://127.0.0.1:4180', '--plan', 'review-notes', '--run', '20261021T000000Z-000001'];
+  expect(parseCommandLine([...base, '--work-item=work-item:reviewer-notes', '--json'])).toMatchObject({
+    command: 'inspect', inspect: { selection: { kind: 'work-item', id: 'work-item:reviewer-notes' }, json: true },
+  });
+  expect(parseCommandLine([...base, '--finding', 'finding:reviewer-notes-1'])).toMatchObject({
+    inspect: { selection: { kind: 'finding', id: 'finding:reviewer-notes-1' }, json: false },
+  });
+  expect(parseCommandLine([...base, '--deviation', 'plan-deviation:move-reviewer-notes'])).toMatchObject({
+    inspect: { selection: { kind: 'deviation', id: 'plan-deviation:move-reviewer-notes' } },
+  });
+  for (const args of [base, [...base, '--work-item', 'wi-001', '--finding', 'cf-0001'],
+    [...base, '--finding', 'cf-0001', '--finding', 'cf-0002'], [...base, '--finding', 'cf-0001', '--json=true']]) {
+    expect(() => parseCommandLine(args)).toThrow(UsageError);
+  }
+  expect(usage).toContain('inspect --server <url> --plan <id> --run <id>');
+});
+
 test('manual resource resume carries one occurrence, revision and stable command identity', () => {
   const resume = ['--occurrence', 'resource-0001', '--expected-revision', '2', '--command-id', 'resume-once'];
   expect(parseCommandLine(['step', 'run', '--inputs', 'task.json', '--run', '/p/plans/p/.harness/jobs/r', ...resume]))

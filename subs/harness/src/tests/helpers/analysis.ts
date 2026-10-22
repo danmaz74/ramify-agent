@@ -1,4 +1,5 @@
-import type { InitialAnalysisSubmission } from '../../../subs/autonomous/subs/planning/src/submission.js';
+import type { AnalysisRecordInputs } from '../../../subs/autonomous/subs/planning/src/submission.js';
+import type { DescriptiveInitialAnalysisSubmission } from '../../../subs/autonomous/subs/planning/src/descriptive.js';
 import type { LocalArchitectSubmission } from '../../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 
 /*
@@ -8,8 +9,8 @@ import type { LocalArchitectSubmission } from '../../../subs/autonomous/subs/wor
  *
  * An entry cites its elements by submission-local key, `<capability>-request`
  * and `<capability>-acceptance`; `analysis` submits one functional element of
- * the root plan for every key its entries cite, in entry order, so the first
- * entry's become `fr-001` and `fr-002`.
+ * the root plan for every key its entries cite. The accepted references retain
+ * their descriptive names.
  */
 
 /** A module an entry capability proposes, where its owner does not exist yet. */
@@ -26,8 +27,8 @@ export function entry(capability: string, owner: string, description = `The modu
     capability,
     description,
     owner,
-    requirementRefs: [`${capability}-request`] as string[],
-    acceptanceRefs: [`${capability}-acceptance`] as string[],
+    requirementRefs: [`draft:functional-requirement:${capability}-request`] as string[],
+    acceptanceRefs: [`draft:functional-requirement:${capability}-acceptance`] as string[],
     contextRefs: [] as string[],
     citations: [] as Array<{ module: string; file?: string; symbol?: string; note?: string }>,
     ...(proposed === undefined ? {} : { proposed: { ...proposed, tags: [...proposed.tags] } }),
@@ -35,7 +36,7 @@ export function entry(capability: string, owner: string, description = `The modu
 }
 
 /** One hypothesis of an analysis, which creates nothing. */
-export function hypothesis(id: string, extra: Partial<InitialAnalysisSubmission['hypotheses'][number]> = {}) {
+export function hypothesis(id: string, extra: Partial<AnalysisRecordInputs['hypotheses'][number]> = {}) {
   return {
     id,
     capability: id,
@@ -63,7 +64,7 @@ export function hypothesis(id: string, extra: Partial<InitialAnalysisSubmission[
 export function architectScenario(
   subject: { readonly capability: string; readonly acceptanceRefs: readonly string[] },
   key = `${subject.capability}-is-used`,
-): InitialAnalysisSubmission['scenarios'][number] {
+): AnalysisRecordInputs['scenarios'][number] {
   return {
     key,
     entry: subject.capability,
@@ -86,9 +87,9 @@ export function analysis(
   entries: ReadonlyArray<ReturnType<typeof entry>>,
   hypotheses: ReadonlyArray<ReturnType<typeof hypothesis>> = [],
   coverageLimits: readonly string[] = [],
-  scenarios: InitialAnalysisSubmission['scenarios'] = entries.map(one => architectScenario(one)),
-  integrationScenarios: InitialAnalysisSubmission['integrationScenarios'] = [],
-): InitialAnalysisSubmission {
+  scenarios: AnalysisRecordInputs['scenarios'] = entries.map(one => architectScenario(one)),
+  integrationScenarios: AnalysisRecordInputs['integrationScenarios'] = [],
+): AnalysisRecordInputs {
   return {
     elements: elementsOf(entries),
     entries: [...entries],
@@ -100,17 +101,56 @@ export function analysis(
 }
 
 /** One element of the root plan for every key the entries cite: functional, or context for `contextRefs`. */
-export function elementsOf(entries: ReadonlyArray<{ readonly requirementRefs: readonly string[]; readonly acceptanceRefs: readonly string[]; readonly contextRefs: readonly string[] }>): InitialAnalysisSubmission['elements'] {
-  const elements = new Map<string, InitialAnalysisSubmission['elements'][number]>();
+export function elementsOf(entries: ReadonlyArray<{ readonly requirementRefs: readonly string[]; readonly acceptanceRefs: readonly string[]; readonly contextRefs: readonly string[] }>): AnalysisRecordInputs['elements'] {
+  const elements = new Map<string, AnalysisRecordInputs['elements'][number]>();
   for (const entry of entries) {
     for (const key of [...entry.requirementRefs, ...entry.acceptanceRefs]) {
-      if (!elements.has(key)) elements.set(key, { key, kind: 'functional', document: 'doc-001', text: `The plan asks for ${key}.`, conditions: [], uncertainty: '' });
+      if (!elements.has(key)) elements.set(key, { key, kind: 'functional', document: 'document:fixture-plan', text: `The plan asks for ${key}.`, conditions: [], uncertainty: '' });
     }
     for (const key of entry.contextRefs) {
-      if (!elements.has(key)) elements.set(key, { key, kind: 'context', document: 'doc-001', text: `The plan explains ${key}.`, conditions: [], uncertainty: '' });
+      if (!elements.has(key)) elements.set(key, { key, kind: 'context', document: 'document:fixture-plan', text: `The plan explains ${key}.`, conditions: [], uncertainty: '' });
     }
   }
   return [...elements.values()];
+}
+
+/** Build the current author tool payload from a rule-test fixture and its captured root document. */
+export function currentAnalysis(input: AnalysisRecordInputs, rootDocument: string): DescriptiveInitialAnalysisSubmission {
+  const namespace = { functional: 'functional-requirement', context: 'context', 'non-functional': 'non-functional-requirement',
+    fixed: 'fixed-requirement', recommendation: 'recommendation' } as const;
+  const elementKeys = new Map(input.elements.map(element => [element.key,
+    element.key.startsWith('draft:') ? element.key : `draft:${namespace[element.kind]}:${element.key}`]));
+  const elementKey = (key: string) => elementKeys.get(key) ?? key;
+  const capabilityKey = (name: string) => `draft:capability:${name}`;
+  const scenarioKey = (name: string) => `draft:scenario:${name}`;
+  const hypothesisKey = (name: string) => `draft:hypothesis:${name}`;
+  return {
+    elements: input.elements.map(element => ({ ...element, document: rootDocument, key: elementKey(element.key) })),
+    ...(input.contingentRepairAssignment === undefined ? {} : { contingentRepairAssignment: input.contingentRepairAssignment }),
+    entries: input.entries.map(entry => ({ capabilityKey: capabilityKey(entry.capability), description: entry.description,
+      owner: entry.owner, ...(entry.proposed === undefined ? {} : { proposed: entry.proposed }),
+      functionalRequirementKeys: entry.requirementRefs.map(elementKey), functionalAcceptanceKeys: entry.acceptanceRefs.map(elementKey),
+      contextKeys: entry.contextRefs.map(elementKey), citations: entry.citations,
+      ...(entry.nonBehavioralAcceptance === undefined ? {} : { nonBehavioralAcceptance: entry.nonBehavioralAcceptance.map(item => ({
+        functionalAcceptanceKey: elementKey(item.ref), kind: item.kind, test: item.test,
+      })) }),
+    })),
+    hypotheses: input.hypotheses.map(item => ({ hypothesisKey: hypothesisKey(item.id), capabilityKey: capabilityKey(item.capability),
+      change: item.change, changesExistingSymbols: item.changesExistingSymbols, suggestedOwner: item.suggestedOwner,
+      anticipatedConsumers: item.anticipatedConsumers, involvedModules: item.involvedModules,
+      dependsOnHypothesisKeys: item.dependsOn.map(hypothesisKey), confidence: item.confidence, rationale: item.rationale,
+      assumptions: item.assumptions, uncertainties: item.uncertainties, citations: item.citations,
+    })),
+    coverageLimits: input.coverageLimits,
+    scenarios: input.scenarios.map(scenario => ({ scenarioKey: scenarioKey(scenario.key), entryCapabilityKey: capabilityKey(scenario.entry),
+      origin: scenario.origin.kind === 'plan' ? { kind: 'plan' as const, planScenarioId: scenario.origin.planScenario } : { kind: 'architect' as const },
+      ...(scenario.partOf === undefined ? {} : { partOfPlanScenarioId: scenario.partOf }),
+      ...(scenario.refs === undefined ? {} : { functionalAcceptanceKeys: scenario.refs.map(elementKey) }),
+      ...(scenario.gherkin === undefined ? {} : { gherkin: scenario.gherkin }),
+    })),
+    integrationScenarios: input.integrationScenarios.map(item => ({ planScenarioId: item.planScenario,
+      subScenarioKeys: item.subScenarios.map(scenarioKey) })),
+  };
 }
 
 /** A module architect asking for completion with the smallest honest outline. */
@@ -132,5 +172,5 @@ export function requestCompletion(extra: Partial<Extract<LocalArchitectSubmissio
 
 /** A module architect reporting that the request cannot be met as stated. */
 export function unresolved(conflict = 'The request contradicts the module\'s own guarantee.', evidence: readonly string[] = ['README.md']) {
-  return { kind: 'unresolved' as const, conflict, evidence: [...evidence] };
+  return { kind: 'unresolved' as const, requestKey: 'draft:unresolved-request:architect-blocked', conflict, evidence: [...evidence] };
 }

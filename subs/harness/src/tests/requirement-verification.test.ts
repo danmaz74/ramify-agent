@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { localDecision, registryChange } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
@@ -46,10 +46,10 @@ const provider = 'collection-review/workspace/reviews/limits';
 const providerDirectory = 'subs/workspace/subs/reviews/subs/limits';
 
 const contract: ContractRecord = {
-  schema: 'ramify-agent.contract/2',
-  id: 'ct-001',
+  schema: 'ramify-agent.contract/3',
+  id: 'contract:note-limit',
   revision: 1,
-  capability: { id: 'note-limit', revision: 1, hash: 'a'.repeat(64) },
+  capability: { id: 'capability:note-limit', revision: 1, hash: 'a'.repeat(64) },
   decision: null,
   authority: { kind: 'provider', owner: provider, rationale: 'The contract belongs with the implementation.' },
   provider,
@@ -66,7 +66,7 @@ const contract: ContractRecord = {
     }],
     exposure: [],
   },
-  establishedBy: { iteration: 'wi-001.i02', gate: 'ga-0002' },
+  establishedBy: { iteration: 'work-item:review-notes.i02', gate: 'ga-0002' },
 };
 
 describe('the check that closes a delegation', () => {
@@ -160,7 +160,7 @@ const replaced = [
 ].join('\n');
 
 const need = {
-  capability: 'note-limit',
+  capability: 'capability:note-limit',
   useCases: ['a note over the limit is refused'],
   inputs: ['the note text'],
   outputs: ['whether the note is within the limit'],
@@ -173,11 +173,11 @@ const placeTheLimit = localDecision(
   {
     question: 'Where does the note limit belong?',
     outcome: 'reuse',
-    capability: 'note-limit',
+    capability: 'capability:note-limit',
     owner: provider,
     rationale: 'The limit is a rule of its own, in a subtree that is mine to place work in.',
   },
-  [registryChange({ capability: 'note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
+  [registryChange({ capability: 'capability:note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
 );
 
 /** What each fake export of these agreements stands for: the real note limit, exposed as the fake is. */
@@ -188,6 +188,9 @@ function standingFor(fake: string) {
 function establishedWith(fakePath: string, fakeExports: readonly string[]) {
   return {
     kind: 'established' as const,
+    contractKey: 'draft:contract:note-limit',
+    providerObligationKey: 'draft:provider-obligation:note-limit',
+    consumerRequirementKey: 'draft:consumer-requirement:review-notes-note-limit',
     mode: 'fake-backed' as const,
     authority: { kind: 'provider' as const, owner: provider, rationale: 'The contract belongs with the implementation.' },
     provider,
@@ -236,7 +239,7 @@ async function run(root: string, plan: Parameters<typeof byRole>[0], commits: re
   const final = finalCandidate(root, finalHead);
   const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits], previews: final.previews });
   const opened = await openRuns(root, {
-    script: byRole(plan), inputs: treeInputs(), git, candidates: final.candidates,
+    script: byRole({ 'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })], ...plan }), inputs: treeInputs(), git, candidates: final.candidates,
 
   });
   cleanups.push(() => opened.service.close());
@@ -249,10 +252,10 @@ describe('a requirement whose fake is still injected is not verified', () => {
   test('a passing verification that left the fake in place closes nothing, and completion is refused until it is gone', async () => {
     const root = await target();
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
-        submit({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'Waiting for the real limit.' }),
+        submit({ kind: 'yield-for-providers', requirements: ['consumer-requirement:review-notes-note-limit'], summary: 'Waiting for the real limit.' }),
         submit(assign(provider, {}, outline({ changes: 'Implement the agreed limit.' }))),
         submit(requestCompletion()),
         // The first verification passes its gate and leaves the fake in place.
@@ -284,12 +287,12 @@ describe('a requirement whose fake is still injected is not verified', () => {
     }, [
       // The agreement, the real provider, the verification that wrote a note
       // of its own and left the fake, and the one that replaced it.
-      accepted('wi-001.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
-      accepted('wi-002.i01', 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
-      unchanged('wi-002'),
-      accepted('wi-001.i03', 'revision-03', added(seam.note)),
-      accepted('wi-001.i04', 'revision-04', modified(seam.consumer)),
-      unchanged('wi-001'),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
+      accepted('work-item:provide-note-limit.i01', 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
+      unchanged('work-item:provide-note-limit'),
+      accepted('work-item:review-notes.i03', 'revision-03', added(seam.note)),
+      accepted('work-item:review-notes.i04', 'revision-04', modified(seam.consumer)),
+      unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
     ], 'revision-04');
 
@@ -298,7 +301,7 @@ describe('a requirement whose fake is still injected is not verified', () => {
     const types = log.map(event => event.type);
 
     // The first verification passed its gate and closed nothing.
-    const firstVerification = log.findIndex(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i03');
+    const firstVerification = log.findIndex(event => event.type === 'iteration-closed' && event.data.iteration === 'work-item:review-notes.i03');
     expect((log[firstVerification]!.data as { outcome: string; gate: string | null }).outcome).toBe('accepted');
     expect((log[firstVerification]!.data as { gate: string | null }).gate).not.toBeNull();
     const closedAt = types.indexOf('requirement-verified');
@@ -307,16 +310,16 @@ describe('a requirement whose fake is still injected is not verified', () => {
     // Exactly one `requirement-verified`, and it followed the iteration that
     // actually replaced the fake.
     expect(types.filter(type => type === 'requirement-verified')).toHaveLength(1);
-    expect(log[closedAt]!.data).toMatchObject({ requirement: 'rq-001', revision: 1, iteration: 'wi-001.i04' });
+    expect(log[closedAt]!.data).toMatchObject({ requirement: 'consumer-requirement:review-notes-note-limit', revision: 1, iteration: 'work-item:review-notes.i04' });
 
     // Between the passing verification that left the fake and the one that
     // removed it, the consumer's work item did not complete.
-    const completed = log.findIndex(event => event.type === 'work-item-completed' && event.data.workItem === 'wi-001');
+    const completed = log.findIndex(event => event.type === 'work-item-completed' && event.data.workItem === 'work-item:review-notes');
     expect(completed).toBeGreaterThan(closedAt);
     // The turn after the refused completion continues the same architect,
     // and says why.
     const refused = log.filter(event => event.type === 'invocation-started' && event.data.continues?.reason === 'completion-refused');
-    expect(refused.map(event => event.data)).toEqual([expect.objectContaining({ role: 'local-architect', start: 'continued', work: { workItem: 'wi-001' } })]);
+    expect(refused.map(event => event.data)).toEqual([expect.objectContaining({ role: 'local-architect', start: 'continued', work: { workItem: 'work-item:review-notes' } })]);
 
     const source = await readFile(`${root}/${consumerDirectory}/src/notes.ts`, 'utf8');
     expect(source).not.toContain('Fake');
@@ -358,7 +361,7 @@ describe('P2: the contract gate rejects a fake under a production-looking name',
     ].join('\n');
 
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
         submit(assign(consumer, { goal: 'Carry the limit here, since the agreement was refused.' })),
@@ -402,13 +405,13 @@ describe('P2: the contract gate rejects a fake under a production-looking name',
       // repair round writes the same files with the same content, and Git
       // reports an unchanged tree for both, so those attempts audit the
       // revision the first one made.
-      accepted('wi-001.i02', 'revision-01', [
+      accepted('work-item:review-notes.i02', 'revision-01', [
         ...added(seam.interface, seam.fake, seam.standIn, seam.conformance), ...modified(seam.consumer),
       ]),
-      unchanged('wi-001.i02'),
-      unchanged('wi-001.i02'),
-      accepted('wi-001.i03', 'revision-02', modified(seam.consumer)),
-      unchanged('wi-001'),
+      unchanged('work-item:review-notes.i02'),
+      unchanged('work-item:review-notes.i02'),
+      accepted('work-item:review-notes.i03', 'revision-02', modified(seam.consumer)),
+      unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
     ], 'revision-02');
 

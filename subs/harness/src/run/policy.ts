@@ -16,10 +16,9 @@ import { type CapturedProjectConfig } from './project-records.js';
  * own settings, built again at the moment of the spawn.
  */
 
-/** New runs capture execution continuity; compatible legacy recovery records its policy transition. */
 export const runPolicyVersion = 'run-policy/8';
 
-/** The policy table. Legacy count fields remain for replay of captured runs;
+/** The policy table. Historical count fields remain for replay of captured runs;
  * their values do not decide whether semantic work may continue. */
 export const defaultLimits: RunPolicy['limits'] = {
   repairRoundsPerIteration: 3,
@@ -170,7 +169,7 @@ export function defaultRunPolicy(options: RunPolicyOptions): RunPolicy {
   const { projectRoot } = options;
   const ramify = options.ramify ?? ramifyExecutable;
   const ramifySettings: Record<string, string> = options.endpointDirectory === undefined ? {} : { RAMIFY_ENDPOINT_DIR: options.endpointDirectory };
-  const context = Object.fromEntries(roles.filter(role => role !== 'contract-engineer')
+  const context = Object.fromEntries(roles
     .map(role => [role, defaultContextPolicies[role]])) as RunPolicy['context'];
   return runPolicySchema.parse({
     version: runPolicyVersion,

@@ -220,19 +220,25 @@ export async function discoverDocuments(
   await scanPrinciples(root);
 
   const paths = [rootPlan, ...[...found.keys()].filter(path => path !== rootPlan).sort()];
-  const ids = new Map(paths.map((path, index) => [path, `doc-${String(index + 1).padStart(3, '0')}`]));
+  const slug = (path: string): string => path.replace(/\.[^.\/]+$/, '').replace(/^plans\//, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'source';
+  const names = paths.map(path => slug(path));
+  const frequencies = new Map<string, number>();
+  names.forEach(name => frequencies.set(name, (frequencies.get(name) ?? 0) + 1));
+  const ids = new Map(paths.map((path, index) => [path,
+    `document:${names[index]}${frequencies.get(names[index]!)! > 1 ? `-${createHash('sha256').update(path).digest('hex').slice(0, 8)}` : ''}`]));
   const documents = paths.map(path => {
     const entry = found.get(path);
     if (!entry) throw new Error(`Root plan ${path} was not captured`);
     const id = ids.get(path)!;
     const capturedRevision = entry.kind === 'plan' ? { commit: null, dirty: null } : revision;
     return { id, path, kind: entry.kind, sha256: hash(entry.bytes), bytes: entry.bytes.length,
-      storedAt: path === rootPlan ? 'input/plan.md' : `input/documents/${id}.bin`, revision: capturedRevision };
+      storedAt: path === rootPlan ? 'input/plan.md' : `input/documents/${encodeURIComponent(id)}.bin`, revision: capturedRevision };
   });
   const missing = gaps.map(gap => ({ ...gap, from: ids.get(gap.from)! })).filter(gap => gap.from !== undefined);
   const principles = documents.filter(document => document.kind === 'principle').length;
   const status = unreadable.length > 0 ? 'partial' : principles > 0 ? 'complete' : 'empty';
-  const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/1', root: 'doc-001', documents, missing,
+  const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/2', root: ids.get(rootPlan), documents, missing,
     principlesScan: { status, unreadable } });
   return { manifest, bytes: new Map(documents.map(document => [document.id, found.get(document.path)!.bytes])) };
 }

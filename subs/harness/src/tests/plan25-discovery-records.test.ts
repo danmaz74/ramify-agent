@@ -5,12 +5,12 @@ import { z } from 'zod';
 import { workOrientationJsonSchema, workOrientationSubmissionSchema, orientationPacket } from '../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
 import { loadPromptPackages } from '../prompts/packages.js';
 import { assignmentBodySchema, assignmentErrors } from '../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
-import { capabilityEngineerSubmissionSchema, engineerSubmissionSchema, validateEngineer } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import { engineerSubmissionSchema, validateEngineer } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { iterationAssignmentSchema, iterationResultSchema, iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { startingPointSchema } from '../../subs/autonomous/subs/work-coordination/src/work/starting-points.js';
 import { gateAttemptSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
@@ -53,10 +53,10 @@ describe('D1–D3: optional explicit discovery records', () => {
     expect(JSON.stringify(workOrientationJsonSchema)).toContain('startingPoints');
   });
 
-  test('omitted legacy orientation bytes and hash are unchanged, while explicit pairs are retained in its existing packet', () => {
-    const text = '# Work orientation wi-001\n\n## Module architect briefing\n\nLegacy briefing\n\n## Module architect orientation\n\nFocus: The caller\nCurrent understanding: It omits tone.\nOpen questions:\nNone recorded.';
-    expect(orientationPacket({ workItem: 'wi-001', briefing: 'Legacy briefing', submission: orientation })).toEqual({ text, hash: digest(text) });
-    const packet = orientationPacket({ workItem: 'wi-001', briefing: 'Legacy briefing', submission: { ...orientation, startingPoints: points } });
+  test('omitted optional orientation bytes and hash are unchanged, while explicit pairs are retained in its existing packet', () => {
+    const text = '# Work orientation work-item:review-note\n\n## Module architect briefing\n\nOrientation briefing\n\n## Module architect orientation\n\nFocus: The caller\nCurrent understanding: It omits tone.\nOpen questions:\nNone recorded.';
+    expect(orientationPacket({ workItem: 'work-item:review-note', briefing: 'Orientation briefing', submission: orientation })).toEqual({ text, hash: digest(text) });
+    const packet = orientationPacket({ workItem: 'work-item:review-note', briefing: 'Orientation briefing', submission: { ...orientation, startingPoints: points } });
     for (const point of points) expect(packet.text).toContain(JSON.stringify(point));
     expect(packet.hash).toBe(digest(packet.text));
     expect(packet.hash).not.toBe(digest(text));
@@ -65,16 +65,16 @@ describe('D1–D3: optional explicit discovery records', () => {
   test('ordinary/capability schemas share optional pairs without changing scope rules, obligations or completion', () => {
     for (const report of [completionProposed(), partial]) {
       expect(engineerSubmissionSchema.parse(report)).not.toHaveProperty('startingPoints');
-      expect(capabilityEngineerSubmissionSchema.parse(report)).not.toHaveProperty('startingPoints');
+      expect(engineerSubmissionSchema.parse(report)).not.toHaveProperty('startingPoints');
       expect(engineerSubmissionSchema.parse({ ...report, startingPoints: points })).toHaveProperty('startingPoints', points);
-      expect(capabilityEngineerSubmissionSchema.parse({ ...report, startingPoints: points })).toHaveProperty('startingPoints', points);
+      expect(engineerSubmissionSchema.parse({ ...report, startingPoints: points })).toHaveProperty('startingPoints', points);
     }
     const body = assignmentBodySchema.parse(assign('app').assignment);
     const evidence = { index: null, registry: new Map(), outline: null };
     expect(assignmentErrors({ ...body, startingPoints: points }, evidence)).toEqual(assignmentErrors(body, evidence));
     expect(body).not.toHaveProperty('startingPoints');
     // A completion hint cannot substitute for an obligation binding or a partial report.
-    expect(validateEngineer({ ...completionProposed(), startingPoints: points }, { assigned: ['ob-001'] }).ok).toBe(false);
+    expect(validateEngineer({ ...completionProposed(), startingPoints: points }, { assigned: ['provider-obligation:review-note'] }).ok).toBe(false);
     expect(validateEngineer({ ...partial, done: [], unfinished: [], startingPoints: points }).ok).toBe(false);
     expect(validateEngineer({ kind: 'unsuitable', reason: 'scope', detail: 'Outside scope', startingPoints: points }).ok).toBe(false);
   });
@@ -97,11 +97,11 @@ describe('D1–D3: optional explicit discovery records', () => {
     const fixture = await copyFixture(); cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);
     let reached = false;
-    const checks = [scenariosCommit('review-notes'), ...(kind === 'completion-proposed' ? ['wi-001.i01'] : []), 'wi-001', 'final verification of plan "review-notes"'];
+    const checks = [scenariosCommit('review-notes'), ...(kind === 'completion-proposed' ? ['work-item:review-note.i01'] : []), 'work-item:review-note', 'final verification of plan "review-notes"'];
     const fixed = { tree: 'a'.repeat(40), files: {}, base: 'scenarios-of-review-notes', changes: [] };
     const candidates = scriptedCandidates(fixture.root, { 'scenarios-of-review-notes': fixed, 'unchanged-fixture-revision': fixed, ['a'.repeat(40)]: fixed });
     const turns = byRole({
-        'initial-architect': [submit(analysis([entry('review-note', 'collection-review/workspace/reviews')]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', 'collection-review/workspace/reviews')]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign('collection-review/workspace/reviews', { startingPoints: points }, outline())), submit(requestCompletion())],
         engineer: [submit({ ...(kind === 'partial' ? partial : completionProposed()), startingPoints: points })],
       });
@@ -112,7 +112,7 @@ describe('D1–D3: optional explicit discovery records', () => {
       unchangedCheckpoints: checks, previewCount: crash === 'passed-gate' ? 5 : 4, inputs: treeInputs(), candidates, agent,
       afterWrite: async (event, runId) => {
         const events = await runEventsOnDisk(fixture.root, 'review-notes', runId);
-        const engineer = events.find(e => e.type === 'invocation-started' && e.data.role === 'engineer' && e.data.work.iteration === 'wi-001.i01');
+        const engineer = events.find(e => e.type === 'invocation-started' && e.data.role === 'engineer' && e.data.work.iteration === 'work-item:review-note.i01');
         if (!engineer || engineer.type !== 'invocation-started') return;
         if (crash === 'passed-gate') {
           // gate-attempted is the pre-commit effect hook. Freeze only after
@@ -121,8 +121,8 @@ describe('D1–D3: optional explicit discovery records', () => {
           const passed = [...events].reverse().find(e => e.type === 'gate-attempted' && e.data.checkpoint === 'iteration');
           if (!passed || passed.type !== 'gate-attempted') return;
           const gate = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(fixture.root, 'review-notes', runId, runLayout.gate(passed.data.gate)), 'utf8')));
-          expect(gate).toMatchObject({ checkpoint: 'iteration', verdict: 'passed', proposedBy: engineer.data.invocation, subject: { workItem: 'wi-001', iteration: 'wi-001.i01' } });
-          expect(events.some(e => e.type === 'iteration-closed' && e.data.iteration === 'wi-001.i01')).toBe(false);
+          expect(gate).toMatchObject({ checkpoint: 'iteration', verdict: 'passed', proposedBy: engineer.data.invocation, subject: { workItem: 'work-item:review-note', iteration: 'work-item:review-note.i01' } });
+          expect(events.some(e => e.type === 'iteration-closed' && e.data.iteration === 'work-item:review-note.i01')).toBe(false);
           reached = true; await freeze();
           return;
         }
@@ -134,8 +134,8 @@ describe('D1–D3: optional explicit discovery records', () => {
     // The frozen old service models the crashed process; it is never allowed to resume.
     const receipt = await opened.service.execute(startRun('review-notes'));
     await until(() => reached, 20_000);
-    await expect(readFile(runPath(fixture.root, 'review-notes', receipt.jobId, iterationLayout.result('wi-001', 1)), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
-    const assignmentPath = runPath(fixture.root, 'review-notes', receipt.jobId, iterationLayout.assignment('wi-001', 1));
+    await expect(readFile(runPath(fixture.root, 'review-notes', receipt.jobId, iterationLayout.result('work-item:review-note', 1)), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+    const assignmentPath = runPath(fixture.root, 'review-notes', receipt.jobId, iterationLayout.assignment('work-item:review-note', 1));
     const assignmentBytes = await readFile(assignmentPath, 'utf8');
     expect(iterationAssignmentSchema.parse(JSON.parse(assignmentBytes)).startingPoints).toEqual(points);
     const originalEvents = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
@@ -153,7 +153,7 @@ describe('D1–D3: optional explicit discovery records', () => {
     cleanups.push(() => restored.service.close());
     await restored.service.settled('review-notes', receipt.jobId);
     expect(restored.service.getRun('review-notes', receipt.jobId)?.state, JSON.stringify((await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId)).slice(-5)) + restored.warnings.join('\n')).toBe('completed');
-    const result = iterationResultSchema.parse(JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, iterationLayout.result('wi-001', 1)), 'utf8')));
+    const result = iterationResultSchema.parse(JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, iterationLayout.result('work-item:review-note', 1)), 'utf8')));
     expect(result.startingPoints).toEqual(points);
     expect(result.outcome).toBe(kind === 'partial' ? 'partial' : 'accepted');
     expect(result.invocations).toHaveLength(1);
@@ -161,9 +161,9 @@ describe('D1–D3: optional explicit discovery records', () => {
     expect(await readFile(packetPath, 'utf8')).toBe(packetBytes);
     // Historical committed shapes without the optional field remain strict readers' exact input.
     for (const [schema, current] of [[iterationAssignmentSchema, JSON.parse(assignmentBytes)], [iterationResultSchema, result]] as const) {
-      const { startingPoints: _points, ...legacy } = current;
-      const bytes = JSON.stringify(legacy);
-      expect(schema.parse(JSON.parse(bytes))).toEqual(legacy);
+      const { startingPoints: _points, ...withoutOptionalPoints } = current;
+      const bytes = JSON.stringify(withoutOptionalPoints);
+      expect(schema.parse(JSON.parse(bytes))).toEqual(withoutOptionalPoints);
       expect(digest(JSON.stringify(schema.parse(JSON.parse(bytes))))).toBe(digest(bytes));
     }
     expect(restored.agent?.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(0);

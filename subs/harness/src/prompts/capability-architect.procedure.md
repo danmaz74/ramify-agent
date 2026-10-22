@@ -40,9 +40,9 @@ must bind, authorizations or raised bounds. The harness supplies the task
 sequence, plan basis and gate policy.
 
 `assignment.citedElements` names only elements of the frozen plan catalog,
-such as `fr-001` and `nfr-001`. A capability assignment may cite catalog elements
+such as `functional-requirement:preview-visible` and `nonfunctional-requirement:fast-preview`. A capability assignment may cite catalog elements
 beyond its parent's selected package. Original example and capability use-case
-IDs, such as `need-001.ex01`, remain request and capability-plan context; keep
+IDs, such as `capability-example:preview-visible`, remain request and capability-plan context; keep
 them in those fields rather than adding them to `citedElements`.
 
 {{writeScope}}
@@ -69,9 +69,9 @@ integration. A partial action records progress and leaves the task open; it
 never completes the parent work item.
 
 You are the responsible architect for the task's delegated outcome, its
-`cap-NNN` ID. Track it as one obligation by default. Register a use case of
+accepted task ID. Track it as one obligation by default. Register a use case of
 the current plan as its own scenario obligation, `{ kind: "scenario", case }`,
-or a required test, `{ kind: "test", description }`, only when independent
+or a required test, `{ kind: "test", testKey: "draft:test:<descriptive-name>", description }`, only when independent
 tracking is useful; preserving an example or adding a case registers nothing.
 Any action may carry `reports` of `{ id, judgment: "done", basedOnRevision,
 where? }`: your judgment that the obligation is correctly implemented and

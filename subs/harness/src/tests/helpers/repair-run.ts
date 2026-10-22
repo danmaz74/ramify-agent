@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import { analysis, entry, requestCompletion } from './analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './analysis.js';
 import { finalCandidate } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { copyFixture } from './fixture.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs } from './iterations.js';
@@ -76,7 +76,8 @@ export async function repairContinuationRun(cleanups: Array<() => Promise<void>>
       ? { stdout: JSON.stringify({ schemaVersion: 'ramify.check/1', outcome: 'findings', findings: [notVisible(source, 13)] }), outcome: { kind: 'completed', exitCode: 1 } }
       : {},
     script: byRole({
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
+      'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })],
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: [
         submit(completionProposed('Raised the limit to 500.'), edit(`${notesDirectory}/src/notes.ts`, 'noteLimit = 400', 'noteLimit = 500')),

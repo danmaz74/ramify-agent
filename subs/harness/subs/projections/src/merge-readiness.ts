@@ -2,7 +2,7 @@ import type { AcceptedEvidence } from '../../autonomous/subs/planning/src/eviden
 import { assessmentSchema } from '../../nonfunctional/src/interfaces/contracts.js';
 import { currentDeviationDecision } from '../../autonomous/subs/acceptance/src/deviations/readiness-decision.js';
 import { deviationHash } from '../../autonomous/subs/acceptance/src/deviations/finding.js';
-import { planDeviationSchema } from '../../autonomous/subs/acceptance/src/deviations/records.js';
+import { deviationLayout, planDeviationSchema } from '../../autonomous/subs/acceptance/src/deviations/records.js';
 import { nonfunctionalDeviationHash } from '../../autonomous/subs/acceptance/src/deviations/nonfunctional.js';
 import { replayCheckFindingState } from '../../../src/check-findings/state.js';
 import { replayNonfunctionalPhase } from '../../autonomous/subs/acceptance/src/nonfunctional-phase.js';
@@ -130,57 +130,60 @@ export function mergeReadinessOf(view: RunView, evidence: AcceptedEvidence): Mer
   const paths = new Map(evidence.manifest.documents.map(document => [document.id, document]));
   for (const line of view.entries) {
     const event = line.transaction.event;
-    if (event.type !== 'plan-deviation-recorded' && event.type !== 'nonfunctional-deviation-recorded') continue;
-    const nfr = event.type === 'nonfunctional-deviation-recorded';
-    const path = nfr ? runLayout.nonfunctionalDeviation(event.data.deviation) : `deviations/${event.data.deviation}.json`;
-    const record = nfr
-      ? recordOf(line, path, body => nonfunctionalDeviationSchema.safeParse(body).data ?? null)
-      : recordOf(line, path, body => planDeviationSchema.safeParse(body).data ?? null);
-    if (!record || record.id !== event.data.deviation || record.checkFinding !== event.data.checkFinding) {
-      return unavailable(`Deviation ${event.data.deviation} has no matching committed record`);
-    }
-    const entry = findings.get(record.checkFinding);
-    const hash = nfr ? nonfunctionalDeviationHash(record as Extract<typeof record, { origin: unknown }>)
-      : deviationHash(record as Exclude<typeof record, { origin: unknown }>);
-    const first = entry?.reports[0];
-    const last = entry?.reports.at(-1);
-    if (!entry || entry.owner.kind !== 'run' || first?.observation.kind !== 'plan-deviation'
-      || entry.reports[0].judgment?.ground?.ref !== path || entry.reports[0].judgment.ground.hash !== hash) {
-      return unavailable(`Deviation ${record.id} has no source-bound CheckFinding`);
-    }
-    if (!last || last.source.kind !== first.source.kind || last.source.id !== first.source.id
-      || last.judgment?.ground?.ref !== path || last.judgment.ground.hash !== hash) {
-      return unavailable(`Deviation ${record.id} changed source after its first report`);
-    }
-    if (nfr) {
-      const detail = record as Extract<typeof record, { origin: unknown }>;
-      const document = paths.get(detail.element.document);
-      const element = evidence.catalog.elements.find(item => item.id === detail.origin.nfr);
-      if (!document || entry.reports[0].source.kind !== 'document'
-        || entry.reports[0].source.id !== `${document.path}@sha256:${document.sha256}`
-        || detail.origin.nfr !== event.data.nfr || detail.origin.assessment !== event.data.assessment
-        || (element?.kind !== 'non-functional' && element?.kind !== 'fixed')
-        || element.id !== detail.element.id || element.text !== detail.element.text || element.document !== detail.element.document) {
-        return unavailable(`Deviation ${record.id} has mismatched NFR source or assessment`);
+    if (event.type !== 'plan-deviation-recorded' && event.type !== 'nonfunctional-deviations-recorded') continue;
+    const recorded = event.type === 'nonfunctional-deviations-recorded' ? event.data.deviations : [event.data];
+    for (const occurrence of recorded) {
+      const nfr = event.type !== 'plan-deviation-recorded';
+      const path = nfr ? runLayout.nonfunctionalDeviation(occurrence.deviation) : deviationLayout.deviation(occurrence.deviation);
+      const record = nfr
+        ? recordOf(line, path, body => nonfunctionalDeviationSchema.safeParse(body).data ?? null)
+        : recordOf(line, path, body => planDeviationSchema.safeParse(body).data ?? null);
+      if (!record || record.id !== occurrence.deviation || record.checkFinding !== occurrence.checkFinding) {
+        return unavailable(`Deviation ${occurrence.deviation} has no matching committed record`);
       }
-    } else if (event.type === 'plan-deviation-recorded') {
-      const detail = record as Exclude<typeof record, { origin: unknown }>;
-      if (detail.workItem !== event.data.workItem || detail.request !== event.data.request
-        || detail.invocation !== event.data.invocation) {
-        return unavailable(`Deviation ${record.id} differs from its recorded work-item origin`);
+      const entry = findings.get(record.checkFinding);
+      const hash = nfr ? nonfunctionalDeviationHash(record as Extract<typeof record, { origin: unknown }>)
+        : deviationHash(record as Exclude<typeof record, { origin: unknown }>);
+      const first = entry?.reports[0];
+      const last = entry?.reports.at(-1);
+      if (!entry || entry.owner.kind !== 'run' || first?.observation.kind !== 'plan-deviation'
+        || entry.reports[0].judgment?.ground?.ref !== path || entry.reports[0].judgment.ground.hash !== hash) {
+        return unavailable(`Deviation ${record.id} has no source-bound CheckFinding`);
       }
+      if (!last || last.source.kind !== first.source.kind || last.source.id !== first.source.id
+        || last.judgment?.ground?.ref !== path || last.judgment.ground.hash !== hash) {
+        return unavailable(`Deviation ${record.id} changed source after its first report`);
+      }
+      if (nfr) {
+        const detail = record as Extract<typeof record, { origin: unknown }>;
+        const document = paths.get(detail.element.document);
+        const element = evidence.catalog.elements.find(item => item.id === detail.origin.nfr);
+        if (!document || entry.reports[0].source.kind !== 'document'
+          || entry.reports[0].source.id !== `${document.path}@sha256:${document.sha256}`
+          || !('nfr' in occurrence) || detail.origin.nfr !== occurrence.nfr || detail.origin.assessment !== event.data.assessment
+          || (element?.kind !== 'non-functional' && element?.kind !== 'fixed')
+          || element.id !== detail.element.id || element.text !== detail.element.text || element.document !== detail.element.document) {
+          return unavailable(`Deviation ${record.id} has mismatched NFR source or assessment`);
+        }
+      } else if (event.type === 'plan-deviation-recorded') {
+        const detail = record as Exclude<typeof record, { origin: unknown }>;
+        if (!('workItem' in occurrence) || detail.workItem !== occurrence.workItem || detail.request !== occurrence.request
+          || detail.invocation !== occurrence.invocation) {
+          return unavailable(`Deviation ${record.id} differs from its recorded work-item origin`);
+        }
+      }
+      const current = currentDeviationDecision(entry);
+      if (current && !authenticUserCommand(view, record.checkFinding, current)) {
+        return unavailable(`Deviation ${record.id} has no accepted current user command`);
+      }
+      if (nfr && invalidated.has((record as Extract<typeof record, { origin: unknown }>).origin.assessment)) continue;
+      deviations.push({ origin: nfr ? (record as Extract<typeof record, { origin: unknown }>).origin : {
+        kind: 'work-item-conflict', request: (record as Exclude<typeof record, { origin: unknown }>).request,
+        workItem: (record as Exclude<typeof record, { origin: unknown }>).workItem,
+        architectInvocation: (record as Exclude<typeof record, { origin: unknown }>).invocation,
+      }, checkFinding: record.checkFinding, findingRevision: entry.revision,
+      decision: current ? { standing: current.standing, revision: current.revision } : null });
     }
-    const current = currentDeviationDecision(entry);
-    if (current && !authenticUserCommand(view, record.checkFinding, current)) {
-      return unavailable(`Deviation ${record.id} has no accepted current user command`);
-    }
-    if (nfr && invalidated.has((record as Extract<typeof record, { origin: unknown }>).origin.assessment)) continue;
-    deviations.push({ origin: nfr ? (record as Extract<typeof record, { origin: unknown }>).origin : {
-      kind: 'work-item-conflict', request: (record as Exclude<typeof record, { origin: unknown }>).request,
-      workItem: (record as Exclude<typeof record, { origin: unknown }>).workItem,
-      architectInvocation: (record as Exclude<typeof record, { origin: unknown }>).invocation,
-    }, checkFinding: record.checkFinding, findingRevision: entry.revision,
-    decision: current ? { standing: current.standing, revision: current.revision } : null });
   }
   return projectMergeReadiness({ completed: true, candidate: settled.candidate,
     finalGate: { id: gate.id, tree: bound.data.tree, assessment: settled.assessment.id, passed: true, audit: finalAuditFacts(gate) },

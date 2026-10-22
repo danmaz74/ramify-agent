@@ -111,7 +111,7 @@ describe('an implementation run with no entry capabilities', () => {
 
     // Every record of the run is a file beneath it.
     const record = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.record), 'utf8')) as Record<string, unknown>;
-    expect(record['schema']).toBe('ramify-agent.job/3');
+    expect(record['schema']).toBe('ramify-agent.job/4');
     expect(record['kind']).toBe('implementation');
     const entries = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.entries), 'utf8')) as { entries: unknown[] };
     expect(entries.entries).toEqual([]);
@@ -209,13 +209,13 @@ describe('an implementation run with no entry capabilities', () => {
       inputs: treeInputs(),
       script: byRole({
         'initial-architect': [submit(emptyAnalysis())],
-        'global-fork': [submit({ module, goal: 'Correct the failing final verification.', rationale: 'Investigate its diagnostic and retain the existing implementation.' })],
+        'global-fork': [submit({ workItemKey: 'draft:work-item:correct-final-verification', module, goal: 'Correct the failing final verification.', rationale: 'Investigate its diagnostic and retain the existing implementation.' })],
         'local-architect': [submit(assign(module, {}, outline())), submit(requestCompletion())],
         engineer: [submit(partialReport(['Corrected the verification problem.'], ['Obtain final verification.']))],
       }),
       checkScript: ({ check, context }) => context.checkpoint === 'final' && check.kind === 'tests' && finalChecks++ === 0
         ? { outcome: { kind: 'completed', exitCode: 1 } } : {},
-      unchangedCheckpoints: ['final verification of plan "review-notes"', 'wi-001', 'final verification of plan "review-notes"'],
+      unchangedCheckpoints: ['final verification of plan "review-notes"', 'work-item:correct-final-verification', 'final verification of plan "review-notes"'],
       previewCount: 7,
     });
     cleanups.push(() => service.close());

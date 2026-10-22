@@ -176,7 +176,7 @@ export class StubClient implements ProtocolClient {
     this.calls.push(`getCheckFindings:${runId}:${key}`);
     const run = this.run(runId);
     if (run.checkFindings === undefined) {
-      return { protocol: 'check-findings/1', runId, version: run.snapshot.version, coverage: { state: 'unavailable', reason: 'no-review-policy' },
+      return { protocol: 'check-findings/2', runId, version: run.snapshot.version, coverage: { state: 'unavailable', reason: 'no-review-policy' },
         query: { workItem: query.workItem ?? null, module: query.module ?? null, select: query.select ?? 'attention', order: 'attention' },
         total: 0, shown: 0, next: null, counts: { total: 0, open: 0, deferred: 0, closed: 0, fixed: 0, waived: 0, superseded: 0, unresolved: 0, awaitingUser: 0 }, items: [] };
     }
@@ -190,13 +190,13 @@ export class StubClient implements ProtocolClient {
     this.calls.push(`getCheckFindingModules:${runId}`);
     const run = this.run(runId);
     return run.checkFindingModules
-      ?? { protocol: 'check-findings/1', runId, version: run.snapshot.version, coverage: { state: 'unavailable', reason: 'no-review-policy' }, modules: [] };
+      ?? { protocol: 'check-findings/2', runId, version: run.snapshot.version, coverage: { state: 'unavailable', reason: 'no-review-policy' }, modules: [] };
   }
   async getReviews(_planId: string, runId: string, workItem?: string): Promise<ReviewListResponse> {
     this.calls.push(`getReviews:${runId}:${workItem ?? ''}`);
     const run = this.run(runId);
     if (run.reviews === undefined) {
-      return { protocol: 'check-findings/1', runId, version: run.snapshot.version, coverage: { state: 'unavailable', reason: 'no-review-policy' },
+      return { protocol: 'check-findings/2', runId, version: run.snapshot.version, coverage: { state: 'unavailable', reason: 'no-review-policy' },
         workItem: workItem ?? null, total: 0, shown: 0, next: null, requests: [] };
     }
     return this.answer(runId, current => current.reviews?.[workItem ?? ''], `reviews of ${workItem ?? 'the run'}`);

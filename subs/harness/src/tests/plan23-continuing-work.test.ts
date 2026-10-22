@@ -148,7 +148,7 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
   test('orientation, assignment, qualification and completion use one session with stable head, new actual tool and current-only deltas', async () => {
     const observed: SessionDriverInvocation[] = [];
     const { adapter } = await open(invocation => { observed.push(invocation); return [{ kind: 'submit', input: invocation.task.submissionTool === 'submit_capability_qualification'
-      ? { kind: 'unresolved', request: 'cr-1', invocation: 'engineer-1', problem: 'Insufficient exposed API evidence', evidence: ['V1 does not establish behavior'] } : { result: 'accepted' } }]; });
+      ? { kind: 'unresolved', request: 'capability-request:status-label', invocation: 'engineer-1', unresolvedRequestKey: 'draft:unresolved-request:insufficient-api-evidence', problem: 'Insufficient exposed API evidence', evidence: ['V1 does not establish behavior'] } : { result: 'accepted' } }]; });
     const first = await turn(adapter, input('local-architect', 'orientation', 'op-1'));
     const appended = await adapter.append(first.ref, 'selected-package:1', 'K1: current selected requirement package');
     expect(appended.outcome).toBe('appended'); if (appended.outcome !== 'appended') throw new Error('missing parent');
@@ -202,7 +202,7 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
     const firstAgent = createScriptedAgent(script);
     const first = await HarnessSessionOperations.open(root, firstAgent); adapters.push(first);
     const initial = input('local-architect', 'assignment', 'perceived-first');
-    const obligations = '# Registered obligations\n- sc-001 (scenario): bound, revision 2; show status';
+    const obligations = '# Registered obligations\n- scenario:status-label-is-used (scenario): bound, revision 2; show status';
     const brief = { ...initial.brief, sections: [{ key: 'support:obligations', text: obligations }] };
     const started = await turn(first, { ...initial, brief }); await first.close();
     const secondAgent = createScriptedAgent(script);
@@ -436,8 +436,8 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
       if (originalStart.type === 'invocation-started') await expectOriginalTranscript(fixture.root, runId, operation, originalStart.data.session);
       expect(events.filter(event => event.type === 'contract-registered')).toHaveLength(1);
       expect(events.filter(event => event.type === 'contract-requested')).toHaveLength(1);
-      expect(events.filter(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i01')).toHaveLength(1);
-      expect(events.filter(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i02')).toHaveLength(1);
+      expect(events.filter(event => event.type === 'iteration-closed' && event.data.iteration === 'work-item:review-notes.i01')).toHaveLength(1);
+      expect(events.filter(event => event.type === 'iteration-closed' && event.data.iteration === 'work-item:review-notes.i02')).toHaveLength(1);
       expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
     } finally { await restarted.service.close(); }
   }, 120_000);

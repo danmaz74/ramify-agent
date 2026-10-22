@@ -7,7 +7,7 @@ import { gitService } from '../../subs/evidence/src/git.js';
 import { reconciliationLayout, type ReconciliationBasis } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
 import { reviewLayout, type ReviewRequest } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { testReviewPolicy } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { afterFinished, concern, disposition, reconcile, review, submission } from './helpers/check-findings-composition.js';
 import { assign, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
@@ -51,8 +51,8 @@ describe('the composed CheckFinding path over a real repository', () => {
     const deliveredOrientations: string[] = [];
     await initRepository(root);
 
-    const defect = concern(limit, 'The note limit is 50 characters, and the plan asks for 500', 'high');
-    const design = concern(limit, 'The limit contradicts the notes principle of 500 characters', 'high', principles);
+    const defect = concern(limit, 'The note limit is 50 characters, and the plan asks for 500', 'high', null, 'draft:finding:note-limit');
+    const design = concern(limit, 'The limit contradicts the notes principle of 500 characters', 'high', principles, 'draft:finding:note-principle');
     const scripted = reviewScript({
       engineer: [
         submit(completionProposed('Added the note store.'), write('store.ts', 'export const store = new Map();\n')),
@@ -77,20 +77,20 @@ describe('the composed CheckFinding path over a real repository', () => {
         'rq-0008': review([limit, feature]), 'rq-0009': review([limit, feature]),
       },
       reconcilers: {
-        'wi-001.rc01': reconcile(submission([
-          disposition('cf-0001', { action: 'repair' }),
-          disposition('cf-0002', { action: 'repair' }),
+        'work-item:review-notes.rc01': reconcile(submission([
+          disposition('finding:note-limit', { action: 'repair' }),
+          disposition('finding:note-principle', { action: 'repair' }),
         ], { kind: 'correct', goal: 'Make the note limit 500 characters.' }, [
-          { from: 'cf-0002', to: 'cf-0001', relation: 'same-issue', shared: 'The note limit is 500 characters.', evidence: [`${limit}:1`], rationale: 'Both name the 50-character limit.' },
+          { from: 'finding:note-principle', to: 'finding:note-limit', relation: 'same-issue', shared: 'The note limit is 500 characters.', evidence: [`${limit}:1`], rationale: 'Both name the 50-character limit.' },
         ])),
-        'wi-001.rc02': reconcile(submission([
-          disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-          disposition('cf-0002', { action: 'fixed', reassessed: ['cfr-0002'] }),
+        'work-item:review-notes.rc02': reconcile(submission([
+          disposition('finding:note-limit', { action: 'fixed', reassessed: ['cfr-0001'] }),
+          disposition('finding:note-principle', { action: 'fixed', reassessed: ['cfr-0002'] }),
         ], { kind: 'complete' })),
       },
     });
     const script = (spec: SessionSpec): readonly ScriptStep[] => {
-      if (spec.role === 'initial-architect') return [{ kind: 'submit', input: analysis([entry('review-notes', notes)]) }];
+      if (spec.role === 'initial-architect') return [{ kind: 'submit', input: currentAnalysis(analysis([entry('review-notes', notes)]), 'document:review-notes-plan') }];
       if (spec.role === 'reviewer' && spec.submission.name === 'submit_orientation') {
         deliveredOrientations.push(spec.prompt);
         return orientation(spec);
@@ -143,25 +143,25 @@ describe('the composed CheckFinding path over a real repository', () => {
     }
 
     expect(await git(root, 'show', `${commits[1]}:${principles}`)).toBe(principlesText);
-    expect(detail('cf-0002').reports.items[0]).toMatchObject({
+    expect(detail('finding:note-principle').reports.items[0]).toMatchObject({
       source: { kind: 'tree', id: trees[1] },
       judgment: { ground: { ref: principles, hash: `sha256:${createHash('sha256').update(principlesText).digest('hex')}` } },
       credibility: 'human-reviewed', modules: [notes],
     });
-    expect(detail('cf-0001').reports.items[0]).toMatchObject({ source: { kind: 'tree', id: trees[1] }, credibility: 'ungrounded', modules: [notes] });
+    expect(detail('finding:note-limit').reports.items[0]).toMatchObject({ source: { kind: 'tree', id: trees[1] }, credibility: 'ungrounded', modules: [notes] });
 
     // Round 1 was based on the second commit's tree; the correction's commit
     // claims the repair on its own tree; round 2 was based on that tree and fixed both.
     const basis = async (id: string) => JSON.parse(await readFile(runPath(root, plan, runId, reconciliationLayout.basis(id)), 'utf8')) as ReconciliationBasis;
-    expect(await basis('wi-001.rc01')).toMatchObject({ source: { commit: commits[1], tree: trees[1] }, floor: 'any' });
-    expect(await basis('wi-001.rc02')).toMatchObject({ source: { commit: commits[2], tree: trees[2] }, floor: 'any' });
+    expect(await basis('work-item:review-notes.rc01')).toMatchObject({ source: { commit: commits[1], tree: trees[1] }, floor: 'any' });
+    expect(await basis('work-item:review-notes.rc02')).toMatchObject({ source: { commit: commits[2], tree: trees[2] }, floor: 'any' });
     const closed = eventsOf(events, 'iteration-closed').find(event => event.data.commit === commits[2])!;
     expect(closed.data.checkFindings!.map(event => event.type === 'check-finding-decided' && [event.data.checkFinding, event.data.decision.decision])).toEqual([
-      ['cf-0001', { action: 'claim-repair', candidate: { kind: 'tree', id: trees[2] }, change: closed.data.iteration }],
-      ['cf-0002', { action: 'claim-repair', candidate: { kind: 'tree', id: trees[2] }, change: closed.data.iteration }],
+      ['finding:note-limit', { action: 'claim-repair', candidate: { kind: 'tree', id: trees[2] }, change: closed.data.iteration }],
+      ['finding:note-principle', { action: 'claim-repair', candidate: { kind: 'tree', id: trees[2] }, change: closed.data.iteration }],
     ]);
-    for (const id of ['cf-0001', 'cf-0002']) {
-      expect(detail(id).summary).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', group: { canonical: 'cf-0001', members: ['cf-0001', 'cf-0002'] } });
+    for (const id of ['finding:note-limit', 'finding:note-principle']) {
+      expect(detail(id).summary).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', group: { canonical: 'finding:note-limit', members: ['finding:note-limit', 'finding:note-principle'] } });
       expect(detail(id).decisions.items.at(-1)).toMatchObject({ source: { kind: 'tree', id: trees[2] } });
     }
 

@@ -18,7 +18,7 @@ import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';
 import { declaringScenarios } from './helpers/declarations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { forkDecision, forkDeviation, forkNothingPossible, registryChange, unresolved } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, testPolicy, until } from './helpers/runs.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
@@ -50,7 +50,7 @@ afterEach(async () => {
 const plan = 'revision-diff';
 const core = 'collection-review/workspace/catalog/core';
 const panel = 'collection-review/workspace/catalog/ui';
-const completed = [scenariosCommit(plan), 'wi-001', 'wi-002', `final verification of plan "${plan}"`] as const;
+const completed = [scenariosCommit(plan), 'work-item:compare-revisions', 'work-item:compare-panel', `final verification of plan "${plan}"`] as const;
 
 async function target(): Promise<string> {
   const fixture = await copyFixture();
@@ -60,10 +60,10 @@ async function target(): Promise<string> {
 }
 
 function analysed() {
-  return analysis([
+  return currentAnalysis(analysis([
     entry('compare-revisions', core, 'Compares two revisions of one record, field by field.'),
     entry('compare-panel', panel, 'Shows the comparison of two revisions on the record card.'),
-  ]);
+  ]), 'document:revision-diff-plan');
 }
 
 function types(events: readonly RunEvent[]): string[] {
@@ -102,7 +102,7 @@ describe('an unresolved request answered with a plan deviation', () => {
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
       'local-architect': [submit(unresolved()), submit(requestCompletion()), submit(requestCompletion())],
-      'global-fork': [submit(forkDeviation({ workItems: ['wi-002'] }))],
+      'global-fork': [submit(forkDeviation({ workItems: ['work-item:compare-panel'] }))],
     })));
     const opened = await openRuns(project, { agent, inputs: treeInputs(), unchangedCheckpoints: completed });
     cleanups.push(() => opened.service.close());
@@ -111,7 +111,7 @@ describe('an unresolved request answered with a plan deviation', () => {
     const receipt = await opened.service.execute(startRun(plan));
     await opened.service.settled(plan, receipt.jobId);
     const runId = receipt.jobId;
-    expect(onlyRun(opened.service, plan).state).toBe('completed');
+    expect(onlyRun(opened.service, plan).state, JSON.stringify(onlyRun(opened.service, plan).failure)).toBe('completed');
 
     // The unresolved request forked the plan architect, whose deviation was
     // recorded; the work item then went on and completed, as did the next.
@@ -120,29 +120,29 @@ describe('an unresolved request answered with a plan deviation', () => {
       'unresolved-requested', 'view-refreshed', 'plan-deviation-recorded', 'work-item-completed', 'work-item-completed', 'job-completed',
     ]);
     expect(events.find(event => event.type === 'plan-deviation-recorded')!.data).toMatchObject({
-      request: 'ur-001', deviation: 'pd-001', workItem: 'wi-001', checkFinding: 'cf-0001', held: false,
+      request: 'unresolved-request:missing-mcp', deviation: 'plan-deviation:mcp-query', workItem: 'work-item:compare-revisions', checkFinding: 'finding:mcp-query', held: false,
     });
     expect(types(events)).not.toContain('job-failed');
     // The run completed with the deviation to review, never plainly.
     expect(events.at(-1)).toMatchObject({ type: 'job-completed', data: { planDeviations: 1 } });
 
     // The plan file and the catalog are unchanged; the deviation beside them holds the element it amends as the catalog does.
-    const deviation = JSON.parse(await readFile(runPath(project, plan, runId, deviationLayout.deviation('pd-001')), 'utf8')) as PlanDeviation;
+    const deviation = JSON.parse(await readFile(runPath(project, plan, runId, deviationLayout.deviation('plan-deviation:mcp-query')), 'utf8')) as PlanDeviation;
     expect(deviation).toMatchObject({
-      schema: 'ramify-agent.plan-deviation/1', request: 'ur-001', workItem: 'wi-001', workItems: ['wi-001', 'wi-002'], modules: [core, panel],
-      plan: { path: `plans/${plan}/plan.md` }, checkFinding: 'cf-0001', held: false,
+      schema: 'ramify-agent.plan-deviation/2', request: 'unresolved-request:missing-mcp', workItem: 'work-item:compare-revisions', workItems: ['work-item:compare-revisions', 'work-item:compare-panel'], modules: [core, panel],
+      plan: { path: `plans/${plan}/plan.md` }, checkFinding: 'finding:mcp-query', held: false,
     });
-    expect(deviation.amends).toEqual([{ id: 'fr-001', path: `plans/${plan}/plan.md`, text: 'The plan asks for compare-revisions-request.' }]);
+    expect(deviation.amends).toEqual([{ id: 'functional-requirement:compare-revisions-request', path: `plans/${plan}/plan.md`, text: 'The plan asks for draft:functional-requirement:compare-revisions-request.' }]);
     const captured = await readFile(runPath(project, plan, runId, 'input', 'plan.md'), 'utf8');
     expect(await readFile(`${project}/plans/${plan}/plan.md`, 'utf8')).toBe(captured);
 
     // The fork was a fork of the architect context, for the unresolved request.
     const forks = agent.sessions.filter(session => session.spec.role === 'global-fork');
     expect(forks).toHaveLength(1);
-    expect(forks[0]!.spec.prompt).toContain('# Unresolved request ur-001');
+    expect(forks[0]!.spec.prompt).toContain('# Unresolved request unresolved-request:missing-mcp');
     // It reads the work item's package, not a line-numbered plan.
-    expect(forks[0]!.spec.prompt).toContain('## The package of wi-001');
-    expect(forks[0]!.spec.prompt).toContain('### fr-001: functional requirement from plans/revision-diff/plan.md\n\n> The plan asks for compare-revisions-request.');
+    expect(forks[0]!.spec.prompt).toContain('## The package of work-item:compare-revisions');
+    expect(forks[0]!.spec.prompt).toContain('### functional-requirement:compare-revisions-request: functional requirement from plans/revision-diff/plan.md\n\n> The plan asks for draft:functional-requirement:compare-revisions-request.');
     expect(forks[0]!.spec.prompt).not.toContain('  11  - Serve it through both protocol surfaces');
 
     // The module architect that asked was continued with the deviation and the element it amends; the next work item's package carries it.
@@ -152,14 +152,14 @@ describe('an unresolved request answered with a plan deviation', () => {
     expect(architects[1]!.start.mode).toBe('continue');
     const continued = architects[1]!.spec.prompt;
     expect(continued).toContain('## Your unresolved request was answered with a plan deviation');
-    expect(continued).toContain('plan deviation `pd-001`');
+    expect(continued).toContain('plan deviation `plan-deviation:mcp-query`');
     expect(continued).toContain('## Plan deviations recorded after your package');
-    expect(continued).toContain('### pd-001 amends fr-001');
+    expect(continued).toContain('### plan-deviation:mcp-query amends functional-requirement:compare-revisions-request');
     expect(continued).toContain('What the run does instead: Serve the comparison through the tRPC query');
-    // wi-002 was selected after the deviation: its package carries it, and its brief repeats nothing.
+    // work-item:compare-panel was selected after the deviation: its package carries it, and its brief repeats nothing.
     const selections = events.flatMap(event => (event.type === 'context-selection-recorded' ? [event.data] : []));
-    expect(selections.map(selection => selection.workItem)).toEqual(['wi-001', 'wi-002']);
-    expect(architects[2]!.inherited.join('\n')).toContain('### pd-001 amends fr-001');
+    expect(selections.map(selection => selection.workItem)).toEqual(['work-item:compare-revisions', 'work-item:compare-panel']);
+    expect(architects[2]!.inherited.join('\n')).toContain('### plan-deviation:mcp-query amends functional-requirement:compare-revisions-request');
     expect(architects[2]!.spec.prompt).not.toContain('## Plan deviations recorded after your package');
     expect(architects[2]!.spec.prompt).not.toContain('## Your unresolved request was answered');
 
@@ -168,13 +168,13 @@ describe('an unresolved request answered with a plan deviation', () => {
     const list = checkFindingListResponseSchema.parse(await get(origin, protocolPaths.runCheckFindings(plan, runId, { select: 'all' })));
     const [first] = list.items;
     expect(first).toMatchObject({
-      id: 'cf-0001', workItem: null, standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision',
+      id: 'finding:mcp-query', workItem: null, standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision',
       risk: 'high', credibility: 'agent-generated', modules: [core, panel], producers: ['plan:deviation'],
       userCommands: ['respond', 'waive'],
-      planDeviation: { id: 'pd-001', request: 'ur-001', held: false, followUp: null, amends: [{ id: 'fr-001', path: `plans/${plan}/plan.md`, text: 'The plan asks for compare-revisions-request.' }] },
+      planDeviation: { id: 'plan-deviation:mcp-query', request: 'unresolved-request:missing-mcp', held: false, followUp: null, amends: [{ id: 'functional-requirement:compare-revisions-request', path: `plans/${plan}/plan.md`, text: 'The plan asks for draft:functional-requirement:compare-revisions-request.' }] },
     });
     expect(first!.pendingUserDecision?.options.map(option => option.id)).toEqual(['accept', 'reject']);
-    const detail = await get(origin, protocolPaths.runCheckFinding(plan, runId, 'cf-0001')) as { reports: { items: Array<{ observation: unknown }> } };
+    const detail = await get(origin, protocolPaths.runCheckFinding(plan, runId, 'finding:mcp-query')) as { reports: { items: Array<{ observation: unknown }> } };
     expect(detail.reports.items[0]!.observation).toMatchObject({
       kind: 'plan-deviation', locations: [{ path: `plans/${plan}/plan.md`, startLine: null, endLine: null }],
     });
@@ -195,9 +195,9 @@ describe('an unresolved request answered with a plan deviation', () => {
     // After the run, the person reviews it: rejecting states the follow-up requirement, and accepting waives it.
     const version = () => opened.service.getRun(plan, runId)!.version;
     expect((await rejection(opened.service.execute(command('respond-to-check-finding', runId, version(), {
-      checkFinding: 'cf-0001', expectedRevision: 2, request: 'cfd-0001', option: 'reject',
+      checkFinding: 'finding:mcp-query', expectedRevision: 2, request: 'cfd-0001', option: 'reject',
     })))).code).toBe('invalid-request');
-    await opened.service.execute(command('waive-check-finding', runId, version(), { checkFinding: 'cf-0001', expectedRevision: 2, reason: 'The tRPC query is enough for now' }));
+    await opened.service.execute(command('waive-check-finding', runId, version(), { checkFinding: 'finding:mcp-query', expectedRevision: 2, reason: 'The tRPC query is enough for now' }));
     const after = runResponseSchema.parse(await get(origin, protocolPaths.run(plan, runId))).run;
     expect(after).toMatchObject({ state: 'completed', planDeviations: { recorded: 1, toReview: 0 } });
     const waived = checkFindingListResponseSchema.parse(await get(origin, protocolPaths.runCheckFindings(plan, runId, { select: 'all' }))).items[0]!;
@@ -220,7 +220,7 @@ describe('an unresolved request answered with a plan deviation', () => {
     expect(onlyRun(opened.service, plan).state).toBe('completed');
 
     await opened.service.execute(command('respond-to-check-finding', runId, opened.service.getRun(plan, runId)!.version, {
-      checkFinding: 'cf-0001', expectedRevision: 2, request: 'cfd-0001', option: 'reject', note: 'Serve the MCP tool too, from a new MCP module.',
+      checkFinding: 'finding:mcp-query', expectedRevision: 2, request: 'cfd-0001', option: 'reject', note: 'Serve the MCP tool too, from a new MCP module.',
     }));
     const origin = await serve(opened.service, project);
     const rejected = checkFindingListResponseSchema.parse(await get(origin, protocolPaths.runCheckFindings(plan, runId, { select: 'all' }))).items[0]!;
@@ -245,11 +245,11 @@ describe('a deviation that rewords a pending scenario', () => {
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
       'local-architect': [submit(unresolved()), submit(requestCompletion()), submit(requestCompletion())],
-      'global-fork': [submit(forkDeviation({ workItems: ['wi-002'], scenarios: [{ scenario: 'sc-002', source: reworded }] }))],
+      'global-fork': [submit(forkDeviation({ workItems: ['work-item:compare-panel'], scenarios: [{ scenario: 'scenario:compare-panel-is-used', source: reworded }] }))],
     })));
     const opened = await openRuns(project, {
       agent, inputs: treeInputs(),
-      unchangedCheckpoints: [scenariosCommit(plan), { subject: 'Reword sc-002', commit: 'reworded-1', changes: [] }, 'wi-001', 'wi-002', `final verification of plan "${plan}"`],
+      unchangedCheckpoints: [scenariosCommit(plan), { subject: 'Reword scenario:compare-panel-is-used', commit: 'reworded-1', changes: [] }, 'work-item:compare-revisions', 'work-item:compare-panel', `final verification of plan "${plan}"`],
     });
     cleanups.push(() => opened.service.close());
     const origin = await serve(opened.service, project);
@@ -262,10 +262,10 @@ describe('a deviation that rewords a pending scenario', () => {
     expect(types(events).filter(type => ['plan-deviation-recorded', 'scenarios-rewording', 'scenarios-reworded'].includes(type))).toEqual([
       'plan-deviation-recorded', 'scenarios-rewording', 'scenarios-reworded',
     ]);
-    expect(events.find(event => event.type === 'scenarios-reworded')!.data).toEqual({ deviation: 'pd-001', commit: 'reworded-1' });
+    expect(events.find(event => event.type === 'scenarios-reworded')!.data).toEqual({ deviation: 'plan-deviation:mcp-query', commit: 'reworded-1' });
 
     // The record is revised, and the tracked feature file carries the new text; the plan does not.
-    const record = JSON.parse(await readFile(runPath(project, plan, runId, 'scenarios', 'sc-002.json'), 'utf8')) as { name: string; source: string[]; file: string };
+    const record = JSON.parse(await readFile(runPath(project, plan, runId, 'scenarios', 'scenario%3Acompare-panel-is-used.json'), 'utf8')) as { name: string; source: string[]; file: string };
     expect(record).toMatchObject({ name: 'A person compares revisions over tRPC', source: reworded });
     const file = await readFile(`${project}/${record.file}`, 'utf8');
     expect(file).toContain('Scenario: A person compares revisions over tRPC');
@@ -280,7 +280,7 @@ describe('a deviation that rewords a pending scenario', () => {
     // The CheckFinding shows the old text and the new.
     const deviation = checkFindingListResponseSchema.parse(await get(origin, protocolPaths.runCheckFindings(plan, runId, { select: 'all' }))).items[0]!.planDeviation;
     expect(deviation && 'scenarios' in deviation ? deviation.scenarios : null).toEqual([{
-      scenario: 'sc-002', file: record.file, after: reworded,
+      scenario: 'scenario:compare-panel-is-used', file: record.file, after: reworded,
       before: ['Scenario: A person uses compare-panel', '  Given the project as the plan finds it', '  When the person uses compare-panel', '  Then the outcome compare-panel promises is shown'],
     }]);
   }, 120_000);
@@ -299,15 +299,15 @@ describe('a scope review under a plan deviation', () => {
       engineer: [],
       reviewers: { 'rq-0001': clean([store]), 'rq-0002': clean([limit]), 'rq-0003': clean([store, index]) },
       roles: {
-        'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes)]), 'document:review-notes-plan'))],
         'local-architect': [
-          submit(assign(notes, { goal: 'Add the note store.', citedElements: ['fr-001', 'fr-002'] }, outline())),
-          submit(unresolved('The note cannot be served by an MCP tool: the project has none.', ['fr-001'])),
-          submit(assign(notes, { goal: 'State the note limit.', citedElements: ['fr-001', 'fr-002'] })),
-          submit(assign(notes, { goal: 'Export the store.', citedElements: ['fr-001'] })),
+          submit(assign(notes, { goal: 'Add the note store.', citedElements: ['functional-requirement:review-notes-request', 'functional-requirement:review-notes-acceptance'] }, outline())),
+          submit(unresolved('The note cannot be served by an MCP tool: the project has none.', ['functional-requirement:review-notes-request'])),
+          submit(assign(notes, { goal: 'State the note limit.', citedElements: ['functional-requirement:review-notes-request', 'functional-requirement:review-notes-acceptance'] })),
+          submit(assign(notes, { goal: 'Export the store.', citedElements: ['functional-requirement:review-notes-request'] })),
           submit(requestCompletion()),
         ],
-        'global-fork': [submit(forkDeviation({ amends: ['fr-001'], instead: 'Return the note through tRPC `reviews.run` only.' }))],
+        'global-fork': [submit(forkDeviation({ amends: ['functional-requirement:review-notes-request'], instead: 'Return the note through tRPC `reviews.run` only.' }))],
         engineer: [
           submit(completionProposed('Added the note store.'), write(store, 'export const store = new Map(); // v1\n')),
           submit(completionProposed('Stated the note limit.'), write(limit, 'export const limit = (text: string) => text.length <= 50;\n')),
@@ -320,26 +320,26 @@ describe('a scope review under a plan deviation', () => {
     const types = run.events.map(event => event.type);
     expect(types.indexOf('plan-deviation-recorded')).toBeGreaterThan(types.indexOf('iteration-assigned'));
 
-    // Each assignment pins the deviations recorded when it was assigned: the first none, the later ones pd-001.
+    // Each assignment pins the deviations recorded when it was assigned: the first none, the later ones plan-deviation:mcp-query.
     const directory = runPath(root, reviewPlan, run.runId, '');
     const record = runRecordSchema.parse(JSON.parse(await readFile(runPath(root, reviewPlan, run.runId, runLayout.record), 'utf8')));
     const evidence = await readAcceptedEvidence(directory, record.manifest, acceptedAnalysisReferences(run.events));
     if (evidence.status !== 'available') throw new Error(evidence.reason);
-    const deviation = JSON.parse(await readFile(runPath(root, reviewPlan, run.runId, deviationLayout.deviation('pd-001')), 'utf8')) as PlanDeviation;
+    const deviation = JSON.parse(await readFile(runPath(root, reviewPlan, run.runId, deviationLayout.deviation('plan-deviation:mcp-query')), 'utf8')) as PlanDeviation;
     const planDeviations = [packageDeviation(deviation)];
     const packages = await Promise.all([1, 2, 3].map(async number => {
-      const assignment = iterationAssignmentSchema.parse(JSON.parse(await readFile(runPath(root, reviewPlan, run.runId, iterationLayout.assignment('wi-001', number)), 'utf8')));
+      const assignment = iterationAssignmentSchema.parse(JSON.parse(await readFile(runPath(root, reviewPlan, run.runId, iterationLayout.assignment('work-item:review-notes', number)), 'utf8')));
       const rendered = createPackage({ catalog: evidence.catalog, planDeviations, elements: assignment.source!.elements, deviations: assignment.source!.deviations });
       if ('unavailable' in rendered) throw new Error('The assignment package does not render');
       return { source: assignment.source!, text: rendered.text, hash: rendered.hash };
     }));
-    expect(packages.map(entry => entry.source.deviations)).toEqual([[], ['pd-001'], ['pd-001']]);
+    expect(packages.map(entry => entry.source.deviations)).toEqual([[], ['plan-deviation:mcp-query'], ['plan-deviation:mcp-query']]);
     // The first assignment's package renders, after the deviation, to the bytes it was cited with and its engineer received.
     expect(packages[0]!.hash).toBe(packages[0]!.source.hash);
-    expect(packages[0]!.text).not.toContain('pd-001');
+    expect(packages[0]!.text).not.toContain('plan-deviation:mcp-query');
     const engineers = run.agent!.sessions.filter(session => session.spec.role === 'engineer');
     expect(engineers[0]!.spec.prompt).toContain(packages[0]!.text.trimEnd());
-    expect(packages[1]!.text).toContain('### pd-001 amends fr-001');
+    expect(packages[1]!.text).toContain('### plan-deviation:mcp-query amends functional-requirement:review-notes-request');
     expect(engineers[1]!.spec.prompt).toContain(packages[1]!.text.trimEnd());
 
     // Every scope request cites the assignment's elements with the deviations recorded when it was requested.
@@ -366,10 +366,10 @@ describe('an unresolved request answered otherwise', () => {
       'local-architect': [submit(unresolved('The comparison needs a field-by-field diff this module cannot own.')), submit(requestCompletion()), submit(requestCompletion())],
       'global-fork': [submit(forkDecision({
         decision: {
-          question: 'Who owns comparing two revisions field by field?', outcome: 'create', capability: 'field-diff', changesExistingSymbols: false,
+          question: 'Who owns comparing two revisions field by field?', outcome: 'create', capability: 'capability:field-diff', changesExistingSymbols: false,
           owner: core, rationale: 'The core holds the revision chain.', constraints: [], uncertainties: [], evidence: { citations: [{ module: core }], gaps: [] },
         },
-        registry: [registryChange({ capability: 'field-diff', owner: core })],
+        registry: [registryChange({ capability: 'capability:field-diff', owner: core })],
         brief: 'field-diff belongs to the catalog core.',
       }))],
     })));
@@ -384,17 +384,17 @@ describe('an unresolved request answered otherwise', () => {
     expect(types(events).filter(type => ['unresolved-requested', 'view-refreshed', 'decision-accepted', 'brief-appended', 'decision-delivered', 'plan-deviation-recorded'].includes(type))).toEqual([
       'unresolved-requested', 'view-refreshed', 'decision-accepted', 'brief-appended', 'decision-delivered',
     ]);
-    expect(events.find(event => event.type === 'decision-accepted')!.data).toMatchObject({ request: 'ur-001', decision: 'gd-ur-001', workItem: 'wi-001' });
+    expect(events.find(event => event.type === 'decision-accepted')!.data).toMatchObject({ request: 'unresolved-request:missing-mcp', decision: 'placement-decision:unresolved-missing-mcp', workItem: 'work-item:compare-revisions' });
     // A plain completion: no plan deviation was recorded.
     expect(events.at(-1)).toMatchObject({ type: 'job-completed' });
     expect(events.at(-1)!.data).not.toHaveProperty('planDeviations');
     const architects = agent.sessions.filter(session => session.spec.role === 'local-architect'
       && session.spec.submission.name === 'submit_work_item_result');
     expect(architects[1]!.start.mode).toBe('continue');
-    expect(architects[1]!.spec.prompt).toContain('`gd-ur-001` (global, request ur-001)');
+    expect(architects[1]!.spec.prompt).toContain('`placement-decision:unresolved-missing-mcp` (global, request unresolved-request:missing-mcp)');
     const origin = await serve(opened.service, project);
     const decisions = await get(origin, protocolPaths.runDecisions(plan, runId)) as { decisions: Array<{ kind: string; id?: string }> };
-    expect(decisions.decisions.some(decision => decision.kind === 'placement' && decision.id === 'gd-ur-001')).toBe(true);
+    expect(decisions.decisions.some(decision => decision.kind === 'placement' && decision.id === 'placement-decision:unresolved-missing-mcp')).toBe(true);
     expect((await fetch(`${origin}${protocolPaths.runExecutionMap(plan, runId, opened.service.getRun(plan, runId)!.version)}`)).status).toBe(200);
   }, 120_000);
 
@@ -415,7 +415,7 @@ describe('an unresolved request answered otherwise', () => {
     expect(types(events)).not.toContain('plan-deviation-recorded');
     expect(events.at(-1)).toMatchObject({
       type: 'job-failed',
-      data: { reason: 'unresolvable-requirement', message: expect.stringContaining('no deviation leaves anything of the plan worth doing'), evidence: expect.arrayContaining([deviationLayout.request('ur-001')]) },
+      data: { reason: 'unresolvable-requirement', message: expect.stringContaining('no deviation leaves anything of the plan worth doing'), evidence: expect.arrayContaining([deviationLayout.request('unresolved-request:missing-mcp')]) },
     });
   }, 120_000);
 
@@ -423,13 +423,13 @@ describe('an unresolved request answered otherwise', () => {
     const { validateFork } = await import('../../subs/autonomous/subs/work-coordination/src/architecture/submission.js');
     const evidence = { index: null, registry: new Map(), hypotheses: new Map(), decisions: new Map(), workItems: new Set<string>() };
     expect(validateFork(forkDeviation(), evidence)).toMatchObject({ ok: false, errors: [{ path: 'kind' }] });
-    const question = { kind: 'unresolved' as const, elements: new Set(['fr-001', 'fr-002']), workItems: new Set(['wi-001']), scenarios: new Map([['sc-001', 'done']]) };
+    const question = { kind: 'unresolved' as const, elements: new Set(['functional-requirement:compare-revisions-request', 'functional-requirement:compare-revisions-acceptance', 'context:unknown']), workItems: new Set(['work-item:compare-revisions']), scenarios: new Map([['scenario:compare-revisions-is-used', 'done']]) };
     expect(validateFork(forkDeviation(), evidence, question).ok).toBe(true);
-    const invalid = validateFork(forkDeviation({ amends: ['fr-009', 'ctx-001'], workItems: ['wi-009'], scenarios: [{ scenario: 'sc-001', source: ['Given a thing'] }] }), evidence, question);
+    const invalid = validateFork(forkDeviation({ amends: ['functional-requirement:unknown', 'context:unknown'], workItems: ['work-item:unknown'], scenarios: [{ scenario: 'scenario:compare-revisions-is-used', source: ['Given a thing'] }] }), evidence, question);
     expect(invalid.ok ? [] : invalid.errors.map(error => error.path)).toEqual([
       'deviation.amends.0', 'deviation.amends.1', 'deviation.workItems.0', 'deviation.scenarios.0.scenario', 'deviation.scenarios.0.source.0',
     ]);
-    if (!invalid.ok) expect(invalid.errors[1]!.message).toBe('ctx-001 is context, which no deviation amends');
+    if (!invalid.ok) expect(invalid.errors[1]!.message).toBe('context:unknown is context, which no deviation amends');
   });
 });
 
@@ -439,10 +439,14 @@ describe('the deviation limit', () => {
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
       'local-architect': [
-        ...Array.from({ length: 6 }, (_, index) => submit(unresolved(`Conflict ${index + 1}: the plan asks for an MCP tool.`))),
+        ...Array.from({ length: 6 }, (_, index) => submit({ ...unresolved(`Conflict ${index + 1}: the plan asks for an MCP tool.`),
+          requestKey: `draft:unresolved-request:missing-mcp-${index + 1}` })),
         submit(requestCompletion()), submit(requestCompletion()),
       ],
-      'global-fork': [submit(forkDeviation())],
+      'global-fork': Array.from({ length: 6 }, (_, index) => submit(forkDeviation({
+        deviationKey: `draft:plan-deviation:mcp-query-${index + 1}`,
+        findingKey: `draft:finding:mcp-query-${index + 1}`,
+      }))),
     })));
     const opened = await openRuns(project, { agent, inputs: treeInputs(), unchangedCheckpoints: completed });
     cleanups.push(() => opened.service.close());
@@ -457,7 +461,7 @@ describe('the deviation limit', () => {
     const waiting = runResponseSchema.parse(await get(origin, protocolPaths.run(plan, runId))).run;
     expect(waiting).toMatchObject({
       state: 'running', planDeviations: { recorded: 6, toReview: 6 },
-      decisionRequests: { open: 6, waiting: true, workItems: [{ workItem: 'wi-001', requests: [{ checkFinding: 'cf-0006', request: 'cfd-0006' }] }] },
+      decisionRequests: { open: 6, waiting: true, workItems: [{ workItem: 'work-item:compare-revisions', requests: [{ checkFinding: 'finding:mcp-query-6', request: 'cfd-0006' }] }] },
     });
     const before = agent.sessions.length;
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -465,7 +469,7 @@ describe('the deviation limit', () => {
 
     // The person accepts it: the work item goes on and the run completes with the rest to review.
     await opened.service.execute(command('respond-to-check-finding', runId, opened.service.getRun(plan, runId)!.version, {
-      checkFinding: 'cf-0006', expectedRevision: 2, request: 'cfd-0006', option: 'accept',
+      checkFinding: 'finding:mcp-query-6', expectedRevision: 2, request: 'cfd-0006', option: 'accept',
     }));
     await opened.service.settled(plan, runId);
     expect(onlyRun(opened.service, plan).state).toBe('completed');
@@ -477,8 +481,9 @@ describe('the deviation limit', () => {
     const project = await target();
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
-      'local-architect': [submit(unresolved()), submit(unresolved('A second conflict.')), submit(requestCompletion())],
-      'global-fork': [submit(forkDeviation())],
+      'local-architect': [submit(unresolved()), submit({ ...unresolved('A second conflict.'), requestKey: 'draft:unresolved-request:missing-mcp-again' }), submit(requestCompletion())],
+      'global-fork': [submit(forkDeviation()), submit(forkDeviation({ deviationKey: 'draft:plan-deviation:mcp-query-again',
+        findingKey: 'draft:finding:mcp-query-again' }))],
     })));
     const opened = await openRuns(project, {
       agent, inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit(plan)],
@@ -492,7 +497,7 @@ describe('the deviation limit', () => {
     await until(() => opened.service.events(plan, runId)?.some(event => event.type === 'plan-deviation-recorded' && event.data.held) === true);
     expect((await runEventsOnDisk(project, plan, runId)).some(event => event.type === 'plan-deviation-recorded' && event.data.held)).toBe(true);
     await opened.service.execute(command('respond-to-check-finding', runId, opened.service.getRun(plan, runId)!.version, {
-      checkFinding: 'cf-0002', expectedRevision: 2, request: 'cfd-0002', option: 'reject', note: 'Stop and fix the plan instead.',
+      checkFinding: 'finding:mcp-query-again', expectedRevision: 2, request: 'cfd-0002', option: 'reject', note: 'Stop and fix the plan instead.',
     }));
     await opened.service.settled(plan, runId);
     expect(onlyRun(opened.service, plan).state).toBe('failed');

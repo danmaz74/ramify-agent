@@ -4,7 +4,7 @@ import { createQuerySource } from '../http/query-source.js';
 import { gateAuditOutcomeSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { RunService } from '../run/lifecycle.js';
-import { analysis, entry } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import { emptyAnalysis } from './helpers/runs.js';
 import { copyFixture } from './helpers/fixture.js';
@@ -39,7 +39,7 @@ describe('execution projection over a persisted run', () => {
     // The final gate's configured audit composes `pass`, which the run
     // publishes as the gate's independent audit outcome.
     const first = await openUnchangedRuns(fixture.root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
+      script: [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }],
       unchangedCheckpoints: ['final verification of plan "review-notes"'],
       configuredAudit: passingAudit(),
     });
@@ -66,7 +66,7 @@ describe('execution projection over a persisted run', () => {
       entry('first-root', 'collection-review/workspace/reviews', 'The first complete capability description.'),
       entry('second-root', 'collection-review', 'The second complete capability description.'),
     ]);
-    const first = await openUnchangedRuns(fixture.root, { script: [{ kind: 'submit', input: accepted }] });
+    const first = await openUnchangedRuns(fixture.root, { script: [{ kind: 'submit', input: currentAnalysis(accepted, 'document:review-notes-plan') }] });
     cleanup.push(() => first.service.close());
     const receipt = await first.service.execute(startRun('review-notes', 'scripted', 'start-map', true));
     await until(() => first.service.getRun('review-notes', receipt.jobId)?.phase === 'awaiting-review');
@@ -79,13 +79,13 @@ describe('execution projection over a persisted run', () => {
     expect(beforeStop.index.nodes.filter(node => node.kind === 'work-item')).toHaveLength(2);
     // The catalog intake's, the plan architect's and the plan checker's.
     expect(beforeStop.index.nodes.filter(node => node.kind === 'session')).toHaveLength(3);
-    expect((await beforeStop.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'first-root')).detail).toMatchObject({
+    expect((await beforeStop.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'capability:first-root')).detail).toMatchObject({
       state: 'available', description: 'The first complete capability description.',
     });
-    expect((await queries.executionCapabilityDetail('review-notes', receipt.jobId, 'first-root')).detail).toMatchObject({
+    expect((await queries.executionCapabilityDetail('review-notes', receipt.jobId, 'capability:first-root')).detail).toMatchObject({
       state: 'available', description: 'The first complete capability description.',
     });
-    const scenarioId = beforeStop.index.nodes.find(node => node.kind === 'scenario')?.key.slice('scenario:'.length);
+    const scenarioId = beforeStop.index.nodes.find(node => node.kind === 'scenario')?.key;
     if (scenarioId === undefined) throw new Error('Missing tracked scenario');
     expect((await beforeStop.queries.executionScenarioDetail('review-notes', receipt.jobId, scenarioId)).detail).toMatchObject({ state: 'available', source: expect.arrayContaining([expect.stringMatching(/^Scenario:/)]) });
     expect((await queries.executionScenarioDetail('review-notes', receipt.jobId, scenarioId)).detail.state).toBe('available');
@@ -110,8 +110,8 @@ describe('execution projection over a persisted run', () => {
       { version: settledVersion, limit: 1 })).toEqual(firstPage);
     expect(await new RunQueries(createQuerySource(reopened.service)).executionMapPage('review-notes', receipt.jobId,
       { version: settledVersion, cursor: firstPage.nextCursor!, limit: 1 })).toEqual(followingPage);
-    expect(await replayed.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'first-root'))
-      .toEqual(await settled.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'first-root'));
+    expect(await replayed.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'capability:first-root'))
+      .toEqual(await settled.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'capability:first-root'));
     expect(await replayed.queries.executionScenarioDetail('review-notes', receipt.jobId, scenarioId))
       .toEqual(await settled.queries.executionScenarioDetail('review-notes', receipt.jobId, scenarioId));
   }, 120_000);

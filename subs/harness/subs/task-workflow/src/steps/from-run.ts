@@ -157,7 +157,8 @@ async function compareDelivery(projectRoot: string, recorded: StepInputs, option
   if (delivered === null) return { status: 'not-compared', reason: `no delivery is recorded for invocation ${options.invocation}` };
   let rendered: RenderedStep;
   try {
-    const { packages } = await loadPromptPackages({ capabilityWorkflow: recorded.capabilityWorkflow, ...(options.skillDirectory === undefined ? {} : { skillDirectory: options.skillDirectory }) });
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: recorded.capabilityWorkflow,
+      ...(options.skillDirectory === undefined ? {} : { skillDirectory: options.skillDirectory }) });
     const step = constructStep(recorded, { projectRoot, packages });
     rendered = await renderStep(step, { projectRoot, packages, builtinDeclarations: options.builtinDeclarations, operationId: options.invocation, sessionOperations });
     const sections = differingSections(rendered, delivered);

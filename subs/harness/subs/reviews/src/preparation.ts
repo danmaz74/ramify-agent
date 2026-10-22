@@ -68,6 +68,6 @@ export async function prepareReview(input: ReviewPreparation): Promise<PreparedR
     source: input.source, projectRoot: input.projectRoot, snapshot: input.briefing.snapshot,
     maxConcerns: input.maxConcerns, signal: input.signal,
     message: diffPayload => reviewMessage({ ...input.briefing, diffPayload }),
-    validate: validateReview,
+    validate: (value, evidence) => validateReview(value, evidence),
   });
 }

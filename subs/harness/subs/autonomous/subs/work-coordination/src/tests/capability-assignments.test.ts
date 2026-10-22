@@ -5,11 +5,12 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { Script } from '../../../../../agent/src/scripted.js';
-import { analysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { assign, edit, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { runEventsOnDisk, runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
-import type { IterationAssignment } from '../work/iterations.js';
+import { iterationLayout, type IterationAssignment } from '../work/iterations.js';
+import { capabilityLayout } from '../capability/records.js';
 import { parseStepInputs } from '../../../../../task-workflow/src/steps/inputs.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { placementDecisionFixture as decision, forkDecision } from './helpers/placement.js';
@@ -46,16 +47,16 @@ function script(root: string, seen: string[], mode: 'assignments' | 'boundary' |
   return spec => {
     seen.push(`${spec.role}:${spec.submission.name}:${spec.session.mode}:${spec.tools.map(tool => tool.name).filter(name => ['read', 'grep', 'ls', 'edit', 'write'].includes(name)).join(',')}`);
     prompts.push(spec.prompt);
-    if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', a), entry('b-entry', b)]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('richer-a-fact', a), entry('b-entry', b)]), 'document:need-plan'));
     if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, {}, outline()));
     if (spec.submission.name === 'submit_capability_qualification') {
-      const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+      const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
+      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:source-fact', provider: b,
         placementReason: 'B owns the fact', constraints: [], requirementRefs: [] });
     }
     if (spec.role === 'global-fork') return submit(forkDecision({
       decision: decision({ question: 'Does a wider owner boundary need redesign?', outcome: 'reuse',
-        capability: 'b-entry', owner: b, rationale: 'Keep B ownership and A integration.',
+        capability: 'capability:b-entry', owner: b, rationale: 'Keep B ownership and A integration.',
         evidence: { citations: [{ module: b }], gaps: [] } }),
       brief: 'The wider owner keeps its existing responsibility.',
     }));
@@ -66,17 +67,18 @@ function script(root: string, seen: string[], mode: 'assignments' | 'boundary' |
     if (spec.role === 'engineer') {
       engineer += 1;
       if (engineer === 1) return submit({ kind: 'capability-needed', summary: 'A needs source metadata', request: {
+        requestKey: 'draft:capability-request:source-fact',
         need: 'Read a B fact and source in A',
         usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Show source', prospective: false }],
         constraints: ['D retains old text'], knownInterface: { kind: 'none-known' },
-        examples: [{ title: 'source appears', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
+        examples: [{ key: 'draft:capability-example:source-shown', title: 'source appears', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
       } },
       edit('caller.ts', 'Fact: ${value}', 'Fresh fact: ${value}'),
       write('extra.ts', "export const sourceHint = 'B';\n"),
       edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('this test still fails')"));
       const objective = [...spec.prompt.matchAll(/^Perform [^\n]+ for (\{[^\n]*\}); use the current evidence and designated submission\.$/gm)].at(-1);
       const work = objective === undefined ? {} : JSON.parse(objective[1]!) as { iteration?: string };
-      const owner = work.iteration?.startsWith('cap-') ? [[a, 'subs/a/src'], [b, 'subs/b/src'], [d, 'subs/d/src'], [p, 'src']].find(([, directory]) => spec.scope.workingDirectory === join(root, directory!))?.[0] : undefined;
+      const owner = work.iteration?.startsWith('capability-task:') ? [[a, 'subs/a/src'], [b, 'subs/b/src'], [d, 'subs/d/src'], [p, 'src']].find(([, directory]) => spec.scope.workingDirectory === join(root, directory!))?.[0] : undefined;
       if (mode === 'partial-blocker' && owner === a) return submit({
         kind: 'partial', done: ['A kept the readable selected denial'], unfinished: ['Root-owned stale assertion in src/tests/stale.test.ts'],
         findings: ['A cannot write the root test from its module scope'], startingPoints: engineerPoints,
@@ -84,7 +86,7 @@ function script(root: string, seen: string[], mode: 'assignments' | 'boundary' |
       if (mode === 'partial-blocker' && owner === p) return submit({
         kind: 'completion-proposed', summary: 'Root updated its stale assertion', findings: [], startingPoints: engineerPoints,
       }, edit('tests/stale.test.ts', "expect('old')", "expect('readable denial')"));
-      if (owner === b) return submit({ kind: 'completion-proposed', summary: 'B extended', findings: [], startingPoints: engineerPoints, bindings: [{ id: 'cap-001', fakes: [] }] },
+      if (owner === b) return submit({ kind: 'completion-proposed', summary: 'B extended', findings: [], startingPoints: engineerPoints, bindings: [{ id: 'capability-task:source-fact', fakes: [] }] },
         write('fact.ts', "export const readFact = () => 'old from B';\n"),
         write('../../a/src/caller.ts', 'export const escaped = true;\n'));
       if (owner === d) return submit({ kind: 'completion-proposed', summary: 'D migrated', findings: [], startingPoints: engineerPoints },
@@ -99,15 +101,17 @@ function script(root: string, seen: string[], mode: 'assignments' | 'boundary' |
     }
     if (spec.role === 'capability-architect') {
       architect += 1;
-      const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+      const ids = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
       const basis = { task: ids[1], planRevision: Number(ids[2]), invocation: ids[3] };
       if (mode === 'partial-blocker') return architect <= 2
         ? submit({ ...basis, kind: 'assign', assignment: assign(architect === 1 ? a : p, { startingPoints: assignmentPoints, goal: architect === 1 ? 'Render A denial' : 'Repair root-owned stale assertion', approach: 'Change only owned source or tests', completionEvidence: 'Owned source diff' }).assignment })
         : architect === 3 ? submit({ ...basis, kind: 'partial', progress: 'Readable denial and stale assertion repaired; real-provider composition remains blocked',
           unfinished: ['Verify required real B/A integration; A architect retains the person-review consumer goal'] }) : [{ kind: 'wait', ms: 60_000 }];
       if (mode === 'boundary' && architect === 1) return submit({ ...basis, kind: 'request-placement',
+        placementRequestKey: 'draft:placement-request:source-owner',
         problem: 'Should another owner take the source fact?', evidence: ['B currently owns it'] });
       if (mode === 'boundary' && architect === 2) return submit({ ...basis, kind: 'consult-consumer',
+        exchangeKey: 'draft:capability-exchange:source-display',
         question: 'Can A use B unchanged?', sections: ['need'], references: ['subs/a/src/caller.ts'] });
       if (mode === 'boundary') return architect === 3
         ? submit({ ...basis, kind: 'partial', progress: 'Boundary decision returned', unfinished: ['Acceptance remains'] })
@@ -118,14 +122,16 @@ function script(root: string, seen: string[], mode: 'assignments' | 'boundary' |
           invocation: ids[3], reason: 'A needs a direct answer before implementation',
           changes: { proposedInterface: 'B returns fact text with its source' } } },
         { kind: 'submit', input: { ...basis, kind: 'consult-consumer', question: 'What must A display?',
+          exchangeKey: 'draft:capability-exchange:source-display',
           sections: ['need'], references: ['subs/a/src/caller.ts'] } },
         ...submit({ ...basis, planRevision: 2, kind: 'consult-consumer', question: 'What must A display?',
+          exchangeKey: 'draft:capability-exchange:source-display',
           sections: ['need'], references: ['subs/a/src/caller.ts'] }),
       ];
       const owners = [b, d, p, a];
       if (architect >= 2 && architect <= 5) return submit({ ...basis, kind: 'assign', assignment: assign(owners[architect - 2]!, {
         startingPoints: assignmentPoints, goal: `Update ${owners[architect - 2]}`, approach: 'Change owned source', completionEvidence: 'Owned source diff',
-        ...(architect === 2 ? { obligations: ['cap-001'], featureSelection: { files: ['subs/a/src/tests/features/need/richer-a-fact.feature'], reason: 'Pending consumer preview is exact capability evidence' } } : {}),
+        ...(architect === 2 ? { obligations: ['capability-task:source-fact'], featureSelection: { files: ['subs/a/src/tests/features/need/capability%3Aricher-a-fact.feature'], reason: 'Pending consumer preview is exact capability evidence' } } : {}),
         scope: { base: { module: owners[architect - 2]!, included: owners[architect - 2] === p ? [{ directory: 'subs/b', reason: 'Fixture child', instructions: 'Implement fixture behavior' }] : [] },
           extra: [], read: [], rationale: 'Scoped compatibility change' },
       }).assignment });
@@ -158,18 +164,18 @@ test('an explicit partial capability result returns its cross-owner blocker to t
   expect(events.filter(event => event.type === 'job-failed'), JSON.stringify(events.slice(-8))).toHaveLength(0);
   const settled = events.filter(event => event.type === 'capability-assignment-settled');
   expect(settled).toHaveLength(2);
-  expect(settled[0]?.data).toMatchObject({ assignment: 'cap-001.i01', outcome: 'partial',
+  expect(settled[0]?.data).toMatchObject({ assignment: 'capability-task:source-fact.i01', outcome: 'partial',
     mutated: ['subs/a/src/caller.ts'] });
-  expect(settled[1]?.data).toMatchObject({ assignment: 'cap-001.i02', outcome: 'accepted',
+  expect(settled[1]?.data).toMatchObject({ assignment: 'capability-task:source-fact.i02', outcome: 'accepted',
     mutated: ['src/tests/stale.test.ts'] });
   expect(events.filter(event => event.type === 'capability-assigned').map(event => event.data.assignment))
-    .toEqual(['cap-001.i01', 'cap-001.i02']);
-  const partial = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'work-items/cap-001/iterations/01/result.json'), 'utf8'));
+    .toEqual(['capability-task:source-fact.i01', 'capability-task:source-fact.i02']);
+  const partial = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, iterationLayout.result('capability-task:source-fact', 1)), 'utf8'));
   expect(partial.startingPoints).toEqual(engineerPoints);
   expect(prompts.some(prompt => prompt.includes('## Recorded starting points')
     && prompt.includes('"producer":"engineer partial result"')
-    && prompt.includes('"capabilityTask":"cap-001"')
-    && prompt.includes('"iteration":"cap-001.i01"')
+    && prompt.includes('"capabilityTask":"capability-task:source-fact"')
+    && prompt.includes('"iteration":"capability-task:source-fact.i01"')
     && prompt.includes(engineerPoints[0]!.note))).toBe(true);
   expect(partial.findings).toContain('unfinished: Root-owned stale assertion in src/tests/stale.test.ts');
   expect(prompts.some(prompt => prompt.includes('unfinished: Root-owned stale assertion in src/tests/stale.test.ts')))
@@ -178,8 +184,8 @@ test('an explicit partial capability result returns its cross-owner blocker to t
   await until(() => prompts.some(prompt => prompt.includes('Progress from the last turn: Readable denial and stale assertion repaired; real-provider composition remains blocked')));
   const blocked = opened.service.events('need', receipt.jobId)!;
   expect(blocked.some(event => event.type === 'capability-handed-back')).toBe(false);
-  expect(blocked.some(event => event.type === 'obligation-reported' && event.data.id === 'cap-001' && event.data.judgment === 'done')).toBe(false);
-  expect(blocked.some(event => event.type === 'work-item-completed' && event.data.workItem === 'wi-001')).toBe(false);
+  expect(blocked.some(event => event.type === 'obligation-reported' && event.data.id === 'capability-task:source-fact' && event.data.judgment === 'done')).toBe(false);
+  expect(blocked.some(event => event.type === 'work-item-completed' && event.data.workItem === 'work-item:richer-a-fact')).toBe(false);
   expect(prompts.at(-1)).toContain('Verify required real B/A integration; A architect retains the person-review consumer goal');
   await stopAfterArchitectYield(opened.service, receipt.jobId);
   await opened.service.settled('need', receipt.jobId);
@@ -203,7 +209,7 @@ test('CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A recei
   expect(events.filter(event => event.type === 'capability-plan-revised')).toHaveLength(1);
   expect(events.filter(event => event.type === 'capability-assigned')).toHaveLength(4);
   expect(await readFile(runPath(fixture.root, 'need', receipt.jobId,
-    'capabilities/cap-001/plan/2.json'), 'utf8')).toContain('B returns fact text with its source');
+    capabilityLayout.plan('capability-task:source-fact', 2)), 'utf8')).toContain('B returns fact text with its source');
   const firstArchitect = events.find(event => event.type === 'invocation-started' && event.data.role === 'capability-architect')!;
   if (firstArchitect.type !== 'invocation-started') throw new Error('Missing capability architect invocation');
   const architectObservations = (await readFile(runPath(fixture.root, 'need', receipt.jobId,
@@ -229,15 +235,15 @@ test('CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A recei
     });
   // Its writes are what the observations record.
   expect(originalObservations.length).toBeGreaterThan(0);
-  const consultation = engineerStarts.find(event => event.data.work.capabilityTask === 'cap-001')!;
-  const aExperiment = engineerStarts.find(event => event.data.work.iteration === 'cap-001.i04')!;
+  const consultation = engineerStarts.find(event => event.data.work.capabilityTask === 'capability-task:source-fact')!;
+  const aExperiment = engineerStarts.find(event => event.data.work.iteration === 'capability-task:source-fact.i04')!;
   expect(consultation.data.session).not.toBe(original.data.session);
   expect(consultation.data.start).toBe('opened');
   const consultationOpened = events.find(event => event.type === 'session-opened' && event.data.session === consultation.data.session);
   expect(consultationOpened?.data).toMatchObject({ fork: { from: { session: original.data.session, invocation: original.data.invocation } } });
   expect(aExperiment.data.session).not.toBe(original.data.session);
   expect(aExperiment.data.start).toBe('opened');
-  const bInvocation = engineerStarts.find(event => event.data.work.iteration === 'cap-001.i01')!;
+  const bInvocation = engineerStarts.find(event => event.data.work.iteration === 'capability-task:source-fact.i01')!;
   const bObservations = (await readFile(runPath(fixture.root, 'need', receipt.jobId,
     `invocations/${bInvocation.data.invocation}/observations.jsonl`), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as {
       type: string; data: { verdict?: string; requested?: string };
@@ -250,45 +256,45 @@ test('CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A recei
     ['module.ramify', 'subs/b/src/companion.ts'], ['subs/a/src/caller.ts'],
   ]);
   const assignments = await Promise.all([1, 2, 3, 4].map(async number => JSON.parse(await readFile(
-    runPath(fixture.root, 'need', receipt.jobId, `work-items/cap-001/iterations/0${number}/assignment.json`), 'utf8')) as IterationAssignment));
+    runPath(fixture.root, 'need', receipt.jobId, iterationLayout.assignment('capability-task:source-fact', number)), 'utf8')) as IterationAssignment));
   expect(assignments.map(assignment => assignment.startingPoints)).toEqual([assignmentPoints, assignmentPoints, assignmentPoints, assignmentPoints]);
-  expect(assignments[0]?.featureSelection).toEqual({ files: ['subs/a/src/tests/features/need/richer-a-fact.feature'], reason: 'Pending consumer preview is exact capability evidence' });
-  expect(assignments[0]?.obligations).toEqual(['cap-001']);
+  expect(assignments[0]?.featureSelection).toEqual({ files: ['subs/a/src/tests/features/need/capability%3Aricher-a-fact.feature'], reason: 'Pending consumer preview is exact capability evidence' });
+  expect(assignments[0]?.obligations).toEqual(['capability-task:source-fact']);
   const captured = parseStepInputs(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.stepInputs(bInvocation.data.invocation)), 'utf8'));
   if (captured.role !== 'engineer') throw new Error('Expected capability engineer input');
-  expect(captured.focused.featurePaths).toEqual([{ project: 'subs/a/src/tests/features/need/richer-a-fact.feature' }]);
+  expect(captured.focused.featurePaths).toEqual([{ project: 'subs/a/src/tests/features/need/capability%3Aricher-a-fact.feature' }]);
   expect(captured.assignment.featureSelection).toEqual(assignments[0]?.featureSelection);
   expect(captured.scenarios).toBeUndefined();
   expect(discoveryPrompts.some(prompt => prompt.includes('## Explicit feature evidence') && prompt.includes('capability evidence'))).toBe(true);
 
   await until(() => discoveryPrompts.some(prompt => prompt.includes('"producer":"engineer accepted result"')
-    && prompt.includes('"iteration":"cap-001.i04"') && prompt.includes(engineerPoints[0]!.note)), 20_000);
+    && prompt.includes('"iteration":"capability-task:source-fact.i04"') && prompt.includes(engineerPoints[0]!.note)), 20_000);
   for (const number of [1, 2, 3, 4]) {
-    const result = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, `work-items/cap-001/iterations/0${number}/result.json`), 'utf8'));
+    const result = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, iterationLayout.result('capability-task:source-fact', number)), 'utf8'));
     expect(result.startingPoints).toEqual(engineerPoints);
-    expect(result.coordination).toMatchObject({ kind: 'capability-task', id: 'cap-001', sequence: number });
-    const invocation = events.find(event => event.type === 'invocation-started' && event.data.work.iteration === `cap-001.i0${number}` && event.data.role === 'engineer');
+    expect(result.coordination).toMatchObject({ kind: 'capability-task', id: 'capability-task:source-fact', sequence: number });
+    const invocation = events.find(event => event.type === 'invocation-started' && event.data.work.iteration === `capability-task:source-fact.i0${number}` && event.data.role === 'engineer');
     if (invocation?.type !== 'invocation-started') throw new Error('Missing capability engineer');
-    const assigning = events.find(event => event.type === 'capability-assigned' && event.data.assignment === `cap-001.i0${number}`);
+    const assigning = events.find(event => event.type === 'capability-assigned' && event.data.assignment === `capability-task:source-fact.i0${number}`);
     if (assigning?.type !== 'capability-assigned') throw new Error('Missing assigning coordinator');
     const inputs = parseStepInputs(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.stepInputs(invocation.data.invocation)), 'utf8'));
     if (inputs.role !== 'engineer') throw new Error('Not engineer inputs');
-    expect(inputs.consultation?.assigning).toMatchObject({ role: 'capability-architect', task: 'cap-001',
+    expect(inputs.consultation?.assigning).toMatchObject({ role: 'capability-architect', task: 'capability-task:source-fact',
       session: assigning.data.architectRef!.session, ref: assigning.data.architectRef!.ref, point: { invocation: assigning.data.invocation } });
     expect(inputs.consultation?.global).toBeUndefined();
-    const session = opened.agent!.sessions.find(session => session.spec.role === 'engineer' && session.spec.prompt.includes(`"iteration":"cap-001.i0${number}"`));
+    const session = opened.agent!.sessions.find(session => session.spec.role === 'engineer' && session.spec.prompt.includes(`"iteration":"capability-task:source-fact.i0${number}"`));
     expect(session?.spec.prompt).toContain('## Recorded starting points');
     expect(session?.spec.prompt).toContain(assignmentPoints[0]!.note);
-    expect(session?.spec.prompt).toContain('"capabilityTask":"cap-001"');
+    expect(session?.spec.prompt).toContain('"capabilityTask":"capability-task:source-fact"');
     expect(discoveryPrompts.some(prompt => prompt.includes('"producer":"engineer accepted result"')
-      && prompt.includes(`"iteration":"cap-001.i0${number}"`)
+      && prompt.includes(`"iteration":"capability-task:source-fact.i0${number}"`)
       && prompt.includes(engineerPoints[0]!.note))).toBe(true);
   }
   expect(assignments.map(assignment => 'module' in assignment.scope.base ? assignment.scope.base.module : assignment.scope.base.modules[0])).toEqual([b, d, p, a]);
   expect(assignments.map(assignment => assignment.coordination?.kind === 'capability-task' ? assignment.coordination.sequence : null)).toEqual([1, 2, 3, 4]);
   expect(events.filter(event => event.type === 'invocation-started' && event.data.role === 'local-architect' &&
     event.sequence > events.find(delegated => delegated.type === 'capability-delegated')!.sequence)).toHaveLength(0);
-  expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002')).toHaveLength(0);
+  expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
   const denied = events.filter(event => event.type === 'writer-released');
   expect(denied).toHaveLength(5);
   await until(() => (opened.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-ended' &&

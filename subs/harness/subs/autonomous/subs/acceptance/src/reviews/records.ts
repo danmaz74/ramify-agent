@@ -92,7 +92,7 @@ const missingSchema = z.array(z.object({ path: text, reason: text }).strict());
 
 /** Why an attempt did not verify its scope. None of these is a clean review. */
 export const notVerifiedReasonSchema = z.enum([
-  'invalid-output', 'unavailable', 'timed-out', 'execution-failed', 'deadline',
+  'invalid-output', 'name-conflict', 'unavailable', 'timed-out', 'execution-failed', 'deadline',
   'queue-overflow', 'no-time-before-deadline', 'stopped',
 ]);
 export type NotVerifiedReason = z.infer<typeof notVerifiedReasonSchema>;
@@ -130,7 +130,7 @@ export type ReviewAttempt = z.infer<typeof reviewAttemptSchema>;
 
 /** The submission as its record holds it. */
 export const reviewSubmissionRecordSchema = reviewSubmissionSchema.extend({
-  schema: z.literal('ramify-agent.review-submission/1'),
+  schema: z.literal('ramify-agent.review-submission/2'),
   attempt: reviewAttemptIdSchema,
 }).strict();
 export type ReviewSubmissionRecord = z.infer<typeof reviewSubmissionRecordSchema>;
@@ -212,6 +212,6 @@ export const reviewLayout = {
 export const reviewSchemas = {
   reviewRequest: { schema: 'ramify-agent.review-request/1', body: reviewRequestSchema },
   reviewAttempt: { schema: 'ramify-agent.review-attempt/1', body: reviewAttemptSchema },
-  reviewSubmission: { schema: 'ramify-agent.review-submission/1', body: reviewSubmissionRecordSchema },
+  reviewSubmission: { schema: 'ramify-agent.review-submission/2', body: reviewSubmissionRecordSchema },
   reviewOrientation: { schema: 'ramify-agent.review-orientation/1', body: reviewOrientationSchema },
 } as const;

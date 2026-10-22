@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { extractPlanScenarios, planScenarioExtractionSchema } from '../extraction.js';
+const extractScenarioFixture = (text: string) => extractPlanScenarios(text, 'document:fixture-plan');
+
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const collectionReview = join(here, '../../../../fixtures/collection-review/plans');
@@ -61,13 +63,13 @@ const plan = [
 ].join('\n');
 
 describe('extracting plan scenarios', () => {
-  const extraction = extractPlanScenarios(plan);
+  const extraction = extractScenarioFixture(plan);
 
   test('every scenario of every gherkin block, numbered in document order', () => {
     expect(extraction.scenarios.map((scenario) => [scenario.id, scenario.name, scenario.outline])).toEqual([
-      ['ps-01', 'A customer receives the email', false],
-      ['ps-02', 'Several sends', true],
-      ['ps-03', 'Sent emails appear in the history', false],
+      ['plan-scenario:a-customer-receives-the-email', 'A customer receives the email', false],
+      ['plan-scenario:several-sends', 'Several sends', true],
+      ['plan-scenario:sent-emails-appear-in-the-history', 'Sent emails appear in the history', false],
     ]);
     expect(planScenarioExtractionSchema.parse(extraction)).toEqual(extraction);
   });
@@ -116,21 +118,21 @@ describe('extracting plan scenarios', () => {
 
   test('a block that does not parse is a limitation with the parser\'s message and the block\'s lines', () => {
     expect(extraction.limitations).toEqual([
-      { kind: 'unparsable-gherkin', lines: [41, 46], message: '(plan line 45): inconsistent cell count within the table' },
+      { kind: 'unparsable-gherkin', document: 'document:fixture-plan', lines: [41, 46], message: '(plan line 45): inconsistent cell count within the table' },
     ]);
   });
 
   test('a plan without gherkin blocks has no scenario and no limitation', () => {
-    expect(extractPlanScenarios('# Plan\n\n```ts\nconst a = 1;\n```\n')).toEqual({ scenarios: [], limitations: [] });
+    expect(extractScenarioFixture('# Plan\n\n```ts\nconst a = 1;\n```\n')).toEqual({ schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: [], limitations: [] });
   });
 
   test('an unclosed block runs to the end of the plan', () => {
-    const extraction = extractPlanScenarios('# Plan\n```gherkin\nScenario: Open\n  Given a step\n');
+    const extraction = extractScenarioFixture('# Plan\n```gherkin\nScenario: Open\n  Given a step\n');
     expect(extraction.scenarios.map((scenario) => [scenario.name, scenario.lines])).toEqual([['Open', [3, 4]]]);
   });
 
   test('backgrounds of a rule and its feature both fold in, and a rule\'s scenarios are extracted', () => {
-    const extraction = extractPlanScenarios([
+    const extraction = extractScenarioFixture([
       '```gherkin',
       'Feature: Ruled',
       '  Background:',
@@ -157,15 +159,15 @@ describe('the collection-review plans', () => {
   test('are all read; badge and preview plans state scenarios, the others state none', () => {
     expect(plans.length).toBeGreaterThan(0);
     for (const name of plans) {
-      const extraction = extractPlanScenarios(readFileSync(join(collectionReview, name, 'plan.md'), 'utf8'));
+      const extraction = extractScenarioFixture(readFileSync(join(collectionReview, name, 'plan.md'), 'utf8'));
       if (name === 'status-badge-tone' || name === 'revision-preview') continue;
-      expect(extraction, name).toEqual({ scenarios: [], limitations: [] });
+      expect(extraction, name).toEqual({ schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: [], limitations: [] });
     }
-    const badge = extractPlanScenarios(readFileSync(join(collectionReview, 'status-badge-tone', 'plan.md'), 'utf8'));
+    const badge = extractScenarioFixture(readFileSync(join(collectionReview, 'status-badge-tone', 'plan.md'), 'utf8'));
     expect(badge.limitations).toEqual([]);
     expect(badge.scenarios.map(scenario => [scenario.id, scenario.name, scenario.lines, scenario.anchors])).toEqual([
-      ['ps-01', 'A badge given a tone carries that tone in its markup', [34, 38], ['a-tone-for-the-status-badge', 'acceptance']],
-      ['ps-02', 'A badge given no tone carries neutral', [40, 43], ['a-tone-for-the-status-badge', 'acceptance']],
+      ['plan-scenario:a-badge-given-a-tone-carries-that-tone-in-its-markup', 'A badge given a tone carries that tone in its markup', [34, 38], ['a-tone-for-the-status-badge', 'acceptance']],
+      ['plan-scenario:a-badge-given-no-tone-carries-neutral', 'A badge given no tone carries neutral', [40, 43], ['a-tone-for-the-status-badge', 'acceptance']],
     ]);
     expect(badge.scenarios[1]!.source).toEqual([
       'Scenario: A badge given no tone carries neutral',
@@ -173,22 +175,22 @@ describe('the collection-review plans', () => {
       '  When the badge is rendered',
       '  Then its markup carries the tone "neutral"',
     ]);
-    const preview = extractPlanScenarios(readFileSync(join(collectionReview, 'revision-preview', 'plan.md'), 'utf8'));
+    const preview = extractScenarioFixture(readFileSync(join(collectionReview, 'revision-preview', 'plan.md'), 'utf8'));
     expect(preview.limitations).toEqual([]);
     expect(preview.scenarios.map(scenario => [scenario.id, scenario.name, scenario.lines, scenario.anchors])).toEqual([
-      ['ps-01', 'Preview an intact proposed chain', [71, 76], ['preview-a-proposed-revision-chain', 'acceptance']],
-      ['ps-02', 'Preview an explicitly empty chain', [78, 82], ['preview-a-proposed-revision-chain', 'acceptance']],
-      ['ps-03', 'A missing predecessor survives the provider boundary', [84, 89], ['preview-a-proposed-revision-chain', 'acceptance']],
-      ['ps-04', 'Preview retains the existing rules and their ordering', [91, 97], ['preview-a-proposed-revision-chain', 'acceptance']],
-      ['ps-05', 'Missing input is not an empty chain', [99, 102], ['preview-a-proposed-revision-chain', 'acceptance']],
-      ['ps-06', 'Existing stored-record reviews keep their behavior', [104, 111], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['plan-scenario:preview-an-intact-proposed-chain', 'Preview an intact proposed chain', [71, 76], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['plan-scenario:preview-an-explicitly-empty-chain', 'Preview an explicitly empty chain', [78, 82], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['plan-scenario:a-missing-predecessor-survives-the-provider-boundary', 'A missing predecessor survives the provider boundary', [84, 89], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['plan-scenario:preview-retains-the-existing-rules-and-their-ordering', 'Preview retains the existing rules and their ordering', [91, 97], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['plan-scenario:missing-input-is-not-an-empty-chain', 'Missing input is not an empty chain', [99, 102], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['plan-scenario:existing-stored-record-reviews-keep-their-behavior', 'Existing stored-record reviews keep their behavior', [104, 111], ['preview-a-proposed-revision-chain', 'acceptance']],
     ]);
   });
 
   test('gain their scenarios when a gherkin block is added to one', () => {
     const text = readFileSync(join(collectionReview, 'revision-diff', 'plan.md'), 'utf8');
     const extended = `${text}\n\`\`\`gherkin\nScenario: The badge shows its tone\n  Given a review in state approved\n  When the reviewer opens it\n  Then the badge is green\n\`\`\`\n`;
-    const extraction = extractPlanScenarios(extended);
+    const extraction = extractScenarioFixture(extended);
     const lines = text.split('\n').length;
     expect(extraction.scenarios).toHaveLength(1);
     expect(extraction.scenarios[0]!.lines).toEqual([lines + 2, lines + 5]);

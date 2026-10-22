@@ -49,10 +49,10 @@ export async function captureAssistanceDocuments(input: {
   if (!input.discoverReferences) {
     const path = `plans/${input.planId}/plan.md`;
     const sha256 = createHash('sha256').update(input.planMarkdown).digest('hex');
-    const document = { id: 'doc-001', path, kind: 'plan' as const, sha256, bytes: Buffer.byteLength(input.planMarkdown),
+    const document = { id: `document:${input.planId}-plan`, path, kind: 'plan' as const, sha256, bytes: Buffer.byteLength(input.planMarkdown),
       storedAt: 'input/plan.md', revision: { commit: null, dirty: null } };
     return { storage: 'git-references', baselineCommit: input.baselineCommit,
-      manifest: { schema: 'ramify-agent.document-manifest/1', root: document.id, documents: [document], missing: [],
+      manifest: { schema: 'ramify-agent.document-manifest/2', root: document.id, documents: [document], missing: [],
         principlesScan: { status: 'empty', unreadable: [] } },
       documents: [{ id: document.id, path, kind: 'plan', sha256, adoption: 'undetermined' }],
       gaps: { missing: [], unreadablePrinciples: [] } };

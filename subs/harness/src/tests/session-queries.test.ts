@@ -25,6 +25,7 @@ import { copyFixture } from './helpers/fixture.js';
 import { treeInputs } from './helpers/iterations.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
 import { emptyAnalysis, runEventsOnDisk, runPath, startRun, stopRun, unscriptedChangeHistory, until } from './helpers/runs.js';
+import { currentAnalysis } from './helpers/analysis.js';
 import { scriptedGit } from './helpers/scripted-git.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
 
@@ -162,13 +163,13 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
     expect(views.get('ses-0001')).toMatchObject({ role: 'catalog-extractor', reaches: { kind: 'run' } });
     expect(views.get('ses-0002')).toMatchObject({ role: 'initial-architect', reaches: { kind: 'run' } });
     const fork = [...views.values()].find(view => view.role === 'global-fork')!;
-    expect(fork.reaches).toEqual({ kind: 'request', request: fork.work.request, workItem: 'wi-001', capability: 'review-notes' });
+    expect(fork.reaches).toEqual({ kind: 'request', request: fork.work.request, workItem: 'work-item:review-notes', capability: 'capability:review-notes' });
     expect(views.get('ses-0002')!.lineage.forks).toEqual([fork.session]);
     // The brief appended back to the architect context is a mark with its point.
     const appended = events.find(event => event.type === 'brief-appended')!;
     expect(views.get('ses-0002')!.appends).toEqual([expect.objectContaining({ appended: { sequence: appended.sequence, at: appended.at }, point: { session: 'ses-0002', append: appended.sequence } })]);
     const architect = [...views.values()].find(view => view.role === 'local-architect')!;
-    expect(architect.reaches).toEqual({ kind: 'work-item', workItem: 'wi-001', capability: 'review-notes', module: notes });
+    expect(architect.reaches).toEqual({ kind: 'work-item', workItem: 'work-item:review-notes', capability: 'capability:review-notes', module: notes });
     // A continued architect was suspended between its invocations, each gap
     // from an end that kept it to the next start.
     expect(architect.invocations.length).toBeGreaterThan(1);
@@ -256,7 +257,7 @@ describe('ST09: following a run\'s sessions with one poll', () => {
     // ends with the session the log still says is live: interrupted. The
     // second's waits until it is stopped, and honors the stop.
     const script = (): ScriptStep[] => (++started === 1
-      ? [{ kind: 'message', text: 'Orienting.' }, { kind: 'stall', ms: 1500, thenIgnoreStop: true }, { kind: 'submit', input: emptyAnalysis() }]
+      ? [{ kind: 'message', text: 'Orienting.' }, { kind: 'stall', ms: 1500, thenIgnoreStop: true }, { kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }]
       : [{ kind: 'message', text: 'Orienting.' }, { kind: 'wait', ms: 60_000 }]);
     const { service, agent } = await openRunsWithoutProcesses(root, scriptedGit(root, { head: 'poll-base', checkpoints: [] }), { script, stopGraceMs: 200 });
     cleanups.push(() => service.close());

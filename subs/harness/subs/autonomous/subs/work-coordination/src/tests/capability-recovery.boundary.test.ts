@@ -4,7 +4,7 @@ import { afterEach, expect, test } from 'vitest';
 import { gitService } from '../../../../../evidence/src/git.js';
 import { runCommand } from '../../../../../evidence/src/run-command.js';
 import type { Script } from '../../../../../agent/src/scripted.js';
-import { analysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
 import { captureProvisionalSource } from '../capability/source.js';
 import { commitCapabilityTransition } from '../../../../src/run/capability-transition.js';
 import { capabilityLayout } from '../capability/records.js';
@@ -29,24 +29,24 @@ test('CA20: a registered real process group survives a service crash and is sett
   let engineerTurns = 0;
   let frozen = false;
   const script: Script = spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('a-reads-b', a), entry('b-entry', b)]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('a-reads-b', a), entry('b-entry', b)]), 'document:need-plan'));
     if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, {}, outline()));
     if (spec.submission.name === 'submit_capability_qualification') {
-      const ids = /Use request (need-\d+) and invocation (inv-\d+)/u.exec(spec.prompt)!;
-      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+      const ids = /Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/u.exec(spec.prompt)!;
+      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:source-fact', provider: b,
         placementReason: 'B owns the source fact', constraints: [], requirementRefs: [] });
     }
     if (spec.role === 'engineer') {
       engineerTurns += 1;
       if (engineerTurns === 1) return submit({ kind: 'capability-needed', summary: 'A needs source', request: {
-        need: 'B source for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Display B source', prospective: false }],
+        requestKey: 'draft:capability-request:source-fact', need: 'B source for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Display B source', prospective: false }],
         constraints: [], knownInterface: { kind: 'none-known' },
-        examples: [{ title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
+        examples: [{ key: 'draft:capability-example:source-shown', title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
       } });
       return [shell('node -e "setTimeout(() => {}, 60000)"', { timeoutMs: 60000 })];
     }
     if (spec.role === 'capability-architect') {
-      const ids = /Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/u.exec(spec.prompt)!;
+      const ids = /Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/u.exec(spec.prompt)!;
       return submit({ task: ids[1], planRevision: Number(ids[2]), invocation: ids[3], kind: 'assign', assignment: assign(b, { goal: 'Provide B source', approach: 'Implement B source', completionEvidence: 'A consumes B source' }).assignment });
     }
     return [];
@@ -88,7 +88,7 @@ test('CA20: a registered real process group survives a service crash and is sett
   expect(second.agent!.sessions).toHaveLength(0);
   expect(events).toEqual(before);
   expect(events.filter(event => event.type === 'capability-handed-back' || event.type === 'gate-attempted')).toHaveLength(0);
-  expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002')).toHaveLength(0);
+  expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
   expect(first.service.events('need', receipt.jobId)).toEqual(before);
 }, 45_000);
 
@@ -106,7 +106,7 @@ test('CA19 CA30: a snapshot written before its request commit is adopted with th
   await writeFile(join(fixture.root, untracked), 'export const pending = true;\n');
   await rm(join(fixture.root, deleted));
   await git(fixture.root, 'add', deleted);
-  const input = { projectRoot: fixture.root, runDirectory: directory.path, request: 'need-001',
+  const input = { projectRoot: fixture.root, runDirectory: directory.path, request: 'capability-request:render-fact-source',
     acceptedBase: base, writerSettledBy: 'inv-0001', changedPaths: await gitService.changedPaths(fixture.root, base) };
   const before = await captureProvisionalSource(input);
   const snapshotBytes = await readFile(join(directory.path, before.snapshot));
@@ -120,12 +120,18 @@ test('CA19 CA30: a snapshot written before its request commit is adopted with th
   expect(before.delta.find(change => change.path === deleted)?.staged).toBe(true);
 
   const log = await RunLog.open(join(directory.path, 'events.jsonl'), 'job-001');
-  const request = { ...fixtureRequest(), source: recovered };
+  const original = fixtureRequest();
+  const request = { ...original, schema: 'ramify-agent.capability-request/2' as const,
+    id: input.request, source: recovered, original: { ...original.original, examples: original.original.examples.map(example => ({
+      ...example, id: 'capability-example:render-fact-source',
+    })) } };
   await commitCapabilityTransition(log, { type: 'capability-requested', data: {
     request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: request.invocation,
   } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
   const reopened = await RunLog.open(join(directory.path, 'events.jsonl'), 'job-001');
   expect(committedRecords(reopened.ledger.replay()).capabilityRequests.get(request.id)?.source).toEqual(before);
+  expect(committedRecords(reopened.ledger.replay()).capabilityRequests.get(request.id)?.original.examples[0]?.id)
+    .toBe('capability-example:render-fact-source');
   expect(await captureProvisionalSource(input)).toEqual(before);
 }, 30_000);
 
@@ -139,7 +145,7 @@ test('CA19: retry refuses a changed staged or untracked candidate and preserves 
   await writeFile(join(fixture.root, tracked), 'export const staged = true;\n');
   await git(fixture.root, 'add', tracked);
   await writeFile(join(fixture.root, untracked), 'export const pending = true;\n');
-  const input = { projectRoot: fixture.root, runDirectory: directory.path, request: 'need-001',
+  const input = { projectRoot: fixture.root, runDirectory: directory.path, request: 'capability-request:source-fact',
     acceptedBase: base, writerSettledBy: 'inv-0001', changedPaths: await gitService.changedPaths(fixture.root, base) };
   await captureProvisionalSource(input);
   await writeFile(join(fixture.root, untracked), 'export const pending = false;\n');

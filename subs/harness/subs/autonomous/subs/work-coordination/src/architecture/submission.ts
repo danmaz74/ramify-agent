@@ -3,7 +3,7 @@ import { findModule, type ArchitectIndex } from '../../../../../evidence/src/vie
 import { citationSchema, modulePathSchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import type { JsonSchema } from '../../../../../agent/src/interfaces/port.js';
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
-import { hypothesisChangeSchema, slugSchema, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
+import { hypothesisChangeSchema, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
 import { moduleProposalSchema, type ModuleProposal } from '../../../planning/src/records.js';
 import { hypothesisStanceSchema, placementOutcomeSchema, type PlacementDecision } from './records.js';
 import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '../../../acceptance/src/deviations/records.js';
@@ -31,12 +31,15 @@ import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '
  */
 
 const text = z.string().min(1);
+const hypothesisId = z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const capabilityName = z.union([z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const placementSubject = z.union([capabilityName, z.string().regex(/^capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 
 /** A `PlacementDecision` without the fields the harness assigns. */
 export const decisionBodySchema = z.object({
   question: text,
   outcome: placementOutcomeSchema,
-  capability: slugSchema,
+  capability: capabilityName,
   /**
    * Whether implementing this capability changes symbols that already have
    * consumers. An extension of existing behavior is a `create` whose owner
@@ -70,12 +73,12 @@ export type DecisionBody = z.infer<typeof decisionBodySchema>;
 
 /** A `RegistryEntry` revision without the fields the harness assigns. */
 export const registryChangeSchema = z.object({
-  capability: slugSchema,
+  capability: capabilityName,
   behavior: text,
   owner: modulePathSchema,
   proposed: moduleProposalSchema.optional(),
   /** Confirmed consumer-to-dependency links this revision adds. */
-  consumers: z.array(z.object({ capability: slugSchema, workItem: text }).strict()).describe(
+  consumers: z.array(z.object({ capability: capabilityName, workItem: text }).strict()).describe(
     'Consumer capabilities may be committed or registered anywhere in this complete submission, regardless of order. '
     + 'Each workItem must already be committed.',
   ),
@@ -88,7 +91,7 @@ export type RegistryChange = z.infer<typeof registryChangeSchema>;
  * revision 1 is never rewritten.
  */
 export const hypothesisRevisionSchema = z.object({
-  hypothesis: slugSchema,
+  hypothesis: hypothesisId,
   standing: z.enum(['tentative', 'confirmed', 'superseded']),
   /** Why this revision was made, which the revision's cause records. */
   reason: text,
@@ -97,18 +100,19 @@ export const hypothesisRevisionSchema = z.object({
   suggestedOwner: modulePathSchema.optional(),
   anticipatedConsumers: z.array(text).optional(),
   involvedModules: z.array(modulePathSchema).optional(),
-  dependsOn: z.array(slugSchema).optional(),
+  dependsOn: z.array(hypothesisId).optional(),
   confidence: z.enum(['low', 'medium', 'high']).optional(),
   rationale: text.optional(),
   assumptions: z.array(z.string()).optional(),
   uncertainties: z.array(z.string()).optional(),
   citations: z.array(citationSchema).optional(),
-  supersededBy: slugSchema.optional(),
+  supersededBy: hypothesisId.optional(),
 }).strict();
 export type HypothesisRevision = z.infer<typeof hypothesisRevisionSchema>;
 
 /** One decision a module architect makes within its own authority, with what it registers. */
 export const localDecisionSchema = z.object({
+  decisionKey: z.string().regex(/^draft:placement-decision:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   decision: decisionBodySchema,
   registry: z.array(registryChangeSchema),
 }).strict();
@@ -116,19 +120,20 @@ export type LocalDecisionBody = z.infer<typeof localDecisionSchema>;
 
 /** A `PlacementRequest` without the fields the harness assigns. */
 export const placementRequestBodySchema = z.object({
-  forCapability: slugSchema,
+  requestKey: z.string().regex(/^draft:placement-request:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  forCapability: placementSubject,
   question: text,
   requiredBehavior: text,
   findings: z.array(z.object({ text, citations: z.array(citationSchema) }).strict()),
   candidates: z.array(z.object({
-    capability: slugSchema.optional(),
+    capability: capabilityName.optional(),
     owner: modulePathSchema.optional(),
     note: text,
   }).strict()),
   unresolved: z.array(text),
   /** The hypotheses being tested; the harness supplies each one's revision and hash. */
   hypotheses: z.array(z.object({
-    hypothesis: slugSchema,
+    hypothesis: hypothesisId,
     stance: hypothesisStanceSchema,
     evidence: text,
   }).strict()),
@@ -281,10 +286,10 @@ function unresolvedConstraintErrors(constraints: readonly string[], prefix: stri
 function deviationErrors(body: DeviationBody, question: Extract<ForkQuestion, { kind: 'unresolved' }>, prefix: string): SubmissionError[] {
   const errors: SubmissionError[] = [];
   body.amends.forEach((id, index) => {
-    if (question.elements.has(id)) return;
+    if (!id.startsWith('context:') && question.elements.has(id)) return;
     errors.push({
       path: `${prefix}.amends.${index}`,
-      message: id.startsWith('ctx-') ? `${id} is context, which no deviation amends` : `${id} is no element of the work item's package`,
+      message: id.startsWith('context:') ? `${id} is context, which no deviation amends` : `${id} is no element of the work item's package`,
       expected: 'a requirement or recommendation of the work item\'s package',
     });
   });

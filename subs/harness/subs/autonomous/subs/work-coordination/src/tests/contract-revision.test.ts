@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byWork, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
@@ -87,7 +87,7 @@ async function run(root: string, plan: Parameters<typeof byWork>[0], commits: re
   const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits],
     ...(final === undefined ? {} : { previews: final.previews }) });
   const opened = await openRuns(root, {
-    script: byWork(plan), inputs: treeInputs(), git,
+    script: byWork({ 'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })], ...plan }), inputs: treeInputs(), git,
     ...(final === undefined ? {} : { candidates: final.candidates }),
   });
   cleanups.push(() => opened.service.close());
@@ -97,16 +97,17 @@ async function run(root: string, plan: Parameters<typeof byWork>[0], commits: re
 }
 
 function place(capability: string, owner: string) {
-  return localDecision(
+  const id = `capability:${capability}`;
+  return { ...localDecision(
     {
       question: `Where does ${capability} belong?`,
       outcome: 'reuse',
-      capability,
+      capability: id,
       owner,
       rationale: 'The rule is a capability of its own, in a subtree this architect may place work in.',
     },
-    [registryChange({ capability, owner, behavior: `The module provides ${capability}.` })],
-  );
+    [registryChange({ capability: id, owner, behavior: `The module provides ${capability}.` })],
+  ), decisionKey: `draft:placement-decision:${capability}` };
 }
 
 const yieldFor = (requirements: readonly string[]) => ({
@@ -124,6 +125,19 @@ function reviseContract(module: string, contract: string, approach: string) {
     approach,
     completionEvidence: 'The revised conformance suite passes against the fake, and this module runs against it.',
   });
+}
+
+function revised(seam: Seam) {
+  const { contractKey, providerObligationKey, consumerRequirementKey, ...proposal } = established(seam);
+  void contractKey;
+  void providerObligationKey;
+  void consumerRequirementKey;
+  return {
+    ...proposal,
+    contractId: `contract:${seam.capability}`,
+    providerObligationId: `provider-obligation:${seam.capability}`,
+    consumerRequirementId: `consumer-requirement:${seam.consumerFile.replace(/\.ts$/, '')}-${seam.capability}`,
+  };
 }
 
 async function events(root: string, runId: string): Promise<RunEvent[]> {
@@ -152,30 +166,30 @@ describe('P4: an ordinary provider engineer reports inability to conform through
 
     const seam = paths(agreed);
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
-      'local-architect:wi-001': [
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes)]), 'document:review-notes-plan'))],
+      'local-architect:work-item:review-notes': [
         submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-        submit(yieldFor(['rq-001'])),
+        submit(yieldFor(['consumer-requirement:notes-note-limit'])),
         // The provider's report came back here, while this item was yielded.
-        submit(reviseContract(notes, 'ct-001', 'The provider cannot index a note of 500 characters; agree the limit it can keep.')),
-        submit(yieldFor(['rq-001'])),
+        submit(reviseContract(notes, 'contract:note-limit', 'The provider cannot index a note of 500 characters; agree the limit it can keep.')),
+        submit(yieldFor(['consumer-requirement:notes-note-limit'])),
         submit(assign(notes, { kind: 'verification', goal: 'Replace the fake with the revised real limit.' })),
         submit(requestCompletion()),
       ],
-      'engineer:wi-001': [
+      'engineer:work-item:review-notes': [
         submit(contractNeeded(agreed)),
         submit(completionProposed('The notes now use the revised real limit.'), write(join(root, paths(relaxed).consumer), consumerAgainstReal(relaxed))),
       ],
-      'contract-engineer:wi-001': [
+      'contract-engineer:work-item:review-notes': [
         submit(established(agreed), ...contractWrites(agreed)),
-        submit(established(relaxed), ...contractWrites(relaxed)),
+        submit(revised(relaxed), ...contractWrites(relaxed)),
       ],
-      'local-architect:wi-002': [
+      'local-architect:work-item:provide-note-limit': [
         submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))),
         submit(assign(limits, {}, outline({ changes: 'Implement the limit the revised agreement states.' }))),
         submit(requestCompletion()),
       ],
-      'engineer:wi-002': [
+      'engineer:work-item:provide-note-limit': [
         submit({
           kind: 'unsuitable',
           reason: 'provider-cannot-conform',
@@ -187,12 +201,12 @@ describe('P4: an ordinary provider engineer reports inability to conform through
       // The agreement's files when it is established, the same files again
       // when it is revised, the provider's when it implements the revision,
       // and the consumer's when it moves off the fake.
-      accepted('wi-001.i02', 'revision-01', [...added(seam.contract, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
-      accepted('wi-001.i03', 'revision-02', modified(seam.contract, seam.fake, seam.subjects, seam.conformance, seam.consumer)),
-      accepted('wi-002.i02', 'revision-03', [...added(seam.real), ...modified(seam.subjects)]),
-      unchanged('wi-002'),
-      accepted('wi-001.i04', 'revision-04', modified(seam.consumer)),
-      unchanged('wi-001'),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.contract, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
+      accepted('work-item:review-notes.i03', 'revision-02', modified(seam.contract, seam.fake, seam.subjects, seam.conformance, seam.consumer)),
+      accepted('work-item:provide-note-limit.i02', 'revision-03', [...added(seam.real), ...modified(seam.subjects)]),
+      unchanged('work-item:provide-note-limit'),
+      accepted('work-item:review-notes.i04', 'revision-04', modified(seam.consumer)),
+      unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
     ], 'revision-04');
 
@@ -206,9 +220,9 @@ describe('P4: an ordinary provider engineer reports inability to conform through
     const reports = log.filter(event => event.type === 'revision-needed');
     expect(reports).toHaveLength(1);
     expect(reports[0]!.data).toEqual({
-      obligation: { id: 'ob-ct-001', revision: 1, hash: expect.any(String) },
-      iteration: 'wi-002.i01',
-      consumerWorkItem: 'wi-001',
+      obligation: { id: 'provider-obligation:note-limit', revision: 1, hash: expect.any(String) },
+      iteration: 'work-item:provide-note-limit.i01',
+      consumerWorkItem: 'work-item:review-notes',
     });
 
     // The provider's iteration closed as unsuitable before the report, and
@@ -216,7 +230,7 @@ describe('P4: an ordinary provider engineer reports inability to conform through
     // was yielded.
     const closed = log
       .filter(event => event.type === 'iteration-closed')
-      .find(event => event.data.iteration === 'wi-002.i01')!;
+      .find(event => event.data.iteration === 'work-item:provide-note-limit.i01')!;
     expect(closed.data.outcome).toBe('unsuitable');
     expect(closed.sequence).toBeLessThan(reports[0]!.sequence);
     const yieldedAt = log.findIndex(event => event.type === 'work-item-yielded');
@@ -228,8 +242,8 @@ describe('P4: an ordinary provider engineer reports inability to conform through
     // assigned directly: it names the agreement and no requesting module engineer.
     const requested = log.filter(event => event.type === 'contract-requested');
     expect(requested.map(event => [event.data.iteration, event.data.requestedBy, event.data.revises])).toEqual([
-      ['wi-001.i02', 'wi-001.i01', null],
-      ['wi-001.i03', null, 'ct-001'],
+      ['work-item:review-notes.i02', 'work-item:review-notes.i01', null],
+      ['work-item:review-notes.i03', null, 'contract:note-limit'],
     ]);
     expect(types.indexOf('revision-needed')).toBeLessThan(log.findIndex(event =>
       event.type === 'contract-requested' && event.data.revises !== null));
@@ -241,30 +255,30 @@ describe('P4: an ordinary provider engineer reports inability to conform through
     const reopened = log.filter(event => event.type === 'evidence-reopened');
     expect(reopened).toHaveLength(1);
     expect(reopened[0]!.data).toMatchObject({
-      contract: 'ct-001',
+      contract: 'contract:note-limit',
       revision: 2,
-      obligation: 'ob-ct-001',
-      requirements: ['rq-001'],
+      obligation: 'provider-obligation:note-limit',
+      requirements: ['consumer-requirement:notes-note-limit'],
       // Both items are unfinished, so both keep their identity and there is
       // no follow-up to create.
       followUps: [],
       superseded: [],
     });
     expect(reopened[0]!.data.bindings.map(binding => [binding.subject.id, binding.workItem])).toEqual([
-      ['ob-ct-001', 'wi-002'],
-      ['rq-001', 'wi-001'],
+      ['provider-obligation:note-limit', 'work-item:provide-note-limit'],
+      ['consumer-requirement:notes-note-limit', 'work-item:review-notes'],
     ]);
-    const first = await readJson<ContractRecord>(root, runId, contractsLayout.contract('ct-001', 1));
-    expect(first).toMatchObject({ revision: 1, behavior: agreed.behavior, establishedBy: { iteration: 'wi-001.i02' } });
-    const second = await readJson<ContractRecord>(root, runId, contractsLayout.contract('ct-001', 2));
-    expect(second).toMatchObject({ revision: 2, behavior: relaxed.behavior, establishedBy: { iteration: 'wi-001.i03' } });
+    const first = await readJson<ContractRecord>(root, runId, contractsLayout.contract('contract:note-limit', 1));
+    expect(first).toMatchObject({ revision: 1, behavior: agreed.behavior, establishedBy: { iteration: 'work-item:review-notes.i02' } });
+    const second = await readJson<ContractRecord>(root, runId, contractsLayout.contract('contract:note-limit', 2));
+    expect(second).toMatchObject({ revision: 2, behavior: relaxed.behavior, establishedBy: { iteration: 'work-item:review-notes.i03' } });
 
     // The reused provider item owes the revision it is now bound to, and
     // not the one it reported it could not meet.
-    const before = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('wi-002', 1));
-    const after = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('wi-002', 2));
-    expect(before.evidenceObligations[0]!.obligation).toMatchObject({ id: 'ob-ct-001', revision: 1 });
-    expect(after.evidenceObligations[0]!.obligation).toMatchObject({ id: 'ob-ct-001', revision: 2 });
+    const before = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('work-item:provide-note-limit', 1));
+    const after = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('work-item:provide-note-limit', 2));
+    expect(before.evidenceObligations[0]!.obligation).toMatchObject({ id: 'provider-obligation:note-limit', revision: 1 });
+    expect(after.evidenceObligations[0]!.obligation).toMatchObject({ id: 'provider-obligation:note-limit', revision: 2 });
     expect(after.evidenceObligations[0]!.suite).toEqual([paths(relaxed).conformance]);
 
     // Only the revision closes the delegation, and only at its own revision.
@@ -277,7 +291,7 @@ describe('P4: an ordinary provider engineer reports inability to conform through
     // that followed them without a write of their own changed nothing.
     expect(git.branch()).toBe(`ramify-agent-run/${runId}`);
     expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01', 'revision-02', 'revision-03', 'revision-04']);
-    expect(git.subjects().slice(1, 3).map(subject => subject.split(':')[0])).toEqual(['wi-001.i02', 'wi-001.i03']);
+    expect(git.subjects().slice(1, 3).map(subject => subject.split(':').slice(0, 2).join(':'))).toEqual(['work-item:review-notes.i02', 'work-item:review-notes.i03']);
     // Each commit was made over the revision the one before it was accepted
     // at: the boundary the run observed against advanced once per accepted
     // attempt, and the revision never reset it.
@@ -294,20 +308,20 @@ describe('P4: an ordinary provider engineer reports inability to conform through
 
     const seam = paths(agreed);
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
-      'local-architect:wi-001': [
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes)]), 'document:review-notes-plan'))],
+      'local-architect:work-item:review-notes': [
         submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-        submit(yieldFor(['rq-001'])),
+        submit(yieldFor(['consumer-requirement:notes-note-limit'])),
         // The architect was told and did not revise: it waits again.
-        submit(yieldFor(['rq-001'])),
+        submit(yieldFor(['consumer-requirement:notes-note-limit'])),
       ],
-      'engineer:wi-001': [submit(contractNeeded(agreed))],
-      'contract-engineer:wi-001': [submit(established(agreed), ...contractWrites(agreed))],
-      'local-architect:wi-002': [
+      'engineer:work-item:review-notes': [submit(contractNeeded(agreed))],
+      'contract-engineer:work-item:review-notes': [submit(established(agreed), ...contractWrites(agreed))],
+      'local-architect:work-item:provide-note-limit': [
         submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))),
         submit(assign(limits, {}, outline({ changes: 'Try the agreed limit again.' }))),
       ],
-      'engineer:wi-002': [submit({
+      'engineer:work-item:provide-note-limit': [submit({
         kind: 'unsuitable',
         reason: 'provider-cannot-conform',
         detail: 'The agreed suite requires a length the store cannot index.',
@@ -316,13 +330,13 @@ describe('P4: an ordinary provider engineer reports inability to conform through
       // Only the agreement was ever committed. The provider reported that it
       // could not conform and wrote nothing, and the run failed before any
       // further gate.
-      accepted('wi-001.i02', 'revision-01', [...added(seam.contract, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.contract, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
     ]);
 
     const snapshot = onlyRun(service, 'review-notes');
     expect(snapshot.state).toBe('failed');
     expect(snapshot.failure?.reason).toBe('unresolvable-requirement');
-    expect(snapshot.failure?.message).toContain('cannot conform to ob-ct-001 at revision 1');
+    expect(snapshot.failure?.message).toContain('cannot conform to provider-obligation:note-limit at revision 1');
 
     const log = await events(root, runId);
     // The report is deduplicated per obligation revision: it was made once,
@@ -340,32 +354,32 @@ describe('P4: an ordinary provider engineer reports inability to conform through
 
 describe('the reopening is derived, and it supersedes what the previous revision assigned', () => {
   const requirement = (id: string, workItem: string, consumer: string): ConsumerRequirement => ({
-    schema: 'ramify-agent.consumer-requirement/1',
+    schema: 'ramify-agent.consumer-requirement/2',
     id,
     revision: 2,
     workItem,
     consumer,
-    forCapability: 'review-notes',
-    obligation: 'ob-ct-001',
+    forCapability: 'capability:review-notes',
+    obligation: 'provider-obligation:limit-notes',
     contractRevision: 2,
     behavior: 'the revised behavior',
     evidence: { tests: { policy: 'owned-by-scope', exactOwners: [consumer], subtrees: [], extraSuites: [] }, fakeInjections: [] },
   });
 
   const item = (id: string, module: string, startedFor: string | null): WorkItem => ({
-    schema: 'ramify-agent.work-item/1',
+    schema: 'ramify-agent.work-item/2',
     id,
     module,
-    origin: { entry: 'review-notes' },
+    origin: { entry: 'capability:review-notes' },
     goal: 'do the work',
-    requirementRefs: ['fr-001'],
-    acceptanceRefs: ['fr-002'],
-    contextRefs: ['ctx-001'],
+    functionalRequirementIds: ['functional-requirement:note-limit'],
+    functionalAcceptanceIds: ['functional-requirement:note-limit-acceptance'],
+    contextIds: ['context:note-limit'],
     startedFor,
   });
 
   const assignment = (id: string, workItem: string): IterationAssignment => ({
-    schema: 'ramify-agent.iteration-assignment/1',
+    schema: 'ramify-agent.iteration-assignment/2',
     id,
     workItem,
     outline: { id: workItem, revision: 1, hash: 'a'.repeat(64) },
@@ -392,11 +406,11 @@ describe('the reopening is derived, and it supersedes what the previous revision
 
   test('an unfinished item is reused and its open assignment closes as superseded; a completed one is followed', () => {
     const obligation: ProviderObligation = {
-      schema: 'ramify-agent.provider-obligation/1',
-      id: 'ob-ct-001',
+      schema: 'ramify-agent.provider-obligation/2',
+      id: 'provider-obligation:limit-notes',
       revision: 2,
-      contract: { id: 'ct-001', revision: 2, hash: 'b'.repeat(64) },
-      capability: 'note-limit',
+      contract: { id: 'contract:limit-notes', revision: 2, hash: 'b'.repeat(64) },
+      capability: 'capability:note-limit',
       provider: limits,
       behavior: 'the revised behavior',
       evidence: { conformance: ['suite.test.ts'], against: 'real' },
@@ -404,62 +418,62 @@ describe('the reopening is derived, and it supersedes what the previous revision
 
     const reopening = reopenEvidence({
       obligation,
-      requirements: [requirement('rq-001', 'wi-001', notes), requirement('rq-002', 'wi-002', tags)],
-      requestedBy: 'wi-002',
-      previous: new Map([['ob-ct-001', 'wi-003'], ['rq-001', 'wi-001'], ['rq-002', 'wi-002']]),
-      completed: new Set(['wi-001']),
+      requirements: [requirement('consumer-requirement:notes', 'work-item:notes', notes), requirement('consumer-requirement:tags', 'work-item:tags', tags)],
+      requestedBy: 'work-item:tags',
+      previous: new Map([['provider-obligation:limit-notes', 'work-item:provider'], ['consumer-requirement:notes', 'work-item:notes'], ['consumer-requirement:tags', 'work-item:tags']]),
+      completed: new Set(['work-item:notes']),
       items: new Map([
-        ['wi-001', item('wi-001', notes, null)],
-        ['wi-002', item('wi-002', tags, null)],
-        ['wi-003', item('wi-003', limits, 'wi-001')],
+        ['work-item:notes', item('work-item:notes', notes, null)],
+        ['work-item:tags', item('work-item:tags', tags, null)],
+        ['work-item:provider', item('work-item:provider', limits, 'work-item:notes')],
       ]),
       workItemCount: 3,
-      unfinishedAssignments: [assignment('wi-003.i02', 'wi-003'), assignment('wi-001.i04', 'wi-001')],
+      unfinishedAssignments: [assignment('work-item:provider.i02', 'work-item:provider'), assignment('work-item:notes.i04', 'work-item:notes')],
     });
 
     // The provider had not finished, so it keeps its identity; the consumer
     // that had completed is followed, and the one that had not is reused.
     expect(reopening.bindings.map(binding => [binding.subject.id, binding.workItem])).toEqual([
-      ['ob-ct-001', 'wi-003'],
-      ['rq-001', 'wi-004'],
-      ['rq-002', 'wi-002'],
+      ['provider-obligation:limit-notes', 'work-item:provider'],
+      ['consumer-requirement:notes', 'work-item:reconcile-consumer-requirement-notes-revision-2'],
+      ['consumer-requirement:tags', 'work-item:tags'],
     ]);
     expect(reopening.followUps).toHaveLength(1);
     expect(reopening.followUps[0]).toMatchObject({
-      id: 'wi-004',
+      id: 'work-item:reconcile-consumer-requirement-notes-revision-2',
       module: notes,
-      follows: 'wi-001',
-      startedFor: 'wi-002',
-      requirementRefs: ['fr-001'],
-      acceptanceRefs: ['fr-002'],
-      contextRefs: ['ctx-001'],
+      follows: 'work-item:notes',
+      startedFor: 'work-item:tags',
+      functionalRequirementIds: ['functional-requirement:note-limit'],
+      functionalAcceptanceIds: ['functional-requirement:note-limit-acceptance'],
+      contextIds: ['context:note-limit'],
     });
 
     // Only an assignment of a reused item closes: the completed item's own
     // history is not rewritten, and its assignment is not touched.
-    expect(reopening.superseded.map(result => result.iteration)).toEqual(['wi-003.i02']);
+    expect(reopening.superseded.map(result => result.iteration)).toEqual(['work-item:provider.i02']);
     expect(reopening.superseded[0]!.outcome).toBe('superseded');
     expect(reopening.superseded[0]!.gate).toBeNull();
     expect(reopening.records.map(record => record.path)).toEqual([
-      'work-items/wi-004/item.json',
-      'work-items/wi-003/iterations/02/result.json',
+      'work-items/work-item%3Areconcile-consumer-requirement-notes-revision-2/item.json',
+      'work-items/work-item%3Aprovider/iterations/02/result.json',
     ]);
   });
 
   test('nothing is scheduled twice: the same reopening derives the same identifiers', () => {
     const request = {
       obligation: null,
-      requirements: [requirement('rq-001', 'wi-001', notes)],
-      requestedBy: 'wi-001',
-      previous: new Map([['rq-001', 'wi-001']]),
-      completed: new Set(['wi-001']),
-      items: new Map([['wi-001', item('wi-001', notes, null)]]),
+      requirements: [requirement('consumer-requirement:notes', 'work-item:notes', notes)],
+      requestedBy: 'work-item:notes',
+      previous: new Map([['consumer-requirement:notes', 'work-item:notes']]),
+      completed: new Set(['work-item:notes']),
+      items: new Map([['work-item:notes', item('work-item:notes', notes, null)]]),
       workItemCount: 1,
       unfinishedAssignments: [] as IterationAssignment[],
     };
     const first = reopenEvidence(request);
     const again = reopenEvidence(request);
-    expect(first.followUps.map(entry => entry.id)).toEqual(['wi-002']);
+    expect(first.followUps.map(entry => entry.id)).toEqual(['work-item:reconcile-consumer-requirement-notes-revision-2']);
     expect(again.followUps.map(entry => entry.id)).toEqual(first.followUps.map(entry => entry.id));
     expect(again.bindings).toEqual(first.bindings);
     expect(again.records.map(record => record.path)).toEqual(first.records.map(record => record.path));

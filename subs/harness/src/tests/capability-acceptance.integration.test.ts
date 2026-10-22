@@ -22,6 +22,8 @@ test('CA08 CA11–CA15 CA17 CA25 CA30: scripted multi-owner migration, repair, h
   () => runAcceptedHandback('revision', cleanups), 150_000);
 test('CA28: deferred B entry receives accepted handback and replans from current source',
   () => runAcceptedHandback('deferred', cleanups), 150_000);
+test('request, task and examples survive composed provider handback, consumer verification and reload',
+  () => runAcceptedHandback('reload', cleanups), 150_000);
 test('CA31: source drift after a passing combined gate cannot be handed back',
   () => runAcceptedHandback('drift', cleanups), 150_000);
 test('CA17 CA19 CA28 CA30: restart after handback continues the original A assignment once',

@@ -34,12 +34,12 @@ function assistedReviewSchema<T extends z.ZodRawShape>(answer: z.ZodObject<T>) {
     scopeAssessment: z.string().min(1).max(4000),
     design: z.object({ needed: z.boolean(), reason: z.string().min(1).max(4000), assessment: z.string().min(1).max(4000) }).strict(),
     requirements: z.array(answer).max(500),
-    /** Legacy limitation prose; retained without imposing an automatic coverage gate. */
+    /** Optional limitation prose; it does not impose an automatic coverage gate. */
     coverageGap: z.string().min(1).max(4000).nullable().optional(),
   }).strict();
 }
 
-/** A combined code/scope report with optional legacy inspection records; accepts both iteration and final submissions. */
+/** A combined code/scope report for iteration and final assessments. */
 export const assistedReviewSubmissionSchema = assistedReviewSchema(finalRequirementAnswerSchema);
 export type AssistedReviewSubmission = z.infer<typeof assistedReviewSubmissionSchema>;
 
@@ -100,8 +100,8 @@ export function validateAssistedReview(value: unknown, evidence: ReviewEvidence,
   const parsed = assistedReviewSubmissionSchema.safeParse(value);
   if (!parsed.success) return { ok: false, errors: schemaErrors(parsed.error) };
   const report = parsed.data;
-  const legacy = validateReview({ inspected: report.inspected, missing: report.missing, concerns: report.concerns }, evidence);
-  const errors: SubmissionError[] = legacy.ok ? [] : [...legacy.errors];
+  const review = validateReview({ inspected: report.inspected, missing: report.missing, concerns: report.concerns }, evidence);
+  const errors: SubmissionError[] = review.ok ? [] : [...review.errors];
   const expected = new Set(requirements.map(item => item.ref));
   if (expected.size !== requirements.length) errors.push({ path: 'requirements', message: 'Acceptance references must have distinct IDs' });
   const seen = new Set<string>();
