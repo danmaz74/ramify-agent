@@ -62,7 +62,8 @@ document; add companions only for substantial contracts or acceptance material.
   checks must remain effective.” State the latter explicitly when required.
 - **Acceptance:** provide observable behavioral scenarios and the evidence
   needed for other obligations. The responsible architect judges fulfillment;
-  configured project audits establish automated check health.
+  the configured audit is the only test execution the plan may rely on, and
+  the plan never names a suite, command, mode or extra run.
 - **Context and recommendations:** provide useful existing behavior, navigation
   pointers, likely seams and design options. Label suggestions as optional.
   A forecast must not silently become required work or a prescribed sequence.

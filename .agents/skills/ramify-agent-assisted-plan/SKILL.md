@@ -65,6 +65,8 @@ Assign consumer/provider integration to an explicit iteration or assignment. A l
 
 Expose assumptions that could change the breakdown. Say what discovery would justify combining, splitting or reordering iterations. Keep uncertainty local; do not turn every possible concern into a preliminary investigation. Each implementation iteration ends with relevant worker verification and RA assessment of the committed candidate. Include cumulative assessment against the original plan at completion; the coordinator handles the MCP mechanics.
 
+The assessment's configured audit is the only test execution the plan may require, per [A Plan Asks for the Audit and Nothing More](../../../docs/harness.principles.md#a-plan-asks-for-the-audit-and-nothing-more). Name the property the evidence must show, never a suite, command, audit mode or extra run such as a full `npm test` on the final candidate. ramify-audit decides what executes for a candidate; a plan clause asking for more is a plan defect, not a verification obligation.
+
 ## Write and hand off the plan
 
 Use one ordinary Markdown document in the requested or established project location. For a new execution-ready input with no specified location, use `plans/<plan-id>/plan.md`. Preserve an existing plan's requirements when optimizing its breakdown. Include outcomes and acceptance, a concise module-impact overview, the proposed iterations, and material uncertainties; adapt the format rather than imposing a schema.
@@ -76,7 +78,7 @@ For each iteration, provide the useful details:
 | Outcome and acceptance | Behavior or bounded investigation result that becomes complete, with requirement references. |
 | Focus and rationale | Principal module or broader grouping, and why the boundary should save effort. |
 | Interactions | Expected interface/consumer changes, relevant commitments and integration responsibility. |
-| Dependencies and verification | Necessary predecessors, useful parallel work and evidence needed to demonstrate completion. |
+| Dependencies and verification | Necessary predecessors, useful parallel work and evidence needed to demonstrate completion. Verification is the RA assessment with its configured audit; do not list suites or commands. |
 
 Check that every required outcome has implementation and verification coverage, including cross-module behavior. Keep tentative interface designs and iteration choices distinguishable from requirements. Do not introduce a new acceptance database, harness assignment format or task tracker.
 

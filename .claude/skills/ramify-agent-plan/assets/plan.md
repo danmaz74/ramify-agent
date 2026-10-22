@@ -27,7 +27,9 @@ Scenario: [Observable outcome]
 ```
 
 [Add other meaningful scenarios and evidence for obligations that require
-structural inspection or another form of assessment.]
+structural inspection or another form of assessment. Do not name test suites,
+commands, audit modes or extra runs: the configured audit is the only
+execution evidence a plan may require.]
 
 ## Context and recommendations
 

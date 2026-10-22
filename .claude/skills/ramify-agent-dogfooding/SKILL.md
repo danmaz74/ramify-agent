@@ -168,8 +168,9 @@ When progress fails or the result is wrong:
 
 ## Review and hand off
 
-Review the implementation against the plan and run the target project's required
-verification on the retained candidate. Qualify harness fixes separately under
+Review the implementation against the plan and rely on the configured audit of
+the retained candidate as its execution evidence; do not add suite runs the
+plan or the audit did not ask for. Qualify harness fixes separately under
 its configured audit discipline. Passing tests establish test health; the
 responsible architect/agent judges semantic completion.
 
