@@ -59,7 +59,7 @@
     {
       "id": "agent-tests",
       "name": "Ramify agent regression suite",
-      "description": "Run the complete four-worker Ramify agent suite",
+      "description": "Run the complete Ramify agent suite on 80% of the available cores",
       "scope": "both",
       "category": "deterministic",
       "executor": {
@@ -71,7 +71,7 @@
             "args": [
               "test",
               "--",
-              "--maxWorkers=4"
+              "--maxWorkers=80%"
             ],
             "parser": "vitest",
             "timeoutMs": 86400000
