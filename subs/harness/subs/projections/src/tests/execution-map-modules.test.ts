@@ -104,7 +104,7 @@ describe('execution module relations and captured writer changes', () => {
       outline: { id: 'work-item:case-001', revision: 1, hash }, stage: 0, kind: 'ordinary', goal: 'Do work.', approach: 'Implement.',
       scope: { revision: 1, base: { module: reviews, included: [] },
         extra: [{ path: 'subs/workspace/subs/other/src/allowed.ts', purpose: 'contract' }], read: [], bootstrap: [], rationale: 'Allowed.',
-        resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: [], files: [], view: { status: 'placeholder' } } },
+        resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: [], files: [], view: { status: 'placeholder' } } },
       externalCapabilities: [], completionEvidence: 'Check.', evidenceObligations: [],
       gate: { checkpoint: 'iteration', tests: { policy: 'owned-by-scope', exactOwners: [], subtrees: [], extraSuites: [] } },
       guarded: [], authorizations: [] });

@@ -567,7 +567,7 @@ describe('the records this iteration establishes', () => {
           read: ['shop'],
           bootstrap: kind === 'ordinary' ? [{ capability: outlineRef, owner: 'shop/orders/pricing', parent: 'shop/orders', directory: 'subs/orders/subs/pricing' }] : [],
           rationale: 'r',
-          resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/subs/orders/src'], files: ['/p/subs/orders/module.ramify'], view: { status: 'placeholder' } },
+          resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/subs/orders/src'], files: ['/p/subs/orders/module.ramify'], view: { status: 'placeholder' } },
         },
         source: { elements: ['functional-requirement:case-001', 'non-functional-requirement:case-001'], deviations: ['plan-deviation:case-001'], hash: 'f'.repeat(64) },
         externalCapabilities: [{ capability: 'capability:send-email', owner: 'shop', role: 'use' }],
@@ -995,7 +995,7 @@ describe('the run protocol a client reads', () => {
           goal: 'g', approach: 'a',
           scope: {
             revision: 1, base: { modules: ['shop', 'shop/web'], rationale: 'the guarantee changes in both' }, extra: [], read: [], bootstrap: [], rationale: 'r',
-            resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/src'], files: [], view: { status: 'placeholder' } },
+            resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/src'], files: [], view: { status: 'placeholder' } },
           },
           externalCapabilities: [], completionEvidence: 'e', evidenceObligations: [],
           gate: { checkpoint: 'breaking-iteration', tests: { policy: 'all-project', exactOwners: [], subtrees: [], extraSuites: [] } },

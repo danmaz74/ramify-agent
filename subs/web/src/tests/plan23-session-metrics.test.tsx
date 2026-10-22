@@ -195,7 +195,7 @@ test('V01: actual Run Measurements renders immutable accepted projection facts t
   const snapshot = runSnapshotSchema.parse({ jobId: runId, planId, agent: 'scripted', version: 1, state: 'completed', phase: 'ended', stopRequested: false,
     startedAt: at(0), updatedAt: at(5), endedAt: at(5), failure: null, current: null, waits: [],
     counts: { workItems: 0, completedWorkItems: 0, openRequirements: 0, invocations: 1, readinessAttempts: 0, gateAttempts: 0, scenarios: { pending: 0, bound: 0, done: 0 }, degradedStarts: 0 },
-    writer: { held: null, unsettled: null }, review: 'not-reviewed', decisionRequests: { open: 0, waiting: false, workItems: [] }, planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], notices: [] });
+    writer: { held: null, unsettled: null }, review: 'not-reviewed', decisionRequests: { open: 0, waiting: false, workItems: [] }, planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], notices: [], automaticRepairs: { attempted: 0, refused: 0, incidents: [] }, breakpoint: null, recovery: null });
   client.runs.set(runId, { snapshot, events: [], metrics: metricsResponseSchema.parse({ policyVersion: 'kpi/1', measurementPolicy: 'scope-size/2', baseline: { state: 'measured', bytes: 200, snapshot: 'baseline-original' }, metrics: [], lineage: { policyVersion: 'lineage/1', metrics: [] }, evaluation: { guarding: e.guarding, outsideScope: [], invocations: [e] } }) });
   render(<RunPage client={client} planId={planId} runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Measurements' }));

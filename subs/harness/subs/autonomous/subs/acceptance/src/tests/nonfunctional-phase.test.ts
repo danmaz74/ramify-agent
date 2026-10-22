@@ -42,7 +42,7 @@ const assigned = entry('nonfunctional-repair-assigned', {
   assessment: initial.id, candidate: 'cand-001', nfrs: nfrIds, startingModule: 'app',
   task: 'Improve evidence', evidence: [], uncertainty: '',
   guarded: [], scope: { revision: 1, base: { modules: ['app'], rationale: 'One captured repair batch' }, extra: [], read: [], bootstrap: [], rationale: 'Improve evidence',
-    resolved: { roots: ['/p'], files: [], excluded: [], included: [], view: { status: 'placeholder' },
+    resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], roots: ['/p'], files: [], excluded: [], included: [], view: { status: 'placeholder' },
       ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] } } },
 })], 5);
 const repaired = entry('nonfunctional-repair-committed', { round: 1, invocation: 'inv-repair', assignment: 'nfr-repair-001' }, [], 6);

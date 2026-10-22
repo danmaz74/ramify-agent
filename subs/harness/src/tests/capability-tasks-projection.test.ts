@@ -100,7 +100,7 @@ test('CA23: nested dependency and settled partial blocker stay visible in the ta
     outline: planRef, coordination: { kind: 'capability-task', id: task.id, sequence: 1, plan: planRef, startingTree: 'a'.repeat(64), startingPaths: [] },
     stage: 0, kind: 'ordinary', goal: 'Implement B source', approach: 'Extend B',
     scope: { revision: 0, base: { module: 'b', included: [] }, extra: [], read: [], bootstrap: [],
-      rationale: 'B owns source', resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: [], files: [], view: { status: 'placeholder' } } },
+      rationale: 'B owns source', resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: [], files: [], view: { status: 'placeholder' } } },
     externalCapabilities: [], completionEvidence: 'A real test', evidenceObligations: [],
     gate: { checkpoint: 'iteration', tests: { policy: 'owned-by-scope', exactOwners: ['b'], subtrees: [], extraSuites: [] } },
     guarded: [], authorizations: [] });

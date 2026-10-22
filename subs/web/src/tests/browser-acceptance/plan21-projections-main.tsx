@@ -32,7 +32,7 @@ const snapshot = runSnapshotSchema.parse({
   counts: { workItems: 2, completedWorkItems: 2, openRequirements: 0, invocations: 6, readinessAttempts: 1,
     gateAttempts: 3, scenarios: { pending: 1, bound: 1, done: 2 }, degradedStarts: 0 },
   writer: { held: null, unsettled: null }, review: 'not-reviewed', decisionRequests: { open: 0, waiting: false, workItems: [] },
-  planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], notices: [],
+  planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], notices: [], automaticRepairs: { attempted: 0, refused: 0, incidents: [] }, breakpoint: null, recovery: null,
 });
 const eventsOf = (gates: Record<string, GateView>): ProjectedRunEvent[] => Object.entries(gates).map(([label, gate], index) => ({
   sequence: index + 1, at, transition: 'gate-attempted', summary: `Final gate (${label}): ${gate.verdict}`, refs: [{ kind: 'gate', id: gate.id }],
