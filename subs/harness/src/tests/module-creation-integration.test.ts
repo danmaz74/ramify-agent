@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, installMiniRunner, outline, submit, viewedInputs, write } from './helpers/iterations.js';
 
 
@@ -85,7 +85,7 @@ async function target(answers: Omit<GateGitOptions, 'head'> & { readonly finalHe
 }
 
 async function readResult(root: string, runId: string, number: number): Promise<IterationResult> {
-  return JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', number)), 'utf8')) as IterationResult;
+  return JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', number)), 'utf8')) as IterationResult;
 }
 
 describe('G9: an accepted proposed entry owner reaches implementation', () => {
@@ -102,7 +102,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
     })]);
     const architectScopes: Array<{ directory: string; prompt: string }> = [];
     const script = byRole({
-      'initial-architect': [submit(analysed)],
+      'initial-architect': [submit(currentAnalysis(analysed, 'document:review-notes-plan'))],
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: [submit(
         completionProposed('Created the notes module with its first behavior and the test that states it.'),
@@ -134,7 +134,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
     // Every refresh answered, so nothing below rests on evidence the
     // harness could not obtain.
     expect(unavailable).toEqual([]);
-    const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('wi-001', 1)), 'utf8')) as {
+    const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('work-item:review-note', 1)), 'utf8')) as {
       scope: { bootstrap: Array<{ directory: string }>; resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: string[]; files: string[] } };
     };
     // The bootstrap authority came from the accepted registry entry, and it
@@ -155,7 +155,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
       module: notes,
       declaration: `${notesDirectory}/module.ramify`,
       commit: result.commit,
-      iteration: 'wi-001.i01',
+      iteration: 'work-item:review-note.i01',
       // No placement decision proposed it: the entry assignment did, and a
       // notice with no decision says so.
       decision: null,
@@ -163,7 +163,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
 
     // The message the harness asked Git to commit names the module it
     // created, and the files it created really are on disk.
-    expect(scripted.messages[1]).toContain('Ramify-Iteration: wi-001.i01');
+    expect(scripted.messages[1]).toContain('Ramify-Iteration: work-item:review-note.i01');
     expect(scripted.messages[1]).toContain(`Modules created: ${notes} (${notesDirectory}/module.ramify)`);
     expect(await readFile(join(root, notesDirectory, 'module.ramify'), 'utf8')).toBe('ramify 1\nmodule notes\n');
     scripted.assertComplete();

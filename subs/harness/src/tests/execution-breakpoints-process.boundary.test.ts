@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { afterEach, expect, test } from 'vitest';
 import { startServerWith } from '../http/server.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
-import { analysis, entry } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { assign, outline, submit, treeInputs } from './helpers/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { installTestRunner, testPolicy, until } from './helpers/runs.js';
@@ -30,7 +30,7 @@ test(title, async () => {
   if (childSetup) {
     const input = JSON.parse(await readFile(childSetup, 'utf8')) as { root: string; ready: string; release: string };
     const scripted = (role: string) => role === 'initial-architect'
-      ? submit(analysis([entry('review-note', module)])) : role === 'local-architect' ? submit(assign(module, {}, outline())) : [];
+      ? submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan')) : role === 'local-architect' ? submit(assign(module, {}, outline())) : [];
     const agent = createScriptedAgent(declaringScenarios(spec => spec.role === 'engineer' ? [
       { kind: 'await', until: async () => { while (true) { try { await access(input.release); return; } catch { await new Promise(done => setTimeout(done, 10)); } } } },
       { kind: 'message', text: 'Native hosted explanation.' }, { kind: 'end', message: 'Native hosted explanation.' },

@@ -6,7 +6,7 @@ import { expect, test } from 'vitest';
 import { gitService, gitCandidateSource } from '../../subs/evidence/src/git.js';
 import { CommandRejection } from '../jobs/commands.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { byRole, submit, treeInputs } from './helpers/iterations.js';
 import { openRuns, startRun, stopRun, until } from './helpers/runs.js';
 
@@ -26,7 +26,7 @@ test('same-run continuation preserves native source refs index and dirty files',
     const inputs = treeInputs();
     let failedOnce = false;
     const opened = await openRuns(fixture.root, { git: gitService, candidates: gitCandidateSource,
-      inputs, script: byRole({ 'initial-architect': [submit(analysis([entry('review-notes', 'collection-review/workspace/reviews')]))],
+      inputs, script: byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', 'collection-review/workspace/reviews')]), 'document:review-notes-plan'))],
         'local-architect': [[{ kind: 'await', until: () => new Promise(() => undefined) }]] }),
       afterWrite: async write => { if (write === 'work-item-started' && !failedOnce) { failedOnce = true; throw new Error('Interrupted workflow after durable work assignment'); } },
     });

@@ -141,12 +141,12 @@ const f2Files: Readonly<Record<string, string>> = {
   'subs/a/src/tests/features/child.feature': [
     'Feature: Child',
     '',
-    '  @ramify-sc-001',
+    '  @ramify-scenario-child-value-is-bound',
     '  Scenario: the child value is bound',
     '    Given the child value',
     '    Then the child value is 2',
     '',
-    '  @ramify-sc-002 @ramify-pending',
+    '  @ramify-scenario-a-pending-child-scenario @ramify-pending',
     '  Scenario: a pending child scenario',
     '    Given a step nobody has written',
     '',
@@ -163,7 +163,7 @@ const f2Files: Readonly<Record<string, string>> = {
   'subs/a/subs/grand/src/tests/features/grand.feature': [
     'Feature: Grand',
     '',
-    '  @ramify-sc-003',
+    '  @ramify-scenario-grand-value-is-bound',
     '  Scenario: the grand value is bound',
     '    Given the grand value',
     '    Then the grand value is 3',
@@ -197,8 +197,8 @@ describe('configured committed execution over F2 (runner truth)', () => {
     expect(vitestFiles(baseline, 'aux-vitest').join('\n')).toContain('aux.test.ts passed');
     expect(vitestFiles(baseline, 'source-vitest').join('\n')).not.toContain('excluded');
     // The bound scenarios run; the pending one is left out by the committed profile.
-    expect(scenarioResultsOf(baseline).map(result => `${result.id} ${result.status}`)).toEqual(['sc-001 passed', 'sc-003 passed']);
-    expect(scenarioResultsOf(baseline).find(result => result.id === 'sc-003')?.binding.map(entry => entry.definition))
+    expect(scenarioResultsOf(baseline).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:child-value-is-bound passed', 'scenario:grand-value-is-bound passed']);
+    expect(scenarioResultsOf(baseline).find(result => result.id === 'scenario:grand-value-is-bound')?.binding.map(entry => entry.definition))
       .toEqual([expect.stringContaining('subs/a/subs/grand/src/tests/steps/grand.steps.ts'), expect.stringContaining('grand.steps.ts')]);
 
     // A grandchild change with a new eligible test: the partial link runs
@@ -212,7 +212,7 @@ describe('configured committed execution over F2 (runner truth)', () => {
     expect(vitestFiles(partial, 'source-vitest')).toEqual([
       'subs/a/subs/grand/src/tests/grand.check.ts passed', 'subs/a/subs/grand/src/tests/new-grand.check.ts passed',
     ]);
-    expect(scenarioResultsOf(partial).map(result => `${result.id} ${result.status}`)).toEqual(['sc-003 passed']);
+    expect(scenarioResultsOf(partial).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:grand-value-is-bound passed']);
     expect(partial.verdict).toBe('passed');
 
     // An ambiguous step is the producer's failure of the scenario check.
@@ -222,10 +222,10 @@ describe('configured committed execution over F2 (runner truth)', () => {
     const failing = await gate(ambiguous, 'ga-0003');
     expect(failing.audit).toMatchObject({ status: 'completed', executedMode: 'ramify-partial', verdict: 'fail' });
     expect([failing.verdict, failing.cause, failing.next]).toEqual(['failed', 'check-failed', 'repair']);
-    expect(scenarioResultsOf(failing).map(result => `${result.id} ${result.status}`)).toEqual(['sc-003 ambiguous']);
+    expect(scenarioResultsOf(failing).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:grand-value-is-bound ambiguous']);
     expect(checksOf(failing)['scenarios']?.status).toBe('fail');
     const briefing = (await gateDiagnostics(failing, 'engineer')).summary.join('\n');
-    expect(briefing).toContain('sc-003');
+    expect(briefing).toContain('scenario:grand-value-is-bound');
 
     // A module README selects no module: the link runs no narrowed test of
     // its own, and the carried failure is rerun and composed.
@@ -236,7 +236,7 @@ describe('configured committed execution over F2 (runner truth)', () => {
     expect(zeroSummary.coverage.selectedModules).toEqual([]);
     expect(zeroSummary.coverage.carriedFailures?.length).toBeGreaterThan(0);
     expect(vitestFiles(zero, 'source-vitest')).toEqual([]);
-    expect(scenarioResultsOf(zero).map(result => `${result.id} ${result.status}`)).toEqual(['sc-003 ambiguous']);
+    expect(scenarioResultsOf(zero).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:grand-value-is-bound ambiguous']);
     expect(zero.verdict).toBe('failed');
 
     // The repair passes; a detected runner configuration change widens.
@@ -254,7 +254,7 @@ describe('configured committed execution over F2 (runner truth)', () => {
     const outer = await gate(rootAndGrand, 'ga-0006');
     expect(outer.audit).toMatchObject({ status: 'completed', executedMode: 'ramify-partial', fallbackReason: null, verdict: 'pass' });
     expect(vitestFiles(outer, 'source-vitest')).toEqual(['src/tests/root.check.ts passed', 'subs/a/subs/grand/src/tests/grand.check.ts passed']);
-    expect(scenarioResultsOf(outer).map(result => `${result.id} ${result.status}`)).toEqual(['sc-003 passed']);
+    expect(scenarioResultsOf(outer).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:grand-value-is-bound passed']);
 
     // A change to the sibling whose path begins with `subs/a` selects only it.
     const sibling = await f2.commit('collision sibling change', { 'subs/ab/src/ab.ts': 'export const abValue = 4; // revised\n' });

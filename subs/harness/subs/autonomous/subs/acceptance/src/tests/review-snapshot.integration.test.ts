@@ -6,7 +6,7 @@ import type { SessionSpec } from '../../../../../agent/src/interfaces/port.js';
 import { gitService } from '../../../../../evidence/src/git.js';
 import { reviewLayout } from '../reviews/records.js';
 import { snapshotToolNames } from '../../../../../reviews/src/snapshot.js';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { testReviewPolicy } from './helpers/candidates.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { gate, notes, notesDirectory, plan, reviewTarget, store, tool } from './helpers/reviews.js';
@@ -41,7 +41,7 @@ describe('a review snapshot over a real repository', () => {
     const waiting = gate();
     const wrote = gate();
     const roles = byRole({
-      'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit(assign(notes, { goal: 'Add the note store.' }, outline())),
         submit(assign(notes, { goal: 'Revise the note store.' })),
