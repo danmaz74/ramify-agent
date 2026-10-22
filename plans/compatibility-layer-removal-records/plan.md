@@ -63,15 +63,19 @@ for replaced, withdrawn or incompletely inherited blocks remains: those are
 current runtime cases, not earlier forms. Append replay for a crash between
 engine completion and harness recording remains.
 
-### Sessions are read from the manual-run layout only
+### Sessions from the earlier layout are no longer read
 
 The session browser, the HTTP session endpoints, the protocol session types and
-the web session pages read sessions recorded as manual runs under
-`plans/sessions/.harness/jobs/<id>/`. The reader for the earlier
-`plans/.harness/sessions/<id>/` layout, its record schemas, directory scanner,
-cache, standalone endpoints, protocol variants and web branches are removed. A
-directory in the earlier layout is not scanned and does not appear in session
-listings. Transcript paging and the shared body and file readers stay.
+the web session pages serve the sessions of the implementation runs the
+service serves. The reader for the earlier `plans/.harness/sessions/<id>/`
+layout, its record schemas, directory scanner, cache, standalone endpoints,
+protocol variants and web branches are removed. A directory in the earlier
+layout is not scanned and does not appear in session listings. Sessions
+recorded as manual runs under `plans/sessions/.harness/jobs/<id>/` need not be
+listed; see the
+[revision of 2026-10-22](requirements-2026-10-22.md) (required), which
+replaced the original manual-run listing requirement at the user's direction.
+Transcript paging and the shared body and file readers stay.
 
 ### Measurement requires the delivered manifest
 
@@ -159,11 +163,11 @@ Feature: Retired session, delivery and measurement forms are no longer read
       | session-store transaction  | unversioned session-store-commit      | open the session store    | session-store-commit/2                |
       | run measurement            | scope-size/1                          | project its KPIs          | scope-size/2                          |
 
-  Scenario: The session browser lists manual-run sessions only
-    Given a project with two sessions recorded under plans/sessions/.harness/jobs/
+  Scenario: The session browser does not read the earlier layout
+    Given a project with an implementation run the server serves
     And a leftover directory under plans/.harness/sessions/ in the earlier layout
     When a client lists sessions through the HTTP session endpoint
-    Then the two manual-run sessions are listed with their transcript pages
+    Then the served run's sessions are listed with their transcript pages
     And the leftover directory is neither listed nor reported
 
   Scenario: Invocation scope comes from the delivered manifest
@@ -231,8 +235,8 @@ restricts writes; expected touched modules are forecasts.
 ### 1. Sessions from the manual-run layout only
 
 **Outcome and acceptance.** The session browser, HTTP session endpoints,
-protocol session types and web session pages read manual-run sessions only.
-Scenario "The session browser lists manual-run sessions only".
+protocol session types and web session pages no longer read the earlier layout.
+Scenario "The session browser does not read the earlier layout".
 
 **Focus and rationale.** `projections`, with the harness-root HTTP and protocol
 changes and the web branches in the same assignment: what a session listing is
