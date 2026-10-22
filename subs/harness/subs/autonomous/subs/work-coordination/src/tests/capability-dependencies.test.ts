@@ -138,16 +138,12 @@ test('CA19 CA26: a committed plan revision rematerializes once and rejects stale
 
 
 test('CA21 CA29 CA32: B asks for C and only a fresh child coordinator runs while parent B assignment waits', runDependencyScheduling, 45_000);
-for (const boundary of ['request-placement', 'unresolved'] as const) {
-  for (const restartBoundary of boundary === 'request-placement'
-    ? ['none', 'placement-intent', 'fork-accepted', 'fork-partial', 'qualification-accepted'] as const : ['none', 'fork-accepted'] as const) {
-    test(`CA21 CA32: nested ${boundary} returns a global decision before child delegation${restartBoundary === 'none' ? '' : ` after ${restartBoundary} restart`}`,
-      () => runDependencyDecision(boundary, restartBoundary), 60_000);
-  }
-}
-// These rows run real harness/ledger logic with labelled synthetic external answers.
-// Actual Git/local-command evidence lives in capability-dependencies.boundary.test.ts.
-for (const restartAfterHandback of [false, true]) {
-  test(`CA19 CA21 CA32: a scripted C child gate and review hand back to B${restartAfterHandback ? ' after service restart' : ''}`,
-    () => runDependencyGate(restartAfterHandback), 180_000);
-}
+// The unresolved path is owned by capability-delegation; the remaining restart
+// boundaries are rows of the recovery table's placement scenario.
+test('CA21 CA32: nested request-placement returns a global decision before child delegation',
+  () => runDependencyDecision('request-placement', 'none'), 60_000);
+test('CA21 CA32: nested request-placement returns a global decision before child delegation after fork-partial restart',
+  () => runDependencyDecision('request-placement', 'fork-partial'), 60_000);
+// consultation-workflows C17 runs the same flow without a restart.
+test('CA19 CA21 CA32: a scripted C child gate and review hand back to B after service restart',
+  () => runDependencyGate(true), 180_000);
