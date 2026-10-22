@@ -364,14 +364,6 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/run-protocol-materialization.integration.test.ts",
-      "boundary": "Installed materialized placement views and unchanged native Git status",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "the module-capability comparison of a completed scripted run, over HTTP > initial and current placements, the compared identities and coverage, and no file or event changed"
-      ]
-    },
-    {
       "file": "subs/harness/src/tests/iteration-gate-integration.test.ts",
       "boundary": "Actual failing test, repair and accepted Git checkpoint",
       "whyFakeCannotProve": "A real failing Vitest assertion in committed source, the installed audit over each committed candidate and the commits Git records with their Ramify-Gate trailers; iteration-gate.test.ts states those command results and Git answers as scripts and cannot show that real tools produce them.",
