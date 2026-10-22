@@ -17,7 +17,7 @@ import { resolve, relative } from 'node:path';
 const nodeDiscovery = {
   environment: 'node' as const,
   include: ['src/tests/**/*.test.ts', 'subs/**/src/**/*.test.ts'],
-  exclude: ['subs/web/**', 'subs/harness/fixtures/**', '**/src/tmp/**'],
+  exclude: ['subs/web/**', 'subs/harness/fixtures/**', '**/src/tmp/**', '**/tests/helpers/**/*.test.ts'],
 };
 const webDiscovery = {
   environment: 'jsdom' as const,
