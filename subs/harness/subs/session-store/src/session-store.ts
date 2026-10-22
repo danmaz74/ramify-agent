@@ -25,10 +25,10 @@ const envelope = z.object({
 }).strict();
 const contentId = z.string().regex(/^[a-f0-9]{64}$/);
 const headerSchema = envelope.omit({ body: true }).extend({ bodyId: contentId }).strict();
-const eventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('session-store-commit'), runId: z.string().min(1), records: z.array(envelope), payloads: z.array(contentId) }).strict(),
-  z.object({ type: z.literal('session-store-commit/2'), runId: z.string().min(1), records: z.array(headerSchema), payloads: z.array(contentId) }).strict(),
-]);
+const eventSchema = z.object({
+  type: z.literal('session-store-commit/2', { error: 'session-store transaction requires session-store-commit/2' }),
+  runId: z.string().min(1), records: z.array(headerSchema), payloads: z.array(contentId),
+}).strict();
 export interface LedgerSessionStoreOptions { readonly directory: string }
 export interface LedgerSessionStore extends SessionStore {
   /** Fresh independently owned record with the native JSON normalization of read followed by a JSON clone. */
@@ -58,7 +58,6 @@ function needsJsonNormalization(body: Readonly<Record<string, unknown>>): boolea
 interface ValidatedState {
   readonly ledger: SessionLedger;
   readonly records: Map<string, SessionStoreRecord>;
-  readonly serializedRecords: Map<string, string>;
   readonly bodyRefs: Map<string, string>;
   readonly payloads: Set<string>;
   log: Fingerprint | null;
@@ -135,15 +134,12 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
   function detachedRecord(state: ValidatedState, key: string, jsonNormalized = false): SessionStoreRecord | null {
     const record = state.records.get(key);
     if (!record) return null;
-    const bodyId = state.bodyRefs.get(key);
-    if (bodyId !== undefined) {
-      // Parse the same physically read and hash-authenticated bytes. The owning
-      // record validator only omits root keys; nested unknown values are intact.
-      let body = readBody(bodyId);
-      if (jsonNormalized && needsJsonNormalization(body)) body = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
-      return { runId: record.runId, id: record.id, revision: record.revision, schema: record.schema, body };
-    }
-    return JSON.parse(state.serializedRecords.get(key)!) as SessionStoreRecord;
+    const bodyId = state.bodyRefs.get(key)!;
+    // Parse the same physically read and hash-authenticated bytes. The owning
+    // record validator only omits root keys; nested unknown values are intact.
+    let body = readBody(bodyId);
+    if (jsonNormalized && needsJsonNormalization(body)) body = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
+    return { runId: record.runId, id: record.id, revision: record.revision, schema: record.schema, body };
   }
   const payloadPaths = new Map<string, string>();
   const payloadPath = (id: string) => {
@@ -205,16 +201,10 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
         const id = JSON.stringify([item.runId, item.id]);
         const expected = (records.get(id)?.revision ?? 0) + 1;
         if (item.revision !== expected) throw new Error(`Corrupt session record revision for ${item.id}`);
-        if (entry.transaction.event.type === 'session-store-commit/2') {
-          const header = headerSchema.parse(item);
-          // The ledger authenticates headers. A body is inspected only when its
-          // record is requested or participates in CAS, isolating optional history.
-          records.set(id, envelope.parse({ runId: header.runId, id: header.id, revision: header.revision, schema: header.schema, body: {} }));
-          bodyRefs.set(id, header.bodyId);
-        } else {
-          records.set(id, envelope.parse(item));
-          bodyRefs.delete(id);
-        }
+        // The ledger authenticates headers. A body is inspected only when its
+        // record is requested or participates in CAS, isolating optional history.
+        records.set(id, envelope.parse({ runId: item.runId, id: item.id, revision: item.revision, schema: item.schema, body: {} }));
+        bodyRefs.set(id, item.bodyId);
       }
       for (const id of entry.transaction.event.payloads) payloadIds.add(id);
     }
@@ -226,8 +216,7 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
     if (!sameFingerprint(after.log, proof.log) || !after.bytes.equals(proof.bytes) || !current.matchesCommittedContent(after.bytes)) {
       writer.state = null; writer.unavailable = 'Session ledger changed while validating'; throw new Error(writer.unavailable);
     }
-    const serializedRecords = new Map([...records].filter(([id]) => !bodyRefs.has(id)).map(([id, item]) => [id, JSON.stringify(item)]));
-    const loaded: ValidatedState = { ledger: current, records, serializedRecords, bodyRefs, payloads, log: proof.log };
+    const loaded: ValidatedState = { ledger: current, records, bodyRefs, payloads, log: proof.log };
     writer.state = loaded;
     return loaded;
   }
@@ -335,7 +324,6 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
       for (const item of records) {
         const key = JSON.stringify([item.runId, item.id]);
         current.set(key, item);
-        state.serializedRecords.delete(key);
       }
       for (const item of headers) state.bodyRefs.set(JSON.stringify([item.runId, item.id]), item.bodyId);
       for (const id of payloads) state.payloads.add(id);

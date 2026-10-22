@@ -275,19 +275,13 @@ describe('Plan 23 owned session store replay cache', () => {
     expect((await reopened.commit({ runId: 'A', expected: [{ id: session.id, revision: null }, { id: operation.id, revision: null }], records: [session, operation], payloads: [payload] })).kind).toBe('conflict');
     expect(await readFile(join(path, 'session-ledger.jsonl'), 'utf8')).toEqual(`${JSON.stringify(lines[0])}\n`);
   });
-  it('replays existing complete v1 envelopes and later compact v2 headers with identical normalized values', async () => {
-    const { path, store } = await setup(); const bytes = new Uint8Array([0, 255, 128]); const payload = await store.putPayload(bytes); await store.close();
-    const original = record(1, { value: 'original', refs: [payload] });
-    const legacy = { sequence: 1, at: '2026-01-01T00:00:00.000Z', event: { type: 'session-store-commit', runId: 'A', records: [original], payloads: [payload] }, records: [] };
-    const originalBytes = `  ${JSON.stringify(legacy)} \n`; await writeFile(join(path, 'session-ledger.jsonl'), originalBytes);
-    const reopened = (await setup(path)).store; expect(await reopened.read('A', original.id)).toEqual(original);
-    const changed = record(2, { date: '2026-01-01T00:00:00.000Z', value: null });
-    expect(await commit(reopened, 2, [payload], { date: new Date('2026-01-01T00:00:00Z'), value: Number.NaN, omitted: undefined })).toEqual({ kind: 'committed' });
-    const raw = await readFile(join(path, 'session-ledger.jsonl'), 'utf8'); expect(raw.startsWith(originalBytes)).toBe(true);
-    const lines = raw.trim().split('\n').map(line => JSON.parse(line));
-    expect(lines).toEqual([legacy, { sequence: 2, at: expect.any(String), event: { type: 'session-store-commit/2', runId: 'A', records: [bodyHeader(changed)], payloads: [payload] }, records: [] }]);
-    await reopened.close(); const fresh = (await setup(path)).store;
-    expect(await fresh.read('A', original.id)).toEqual(changed); expect(await fresh.getPayload(payload)).toEqual(bytes);
+  it('refuses an opened retired session-store transaction and names the current form', async () => {
+    const { path, store } = await setup(); await store.close();
+    const retired = { sequence: 1, at: '2026-01-01T00:00:00.000Z', event: { type: 'session-store-commit', runId: 'A', records: [record(1)], payloads: [] }, records: [] };
+    const originalBytes = `  ${JSON.stringify(retired)} \n`;
+    await writeFile(join(path, 'session-ledger.jsonl'), originalBytes);
+    await expect(openSessionStore({ directory: path })).rejects.toThrow(/session-store transaction requires session-store-commit\/2/);
+    expect(await readFile(join(path, 'session-ledger.jsonl'), 'utf8')).toBe(originalBytes);
   });
   it('authenticates the actual journal despite identical metadata and keeps unexpected rewrites unavailable across adapters', async () => {
     const { path, store } = await setup(); const second = (await setup(path)).store; await commit(store, 1);
@@ -364,10 +358,10 @@ describe('Plan 23 owned session store replay cache', () => {
     await expect(commit(store, 1)).rejects.toThrow(/changed outside the owned writer/);
     await expect(second.read('A', 'session:s')).rejects.toThrow(/changed outside the owned writer/);
   });
-  it.each(['session-store-commit', 'session-store-commit/2'] as const)('refuses a %s journal envelope whose run differs from its transaction', async type => {
+  it('refuses a journal envelope whose run differs from its transaction', async () => {
     const { path, store } = await setup(); await store.close(); const item = { ...record(1), runId: 'B' };
-    if (type === 'session-store-commit/2') await writeFile(join(path, 'record-bodies', `${bodyHash(item.body)}.json`), JSON.stringify(item.body));
-    const event = { type, runId: 'A', records: [type === 'session-store-commit' ? item : bodyHeader(item)], payloads: [] };
+    await writeFile(join(path, 'record-bodies', `${bodyHash(item.body)}.json`), JSON.stringify(item.body));
+    const event = { type: 'session-store-commit/2', runId: 'A', records: [bodyHeader(item)], payloads: [] };
     await writeFile(join(path, 'session-ledger.jsonl'), `${JSON.stringify({ sequence: 1, at: '2026-01-01T00:00:00Z', event, records: [] })}\n`);
     await expect(openSessionStore({ directory: path })).rejects.toThrow(/transaction run identity/);
   });
