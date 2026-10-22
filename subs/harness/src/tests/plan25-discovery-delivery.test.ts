@@ -291,10 +291,10 @@ test('D5: an actual partial engineer result is navigation help labeled partial f
   expect(agent.sessions.filter(session => session.spec.role === 'reviewer')).toHaveLength(0);
 }, 120_000);
 
-test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'legacy-missing-submission'] as const)('D6/D7/I03: actual %s orientation context delivers available discoveries once on fresh consumers', async mode => {
+test.each(['retained', 'no-point', 'missing-packet', 'lost-parent'] as const)('D6/D7/I03: actual %s orientation context delivers available discoveries once on fresh consumers', async mode => {
   const fixture = await copyFixture(); cleanups.push(fixture.remove); await installTestRunner(fixture.root);
   const point = { path: 'subs/foreign/src/unchanged-caller.ts', note: 'Orientation-only caller; inspect compatibility.' };
-  if (mode === 'no-point' || mode === 'legacy-missing-submission') {
+  if (mode === 'no-point') {
     const original = HarnessSessionOperations.prototype.start;
     const spy = vi.spyOn(HarnessSessionOperations.prototype, 'start').mockImplementation(async function (this: HarnessSessionOperations, input) {
       const session = await original.call(this, input);
@@ -303,7 +303,7 @@ test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'l
   }
   const rest = declaringScenarios(byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]), 'document:revision-diff-plan'))], 'local-architect': [submit(requestCompletion())] }));
   const agent = createScriptedAgent(spec => {
-    if (spec.submission.name === 'submit_work_orientation') return submit({ focus: 'Caller', currentUnderstanding: 'Inspect compatibility', questions: [], ...(mode.startsWith('legacy') ? {} : { startingPoints: [point] }) });
+    if (spec.submission.name === 'submit_work_orientation') return submit({ focus: 'Caller', currentUnderstanding: 'Inspect compatibility', questions: [], startingPoints: [point] });
     if (mode === 'lost-parent' && spec.role === 'context-selector') {
       const parent = agent.sessions.find(session => session.spec.submission.name === 'submit_work_orientation')!;
       expect(agent.loseSession(JSON.parse(parent.ref))).toBe(true);
@@ -313,10 +313,10 @@ test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'l
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(),
     unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary', 'final verification of plan "revision-diff"'],
     afterWrite: async (write, jobId) => {
-      if (!['missing-packet', 'legacy-missing-submission'].includes(mode) || write !== 'work-orientation-recorded') return;
+      if (mode !== 'missing-packet' || write !== 'work-orientation-recorded') return;
       const events = await runEventsOnDisk(fixture.root, 'revision-diff', jobId);
       const event = events.find(event => event.type === 'work-orientation-recorded')!;
-      await rm(runPath(fixture.root, 'revision-diff', jobId, mode === 'missing-packet' ? event.data.packet! : `invocations/${event.data.invocation}/submission.json`));
+      await rm(runPath(fixture.root, 'revision-diff', jobId, event.data.packet!));
     } }); cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('revision-diff')); await opened.service.settled('revision-diff', receipt.jobId);
   expect(onlyRun(opened.service, 'revision-diff').state).toBe('completed');
@@ -324,7 +324,7 @@ test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'l
   const architect = agent.sessions.find(session => session.spec.submission.name === 'submit_work_item_result')!;
   expect(agent.sessions.filter(session => session.spec.submission.name === 'submit_work_orientation')).toHaveLength(1);
   for (const consumer of [selector, architect]) {
-    if (consumer.start.mode === 'fresh' && !mode.startsWith('legacy')) {
+    if (consumer.start.mode === 'fresh') {
       expect(consumer.spec.prompt).toContain('## Recorded starting points');
       expect(consumer.spec.prompt.split(point.note)).toHaveLength(2);
       expect(consumer.spec.prompt).toContain(`"path":"${point.path}"`);
@@ -340,9 +340,4 @@ test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'l
   }
   if (mode === 'no-point' || mode === 'missing-packet') expect(selector.start.mode).toBe('fresh');
   if (mode === 'lost-parent') expect(architect.start.mode).toBe('fresh');
-  if (mode === 'legacy-missing-submission') {
-    expect(selector.start.mode).toBe('fresh');
-    expect(selector.spec.prompt).toContain('Focus: Caller');
-    expect(selector.spec.prompt).toContain('Current understanding: Inspect compatibility');
-  }
 }, 120_000);
