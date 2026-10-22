@@ -3,7 +3,7 @@
 Design documents for the separate agent harness:
 
 - [Remove readers for retired run-state forms](../plans/compatibility-layer-removal/plan.md),
-  proposed execution input: one current form per record kind, manual-run sessions
+  proposed assisted execution input in six iterations: one current form per record kind, manual-run sessions
   only, same-run continuation, no policy adoption, and recovery commands without
   ignored fields; removes the twelve layers in the compatibility inventory
 - [Removable compatibility layers](analysis/2026-10-22-removable-compatibility-layers.md),

@@ -32,6 +32,11 @@ the harness runs on this project: fewer formats to understand, fewer branches
 to keep correct, and smaller prompts and views. No long-lived committed file
 changes shape, so no conversion script is needed.
 
+**Execution:** assisted. A native coordinator and Sol workers implement the
+iterations below, and ramify-agent assesses each committed candidate and the
+cumulative result. The requirements and acceptance are the assessed input; the
+iteration breakdown is a proposal the coordinator adapts to evidence.
+
 ## Required behavior
 
 ### One current form per durable record kind
@@ -261,6 +266,199 @@ fixture trees and the `projection-compatibility` helper no longer exist;
 `src/tests/test-boundaries.json` is unchanged; type check, self check and the
 configured audit pass.
 
+## Module impact and existing facilities
+
+The removals sit in nine owners under `subs/harness`, the harness root, the
+web module and the CLI. The inventory report lists exact paths per finding;
+this overview groups them by owner and names the contracts that change
+jointly.
+
+| Owner | Retired reader or tolerance | Contracts that change with it |
+| --- | --- | --- |
+| `projections` | standalone-session records, scanner and queries; successor provenance in `inputs.ts`, `snapshot.ts`, `events.ts`; snapshot defaults | session protocol types and HTTP endpoints at the harness root; `validateRestartImport` and `restartImportSchema` exposed by `autonomous` |
+| harness root (`subs/harness/src`) | standalone session endpoints in `http/app.ts` and protocol types in `interfaces/protocol/sessions.ts`; `/1` schemas, Pi `0.87.1` identity and snapshot defaults in `interfaces/protocol/runs.ts`; `missingHistoricalAuthority` in `work/scope.ts`; `legacy-sessions` and `projection-compatibility` test helpers | `standaloneSessionIdSchema` and `standaloneSessionResponseSchema` re-exposed from the root `module.ramify` to descendants; session exposures in `subs/harness/module.ramify` |
+| `autonomous` | `run/restart-import.ts`, `restart-prepared` in `run/log.ts`, `records.ts` and `service.ts`; `run-policy/7` admission and adoption in `records.ts` and `service.ts` | the `restart-import` exposure to parent; adoption hooks called from `task-workflow` |
+| `work-coordination` | continuity adoption in `capability/policy.ts`; ignored judge bounds in `work/engineer-equipment.ts`; boundary check in `work/inherited-scope.ts` | judge construction contract with `task-execution` |
+| `task-workflow` | `adoptContinuity` and `effectivePolicy` in `steps/manual.ts` and `steps/runner.ts`; judge bounds in `steps/run.ts` and `sessions/single.ts`; manifest-less scope caller in `steps/runner.ts` | policy contract with `autonomous`; `invocationScope` contract with `kpi` |
+| `task-execution` | `/1` manifest default and intent readers in `delivery/delivered-manifest.ts` and `session-operations.ts`; Pi `0.87.1` in `records.ts` and `observations.ts`; judge options in `submissions.ts` | manifest schema consumed by projections and metrics; observation identity consumed by `kpi` |
+| `kpi` | `scope-size/1` in `run-records.ts`, `capture.ts`, `metrics.ts`; fallback inputs in `measurement/inputs.ts` | `invocationScope` signature used by `task-workflow` |
+| `agent/pi` | `0.87.1` in `preservation.ts`; port schema in `agent/src/interfaces/port.ts` | transcript identity read by `task-execution` |
+| `nonfunctional` and `acceptance` | `forcedLegacyExhaustion` and `legacyCountClosure` in `rounds.ts`; their plumbing in `nonfunctional-phase.ts` | round decision contract between the two owners |
+| `assistance` | `qualifyLegacyDocuments`, inline-document members and old review markers in `documents.ts` and `assessment.ts` | none outside the owner |
+| `session-store` | unversioned `session-store-commit` replay, `serializedRecords` cache in `session-store.ts` | none outside the owner |
+| `web` | standalone branches in `session-progress.ts` and `session-page.tsx` | receives the session protocol types only |
+| CLI (`src/`) | `--occurrence`, `--expected-revision`, `--repair-file` on `recovery resume` in `cli.ts` and `recovery-client.ts` | none; the executor already ignores them |
+
+Stable contracts: the current forms in the required-behavior table, same-run
+`job-continued` continuation, the manual-run session layout, the current
+policy, and every protected input. Joint discovery is needed only where a
+removed exposure has a consumer in another owner: the successor provenance
+between `autonomous` and `projections`, the session protocol between the root,
+`projections` and `web`, and the judge and scope contracts between
+`task-execution`, `work-coordination` and `task-workflow`.
+
+Existing facilities to use: the current manual-run session reader and body
+readers in `projections`; the exact-schema decoders that already exist beside
+each dual reader; the current builders in tests, which replace old-form
+constructors. The generated architect and API views under `.ramify-architect/`
+and each owner's `src/.ramify/` establish which exposures a consumer may still
+import after a removal; refresh them from the project root after changing a
+`module.ramify`.
+
+Constraining inputs: [Run state and compatibility](../../AGENTS.md#run-state-and-compatibility),
+the harness recovery principles, the test boundaries in
+[docs/testing.spec.md](../../docs/testing.spec.md), and the listed `docs/harness.spec.md`
+contracts that must be updated with the code.
+
+## Proposed iterations
+
+Six iterations, ordered by shared ownership rather than by finding number.
+Iterations 1 and 2 both write in `projections`; run them in sequence or with
+one worker. Iterations 4a and 4b are owner-local and can run in parallel with
+anything. Iteration 6 comes last because it carries the documentation that
+describes the finished state. Module focus never restricts writes; expected
+touched modules are forecasts.
+
+### 1. Sessions from the manual-run layout only
+
+**Outcome and acceptance.** The session browser, HTTP session endpoints,
+protocol session types and web session pages read manual-run sessions only.
+Scenario "The session browser lists manual-run sessions only".
+
+**Focus and rationale.** `projections`, with the harness-root HTTP and protocol
+changes and the web branches in the same assignment: what a session listing is
+must agree across all three, and the fixture trees are shared by root and
+projections tests. This is three quarters of the plan's lines; a single
+oriented worker avoids re-learning the session queries twice.
+
+**Interactions.** Remove `standaloneSessionIdSchema` and
+`standaloneSessionResponseSchema` from the root `module.ramify` re-exposures
+and the matching exposures in `subs/harness/module.ramify`; delete the
+`legacy-sessions` fixtures under both test helpers and the
+`projection-compatibility` helper. Keep transcript paging and shared body and
+file readers.
+
+**Dependencies and verification.** None. Type check, the node and web test
+projects, self check, and an RA assessment of the committed candidate.
+
+### 2. Same-run continuation and captured policy
+
+**Outcome and acceptance.** Run logs are a single run's own events; policies
+are captured, never adopted. Scenarios "Restart continues within the same
+run", "A fresh run captures its policy without an adoption event", "A debugger
+resume does not record policy adoption", and the `run policy` and `run log`
+rows of the outline.
+
+**Focus and rationale.** `autonomous`, because the run log, records and
+service hold both removals and the import exposure. The adoption hooks in
+`work-coordination` and `task-workflow` and the successor provenance in
+`projections` are small consumers of the same contract, so they belong to the
+same assignment rather than to separate workers.
+
+**Interactions.** Delete the `restart-import` exposure to parent and its
+three consumers in `projections`; remove `adoptContinuity`, `effectivePolicy`
+and `continuity-policy-adopted` from `task-workflow` and `work-coordination`;
+narrow the policy schema to `run-policy/8` with required continuity and
+recovery members. Keep `prepareRestart` appending `job-continued`.
+
+**Dependencies and verification.** After iteration 1 if the same
+`projections` files are touched; otherwise independent. Type check, the node
+test project, self check, and an RA assessment.
+
+### 3. One delivery, identity and measurement form
+
+**Outcome and acceptance.** `/2` manifests and intents only, Pi `1.3.0`
+identities only, `scope-size/2` from the delivered manifest only. Scenario
+"Invocation scope comes from the delivered manifest" and the `delivered
+manifest`, `harness operation intent` and `run measurement` rows of the
+outline.
+
+**Focus and rationale.** `task-execution`, where the manifest builder, intent
+reader and observation records live, with `kpi` and `agent/pi` in the same
+assignment: the identity strings and the manifest schema are one contract
+seen from three sides, and the `invocationScope` caller in `task-workflow` is
+a one-line consumer change.
+
+**Interactions.** Remove the `/1` helper default and old-form constructors;
+tighten the protocol schemas in `interfaces/protocol/runs.ts` for manifests,
+intents and observation identity; drop the package, plan-ID and brief
+arguments of `invocationScope`; update `docs/metrics/session-observations.md`.
+
+**Dependencies and verification.** Independent of 1 and 2. Coordinate the
+`runs.ts` edits with iteration 6 by sequence. Type check, the node test
+project, self check, and an RA assessment.
+
+### 4a. Assistance reads current captures only
+
+**Outcome and acceptance.** The `assisted review` row of the outline; current
+candidate-source verification and current-run finding reconciliation remain.
+
+**Focus and rationale.** `assistance`, owner-local; nothing outside the owner
+consumes the removed members.
+
+**Dependencies and verification.** Independent; parallel with any iteration.
+Type check, the owner's tests, self check, and an RA assessment.
+
+### 4b. Session-store replay of the current transaction only
+
+**Outcome and acceptance.** The `session-store transaction` row of the
+outline; CAS, ownership validation and optional-context handling remain.
+
+**Focus and rationale.** `session-store`, owner-local.
+
+**Dependencies and verification.** Independent; parallel with any iteration.
+Type check, the owner's tests, self check, and an RA assessment.
+
+### 5. Rounds and judges without retired limits
+
+**Outcome and acceptance.** Scenario "A repaired last round continues"; judges
+take no bound and expose no exhaustion; engineer equipment and manual sessions
+construct them without bounds.
+
+**Focus and rationale.** `nonfunctional` with `acceptance` for the rounds, and
+`task-execution` with `work-coordination` and `task-workflow` for the judges.
+These are two small contracts, each shared by two or three owners; one worker
+holding both avoids two separate handoffs over a few dozen lines each.
+
+**Interactions.** Round decision contract between `nonfunctional` and
+`acceptance`; judge construction between `task-execution` and its two callers.
+Remove dead `endedAs` callbacks that depended on exhaustion.
+
+**Dependencies and verification.** Independent of 1 to 4. Type check, the
+node test project, self check, and an RA assessment.
+
+### 6. Protocol, scope, CLI and documentation
+
+**Outcome and acceptance.** Scenarios "Run snapshots always carry breakpoint
+and repair state" and "Recovery resume accepts only the fields the executor
+reads"; the `write scope` row of the outline; the required documentation
+changes; the structural evidence in the constraints.
+
+**Focus and rationale.** Harness root, where the protocol schemas, `work/scope.ts`
+and the CLI live, plus `projections` for `snapshot.ts` and
+`work-coordination` for `inherited-scope.ts`. Grouping the finishing edits with
+the documentation lets one worker verify the identifier list and write the
+spec, README and Plan 45 notes against the final state.
+
+**Interactions.** `interfaces/protocol/runs.ts` after iteration 3; the
+inherited-scope consumer of the assignment boundary; `cli.ts` and
+`recovery-client.ts` for the recovery fields.
+
+**Dependencies and verification.** After 1 to 5. Type check, full `npm test`,
+self check, the configured audit, the identifier grep, and the final
+cumulative RA assessment against the whole plan.
+
+## Verification and completion
+
+Each iteration ends with the worker's own verification named above and an RA
+assessment of its committed candidate; findings are decided before the next
+dependent iteration starts. Completion is the final cumulative assessment of
+the whole plan against the required behavior and acceptance, with the full
+test suite, self check and configured audit passing, the identifier list
+yielding no matches outside `docs/`, and the two fixture trees and the
+compatibility helper gone. Documentation under `docs/` that records history is
+not rewritten.
+
 ## Context and recommendations
 
 Verified current producers, from the inventory report:
@@ -282,9 +480,6 @@ Verified current producers, from the inventory report:
 
 Optional suggestions, not requirements:
 
-- Order the work by size. The standalone-session reader and its fixtures are
-  three quarters of the total and touch projections, HTTP, protocol and web
-  together; a capability architect across those owners fits it.
 - The manifest helper can take the schema from a single constant rather than a
   parameter once `/1` is gone.
 - Where a test only needed an old-form constructor to reach a current
