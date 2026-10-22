@@ -19,6 +19,9 @@ Rules this skill enforces, in priority order:
 4. This repository never asserts the behavior of ramify-audit, Ramify,
    Cucumber, Vitest, Node, the kernel or an SDK; one named canary per
    dependency.
+5. No test waits on the wall clock: timing uses controlled clocks or
+   observable ordering (`docs/testing.spec.md`). A real wait is fixed, not
+   tolerated.
 
 Read [references/reasons.md](references/reasons.md) for each reason's rule,
 owner, detection and traps before classifying.
@@ -34,8 +37,9 @@ python3 .claude/skills/test-pruning/scripts/suite-durations.py --out <scratch>/d
 It reads `reports/audit/agent-tests.txt` from the newest `refs/audited/by-tree`
 report commit (or `--ref <commit>`, `--text <file>`) and prints the tier
 table, the costliest files with layer flags, cumulative share, cost by
-directory and the slowest tests. Summed file-seconds depend on the worker
-count the audit used, so compare shares and ranks across runs, not seconds.
+directory and the slowest tests, and names every test over 30 s as a
+real-wait suspect (R10). Summed file-seconds depend on the worker count the
+audit used, so compare shares and ranks across runs, not seconds.
 A healthy shape: the in-memory tier holds most tests at a few percent of the
 time; nine percent of tests taking ninety percent of the time is inverted.
 

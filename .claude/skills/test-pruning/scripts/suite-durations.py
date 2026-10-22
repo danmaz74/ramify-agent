@@ -151,6 +151,11 @@ def main():
         print(f'{s:6.1f}s {p} :: {t[:100]}')
     print(f'\ntests >= 5 s: {sum(1 for s, _, _ in slow if s >= 5)}, >= 1 s: {sum(1 for s, _, _ in slow if s >= 1)}')
 
+    suspects = [(s, p, t) for s, p, t in slow if s >= 30]
+    print(f'\n== real-wait suspects: {len(suspects)} tests over 30 s (R10: a single test this long waits on the wall clock until shown otherwise) ==')
+    for s, p, t in suspects:
+        print(f'{s:6.1f}s {p} :: {t[:100]}')
+
     if args.out:
         os.makedirs(args.out, exist_ok=True)
         with open(os.path.join(args.out, 'file-durations.tsv'), 'w', encoding='utf8') as f:

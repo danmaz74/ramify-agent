@@ -6,7 +6,7 @@ Section codes match `scripts/find-candidates.py --reason`.
 
 Contents: R1 scenario twins · R2 boundary workflow wrappers · R3 other tools ·
 R4 multi-layer duplicates · R5 sweeps · R6 compatibility · R7 doubles ·
-R8 locks · R9 dead · Not a reason
+R8 locks · R9 dead · R10 real waits · Not a reason
 
 ## R1. Vitest copies of Cucumber scenarios
 
@@ -201,10 +201,37 @@ a serialized blob unless a consumer's behavior depends on it. TypeScript
   is a decision for the user that also changes that spec sentence; list it,
   do not prune it.
 
+## R10. Tests that wait on the wall clock
+
+Rule: `docs/testing.spec.md`: timing rules use controlled clocks or
+observable ordering, never elapsed time. A test that sleeps, polls with a
+long deadline, or carries a minutes-long timeout pays real seconds on every
+audit and proves nothing a fake clock could not.
+
+- Fix, never keep as is: `setTimeout`/sleep of a second or more; a scripted
+  `stall` of a second or more; `until`/`waitFor` deadlines in minutes; a test
+  timeout argument of 60 s or more; a `beforeAll` timeout in minutes. Replace
+  with `vi.useFakeTimers()` plus `advanceTimersByTimeAsync`, or wait on the
+  event the test actually needs. The owner is the same test on a controlled
+  clock (the `run-bounds` fake-timer cases are the pattern).
+- Detect: the measured side is the reliable one. `suite-durations.py` names
+  every test over 30 s as a real-wait suspect; a single test over a minute
+  is one until shown otherwise. The static side, R10, lists sleeps and
+  stalls of a second or more in files that never call `vi.useFakeTimers`,
+  and test timeout caps of five minutes or more. A `timeout` option passed to
+  a spawned process or a configured `timeoutMs` under test is a cap, not a
+  wait, and is not listed.
+- Trap: a long timeout is sometimes a safety net on a CPU-heavy composed run
+  rather than a wait. Confirm with the measured duration: a 180 s timeout on
+  a 6 s test is noise, a 15 minute test is a wait. A production settle bound
+  expiring (`stopSettleMs`) is fixed in the test's policy, not by a longer
+  timeout.
+
 ## Not a reason
 
 - Cost alone. A slow test with a unique claim stays; fix the mechanism (an
-  unread policy delay, whole-journal cloning, an unmocked store) instead.
+  unread policy delay, whole-journal cloning, an unmocked store, or an R10
+  wall-clock wait) instead.
 - A plan number in the file name. Rename, do not delete.
 - A boundary witness under ten seconds with a true native claim.
 - A failing or flaky test. Fix it; a flake hides a timing or ordering defect

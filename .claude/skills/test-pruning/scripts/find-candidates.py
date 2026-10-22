@@ -14,6 +14,7 @@ root. Reasons match references/reasons.md:
   R7 doubles            tests whose subject is a test double
   R8 locks              enum, constant, schema-shape and prose assertions
   R9 dead               registry mismatches, env-gated files, missing paths
+  R10 real-waits        sleeps, stalls, long deadlines and minutes-long timeouts without fake timers
 
 Usage:
   find-candidates.py                 all reasons, markdown to stdout
@@ -41,6 +42,9 @@ LEGACY = re.compile(r'\b(legacy|compatib|backward|no longer (fires|applies|limit
 OTHER_TOOL = re.compile(r'ramify-audit \d|vitest\.mjs|--project boundaries|toThrow\([^)]*(circular|BigInt)|SIGKILL cannot|reserveTokens: \d|execFile\(\{[^}]*timeout|worktree prune')
 SPAWN = re.compile(r"src/main\.ts|main\.ts'|\bexecFile\(|\bspawn\(")
 CANARY = re.compile(r'\bcanary\b', re.I)
+WAIT = re.compile(r'''setTimeout\(\s*(?:resolve|\w+)\s*,\s*(\d[\d_]*)\s*\)|\bstall\b[^\n]{0,40}?\bms:\s*(\d[\d_]*)|\b(?:sleep|delay|wait)\(\s*(\d[\d_]*)\s*\)''')
+TEST_TIMEOUT = re.compile(r'''\}\s*,\s*(\d[\d_]*)\s*\)\s*;?\s*$''', re.M)
+FAKE_TIMERS = re.compile(r'vi\.useFakeTimers\(')
 ENV_GATE = re.compile(r'\b(describe|test|it)\.(skip|skipIf|runIf)\(|process\.env\.[A-Z_]+\s*\?\s*(test|describe|it)\b')
 
 
@@ -257,6 +261,20 @@ def main():
                     if not os.path.exists(ref):
                         items.append(f'`scripts/browser-acceptance/{name}` points at missing `{ref}`')
         section('R9 dead, vacuous or mis-registered', items)
+
+    if wanted('R10'):
+        items = []
+        for f, src in sources.items():
+            fake = bool(FAKE_TIMERS.search(src))
+            for m in WAIT.finditer(src):
+                ms = int(next(g for g in m.groups() if g).replace('_', ''))
+                if ms >= 1000 and not fake:
+                    items.append(f'`{f}:{line_of(src, m.start())}` waits {ms / 1000:g} s on the wall clock: {m.group(0)[:50]}')
+            for m in TEST_TIMEOUT.finditer(src):
+                ms = int(m.group(1).replace('_', ''))
+                if ms >= 300_000:
+                    items.append(f'`{f}:{line_of(src, m.start())}` test or hook timeout cap of {ms / 1000:g} s; a cap, not a wait, unless the measured duration is near it')
+        section('R10 wall-clock waits (sleeps and stalls without fake timers; fix with fake timers or an awaited event) and test timeout caps of five minutes or more (cross-check against measured durations before acting)', items)
 
 
 if __name__ == '__main__':
