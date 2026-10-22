@@ -225,7 +225,7 @@ import { processGroupIdentity } from '../../../evidence/src/run-command.js';
 
 /** One durable boundary a test can freeze the run at, as a crash would. */
 export interface RunServiceOptions {
-  /** Explicit run format for scripted qualification; installed production capture remains legacy until full integration. */
+  /** Explicit run format; absent production capture starts with the complete descriptive contract. */
   readonly identityContract?: IdentityContract | undefined;
   /** External command execution. Tests script outcomes; actual process tests use the default. */
   readonly commandExecution?: CommandRunner | undefined;
@@ -855,8 +855,7 @@ export class AutonomousRunService {
    */
   static async open(options: RunServiceOptions): Promise<{ service: AutonomousRunService; recovery: RunRecoveryReport }> {
     if (options.policy !== undefined) throw new Error('Production run policy is fixed; a caller cannot inject a policy');
-    if (options.identityContract === 'descriptive') throw new Error('Descriptive run capture is unavailable until its remaining producers and consumers are integrated');
-    const service = new AutonomousRunService(options, createCapabilityWorkflow());
+    const service = new AutonomousRunService({ ...options, identityContract: options.identityContract ?? 'descriptive' }, createCapabilityWorkflow());
     const recovery = await service.load();
     return { service, recovery };
   }
@@ -1074,7 +1073,7 @@ export class AutonomousRunService {
 
   /** The run's review requests and coverage, from its log; undefined for an unknown run. */
   reviews(planId: string, runId: string, workItem?: string): { readonly coverage: ReviewCoverage; readonly requests: ReturnType<typeof unsettledRequests> } | undefined {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     if (run === undefined) return undefined;
     const requests = [...reviewStateOf(run.log.events).values()].filter(request => workItem === undefined || request.workItem === workItem);
@@ -1221,8 +1220,11 @@ export class AutonomousRunService {
   // Loading and recovery
 
   private readonly refusedPolicies = new Map<string, string>();
+  private readonly refusedIdentityContracts = new Map<string, string>();
 
-  private refuseEarlierPolicy(planId: string, runId: string): void {
+  private refuseUnavailableRun(planId: string, runId: string): void {
+    const contract = this.refusedIdentityContracts.get(key(planId, runId));
+    if (contract !== undefined) throw new CommandRejection('unsupported-version', `Run identity contract ${contract} is not supported; the retained run cannot continue`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
     const recorded = this.refusedPolicies.get(key(planId, runId));
     if (recorded !== undefined) throw new CommandRejection('unsupported-version', `Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
   }
@@ -1252,6 +1254,15 @@ export class AutonomousRunService {
           this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run policy ${recorded}`);
           report.skipped.push(key(planId, jobId));
           this.warn(`Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
+          continue;
+        }
+        const identityContract = (parsed as { identityContract?: unknown }).identityContract;
+        if (identityContract !== undefined && identityContract !== 'legacy' && identityContract !== 'descriptive') {
+          const recorded = typeof identityContract === 'string' ? identityContract : JSON.stringify(identityContract) ?? String(identityContract);
+          this.refusedIdentityContracts.set(key(planId, jobId), recorded);
+          this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run identity contract ${recorded}`);
+          report.skipped.push(key(planId, jobId));
+          this.warn(`Run identity contract ${recorded} is not supported; the retained run cannot continue`);
           continue;
         }
         const record = runRecordSchema.parse(parsed);
@@ -1628,14 +1639,14 @@ export class AutonomousRunService {
   }
 
   getRun(planId: string, runId: string): RunSnapshot | undefined {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     return run && structuredClone(runSnapshot(run.record, run.log.events));
   }
 
   /** Current debugger state, independent of the ordinary run snapshot. Inspection invokes no model. */
   debugState(planId: string, runId: string): BreakpointState | null {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     if (!run || run.log.terminal || run.stopRequested || !run.debugPause) return null;
     return structuredClone({ ...run.debugPause, cursor: run.log.version });
@@ -1643,13 +1654,13 @@ export class AutonomousRunService {
 
   /** The run's events, exactly as its log holds them. */
   events(planId: string, runId: string) {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     return structuredClone(this.runs.get(key(planId, runId))?.log.events);
   }
 
   /** The record of one run, for a caller that reads what it was started with. */
   recordOf(planId: string, runId: string): RunRecord | undefined {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     return structuredClone(this.runs.get(key(planId, runId))?.record);
   }
 
@@ -1659,7 +1670,7 @@ export class AutonomousRunService {
    * caller receives the replay, and nothing it does with it reaches the log.
    */
   committed(planId: string, runId: string) {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     return run && structuredClone({ record: run.record, directory: run.directory, entries: run.log.ledger.replay() });
   }
@@ -1675,7 +1686,7 @@ export class AutonomousRunService {
     runId: string,
     change: { readonly cause: CheckFindingCause; readonly commands: readonly CheckFindingCommand[] },
   ): Promise<CheckFindingCommit | undefined> {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     if (run === undefined) return undefined;
     const committed = await this.commitCheckFindings(run, () => ({
@@ -1693,7 +1704,7 @@ export class AutonomousRunService {
    * unknown run.
    */
   checkFindings(planId: string, runId: string, query: CheckFindingQueryInput): CheckFindingSelection | undefined {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     return run && structuredClone(selectCheckFindings(checkFindingStateOf(run.log.ledger), query));
   }
@@ -1732,7 +1743,7 @@ export class AutonomousRunService {
 
   /** Settles when the run's driver has nothing left to do. For tests and shutdown. */
   async settled(planId: string, runId: string): Promise<void> {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     if (run) await run.idle();
   }
@@ -1806,6 +1817,7 @@ export class AutonomousRunService {
   }
 
   async restartInspection(planId: string, sourceRunId: string): Promise<RestartInspection | null> {
+    this.refuseUnavailableRun(planId, sourceRunId);
     const run = this.runs.get(key(planId, sourceRunId));
     if (!run) return null;
     const blockers = await this.continuationBlockers(run);
@@ -1821,6 +1833,7 @@ export class AutonomousRunService {
 
   /** Legacy command name: continue the existing task without copying its history. */
   private async prepareRestart(command: Extract<RunCommand, { type: 'prepare-restart' }>, contentHash: string): Promise<Receipt> {
+    this.refuseUnavailableRun(command.payload.planId, command.payload.jobId);
     const run = this.runs.get(key(command.payload.planId, command.payload.jobId));
     if (!run) throw new CommandRejection('not-found', 'The retained run is unavailable');
     this.commands.requireVersion(command, run.log.version);
@@ -1978,6 +1991,7 @@ export class AutonomousRunService {
     const { manifest: promptManifest, packages } = await loadPromptPackages({
       ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }),
       capabilityWorkflow: this.workflow !== null,
+      identityContract: this.options.identityContract ?? 'legacy',
     });
     let manifest;
     try {
@@ -1986,7 +2000,8 @@ export class AutonomousRunService {
       if (error instanceof EvidenceUnavailableError) throw new CommandRejection('unavailable', error.message);
       throw error;
     }
-    const policy = (this.options.policy ?? ((root: string) => defaultRunPolicy({ projectRoot: root })))(this.projectRoot);
+    const policy = (this.options.policy ?? ((root: string) => defaultRunPolicy({ projectRoot: root,
+      identityContract: this.options.identityContract ?? 'legacy' })))(this.projectRoot);
     if (!supportedCapabilityPolicy(policy.version)) {
       throw new CommandRejection('conflict', `Run policy ${policy.version} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
     }
@@ -2090,7 +2105,7 @@ export class AutonomousRunService {
 
   private async messageDebug(command: Extract<RunCommand, { type: 'debug-message' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId, pauseId, expectedRevision, message: text } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const receipt = await run.mutex.run(async () => {
@@ -2150,7 +2165,7 @@ export class AutonomousRunService {
 
   private async resumeDebug(command: Extract<RunCommand, { type: 'debug-resume' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId, pauseId, expectedRevision } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const receipt = await run.mutex.run(async () => {
@@ -2177,7 +2192,7 @@ export class AutonomousRunService {
 
   private async stop(command: Extract<RunCommand, { type: 'stop-job' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const receipt = await run.mutex.run(async () => {
@@ -2274,7 +2289,7 @@ export class AutonomousRunService {
    */
   private async approve(command: Extract<RunCommand, { type: 'approve-analysis' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId, reviewer, note } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const receipt = await run.mutex.run(async () => {
@@ -2317,7 +2332,7 @@ export class AutonomousRunService {
    */
   private async checkFindingCommand(command: CheckFindingUserCommand, contentHash: string): Promise<Receipt> {
     const { planId, jobId } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const at = this.now();
@@ -2631,7 +2646,7 @@ export class AutonomousRunService {
 
   private async resumeRecovery(command: Extract<RunCommand, { type: 'resume-recovery' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan ${planId}`);
     const receipt = await run.mutex.run(async () => {
@@ -2686,7 +2701,8 @@ export class AutonomousRunService {
 
   private async startRecoveredDriver(run: Run): Promise<void> {
     if (this.ignoring(run) || !this.options.agent) return;
-    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
+    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }),
+      capabilityWorkflow: this.workflow !== null, identityContract: run.record.identityContract ?? 'legacy' });
     run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
     let baseline: MeasurementSnapshot;
     const baselinePath = runLayout.measurement(snapshotId(1));

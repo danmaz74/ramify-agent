@@ -43,6 +43,7 @@ const forkProcedureFile = fileURLToPath(new URL('./global-fork.procedure.md', im
 const localSystemFile = fileURLToPath(new URL('./local-architect.system.md', import.meta.url));
 const localProcedureFile = fileURLToPath(new URL('./local-architect.procedure.md', import.meta.url));
 const capabilityLocalProcedureFile = fileURLToPath(new URL('./local-architect-capability.procedure.md', import.meta.url));
+const descriptiveLocalProcedureFile = fileURLToPath(new URL('./local-architect-descriptive.procedure.md', import.meta.url));
 const reconciliationProcedureFile = fileURLToPath(new URL('./reconciliation.procedure.md', import.meta.url));
 /** The write-scope section every architect procedure that assigns a scope includes as `{{writeScope}}`. */
 const writeScopeSectionFile = fileURLToPath(new URL('./write-scope.procedure.md', import.meta.url));
@@ -152,8 +153,10 @@ export type ExtractionTurn = 'intake' | 'principles' | 'check';
 
 export interface PromptPackageOptions {
   readonly skillDirectory?: string | undefined;
-  /** Set only by the internal capability test composition before rollout. */
+  /** Selects the run's capability workflow or a retained contract-only workflow. */
   readonly capabilityWorkflow?: boolean | undefined;
+  /** The captured run contract; descriptive capability runs can accept an agreement task. */
+  readonly identityContract?: 'legacy' | 'descriptive' | undefined;
 }
 
 /** The versions of the packages this iteration ships. */
@@ -161,6 +164,7 @@ export const initialArchitectPackage = 'initial-architect/7';
 export const catalogExtractorPackage = 'catalog-extractor/2';
 export const globalForkPackage = 'global-fork/8';
 export const localArchitectPackage = 'local-architect/22';
+export const descriptiveLocalArchitectPackage = 'local-architect/23';
 export const contextSelectorPackage = 'context-selector/4';
 export const engineerPackage = 'engineer/18';
 export const capabilityEngineerPackage = 'engineer/19';
@@ -186,7 +190,8 @@ export async function loadPromptPackages(options: PromptPackageOptions = {}): Pr
     ['context-selector', await loadContextSelector(options)],
     ['engineer', await loadEngineer(options)],
     ...(options.capabilityWorkflow !== false ? [['capability-architect', await loadCapabilityArchitect(options)] as const] : []),
-    ...(options.capabilityWorkflow === false ? [['contract-engineer', await loadContractEngineer(options)] as const] : []),
+    ...(options.capabilityWorkflow === false || options.identityContract === 'descriptive'
+      ? [['contract-engineer', await loadContractEngineer(options)] as const] : []),
     ['reviewer', await loadReviewer(options)],
     ['failure-analyst', await loadFailureAnalyst(options)],
     ['nonfunctional-coordinator', await loadNonfunctionalCoordinator(options)],
@@ -279,17 +284,19 @@ function loadGlobalFork(options: PromptPackageOptions): Promise<LoadedPackage> {
  * procedure and a submission of its own, both part of the hash.
  */
 async function loadLocalArchitect(options: PromptPackageOptions): Promise<LoadedPackage> {
+  const descriptiveCapability = options.capabilityWorkflow !== false && options.identityContract === 'descriptive';
   const reconciliation = await readFile(reconciliationProcedureFile, 'utf8');
   const reconciliationSchema = `${JSON.stringify(reconciliationJsonSchema, null, 2)}\n`;
   const workOrientation = await readFile(workOrientationProcedureFile, 'utf8');
   const workOrientationSchema = `${JSON.stringify(workOrientationJsonSchema, null, 2)}\n`;
   const loaded = await loadPackage({
     role: 'local-architect',
-    name: localArchitectPackage,
+    name: descriptiveCapability ? descriptiveLocalArchitectPackage : localArchitectPackage,
     systemFile: localSystemFile,
-    procedureFile: options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
-    schema: options.capabilityWorkflow === false ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,
-    submissionKinds: options.capabilityWorkflow === false
+    procedureFile: descriptiveCapability ? descriptiveLocalProcedureFile
+      : options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
+    schema: options.capabilityWorkflow === false || descriptiveCapability ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,
+    submissionKinds: options.capabilityWorkflow === false || descriptiveCapability
       ? [...localArchitectSubmissionKinds, 'reconciliation', 'work-orientation']
       : ['assign', 'request-placement', 'request-completion', 'unresolved', 'reconciliation', 'work-orientation'],
     extraFiles: [

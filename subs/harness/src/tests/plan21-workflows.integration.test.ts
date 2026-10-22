@@ -243,7 +243,7 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
       }
       return undefined;
     });
-    const opened = await openRuns(root, { production: true, ...external, script: first });
+    const opened = await openRuns(root, { production: true, identityContract: 'legacy', ...external, script: first });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun(plan));
     // Explicitly stop at the correction decision so this native two-run witness
@@ -355,7 +355,7 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
       }
       return undefined;
     });
-    const reopened = await openRuns(root, { production: true, ...external, script: second });
+    const reopened = await openRuns(root, { production: true, identityContract: 'legacy', ...external, script: second });
     cleanups.push(() => reopened.service.close());
     const secondReceipt = await reopened.service.execute(startRun(plan));
     const repairedRun = secondReceipt.jobId;
@@ -527,7 +527,7 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
       }
       return undefined;
     });
-    const opened = await openRuns(root, { production: true, ...external, script });
+    const opened = await openRuns(root, { production: true, identityContract: 'legacy', ...external, script });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun(capabilityPlan));
     const runId = receipt.jobId;
@@ -544,7 +544,7 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
     expect(beforeRestart.filter(event => event.type === 'job-failed'), JSON.stringify(beforeRestart.slice(-12))).toEqual([]);
     await opened.service.close();
 
-    const reopened = await openRuns(root, { production: true, ...external, script });
+    const reopened = await openRuns(root, { production: true, identityContract: 'legacy', ...external, script });
     cleanups.push(() => reopened.service.close());
     // Existing run authority resumes the settled consumer without a repair approval.
     expect(await reopened.service.recoveryInspection(capabilityPlan, runId)).toBeNull();

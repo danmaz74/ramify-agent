@@ -239,7 +239,8 @@ export function constructWorkTurnStep(value: unknown, environment: StepEnvironme
   const submission = {
     toolName: localArchitectToolName,
     description: 'End this turn with the work item\'s result. The harness validates it; an invalid submission is returned with every error and its path, and a valid one ends this invocation.',
-    inputSchema: inputs.capabilityWorkflow ? capabilityLocalArchitectJsonSchema : localArchitectJsonSchema,
+    inputSchema: inputs.capabilityWorkflow && inputs.identityContract !== 'descriptive'
+      ? capabilityLocalArchitectJsonSchema : localArchitectJsonSchema,
     submissionSchema: 'ramify-agent.local-architect-submission/1',
   };
   const task = { kind, goal: inputs.briefing.item.goal, requirements, omit: selected === undefined ? [] : [selected.text] };
@@ -325,7 +326,7 @@ export async function judgeWorkTurn(step: Pick<ConstructedWorkTurnStep, 'inputs'
     readonly previousAssignment?: IterationAssignment | undefined; readonly validatePrevious?: () => Promise<void> }): Promise<WorkTurnJudgement> {
   const evidence = workEvidenceOf(step, context.index);
   const shaped = input as { kind?: unknown; assignment?: { kind?: unknown; revisesContract?: unknown } } | null;
-  const historical = step.inputs.capabilityWorkflow && typeof input === 'object' && input !== null
+  const historical = step.inputs.capabilityWorkflow && step.inputs.identityContract !== 'descriptive' && typeof input === 'object' && input !== null
     && (shaped?.kind === 'yield-for-providers' || shaped?.assignment?.kind === 'contract' || shaped?.assignment?.revisesContract !== undefined);
   const verdict: SubmissionValidation<LocalArchitectSubmission> = historical
     ? { ok: false, errors: [{ path: 'kind', message: 'The contract and provider-yield workflow is historical; use capability requests and scoped assignments' }] }

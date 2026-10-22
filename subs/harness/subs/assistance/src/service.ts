@@ -153,10 +153,21 @@ export class AssistanceService {
   /** Register an execution around the exact conventional plan. Retry returns the same job. */
   async planStart(input: PlanStartRequest): Promise<PlanStartResponse> {
     const request = planStartSchema.parse(input);
+    const identityContract = request.identityContract ?? 'descriptive';
     return this.write(async () => {
-      const command = { commandId: request.commandId, expectedVersion: 0, type: 'plan-start', planId: request.planId, execution: 'assisted', protection: request.protection,
-        ...(request.identityContract === undefined || request.identityContract === 'legacy' ? {} : { identityContract: request.identityContract }) };
-      const admitted = this.commands.admit(command);
+      const earlierShape = { commandId: request.commandId, expectedVersion: 0, type: 'plan-start', planId: request.planId,
+        execution: 'assisted', protection: request.protection };
+      const command = identityContract === 'legacy' ? earlierShape : { ...earlierShape, identityContract };
+      let admitted;
+      try { admitted = this.commands.admit(command); }
+      catch (error) {
+        if (request.identityContract !== undefined || !(error instanceof CommandRejection) || error.code !== 'conflict') throw error;
+        // An omitted contract used to mean legacy. Its accepted command stays
+        // retryable after the fresh default changes, without changing the job.
+        const retained = this.commands.admit(earlierShape);
+        if (retained.kind !== 'repeat') throw error;
+        admitted = retained;
+      }
       if (admitted.kind === 'repeat') {
         const original = [...this.stores.values()].find(store => store.job.jobId === admitted.receipt.jobId);
         if (!original) throw new Error('Accepted registration no longer has its job');
@@ -176,7 +187,7 @@ export class AssistanceService {
         schema: jobSchemaVersion, kind: 'assisted', planId: request.planId, jobId,
         createdAt: this.now().toISOString(), projectRoot: this.projectRoot,
         plan: { path: plan.path, storedAt: 'input/plan.md', sha256: planHash }, protection,
-        ...(request.identityContract === 'descriptive' ? { identityContract: 'descriptive' as const } : {}),
+        ...(identityContract === 'descriptive' ? { identityContract } : {}),
       };
       const accepted = this.commands.accept(command, admitted.contentHash, jobId, 1, this.now());
       const store = await AssistedStore.create(this.projectRoot, job, plan.markdown, accepted);

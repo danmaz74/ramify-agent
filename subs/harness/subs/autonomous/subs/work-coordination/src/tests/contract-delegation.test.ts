@@ -7,7 +7,7 @@ import { scriptedCandidates } from '../../../acceptance/src/tests/helpers/candid
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
-import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
+import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
 import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from './helpers/contracts-git.js';
 import { consumerAgainstFake, consumerAgainstReal, consumerStub, consumerTest as seamConsumerTest,
   contractNeeded as seamContractNeeded, contractWrites as seamContractWrites, established as seamEstablished,
@@ -184,13 +184,27 @@ async function run(
   const after = commits.at(-1)?.commit ?? before;
   const tree = 'a'.repeat(40);
   const git = answeredGit(root, { head: 'revision-00', commits: [materialization, ...commits],
-    previews: [before, before, before, after].map(head => ({ repositoryRoot: root, head, tree })) });
+    ...(options.production === true ? { currentTree: tree }
+      : { previews: [before, before, before, after].map(head => ({ repositoryRoot: root, head, tree })) }) });
   const opened = await openRuns(root, {
     script: byRole(plan), inputs: treeInputs(), git,
     candidates: scriptedCandidates(root, { [after]: { tree, base: before, files: {}, changes: [] } }),  ...options,
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
+  if (options.production === true) {
+    await until(() => (opened.service.events('review-notes', receipt.jobId) ?? []).some(event =>
+      event.type === 'requirement-verified' || event.type === 'job-failed'), 30_000);
+    const observed = opened.service.events('review-notes', receipt.jobId) ?? [];
+    expect(observed.some(event => event.type === 'job-failed'), JSON.stringify(observed.slice(-10))).toBe(false);
+    // This fixture has no implemented feature binding for the unrelated final
+    // scenario gate. Stop after the real provider and consumer handback.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const current = opened.service.getRun('review-notes', receipt.jobId)!;
+      try { await opened.service.execute(stopRun('review-notes', receipt.jobId, current.version)); break; }
+      catch (error) { if (!String(error).includes('at version') || attempt === 19) throw error; }
+    }
+  }
   await opened.service.settled('review-notes', receipt.jobId);
   return { ...opened, git, runId: receipt.jobId };
 }
@@ -486,10 +500,16 @@ test.each(['fake-backed', 'access-only'] as const)(
     if (spec.submission.name === 'submit_catalog_check') return submit({ corrections: [], entries: [], scenarios: [] });
     return typeof plan === 'function' ? plan(spec) : plan;
   };
-  const { service, runId, git, agent } = await run(root, {}, commits, { identityContract: 'descriptive', script });
+  const { service, runId, git, agent } = await run(root, {}, commits, { production: !access, identityContract: access ? 'descriptive' : undefined, script });
+  if (!access) {
+    const captured = await readJson<{ identityContract: string; prompts: Record<string, unknown>; policy: { context: Record<string, unknown> } }>(root, runId, runLayout.record);
+    expect(captured.identityContract).toBe('descriptive');
+    expect(captured.prompts['contract-engineer']).toBeDefined();
+    expect(captured.policy.context['contract-engineer']).toBeDefined();
+  }
   expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure,
     sessions: agent?.sessions.map(session => ({ role: session.spec.role, submission: session.spec.submission.name,
-      verdicts: session.verdicts })) })).toBe('completed');
+      verdicts: session.verdicts })) })).toBe(access ? 'completed' : 'stopped');
   const log = await events(root, runId);
   expect(log.find(event => event.type === 'contract-registered')?.data).toMatchObject({
     contract: names.contract, obligation: names.obligation, requirements: [names.requirement],
@@ -521,7 +541,8 @@ test.each(['fake-backed', 'access-only'] as const)(
   expect(log.filter(event => ['work-item-yielded', 'provider-conformed', 'work-item-resumed', 'requirement-verified'].includes(event.type))
     .map(event => event.type)).toEqual(['work-item-yielded', 'provider-conformed', 'work-item-resumed', 'requirement-verified']);
   await service.close();
-  const reopened = await openRuns(root, { identityContract: 'descriptive', script, inputs: treeInputs(), git });
+  const reopened = await openRuns(root, { production: !access, identityContract: access ? 'descriptive' : undefined,
+    script, inputs: treeInputs(), git });
   cleanups.push(() => reopened.service.close());
   expect(reopened.service.events('review-notes', runId)?.filter(event => event.type === 'contract-registered')).toHaveLength(1);
   expect(reopened.service.committed('review-notes', runId)?.entries.flatMap(line => line.transaction.records)
@@ -539,7 +560,8 @@ test.each(['fake-backed', 'access-only'] as const)(
     expect(reopened.service.events('review-notes', runId)?.filter(event => event.type === 'evidence-reopened'))
       .toMatchObject([{ data: { contract: names.accessContract, obligation: null, requirements: [] } }]);
   }
-  git.assertAnswered();
+  if (access) git.assertAnswered();
+  else expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01', 'revision-02', 'revision-03']);
 }, 90_000);
 
 test.each(['split', 'replacement', 'merge'] as const)(

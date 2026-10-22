@@ -154,6 +154,8 @@ function npmCommand(cwd: string, args: readonly string[], timeoutMs: number): Ch
 
 export interface RunPolicyOptions {
   readonly projectRoot: string;
+  /** A descriptive capability run may accept a contract agreement task. */
+  readonly identityContract?: 'legacy' | 'descriptive' | undefined;
   /** The `ramify` executable, for a test that supplies its own. */
   readonly ramify?: string | undefined;
   /** An endpoint directory for the harness's own Ramify daemon, where it has one. */
@@ -170,7 +172,7 @@ export function defaultRunPolicy(options: RunPolicyOptions): RunPolicy {
   const { projectRoot } = options;
   const ramify = options.ramify ?? ramifyExecutable;
   const ramifySettings: Record<string, string> = options.endpointDirectory === undefined ? {} : { RAMIFY_ENDPOINT_DIR: options.endpointDirectory };
-  const context = Object.fromEntries(roles.filter(role => role !== 'contract-engineer')
+  const context = Object.fromEntries(roles.filter(role => role !== 'contract-engineer' || options.identityContract === 'descriptive')
     .map(role => [role, defaultContextPolicies[role]])) as RunPolicy['context'];
   return runPolicySchema.parse({
     version: runPolicyVersion,

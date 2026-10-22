@@ -241,6 +241,11 @@ export async function unservedRun(projectRoot: string, planId: string, runId: st
       [shown, `declares ${typeof declared === 'string' ? declared : 'no schema'}`],
     );
   }
+  const identityContract = (document as { identityContract?: unknown } | null)?.identityContract;
+  if (identityContract !== undefined && identityContract !== 'legacy' && identityContract !== 'descriptive') {
+    const recorded = typeof identityContract === 'string' ? identityContract : JSON.stringify(identityContract) ?? String(identityContract);
+    return new ProjectionError('unsupported-version', `Run identity contract ${recorded} is not supported; the retained run cannot continue`, [shown]);
+  }
   const parsed = runRecordSchema.safeParse(document);
   // A valid record the service does not hold yet is a run being created.
   if (parsed.success) return null;

@@ -604,9 +604,13 @@ describe('the prompt package', () => {
       .toEqual(['failure-analysis.procedure.md', 'failure-analysis.schema.json', 'failure-analyst.system.md']);
   });
 
-  test('new runs offer capability coordination without the retired contract package', async () => {
+  test('capability runs add a contract agreement package only under the descriptive contract', async () => {
     const { manifest } = await loadPromptPackages();
     expect(manifest.packages['contract-engineer']).toBeUndefined();
+    const descriptive = await loadPromptPackages({ capabilityWorkflow: true, identityContract: 'descriptive' });
+    expect(descriptive.manifest.packages['contract-engineer']?.package).toBe('contract-engineer/5');
+    expect(descriptive.manifest.packages['local-architect']?.package).toBe('local-architect/23');
+    expect(descriptive.manifest.packages['local-architect']?.submissionKinds).toContain('yield-for-providers');
     expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/10');
     expect(manifest.packages['context-selector']?.package).toBe('context-selector/4');
     expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/5');

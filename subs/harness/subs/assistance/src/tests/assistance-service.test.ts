@@ -40,20 +40,23 @@ const request = (jobId: string, commandId = 'assess-1') => ({ planId: 'sample', 
   candidate: other, kind: 'iteration' as const, brief: 'Implemented the first change.', acceptance: ['scenario-1'], requirementDocuments: [], commandId });
 
 describe('assisted jobs and assessments', () => {
-  it('captures descriptive identity explicitly while absent and legacy registrations keep their original bytes', async () => {
+  it('defaults fresh registrations to descriptive while explicit legacy and retained records keep their original bytes', async () => {
     const { root, open } = await fixture();
     let service = await open();
-    const legacy = await service.planStart({ planId: 'sample', commandId: 'legacy-start' });
+    const legacy = await service.planStart({ planId: 'sample', commandId: 'legacy-start', identityContract: 'legacy' });
+    const fresh = await service.planStart({ planId: 'sample', commandId: 'fresh-start' });
     const named = await service.planStart({ planId: 'sample', commandId: 'named-start', identityContract: 'descriptive' });
     const jobFile = (id: string) => join(root, 'plans', 'sample', '.harness', 'jobs', id, 'job.json');
     expect(JSON.parse(await readFile(jobFile(legacy.jobId), 'utf8'))).not.toHaveProperty('identityContract');
     expect(JSON.parse(await readFile(jobFile(named.jobId), 'utf8'))).toHaveProperty('identityContract', 'descriptive');
-    await expect(service.planStart({ planId: 'sample', commandId: 'named-start' })).rejects.toThrow('different command');
+    expect(JSON.parse(await readFile(jobFile(fresh.jobId), 'utf8'))).toHaveProperty('identityContract', 'descriptive');
+    await expect(service.planStart({ planId: 'sample', commandId: 'named-start', identityContract: 'legacy' })).rejects.toThrow('different command');
     await service.close();
     services.splice(services.indexOf(service), 1);
     service = await open();
     expect(service.assistedJob('sample', named.jobId).identityContract).toBe('descriptive');
     expect(service.assistedJob('sample', legacy.jobId).identityContract).toBeUndefined();
+    expect(await service.planStart({ planId: 'sample', commandId: 'legacy-start' })).toEqual(legacy);
   });
   it('captures a plan once, returns the original registration on retry after reopening, and discovers mixed kinds', async () => {
     const { root, open } = await fixture();

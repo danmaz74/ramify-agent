@@ -426,7 +426,7 @@ test('CA33: production composition captures policy/8 and delegates without contr
 
 
   const opened = await openGuardedRuns(fixture.root, boundaryAnswers, {
-    production: true, ...boundaryAnswers.options, script: script([]), inputs: treeInputs(),
+    production: true, identityContract: 'legacy', ...boundaryAnswers.options, script: script([]), inputs: treeInputs(),
 
   });
   cleanups.push(() => opened.service.close());

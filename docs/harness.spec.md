@@ -50,8 +50,12 @@ An implementation run records its identity contract at capture. An absent
 contract denotes a legacy run. Legacy continuation uses its numbered catalog,
 scenario and work identities and its original submission fields; accepted
 records, features and reports are read without rewriting their bytes. The
-installed fresh-run default remains legacy until every producer and consumer
-of the descriptive contract is compatible.
+installed fresh-run default is descriptive. An explicit legacy start remains
+legacy, and continuation always uses the contract captured by that run. A fresh
+assisted plan start also defaults to descriptive; a retained assisted job with
+an absent contract remains legacy. If a retained run declares a contract this
+harness cannot read, run queries and commands identify that contract and leave
+its records unchanged.
 
 Under the descriptive contract, initial analysis proposes draft keys for
 functional requirements, context, entry capabilities, hypotheses and scenarios
@@ -75,6 +79,10 @@ obligation `/2`, consumer requirement `/2` and derived work item `/2` shapes.
 Record paths encode their IDs. Legacy agreements retain their original
 submission `/2`, contract `/2`, provider obligation `/1`, consumer requirement
 `/1` and work item `/1` shapes and IDs.
+The descriptive capability run captures the contract engineer and the module
+architect's provider-yield action when an engineer names an existing capability
+whose provider agreement is needed. A legacy capability run retains its earlier
+prompt set and does not accept that agreement path.
 
 Public analysis entries expose `functionalRequirementIds`,
 `functionalAcceptanceIds` and `contextIds` for descriptive runs; legacy entries

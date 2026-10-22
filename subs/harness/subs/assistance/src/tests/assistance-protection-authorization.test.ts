@@ -92,7 +92,7 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
       } }) };
   const service = await AssistanceService.open(serviceOptions);
   services.push(service);
-  const job = await service.planStart({ planId: 'sample', commandId: 'start' });
+  const job = await service.planStart({ planId: 'sample', commandId: 'start', identityContract: 'legacy' });
   const assess = async (base: string, candidate: string, kind: 'iteration' | 'final' = 'iteration') => {
     const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base, candidate,
       kind, ...(kind === 'final' ? { planBaseline: baseline } : {}), brief: 'Keep the feature returning 2.', acceptance: ['The feature returns 2.'],

@@ -39,7 +39,7 @@ async function setup(commits: Record<string, ScriptedCommit>, deps: Omit<Assessm
   const service = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
     resolveCommit: async (_root, revision) => revision === 'HEAD' ? baseline : revision, currentHead: async () => baseline, isCleanRepository: async () => true, assessor: createAssessor({ ...deps, candidates }) });
   services.push(service);
-  const job = await service.planStart({ planId: 'sample', commandId: 'start', ...(identityContract === 'descriptive' ? { identityContract } : {}) });
+  const job = await service.planStart({ planId: 'sample', commandId: 'start', identityContract });
   const assess = async (candidate: string, base: string, commandId: string, extra: Record<string, unknown> = {}) => {
     const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base, candidate,
       kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId, ...extra });
@@ -245,7 +245,7 @@ describe('assisted assessment pipeline with real service records', () => {
         throw new Error('Interrupted after accepted reconciliation');
       } });
     services.push(old);
-    const job = await old.planStart({ planId: 'sample', commandId: 'start' });
+    const job = await old.planStart({ planId: 'sample', commandId: 'start', identityContract: 'legacy' });
     const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
       kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'assess' });
     await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
@@ -529,7 +529,7 @@ describe('assisted assessment pipeline with real service records', () => {
         throw new Error('Legacy executor stopped');
       } });
     services.push(old);
-    const job = await old.planStart({ planId: 'sample', commandId: 'register-legacy' });
+    const job = await old.planStart({ planId: 'sample', commandId: 'register-legacy', identityContract: 'legacy' });
     const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first, kind: 'iteration',
       brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'legacy-assess' });
     await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
@@ -635,7 +635,7 @@ describe('assisted assessment pipeline with real service records', () => {
           throw new Error('Legacy executor stopped after accepted judgment');
         } });
       services.push(old);
-      const job = await old.planStart({ planId: 'sample', commandId: 'register' });
+      const job = await old.planStart({ planId: 'sample', commandId: 'register', identityContract: 'legacy' });
       const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first, kind: 'iteration',
         brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'assess' });
       await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));

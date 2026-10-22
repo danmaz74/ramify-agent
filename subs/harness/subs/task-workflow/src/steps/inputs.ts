@@ -339,6 +339,8 @@ export const selectorForkSchema = z.object({ ...selectorFields,
 const workTurnFields = {
   consultation: consultationInputsSchema.nullable().optional(),
   ...commonFields,
+  /** Captured only when the work turn can accept descriptive agreement actions. */
+  identityContract: z.enum(['legacy', 'descriptive']).optional(),
   /** A work turn's inputs are built without a run when an authored assignment is judged. */
   run: optionalRunSchema,
   role: z.literal('local-architect'),

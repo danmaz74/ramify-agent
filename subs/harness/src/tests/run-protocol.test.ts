@@ -27,6 +27,7 @@ import { acquireProjectLock } from '../store/lock.js';
 import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
+import { constructedRecord } from './helpers/constructed.js';
 
 /*
  * The run protocol over HTTP, read by a plain Node client: `fetch` and the
@@ -537,6 +538,37 @@ describe('commands over HTTP', () => {
 });
 
 describe('a record of an unsupported version', () => {
+  test('an unavailable retained identity contract stays inspectable and refuses commands without changing the record', async () => {
+    const target = await scriptedTarget();
+    cleanups.push(target.remove);
+    const runId = '20990101T000000Z-abcdef';
+    const path = runPath(target.root, plan, runId, 'job.json');
+    await mkdir(runPath(target.root, plan, runId), { recursive: true });
+    const original = `${JSON.stringify(constructedRecord({ jobId: runId, identityContract: 'future-contract' as 'descriptive' }))}\n`;
+    await writeFile(path, original);
+
+    const server = await serve(target.root);
+    cleanups.push(() => server.close());
+    expect(server.recovery.skipped).toEqual([`${plan}/${runId}`]);
+    const queried = await get(server, protocolPaths.run(plan, runId));
+    expect(queried.status).toBe(422);
+    expect(errorResponseSchema.parse(queried.body).error).toMatchObject({
+      code: 'unsupported-version', message: expect.stringContaining('future-contract'),
+      evidence: [expect.stringContaining(`${runId}/job.json`)],
+    });
+    expect(runListResponseSchema.parse((await get(server, protocolPaths.runs(plan))).body).unserved)
+      .toEqual([{ jobId: runId, path: `plans/${plan}/.harness/jobs/${runId}/job.json`, code: 'unsupported-version',
+        message: expect.stringContaining('future-contract') }]);
+    const inspection = await get(server, protocolPaths.runRestart(plan, runId));
+    expect(inspection.status).toBe(422);
+    expect(errorResponseSchema.parse(inspection.body).error).toMatchObject({ code: 'unsupported-version', message: expect.stringContaining('future-contract') });
+    const stopped = await post(server, { commandId: 'stop-unsupported-contract', expectedVersion: 0,
+      type: 'stop-job', payload: { planId: plan, jobId: runId } });
+    expect(stopped.status).toBe(422);
+    expect(errorResponseSchema.parse(stopped.body).error).toMatchObject({ code: 'unsupported-version', message: expect.stringContaining('future-contract') });
+    expect(await readFile(path, 'utf8')).toBe(original);
+  });
+
   test('surfaces as unsupported-version with evidence, never as an absent run', async () => {
     const target = await scriptedTarget();
     cleanups.push(target.remove);

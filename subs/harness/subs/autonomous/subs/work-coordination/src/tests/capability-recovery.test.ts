@@ -11,7 +11,7 @@ import { type InvocationOutcome } from '../../../../../task-execution/src/record
 import { committedRecords } from '../../../../src/run/committed-records.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { assign, edit, outline, submit, treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
-import { freeze, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
+import { freeze, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 
 import { recoveryBoundaries } from '../../../../../../src/tests/helpers/recovery-boundaries.js';
 import { resetSpawnAttempts, spawnAttempts } from '../../../../../../src/tests/helpers/process-guard.js';
@@ -166,13 +166,14 @@ test('CA05 CA19 CA22 CA32: service restart continues the durable active architec
       const events = await runEventsOnDisk(fixture.root, 'need', runId);
       if (events.at(-1)?.type === 'capability-coordinator-resumed') { frozen = true; await freeze(); }
     } };
-  const first = await openCapabilityRuns(fixture.root, options);
+  const first = await openCapabilityRuns(fixture.root, { ...options, identityContract: 'legacy' });
   const receipt = await first.service.execute(startRun('need'));
+  expect(JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.record), 'utf8')).identityContract).toBe('legacy');
   await until(() => frozen, 30_000);
   await staleCrashLock(fixture.root);
   const before = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
   expect(before.filter(event => event.type === 'capability-delegated')).toHaveLength(1);
-  const second = await openCapabilityRuns(fixture.root, options);
+  const second = await openRuns(fixture.root, { ...options, identityContract: undefined, production: true });
   cleanups.push(() => second.service.close());
   expect(second.recovery.effects, JSON.stringify({ recovery: second.recovery,
     tail: (await runEventsOnDisk(fixture.root, 'need', receipt.jobId)).slice(-8) })).toContainEqual(

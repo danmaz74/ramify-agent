@@ -1676,6 +1676,7 @@ export class WorkCoordination {
         const turn = validateWorkTurnInputs({
           schema: stepInputsSchemaId, role: 'local-architect', phase: 'work-turn', consultation: localConsultationInputs(this.observe().history.events, item.id), run: { planId: this.input.record.planId, runId: this.input.record.jobId },
           work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: this.observe().policy.limits,
+          ...(this.input.record.identityContract === 'descriptive' ? { identityContract: 'descriptive' as const } : {}),
           context: contextPolicyOf(this.observe().policy, 'local-architect'), workingDirectory: this.projectRelative(workingDirectory),
           briefing: workBriefingInputs(briefing),
           ...(contextPackage === undefined ? {} : {

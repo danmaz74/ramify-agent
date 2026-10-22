@@ -5,7 +5,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { acceptanceBoundaries } from '../../../../../../src/tests/helpers/acceptance-boundaries.js';
 import { assign, edit, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
-import { runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
+import { openRuns, runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 import { commitCapabilityTransition } from '../../../../src/run/capability-transition.js';
 import { capabilityLayout, descriptiveCapabilityNeedInputSchema, identifyCapabilityNeed, type CapabilityHandback, type CapabilityPlan, type CapabilityRequest, type CapabilityTask } from '../capability/records.js';
@@ -151,9 +151,16 @@ test.each(['request', 'example', 'none'] as const)(
       } }, []);
     },
   };
-  const opened = await openCapabilityRuns(fixture.root, options);
+  const open = () => collision === 'none'
+    ? openRuns(fixture.root, { ...options, identityContract: undefined, production: true })
+    : openCapabilityRuns(fixture.root, options);
+  const opened = await open();
   service = opened.service; cleanups.push(() => service!.close());
   const receipt = await service.execute(startRun('need'));
+  if (collision === 'none') {
+    const job = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.record), 'utf8')) as Record<string, unknown>;
+    expect(job.identityContract).toBe('descriptive');
+  }
   const expectedRequests = collision === 'none' ? 1 : 2;
   await until(() => (service!.events('need', receipt.jobId) ?? []).filter(event => event.type === 'capability-requested').length >= expectedRequests
     || (service!.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
@@ -190,7 +197,7 @@ test.each(['request', 'example', 'none'] as const)(
   const acceptedBytes = await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.submission(acceptedInvocation)));
   await service.close();
   restarted = true;
-  const reloaded = await openCapabilityRuns(fixture.root, options);
+  const reloaded = await open();
   service = reloaded.service;
   await until(() => (service!.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-started'
     && event.data.role === 'engineer').length > expectedRequests
