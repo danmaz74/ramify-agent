@@ -9,8 +9,6 @@ export type Outcome = ClosedRound['outcome'];
 /** Durable records are supplied by the harness; this owner never reads the ledger. */
 export interface RoundDecisionInput {
   nfrIds: readonly string[];
-  /** Legacy captured policy value, retained for replay compatibility; it does not limit continuation. */
-  maxRounds: number;
   closedRounds: readonly ClosedRound[];
   /** Operator repairs invalidate candidate applicability after a closed round. */
   externalContinuations?: readonly number[];
@@ -31,11 +29,6 @@ export type RoundDecision =
   | { action: 'repair-or-close'; round: number; unresolved: string[] }
   | { action: 'close'; round: number; outcome: 'satisfied' | 'continue' | 'exhausted'; unresolved: string[] }
   | { action: 'unavailable'; round: number };
-
-/** Older runs recorded count-forced exhaustion after a repaired last round. */
-const forcedLegacyExhaustion = (record: ClosedRound, legacyMaxRounds: number): boolean =>
-  record.outcome === 'exhausted' && record.repair !== null && record.reassessment !== null
-    && record.number === legacyMaxRounds;
 
 function requireAssessment(
   assessment: Assessment,
@@ -73,13 +66,12 @@ export function decideNonfunctionalRound(input: RoundDecisionInput): RoundDecisi
       throw new Error('closed repair requires reassessment, and reassessment requires repair');
     }
     if (index < closedRounds.length - 1 && record.outcome !== 'continue'
-      && !forcedLegacyExhaustion(record, input.maxRounds) && !external.has(record.number)) {
+      && !external.has(record.number)) {
       throw new Error('only a continuing round can have a successor');
     }
   });
   const lastOutcome = closedRounds.at(-1)?.outcome;
   if (lastOutcome !== undefined && lastOutcome !== 'continue'
-    && !forcedLegacyExhaustion(closedRounds.at(-1)!, input.maxRounds)
     && !external.has(closedRounds.length)) {
     if (candidate || initial || investigated || repairCommitted || reassessment) {
       throw new Error('a closed loop cannot have an open round');

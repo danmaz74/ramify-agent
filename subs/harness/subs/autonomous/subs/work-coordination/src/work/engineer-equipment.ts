@@ -42,8 +42,6 @@ export interface EngineerEquipmentInputs {
   readonly ramify: RamifyCli;
   /** The project's own commands: the hook check's timeout. */
   readonly commands: ProjectCommands & { readonly hookTimeoutMs: number };
-  /** How many invalid inputs one tool accepts in a turn before the session is ended. */
-  readonly bounds: { readonly rejectedToolInputsPerTurn: number };
   /** The module inventory as the project stands now, or null when it cannot be refreshed. */
   readonly refresh: () => Promise<ArchitectIndex | null>;
   /** The module inventory last refreshed, which names the owner of each guarded target. */
@@ -95,7 +93,6 @@ export interface EngineerEquipment {
   /** Same declarations as equip, without allocating tool or mutation state. */
   readonly preview: { readonly builtinTools: typeof engineerBuiltinTools; readonly tools: readonly ReturnType<typeof shellToolDeclaration>[] };
   /** Historical compatibility; invalid tool inputs never exhaust a task. */
-  readonly exhausted: () => boolean;
   /** The Ramify findings this session's edits introduced that no later check has cleared. */
   readonly openFindings: () => readonly HookFinding[];
   /**
@@ -404,7 +401,6 @@ export function engineerEquipment(inputs: EngineerEquipmentInputs): EngineerEqui
   return {
     equip,
     preview: { builtinTools: engineerBuiltinTools, tools: [shellToolDeclaration(maxTimeoutMs)] },
-    exhausted: () => shellJudge?.exhausted === true,
     openFindings: () => seen?.open() ?? [],
     findingsAtCompletion,
     completionCheck: () => completion,

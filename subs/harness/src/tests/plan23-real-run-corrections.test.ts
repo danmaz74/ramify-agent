@@ -46,7 +46,7 @@ async function equipment(path: string, id: string, ramify: Parameters<typeof eng
   outputPath: Parameters<typeof engineerEquipment>[0]['outputPath'] = (kind, invocation, number) => join(path, 'plans/.harness', `${invocation}-${kind}-${number}.json`)) {
   const observations = await ObservationLog.open(join(path, 'plans/.harness', `${id}.jsonl`));
   const tools = engineerEquipment({ projectRoot: path, ramify, commands: { hookTimeoutMs: 1000 } as never,
-    bounds: { rejectedToolInputsPerTurn: 3 }, refresh: async () => null, index: () => null,
+    refresh: async () => null, index: () => null,
     guarded: { revision: 1, projectRoot: path, roots: [path], files: [], placement: async paths => paths.map(path => ({ path, allowed: true })) },
     scopeRevision: 1, outputPath,
     submissions: { legalOutcomes: ['completion-proposed', 'partial', 'unsuitable'], completionOutcome: 'completion-proposed' } });
@@ -165,7 +165,7 @@ describe('Plan23 composed run equipment', () => {
   test('three overlapping same-name shell calls retain their original guard IDs in shell and mutation records', async () => {
     const path = await root(); const gate = deferred(); const started = deferred(); const observations = await ObservationLog.open(join(path, 'plans/.harness/shells.jsonl'));
     const ramify = new FakeRamifyCli(); let executes = 0;
-    const tools = engineerEquipment({ projectRoot: path, ramify, commands: { hookTimeoutMs: 1000 } as never, bounds: { rejectedToolInputsPerTurn: 3 }, refresh: async () => null, index: () => null,
+    const tools = engineerEquipment({ projectRoot: path, ramify, commands: { hookTimeoutMs: 1000 } as never, refresh: async () => null, index: () => null,
       guarded: { revision: 1, projectRoot: path, roots: [path], files: [], placement: async paths => paths.map(path => ({ path, allowed: true })) }, scopeRevision: 1,
       outputPath: (kind, invocation, number) => join(path, 'plans/.harness', `${invocation}-${kind}-${number}`),
       commandExecution: async request => { executes++; if (executes === 1) { started.resolve(); await gate.promise; } await writeFile(join(path, `effect-${executes}`), request.argv[2]!); return commandResult(request, { stdout: 'ok' }); } });

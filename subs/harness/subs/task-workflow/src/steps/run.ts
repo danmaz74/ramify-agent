@@ -628,7 +628,6 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
     workingDirectory: step.equipment.workingDirectory,
     ramify,
     commands: run.record.policy.commands,
-    bounds: step.limits,
     refresh: context.refresh,
     index: context.index,
     guarded,
@@ -685,7 +684,6 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
     readModules: assignment.scope.read,
     equip: tools.equip,
     bounds: step.bounds,
-    endedAs: () => (tools.exhausted() ? 'invalid-submission' : undefined),
   };
   return {
     // The runner is generic in the submission; the module engineer's request is one of its values.

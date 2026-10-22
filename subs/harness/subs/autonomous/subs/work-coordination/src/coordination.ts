@@ -3373,7 +3373,6 @@ export class WorkCoordination {
       projectRoot: this.projectRoot,
       ramify: this.options.ramify,
       commands: this.observe().policy.commands,
-      bounds: this.observe().policy.limits,
       refresh: () => this.ports.refreshIndex(),
       index: () => this.observe().index,
       submissions: { legalOutcomes: this.workflow === null ? ['completion-proposed', 'partial', 'unsuitable', 'contract-needed']
@@ -7076,7 +7075,7 @@ export class WorkCoordination {
         inputSchema: z.toJSONSchema(compactionReviewSchema) as JsonSchema, submissionSchema: 'ramify-agent.compaction-review/1',
         validate: input => validateAgainst(compactionReviewSchema, input), scope: { write: null, measurement: null, size: null },
         equip: session => ({ ...nonfunctionalEquipment({ projectRoot: this.projectRoot, snapshotTools: [],
-          commandExecution: this.options.commandExecution, rejectedToolInputsPerTurn: this.observe().policy.limits.rejectedToolInputsPerTurn,
+          commandExecution: this.options.commandExecution,
           outputFile: call => this.path(runLayout.shellOutput(session.invocation, call)) }, session),
           builtinTools: ['read', 'write', 'edit', 'grep', 'find', 'ls'] }),
       });

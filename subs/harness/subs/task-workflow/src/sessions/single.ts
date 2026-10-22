@@ -201,7 +201,7 @@ export function sessionAcceptance(kind: EngineerSubmission['kind'], gate: boolea
 
 /** Runs one engineer session on one module, from the lock to the records. */
 export async function runSingleSession(options: SingleSessionOptions): Promise<SingleSessionResult> {
-  if (options.policy !== undefined && options.policy.version !== 'run-policy/7' && options.policy.version !== 'run-policy/8') return notStarted(`Run policy ${options.policy.version} is unsupported; a compatible policy is required`);
+  if (options.policy !== undefined && options.policy.version !== 'run-policy/8') return notStarted(`Run policy ${options.policy.version} is unsupported; run-policy/8 is required`);
   if (options.recoveryResume && !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/u.test(options.recoveryResume.runId)) return notStarted('The recovery run identifier is invalid');
   if (options.prompt.trim() === '') return notStarted('The prompt is empty, so there is no goal to work on.');
   let projectRoot: string;
@@ -413,7 +413,6 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     workingDirectory,
     ramify,
     commands: policy.commands,
-    bounds: limits,
     refresh,
     index: () => index,
     guarded,
@@ -464,7 +463,6 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     writer: true,
     guarded,
     equip: tools.equip,
-    endedAs: () => (tools.exhausted() ? 'invalid-submission' : undefined),
     keep: () => finished('not-kept'),
     startingTree: { dirty: alreadyChanged.length > 0, changed: alreadyChanged.map(path => path.split(sep).join('/')).sort() },
     signal: options.signal,

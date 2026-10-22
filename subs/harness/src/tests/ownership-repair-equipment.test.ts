@@ -17,7 +17,7 @@ async function setup(placement?: GuardedScope['placement']) {
     placement: placement ?? (async () => { throw new OwnershipUnavailableError(failure); }), historicalPlacement: async paths => ({ assignment: 'a'.repeat(64), reference: null, decisions: paths.map(path => ({ path, allowed: true })) }),
     retainUnavailable: async () => ({ hash: 'f'.repeat(64), bytes: 22 }) };
   const observations = await ObservationLog.open(join(root, 'plans/.harness/observations.jsonl'));
-  const inputs = { projectRoot: root, ramify: new FakeRamifyCli(), guarded, commands: { hookTimeoutMs: 1000 } as never, bounds: { rejectedToolInputsPerTurn: 3 }, refresh: async () => null, index: () => null, scopeRevision: 1,
+  const inputs = { projectRoot: root, ramify: new FakeRamifyCli(), guarded, commands: { hookTimeoutMs: 1000 } as never, refresh: async () => null, index: () => null, scopeRevision: 1,
     outputPath: (kind: string, invocation: string, number: number) => join(root, 'plans/.harness', `${kind}-${invocation}-${number}.json`) };
   const equip = () => engineerEquipment(inputs).equip({ invocation: 'engineer', observations, callId: () => 'call', reminders: () => [] });
   return { root, observations, equip };

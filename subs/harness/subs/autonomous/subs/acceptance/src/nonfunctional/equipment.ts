@@ -12,12 +12,10 @@ export function nonfunctionalEquipment(input: {
   readonly commandExecution?: CommandRunner | undefined;
   readonly registerProcessGroup?: ((pid: number, identity: string | null) => Promise<void>) | undefined;
   readonly commandTimeoutMs?: number | undefined;
-  readonly rejectedToolInputsPerTurn: number;
   readonly outputFile: (call: number) => string;
 }, session: EquipContext): Equipment {
   const maxTimeoutMs = input.commandTimeoutMs ?? shellMaxTimeoutMs;
   const judge = new ToolInputJudge({ tool: shellToolName,
-    bound: input.rejectedToolInputsPerTurn,
     validate: value => validateAgainst(shellInputSchemaFor(maxTimeoutMs), value),
     observations: session.observations,
   });
