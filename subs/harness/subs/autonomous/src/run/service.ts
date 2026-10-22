@@ -178,7 +178,7 @@ import { CommittingGates, type GateHost } from '../../subs/acceptance/src/commit
 import { capturePlan, EvidenceUnavailableError, type RunInputs } from './inputs.js';
 import { extractPlanScenarios } from '../../../scenarios/src/extraction.js';
 
-import { RunLog, type RunEvent, type RunEventInput } from './log.js';
+import { CorruptRunLogError, RunLog, type RunEvent, type RunEventInput } from './log.js';
 import { ObservationLog } from '../../../task-execution/src/observations.js';
 
 import { defaultRunPolicy, withProjectTimeouts } from '../../../../src/run/policy.js';
@@ -1244,6 +1244,9 @@ export class AutonomousRunService {
     if (format !== undefined) throw new CommandRejection('unsupported-version', `Run record format ${format} is not supported; the retained run cannot continue`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
     const recorded = this.refusedPolicies.get(key(planId, runId));
     if (recorded !== undefined) throw new CommandRejection('unsupported-version', `Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
+    const unreadable = this.restartUnavailable.get(key(planId, runId));
+    if (unreadable !== undefined) throw new CommandRejection('unreadable', unreadable, undefined,
+      [`plans/${planId}/.harness/jobs/${runId}/${runLayout.events}`]);
   }
 
   private async load(): Promise<RunRecoveryReport> {
@@ -1296,7 +1299,9 @@ export class AutonomousRunService {
         loaded = new Run(record, directory, log, base, this.newWriter(record.policy, () => this.coordination(loaded).accepted()));
         run = loaded;
       } catch (error) {
-        this.restartUnavailable.set(key(planId, jobId), `Retained source is unreadable or incompatible: ${message(error)}`);
+        this.restartUnavailable.set(key(planId, jobId), error instanceof CorruptRunLogError
+          ? `Run ${jobId} requires a log of its current single-run events: ${message(error)}`
+          : `Run ${jobId} cannot be loaded: ${message(error)}`);
         report.skipped.push(key(planId, jobId));
         this.warn(`Skipping ${directory}: ${message(error)}. It declares ${declaredSchemaOf(await readJson(recordPath))}.`);
         continue;

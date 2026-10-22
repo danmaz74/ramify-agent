@@ -582,3 +582,30 @@ describe('a record of an unsupported version', () => {
     expect(errorResponseSchema.parse((await get(server, protocolPaths.run(plan, '20990101T000000Z-000000'))).body).error.code).toBe('not-found');
   }, 60_000);
 });
+
+test('a current job with an invalid own log reports that log at the command and query boundaries', async () => {
+  const target = await scriptedTarget();
+  cleanups.push(target.remove);
+  const runId = '20990101T000000Z-abcdef';
+  const directory = runPath(target.root, plan, runId);
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, runLayout.record), `${JSON.stringify(constructedRecord({ jobId: runId }))}\n`);
+  const at = '2026-09-21T08:00:00.000Z';
+  const retired = { sequence: 1, at, event: { sequence: 1, jobId: runId, at, type: ['restart', 'prepared'].join('-'), data: {} }, records: [] };
+  await writeFile(join(directory, runLayout.events), `${JSON.stringify(retired)}\n`);
+
+  const server = await serve(target.root);
+  cleanups.push(() => server.close());
+  expect(server.recovery.skipped).toEqual([`${plan}/${runId}`]);
+  const command = await post(server, { type: 'prepare-restart', commandId: 'continue-invalid-log', expectedVersion: 1, payload: { planId: plan, jobId: runId } });
+  expect(command.status).toBe(422);
+  const refusal = errorResponseSchema.parse(command.body).error;
+  expect(refusal).toMatchObject({ code: 'unreadable', message: expect.stringContaining(runLayout.events), evidence: expect.arrayContaining([`plans/${plan}/.harness/jobs/${runId}/${runLayout.events}`]) });
+
+  const query = await get(server, protocolPaths.run(plan, runId));
+  expect(query.status).toBe(422);
+  expect(errorResponseSchema.parse(query.body).error).toMatchObject({ code: 'unreadable', evidence: expect.arrayContaining([`plans/${plan}/.harness/jobs/${runId}/${runLayout.events}`]) });
+  const list = runListResponseSchema.parse((await get(server, protocolPaths.runs(plan))).body);
+  expect(list.unserved).toEqual([expect.objectContaining({ jobId: runId, code: 'unreadable', message: expect.stringContaining(runLayout.events) })]);
+  expect(await readFile(join(directory, runLayout.events), 'utf8')).toBe(`${JSON.stringify(retired)}\n`);
+}, 60_000);

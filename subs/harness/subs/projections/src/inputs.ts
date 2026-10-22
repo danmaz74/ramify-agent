@@ -6,7 +6,8 @@ import { hypothesisSchema, type Hypothesis } from '../../autonomous/subs/plannin
 import { jobIdSchema, planIdSchema } from '../../../src/interfaces/protocol/ids.js';
 import { jobSchemaVersion, jobsDirectory } from '../../../src/jobs/records.js';
 import { runPolicyVersion } from '../../../src/run/policy.js';
-import type { RunEvent } from '../../autonomous/src/run/log.js';
+import { runEventSchema, type RunEvent } from '../../autonomous/src/run/log.js';
+import { readJsonLines } from '../../ledger/src/jsonl.js';
 import { gateAttemptSchema, gateAuditOutcomeSchema } from '../../autonomous/subs/acceptance/src/gate-records.js';
 import { runLayout, runRecordSchema, type RunRecord } from '../../autonomous/src/run/records.js';
 import { type EntryAssignments } from '../../autonomous/subs/planning/src/records.js';
@@ -236,7 +237,23 @@ export async function unservedRun(projectRoot: string, planId: string, runId: st
   }
   const parsed = runRecordSchema.safeParse(document);
   // A valid record the service does not hold yet is a run being created.
-  if (parsed.success) return null;
+  if (parsed.success) {
+    const logPath = join(jobsDirectory(projectRoot, planId), runId, runLayout.events);
+    const shownLog = relative(projectRoot, logPath);
+    try {
+      const lines = await readJsonLines(logPath);
+      for (const [index, raw] of lines.records.entries()) {
+        const line = z.object({ sequence: z.int().positive(), event: runEventSchema }).passthrough().safeParse(raw);
+        if (!line.success || line.data.sequence !== index + 1 || line.data.event.sequence !== index + 1 || line.data.event.jobId !== runId) {
+          return new ProjectionError('unreadable', `${shownLog}:${index + 1} is not an event of run ${runId} in the current log format`,
+            [shownLog, `line ${index + 1}`]);
+        }
+      }
+    } catch (error) {
+      return new ProjectionError('unreadable', `${shownLog} cannot be read: ${error instanceof Error ? error.message : String(error)}`, [shownLog]);
+    }
+    return null;
+  }
   return new ProjectionError(
     'unreadable',
     `${shown} declares ${jobSchemaVersion} and does not satisfy it`,
