@@ -113,7 +113,8 @@ simply not read.
   qualifier and `git-exact-text/1` reviews, and the `recovery resume`
   occurrence, revision and repair fields. Leave them as they are, including in
   `subs/harness/src/interfaces/protocol/runs.ts`, where only the manifest,
-  intent and observation schemas change under this plan.
+  intent, observation and scope-size view schemas change under this plan
+  (see [requirements-2026-10-22b.md](requirements-2026-10-22b.md)).
 - The following remain effective and are not in scope: stored role spellings
   `global-fork`, `contract-engineer` and `nonfunctional-repair-engineer`, which
   current code still writes; `restart prepare` and `restart inspect` as same-run
@@ -269,8 +270,8 @@ seen from three sides, and the `invocationScope` caller in `task-workflow` is
 a one-line consumer change.
 
 **Interactions.** Remove the `/1` helper default and old-form constructors;
-tighten the manifest, intent and observation-identity schemas in
-`interfaces/protocol/runs.ts` and leave the rest of that file alone; drop the
+tighten the manifest, intent, observation-identity and scope-size view schemas
+in `interfaces/protocol/runs.ts` and leave the rest of that file alone; drop the
 package, plan-ID and brief arguments of `invocationScope`; update
 `docs/metrics/session-observations.md`.
 
