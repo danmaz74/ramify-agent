@@ -57,11 +57,9 @@ test('unavailable ownership cannot add an owner, extra target, or guarded author
   expect((await checkContinuationScope(capture, { ...body, authorizations: [{ path: 'config.json', rationale: 'repair' }] }, previous)).scope).toBeNull();
 });
 
-test('missing previous assignment, old capture, and missing retained blob name the absent authority', async () => {
+test('missing previous assignment and missing retained blob name the absent authority', async () => {
   const { body, capture, previous } = await fixture();
   expect((await checkContinuationScope(capture, body, undefined)).errors[0]?.message).toContain('verified previous assignment');
-  const old = structuredClone(previous); delete old.scope.resolved.boundaryVersion;
-  expect((await checkContinuationScope(capture, body, old)).errors[0]?.message).toContain('verified non-included child');
   const missing = await checkContinuationScope(capture, body, previous, async () => { throw new OwnershipAuthorityError('retained blob is missing', 'missing'); });
   expect(missing.scope).toBeNull(); expect(missing.errors[0]?.message).toContain('retained blob is missing');
 });

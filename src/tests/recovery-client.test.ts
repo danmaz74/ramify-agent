@@ -10,7 +10,7 @@ function options(action: string, flags: string[] = []): RecoveryOptions {
   if (command.command !== 'recovery') throw new Error('Expected recovery');
   return command.recovery;
 }
-const resume = () => options('resume', ['--occurrence=rec-1', '--expected-revision=2', '--command-id=c1']);
+const resume = () => options('resume', ['--command-id=c1']);
 const inspection = recoveryInspectionSchema.parse({ planId: 'p', runId: 'r1', cursor: 8, occurrenceId: 'rec-1', revision: 2,
   state: 'paused', boundary: { kind: 'invocation', role: 'global-fork', invocation: 'inv-3' },
   evidence: { classification: 'transport', diagnostic: 'Connection closed', retryAfterMs: 100 }, group: 1, automaticAttempts: 2,
@@ -29,11 +29,12 @@ function script(answers: Array<{ path: string; body?: unknown; status?: number; 
   return { fetch: fetcher, bodies, done: () => expect(answers).toEqual([]) };
 }
 
-test('continuation requires command identity and accepts optional legacy fields', () => {
+test('continuation requires command identity and refuses ignored fields', () => {
   expect(options('inspect')).toMatchObject({ action: 'inspect', timeoutMs: 10000 });
   expect(options('resume', ['--command-id=c1'])).toMatchObject({ commandId: 'c1' });
-  expect(resume()).toMatchObject({ occurrenceId: 'rec-1', expectedRevision: 2, commandId: 'c1' });
+  expect(resume()).toMatchObject({ commandId: 'c1' });
   for (const args of [['recovery', 'other', ...base], ['recovery', 'resume', ...base], ['recovery', 'inspect', ...base, '--repair-file=x'],
+    ...['--occurrence=rec-1', '--expected-revision=2', '--repair-file=repair.json'].map(flag => ['recovery', 'resume', ...base, '--command-id=c1', flag]),
     ['recovery', 'inspect', ...base, '--timeout-ms=0'], ['recovery', 'inspect', ...base, '--server=http://other'],
     ['recovery', 'inspect', ...base, '--timeout-ms=2147483648']]) expect(() => parseCommandLine(args)).toThrow(UsageError);
 });
@@ -45,21 +46,16 @@ test('inspection exposes retained attempts, paths and bounds without sending a c
   expect(s.bodies).toEqual([]); s.done();
 });
 
-test('repair declaration crosses resume with stable command identity; uncertain retry sends identical payload', async () => {
+test('uncertain retry sends the same task and stable command identity', async () => {
   const s = script([{ path: '/api/v1/commands', lost: true }, { path: '/api/v1/commands', status: 202, body: { receipt } }]);
-  const command = { ...resume(), repairFile: 'repair.json' };
-  const repair = { areas: ['environment'], explanation: 'Credentials corrected outside the run', evidence: ['operator-repair'] };
-  const ports = { ...s, readText: async () => JSON.stringify(repair) };
-  expect(await runRecoveryCommand(command, ports)).toMatchObject({ exitStatus: 2, output: { commandId: 'c1', occurrenceId: 'rec-1', revision: 2, uncertain: true } });
-  expect(await runRecoveryCommand(command, ports)).toMatchObject({ exitStatus: 0, output: { receipt } });
+  const command = resume();
+  expect(await runRecoveryCommand(command, s)).toMatchObject({ exitStatus: 2, output: { commandId: 'c1', uncertain: true } });
+  expect(await runRecoveryCommand(command, s)).toMatchObject({ exitStatus: 0, output: { receipt } });
   expect(s.bodies[0]).toEqual(s.bodies[1]);
-  expect(s.bodies[0]).toMatchObject({ type: 'resume-recovery', payload: { repair, expectedRevision: 2 } }); s.done();
+  expect(s.bodies[0]).toEqual({ type: 'resume-recovery', commandId: 'c1', expectedVersion: 0, payload: { planId: 'p', jobId: 'r1' } }); s.done();
 });
 
-test('malformed declarations never send a command and stale occurrence refusals are definite', async () => {
-  const fetcher = vi.fn<typeof fetch>();
-  expect(await runRecoveryCommand({ ...resume(), repairFile: 'repair.json' }, { fetch: fetcher, readText: async () => '{"areas":[],"explanation":""}' })).toMatchObject({ exitStatus: 2, output: { uncertain: false } });
-  expect(fetcher).not.toHaveBeenCalled();
+test('server refusals are definite', async () => {
   const s = script([{ path: '/api/v1/commands', status: 409, body: { error: { code: 'stale-version', message: 'Recovery occurrence changed' } } }]);
   const result = await runRecoveryCommand(resume(), s);
   expect(result).toMatchObject({ exitStatus: 2, output: { uncertain: false, error: { code: 'stale-version' } } });

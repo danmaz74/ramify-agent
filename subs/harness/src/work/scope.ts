@@ -79,12 +79,11 @@ export const writeScopeSchema = z.object({
   rationale: text,
   /** Captured canonical paths, including validated absent bootstrap paths under a real ancestor. */
   resolved: z.object({
-    /** Absent in older records: live ownership still works, historical repair does not. */
-    boundaryVersion: z.literal('ramify-agent.assignment-boundary/1').optional(),
+    boundaryVersion: z.literal('ramify-agent.assignment-boundary/1'),
     /** Original verified assignment whose restrictions an inherited repair retains. */
     sourceAuthority: sha256Schema.optional(),
     /** Existing declarations in explicitly included independent projects; no contents or module model. */
-    nestedDeclarations: z.array(z.object({ path: text, canonical: text }).strict()).optional(),
+    nestedDeclarations: z.array(z.object({ path: text, canonical: text }).strict()),
     roots: z.array(text),
     files: z.array(text),
     view: viewIdentitySchema,
@@ -526,19 +525,10 @@ export function guardedScopeOf(scope: WriteScope, denied: readonly string[] = []
     projectRoot: scope.resolved.ownership.root };
 }
 
-/** Named missing authority for older records, without inventing historical permission. */
-export function missingHistoricalAuthority(scope: WriteScope): readonly string[] {
-  return scope.resolved.boundaryVersion !== 'ramify-agent.assignment-boundary/1' ? ['verified non-included child directory capture']
-    : scope.resolved.included.some(entry => entry.kind === 'owned-nested-project') && scope.resolved.nestedDeclarations === undefined
-      ? ['existing declarations in included nested projects'] : [];
-}
-
 /** Permission projection from verified historical tables, bounded by the original assignment. */
 export function historicalScopeDecisions(scope: WriteScope, retained: {
   readonly latest: OwnershipAnswer | null; readonly paths: ReadonlyMap<string, boolean>; readonly reference: OwnershipEvidenceReference | null;
 }, paths: readonly string[]): ReadonlyArray<{ readonly path: string; readonly allowed: boolean }> {
-  const missing = missingHistoricalAuthority(scope);
-  if (missing.length > 0) throw new OwnershipAuthorityError(`Historical repair lacks ${missing.join(', ')}`, 'missing');
   const captured = scope.resolved.ownership;
   const latest = retained.latest ?? { schemaVersion: captured.provider, ramifyVersion: captured.ramifyVersion, root: captured.root,
     inputId: captured.inputId, scope: { configuration: captured.configuration, ownership: { modules: captured.modules, exclusions: captured.exclusions } }, paths: [] };
@@ -568,7 +558,7 @@ export function assignmentBoundaryPathRefusal(scope: WriteScope, path: string): 
   if (segments.some(segment => segment === '..') || path.startsWith('/') || path.includes('\\')) return 'lies outside the captured logical project';
   if ((path === 'module.ramify' || path.endsWith('/module.ramify'))
     && !scope.resolved.ownership.modules.some(module => path === posix.join(module.directory === '.' ? '' : module.directory, 'module.ramify'))
-    && !scope.resolved.nestedDeclarations?.some(entry => entry.path === path || entry.canonical === resolve(scope.resolved.ownership.root, path))
+    && !scope.resolved.nestedDeclarations.some(entry => entry.path === path || entry.canonical === resolve(scope.resolved.ownership.root, path))
     && !scope.bootstrap.some(entry => path === posix.join(entry.directory, 'module.ramify'))) {
     return 'would create a module description without accepted bootstrap authority';
   }

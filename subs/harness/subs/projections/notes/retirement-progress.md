@@ -457,7 +457,7 @@ move or private-projector exposure.
 
 Parent continuity-projections.test.ts was compared to the existing child file:
 normalizing only projection/parent protocol/run import paths gave identical
-complete text (shell 012). Its four cases include both run-policy/7 and /8,
+complete text (shell 012). Its four cases include both retired and current run-policy forms,
 resource-pending suspended/no-rewrite behavior, rereading after owner completion,
 native context/compaction unknown quantities and historical missing-native
 transcripts. The child passed before parent duplicate deletion. No unique case

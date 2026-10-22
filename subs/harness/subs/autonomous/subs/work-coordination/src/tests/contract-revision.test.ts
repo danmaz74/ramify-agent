@@ -396,7 +396,7 @@ describe('the reopening is derived, and it supersedes what the previous revision
       read: [],
       bootstrap: [],
       rationale: 'r',
-      resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: [], files: [], view: { status: 'placeholder' } },
+      resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: [], files: [], view: { status: 'placeholder' } },
     },
     externalCapabilities: [],
     completionEvidence: 'e',

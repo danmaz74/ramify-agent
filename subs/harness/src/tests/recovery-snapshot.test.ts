@@ -27,11 +27,14 @@ test('snapshot exposes settling and paused recovery independently of the ordinar
   }
 });
 
-test('resume and stop clear recovery visibility while historical snapshots retain absent state', async () => {
+test('resume and stop clear recovery visibility while ordinary snapshots carry null state', async () => {
   const resumed = constructedRun([...waiting, { type: 'operation-recovery-resumed', data: { occurrenceId: 'opr-0001', revision: 3, group: 1,
     command: { commandId: 'resume-1', expectedVersion: 0, type: 'resume-recovery', payload: {} } } }]);
   expect((await snapshot(resumed)).recovery).toBeNull();
   const stopped = constructedRun([...waiting, { type: 'job-stopped', data: {} }]);
   expect(await snapshot(stopped)).toMatchObject({ state: 'stopped', phase: 'ended', recovery: null });
-  expect((await snapshot(constructedRun([]))).recovery).toBeNull();
+  const ordinary = await snapshot(constructedRun([]));
+  expect(ordinary.recovery).toBeNull();
+  const { recovery: _omitted, ...withoutRecovery } = ordinary;
+  expect(runSnapshotSchema.safeParse(withoutRecovery).success).toBe(false);
 });

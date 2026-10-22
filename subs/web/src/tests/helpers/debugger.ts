@@ -20,7 +20,7 @@ export function debugSnapshot(extra: Partial<RunSnapshot> = {}): RunSnapshot {
     startedAt: at, updatedAt: at, endedAt: ended ? at : null, failure: null, current: null, waits: [],
     counts: { workItems: 1, completedWorkItems: 0, openRequirements: 0, invocations: 2, readinessAttempts: 1, gateAttempts: 0, scenarios: { pending: 0, bound: 1, done: 0 }, degradedStarts: 0 },
     writer: { held: null, unsettled: null }, review: 'not-reviewed', notices: [], decisionRequests: { open: 0, waiting: false, workItems: [] },
-    planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], breakpoint: 'before-agent:engineer',
+    planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], automaticRepairs: { attempted: 0, refused: 0, incidents: [] }, breakpoint: 'before-agent:engineer', recovery: null,
     ...extra,
   });
 }

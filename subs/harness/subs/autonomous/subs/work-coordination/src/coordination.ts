@@ -416,7 +416,7 @@ import { iterationId } from './work/iterations.js';
 
 
 import { resolveRealTarget } from '../../../../../src/guard/resolve-contained-path.js';
-import { missingHistoricalAuthority, injectionSiteRule, moduleOwning, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles } from '../../../../../src/work/scope.js';
+import { injectionSiteRule, moduleOwning, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles } from '../../../../../src/work/scope.js';
 
 
 import { obligationBriefingLines, obligationsOwnedBy, reportSourceLines, type ObligationActor, type ObligationProjection } from './work/obligations.js';
@@ -5939,7 +5939,7 @@ export class WorkCoordination {
     const records = this.observe().records;
     const result = records.results.get(previous.id);
     if (result?.outcome !== 'partial') return undefined;
-    let authority = missingHistoricalAuthority(previous.scope).join(', ');
+    let authority = '';
     try { await this.ports.ownershipAuthority(previous).read(); }
     catch (error) {
       if (!(error instanceof OwnershipAuthorityError) || error.kind !== 'missing') throw error;

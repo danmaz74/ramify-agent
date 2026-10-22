@@ -97,8 +97,7 @@ export const usage = [
   '  ramify-agent restart <inspect|prepare> --server <url> --plan <id> --run <source-run> [--json] [--timeout-ms <n>]',
   '                       prepare: --expected-version <source-cursor> --command-id <stable-id>. Continues unfinished work in the same run.',
   '  ramify-agent recovery <inspect|resume> --server <url> --plan <id> --run <id> [--json] [--timeout-ms <n>]',
-  '                       resume: --command-id <id>. Continues the pending task; legacy recovery fields are optional.',
-  '                       A repair file declares areas, explanation and optional evidence; exclude credentials.',
+  '                       resume: --command-id <id>. Continues the pending task.',
   '  ramify-agent debug <inspect|message|resume|wait> --server <url> --plan <id> --run <id> [--json] [--timeout-ms <n>]',
   '                       inspect: --pause <id>; message/resume: --pause <id> --expected-revision <n> --command-id <id>',
   '                       message: --message-file <UTF-8 file>; resume: optional --message-file; wait: [--after <cursor>]',
@@ -235,8 +234,7 @@ function parseRestart(rest: readonly string[]): RestartOptions {
 export interface RecoveryOptions {
   readonly action: 'inspect' | 'resume';
   readonly server: string; readonly planId: string; readonly runId: string;
-  readonly occurrenceId?: string; readonly expectedRevision?: number; readonly commandId?: string;
-  readonly repairFile?: string; readonly json: boolean; readonly timeoutMs: number;
+  readonly commandId?: string; readonly json: boolean; readonly timeoutMs: number;
 }
 
 function parseRecovery(rest: readonly string[]): RecoveryOptions {
@@ -247,13 +245,13 @@ function parseRecovery(rest: readonly string[]): RecoveryOptions {
   options(flags, (flag, value, inline, argument) => {
     if (flag in values || flag === '--json' && json) throw new UsageError(`Give ${flag} once`);
     if (flag === '--json' && inline === undefined) json = true;
-    else if (['--server', '--plan', '--run', '--occurrence', '--expected-revision', '--command-id', '--repair-file', '--timeout-ms'].includes(flag)) values[flag] = value();
+    else if (['--server', '--plan', '--run', '--command-id', '--timeout-ms'].includes(flag)) values[flag] = value();
     else throw new UsageError(`Unknown option "${argument}"`);
   });
   for (const flag of ['--server', '--plan', '--run']) if (!values[flag]) throw new UsageError(`recovery ${action} needs ${flag}`);
   if (action === 'resume') {
     if (!values['--command-id']) throw new UsageError('recovery resume needs --command-id');
-  } else if (['--occurrence', '--expected-revision', '--command-id', '--repair-file'].some(flag => values[flag] !== undefined)) {
+  } else if (values['--command-id'] !== undefined) {
     throw new UsageError('recovery inspect takes no mutation options');
   }
   const number = (flag: string, fallback: number): number => {
@@ -263,10 +261,7 @@ function parseRecovery(rest: readonly string[]): RecoveryOptions {
   };
   return { action, server: values['--server']!, planId: values['--plan']!, runId: values['--run']!, json,
     timeoutMs: number('--timeout-ms', 10000),
-    ...(values['--occurrence'] ? { occurrenceId: values['--occurrence'] } : {}),
     ...(values['--command-id'] ? { commandId: values['--command-id'] } : {}),
-    ...(values['--repair-file'] ? { repairFile: values['--repair-file'] } : {}),
-    ...(values['--expected-revision'] ? { expectedRevision: number('--expected-revision', 1) } : {}),
   };
 }
 

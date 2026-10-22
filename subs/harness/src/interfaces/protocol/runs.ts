@@ -142,11 +142,10 @@ export const externalRepairDeclarationSchema = z.object({
 }).strict();
 export type ExternalRepairDeclaration = z.infer<typeof externalRepairDeclarationSchema>;
 
-/** Continue pending work. Legacy occurrence and repair fields remain readable. */
+/** Continue pending work under its recorded execution state. */
 export const recoveryResumeCommandSchema = z.object({
   commandId: commandIdSchema, expectedVersion: jobVersionSchema.default(0), type: z.literal('resume-recovery'),
-  payload: z.object({ planId: planIdSchema, jobId: jobIdSchema, occurrenceId: z.string().min(1).optional(),
-    expectedRevision: z.int().positive().optional(), repair: externalRepairDeclarationSchema.optional() }).strict(),
+  payload: z.object({ planId: planIdSchema, jobId: jobIdSchema }).strict(),
 }).strict();
 export type RecoveryResumeCommand = z.infer<typeof recoveryResumeCommandSchema>;
 
@@ -483,12 +482,12 @@ export const runSnapshotSchema = z.object({
   planDeviations: runPlanDeviationsSchema,
   /** Every environment problem the run reported, in the order the log recorded them. */
   environmentProblems: z.array(runEnvironmentProblemSchema),
-  /** Retained incidents; legacy answers have no automatic repair attempts. */
-  automaticRepairs: automaticRepairsSchema.default({ attempted: 0, refused: 0, incidents: [] }),
-  /** The breakpoint the run was started with, or null. Answers that omit it parse as null. */
-  breakpoint: breakpointSelectorSchema.nullable().default(null),
-  /** Recovery holds the ordinary phase while retaining its unfinished operation. Legacy responses omit it. */
-  recovery: z.object({ occurrenceId: z.string().min(1), revision: z.int().positive(), state: z.enum(['pausing', 'paused']) }).strict().nullable().optional(),
+  /** Retained automatic repair incidents, empty when none were attempted. */
+  automaticRepairs: automaticRepairsSchema,
+  /** The breakpoint the run was started with, or null. */
+  breakpoint: breakpointSelectorSchema.nullable(),
+  /** Recovery holds the ordinary phase while retaining its unfinished operation. */
+  recovery: z.object({ occurrenceId: z.string().min(1), revision: z.int().positive(), state: z.enum(['pausing', 'paused']) }).strict().nullable(),
 }).strict();
 export type RunSnapshot = z.infer<typeof runSnapshotSchema>;
 

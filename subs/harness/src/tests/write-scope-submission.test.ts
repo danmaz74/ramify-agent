@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 vi.mock('node:child_process', async importOriginal => guardedChildProcess(await importOriginal<typeof import('node:child_process')>()));
 import type { AffectedDocument } from 'ramify.ts/cli';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
-import { historicalScopeDecisions, missingHistoricalAuthority, checkWriteScope, defaultWriteScopeOf, type ScopeCapture } from '../work/scope.js';
+import { historicalScopeDecisions, checkWriteScope, defaultWriteScopeOf, writeScopeSchema, type ScopeCapture } from '../work/scope.js';
 import { defaultWriteScopeSection } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
@@ -183,9 +183,8 @@ test('captured children stay closed while exact sibling extras retain their file
   const retained = { latest: null, reference: null, paths: new Map<string, boolean>() };
   expect(historicalScopeDecisions(scope, retained, ['subs/ui/src/a.ts', 'subs/ui/subs/widgets/src/a.ts', 'subs/store/README.md', 'subs/store/src/a.ts', 'subs/ui/vendor/a.ts', 'subs/ui/tools/cli/a.ts']).map(item => item.allowed))
     .toEqual([true, false, true, false, false, false]);
-  const older = { ...scope, resolved: { ...scope.resolved, boundaryVersion: undefined } };
-  expect(missingHistoricalAuthority(older)).toEqual(['verified non-included child directory capture']);
-  expect(() => historicalScopeDecisions(older, retained, ['subs/ui/src/a.ts'])).toThrow('Historical repair lacks');
+  const { boundaryVersion: _omitted, ...withoutBoundary } = scope.resolved;
+  expect(writeScopeSchema.safeParse({ ...scope, resolved: withoutBoundary }).success).toBe(false);
 });
 
 test('fresh evidence can remove a temporary restriction but never expand the assignment', async () => {
@@ -222,7 +221,9 @@ test('included nested projects retain existing declarations without following pr
     extra: [], read: [], bootstrap: [], rationale: 'nested project repair' });
   expect(result.errors).toEqual([]);
   const scope = result.scope!;
-  expect(scope.resolved.nestedDeclarations?.map(entry => entry.path).sort()).toEqual([`${nested}/module.ramify`, `${nested}/subs/child/module.ramify`]);
+  expect(scope.resolved.nestedDeclarations.map(entry => entry.path).sort()).toEqual([`${nested}/module.ramify`, `${nested}/subs/child/module.ramify`]);
+  const { nestedDeclarations: _omitted, ...withoutDeclarations } = scope.resolved;
+  expect(writeScopeSchema.safeParse({ ...scope, resolved: withoutDeclarations }).success).toBe(false);
   const paths = [`${nested}/module.ramify`, `${nested}/subs/child/module.ramify`, `${nested}/subs/new/module.ramify`, `${nested}/.git/module.ramify`, `${nested}/alias/module.ramify`];
   expect(historicalScopeDecisions(scope, { latest: null, reference: null, paths: new Map() }, paths).map(entry => entry.allowed)).toEqual([true, true, false, false, false]);
 });

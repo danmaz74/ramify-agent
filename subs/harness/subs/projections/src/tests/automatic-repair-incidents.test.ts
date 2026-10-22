@@ -51,11 +51,11 @@ function history() {
   return { admitted, running, continued, entries: [line(admitted, 'admitted', 1), line(running, 'running', 2), line(continued, 'continued', 3)] };
 }
 
-test('legacy run snapshots default to no automatic incidents', () => {
+test('run snapshots require automatic repair incidents, including the empty state', () => {
   const snapshot = snapshotOf(view([]));
   const { automaticRepairs: omitted, ...old } = snapshot;
   expect(omitted).toEqual({ attempted: 0, refused: 0, incidents: [] });
-  expect(runSnapshotSchema.parse(old).automaticRepairs).toEqual(omitted);
+  expect(runSnapshotSchema.safeParse(old).success).toBe(false);
 });
 
 test('retains original obstruction and partial-result reference after verified handback and terminal completion', () => {
