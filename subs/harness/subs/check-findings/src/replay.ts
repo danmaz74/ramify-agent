@@ -168,6 +168,8 @@ function decided(entry: CheckFindingEntry, decision: CheckFindingDecision): Chec
       return { ...entry, ...settled, standing: 'closed', reason: 'fixed-by-assessment' };
     case 'supersede':
       return { ...entry, ...settled, standing: 'closed', reason: 'superseded' };
+    case 'supersede-protection-request':
+      return { ...entry, ...settled, standing: 'closed', reason: 'superseded', pendingUserDecision: null };
     case 'waive':
       // A person's waiver of a plan deviation or an environment problem answers its pending request.
       return { ...entry, ...settled, standing: 'closed', reason: 'waived', pendingUserDecision: null };

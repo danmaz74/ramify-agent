@@ -273,6 +273,26 @@ describe('transitions', () => {
     })))).toBe('invalid-command');
   });
 
+  it('supersedes a pending request without recording a choice or allowing an agent to do it', () => {
+    let state = commitAll([report(judged)]);
+    state = commit(state, dispose('finding:case-0001', 1, decision({ action: 'request-user-decision', authority,
+      conflicts: [{ text: 'Old text', document: 'docs/old.spec.md', revision: 'old-tree' }],
+      options: [{ id: 'accept-old', summary: 'Accept old', consequence: 'x' }, { id: 'restore-old', summary: 'Restore old', consequence: 'y' }],
+    })));
+    const supersede = (request: string, actor: 'harness' | 'agent' = 'harness') => dispose('finding:case-0001', 2, decision(
+      { action: 'supersede-protection-request', request, assessment: 'as-0032', paths: ['docs/current.spec.md'] },
+      { actor: actor === 'harness' ? { kind: 'harness', reason: 'Exact current authority' }
+        : { kind: 'agent', role: 'test', invocation: 'test' }, source: tree('current-tree') },
+    ));
+    expect(refusal(state, supersede('cfd-0009'))).toBe('no-pending-user-decision');
+    expect(refusal(state, supersede('cfd-0001', 'agent'))).toBe('insufficient-authority');
+    state = commit(state, supersede('cfd-0001'));
+    const entry = state.findings.get('finding:case-0001');
+    expect(entry).toMatchObject({ standing: 'closed', reason: 'superseded', pendingUserDecision: null });
+    expect(entry?.decisions.map(item => item.decision.action)).toEqual(['request-user-decision', 'supersede-protection-request']);
+    expect(refusal(state, supersede('cfd-0001'))).toBe('stale-revision');
+  });
+
   it('accepts an assessment together or refuses it all, naming the refused command', () => {
     const state = commitAll([report(judged), report(concern({ attempt: 'rq-0001.a01', key: 'c2', summary: 'Rounding', hash: 2 }))]);
     const decided = decideCheckFindingChange(state, {

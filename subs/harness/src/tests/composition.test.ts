@@ -982,7 +982,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.nonfunctional-assessment/2.results[].result', values: ['satisfied'], file: 'subs/harness/src/tests/plan13-composed-functional.test.ts', test: 'functional work cites one NFR while the coordinator assesses the complete two-NFR catalog' },
   { union: 'record ramify-agent.nonfunctional-assessment/2.results[].result', values: ['not-satisfied'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
   { union: 'record ramify-agent.nonfunctional-assessment/2.results[].result', values: ['undetermined'], file: 'subs/harness/src/tests/nonfunctional-phase.test.ts', test: 'reconstructs valid crash prefixes and the next permitted step' },
-  { union: 'record ramify-agent.nonfunctional-round/1.outcome', values: ['exhausted'], file: 'subs/harness/src/tests/nonfunctional-recovery.test.ts', test: 'a closed round exhausts and a late source change still refuses the final gate' },
+  { union: 'record ramify-agent.nonfunctional-round/1.outcome', values: ['exhausted'], file: 'subs/harness/subs/autonomous/subs/acceptance/src/tests/nonfunctional-phase.test.ts', test: 'resumes a count-exhausted repaired round under its captured marker and retains explicit closure' },
   { union: 'record ramify-agent.nonfunctional-round/1.outcome', values: ['continue'], file: 'subs/harness/src/tests/nonfunctional-phase.test.ts', test: 'advances from a committed continuing round without resetting the count' },
   { union: 'query analysis.analysis[accepted].planEvidence[available].missing[].judgment', values: ['unclear'], file: 'subs/harness/src/tests/analysis-plan-evidence.test.ts', test: 'accepts the intake\'s elements and incorporation once, and projects them by kind with an unclear source excerpt' },
 ];
@@ -1033,7 +1033,7 @@ const projections: ReadonlyArray<readonly [query: string, record: string]> = [
 const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: readonly string[]; readonly reason: string }> = [
   { union: 'run log[final-instability-reconciled].data.next', values: ['await-user'], reason: 'Final instability may require user judgment, but composed final-warning fixtures currently exercise completion, correction, and unresolved decisions only.' },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['audit-instability'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['audit-instability'],
     reason: 'The nonfunctional-deviation carrier reports deviations only. Provider instability uses check-findings-recorded; the shared report schema admits that observation kind here without this carrier emitting it.',
   },
   {
@@ -1158,6 +1158,10 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
   {
     union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['claim-repair', 'fix-by-assessment', 'supersede', 'defer', 'reopen', 'revise-obligation'],
     reason: 'The NFR deviation adapter asks for a user decision. Other disposition actions remain legal CheckFinding variants, but this event carrier does not emit them.',
+  },
+  {
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['supersede-protection-request'],
+    reason: 'The NFR deviation run-log carrier cannot emit the assisted protection supersession action. The assisted producer is exercised by assistance-protection-authorization.test.ts: retires only an earlier linked protection request after current exact authority, and replays the clear gate.',
   },
   {
     union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[plan-repair].repair.kind', values: ['assignment'],

@@ -86,7 +86,10 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
     const coordinatorChoice = !entry?.reports.some(report => report.producer === 'review:test-reliability')
       && settlement?.actor.kind === 'agent' && settlement.actor.role === 'assisted-coordinator'
       && (settlement.decision.action === 'waive' || settlement.decision.action === 'defer') && entry?.verification.kind === 'assessment';
-    if (!coordinatorChoice && (!entry || !authorizedProtectionFinding(entry, protection))) {
+    const protectionSupersession = settlement?.actor.kind === 'harness' && settlement.decision.action === 'supersede-protection-request'
+      && settlement.decision.assessment === assessment.id && entry?.standing === 'closed'
+      && settlement.decision.paths.every(path => protection.changes.some(change => change.path === path && change.authorizedBy !== null));
+    if (!coordinatorChoice && !protectionSupersession && (!entry || !authorizedProtectionFinding(entry, protection))) {
       if (!details.some(detail => detail.summary.id === id && detail.summary.standing === 'open'))
         remaining.repairs.push(`Original blocker ${id} requires a fresh assessment.`);
     }

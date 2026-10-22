@@ -353,6 +353,8 @@ function Settlement({ settlement }: { readonly settlement: CheckFindingSettlemen
       return <p className="settlement" role="group" aria-label="Assessment">Fixed by assessment of {actorText(settlement.by)}: {settlement.rationale}</p>;
     case 'superseded':
       return <p className="settlement" role="group" aria-label="Supersession">Superseded by {actorText(settlement.by)}: {settlement.replacement}</p>;
+    case 'superseded-protection-request':
+      return <p className="settlement" role="group" aria-label="Protection request supersession">Request <code>{settlement.request}</code> superseded after assessment <code>{settlement.assessment}</code> verified exact authority for {settlement.paths.map((path, index) => <span key={path}>{index > 0 ? ', ' : ''}<code>{path}</code></span>)}. Recorded by {actorText(settlement.by)}.</p>;
     case 'waived':
       return (
         <div className="settlement waiver" role="group" aria-label="Waiver">
@@ -593,6 +595,7 @@ function decisionText(decision: CheckFindingDecisionView): string {
     case 'fix-by-check': return `fixed by check: ${action.witness.obligation} ${action.witness.outcome} in ${action.witness.attempt}${risk}`;
     case 'fix-by-assessment': return `fixed by assessment of ${action.reassessed.join(', ')}${risk}`;
     case 'supersede': return `superseded: ${action.replacement}${risk}`;
+    case 'supersede-protection-request': return `superseded protection request ${action.request} under ${action.assessment} for ${action.paths.join(', ')}; no choice was answered${risk}`;
     case 'waive': return `waived, accepting ${action.acceptedRisk} risk under ${action.authority}${risk}`;
     case 'revoke-waiver': return `revoked the waiver: ${action.reason}`;
     case 'defer': return `deferred; revisit ${action.revisit}${risk}`;

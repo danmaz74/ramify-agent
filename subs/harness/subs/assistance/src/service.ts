@@ -17,7 +17,7 @@ import { ensureStateDirectory } from '../../../src/store/state-directory.js';
 import { assistedDirectory, AssistedStore, type AssistedEvent } from './store.js';
 import { acceptedProtectionExceptions } from './findings.js';
 import { finalizeApproval, type ApprovalFinalization } from './approval.js';
-import { defaultProtectionRules, inspectProtectedInputs } from './protection.js';
+import { authorizeProtection, defaultProtectionRules, inspectProtectedInputs, type ProtectionComparison } from './protection.js';
 import {
   assessmentRequestSchema, assistedOutcomeSchema, assistedIterationSchema, iterationRequestSchema, type AssistedIteration, type IterationRequest, type AssessmentRequest, type AssistanceOptions, type AssistedProtection,
   type AssistedAssessment, type AssistedJob, type AssistedOutcome, type AssessorContext,
@@ -33,6 +33,9 @@ export type FindingAnswerRequest = z.infer<typeof findingAnswerSchema>;
 const protectionAcceptSchema = z.object({ planId: planIdSchema, jobId: jobIdSchema, assessmentId: z.string(), path: z.string().min(1),
   userName: z.string().min(1), authority: z.string().min(1), commandId: commandIdSchema }).strict();
 export type ProtectionAcceptRequest = z.infer<typeof protectionAcceptSchema>;
+const protectionSupersedeSchema = z.object({ planId: planIdSchema, jobId: jobIdSchema, assessmentId: z.string(),
+  checkFinding: z.string(), request: z.string(), commandId: commandIdSchema }).strict();
+export type ProtectionSupersedeRequest = z.infer<typeof protectionSupersedeSchema>;
 export type PlanStartRequest = z.infer<typeof planStartSchema>;
 export interface PlanStartResponse { readonly planId: string; readonly jobId: string; readonly planHash: string }
 export interface AssessmentAdmission { readonly planId: string; readonly jobId: string; readonly assessmentId: string; readonly status: AssistedAssessment['status'] }
@@ -122,7 +125,7 @@ export class AssistanceService {
       this.stores.set(this.key(planId, jobId), store);
       for (const line of store.ledger.replay()) {
         const event = line.transaction.event;
-        if (event.type === 'assisted-started' || event.type === 'iteration-started' || event.type === 'assessment-requested' || event.type === 'finding-answer-recorded' || event.type === 'coordinator-decision-recorded' || event.type === 'protection-accepted') this.commands.remember(event.command);
+        if (event.type === 'assisted-started' || event.type === 'iteration-started' || event.type === 'assessment-requested' || event.type === 'finding-answer-recorded' || event.type === 'coordinator-decision-recorded' || event.type === 'protection-accepted' || event.type === 'protection-request-superseded') this.commands.remember(event.command);
       }
       for (const assessment of store.assessments()) {
         if (assessment.status === 'queued' || assessment.status === 'running') {
@@ -359,7 +362,7 @@ export class AssistanceService {
   }
 
   private findingState(store: AssistedStore): CheckFindingState {
-    const events = store.ledger.replay().flatMap(line => line.transaction.event.type === 'coordinator-decision-recorded' || line.transaction.event.type === 'findings-recorded' || line.transaction.event.type === 'finding-answer-recorded' || line.transaction.event.type === 'protection-accepted'
+const events = store.ledger.replay().flatMap(line => line.transaction.event.type === 'coordinator-decision-recorded' || line.transaction.event.type === 'findings-recorded' || line.transaction.event.type === 'finding-answer-recorded' || line.transaction.event.type === 'protection-accepted' || line.transaction.event.type === 'protection-request-superseded'
       ? line.transaction.event.checkFindings : line.transaction.event.type === 'assessment-transition' ? line.transaction.event.checkFindings ?? [] : []);
     const replayed = replayCheckFindingEvents(events);
     if (!replayed.ok) throw new Error(`Assisted findings do not replay: ${replayed.rejection.message}`);
@@ -523,7 +526,7 @@ export class AssistanceService {
   private finalizations(store: AssistedStore, assessmentId: string): ApprovalFinalization[] {
     return store.ledger.replay().flatMap(line => {
       const event = line.transaction.event;
-      return (event.type === 'protection-accepted' || event.type === 'coordinator-decision-recorded') && event.assessmentId === assessmentId && event.finalization ? [event.finalization] : [];
+      return (event.type === 'protection-accepted' || event.type === 'protection-request-superseded' || event.type === 'coordinator-decision-recorded') && event.assessmentId === assessmentId && event.finalization ? [event.finalization] : [];
     });
   }
 
@@ -653,6 +656,86 @@ export class AssistanceService {
       await store.ledger.append(decided.transaction);
       this.commands.remember(accepted);
       return { checkFinding: request.checkFinding, request: request.request, option: request.option, receipt: accepted.receipt };
+    });
+  }
+
+  /** Retire an old protection request when a later final review accepted this candidate and every linked path has exact authority. */
+  async protectionSupersede(input: ProtectionSupersedeRequest) {
+    const request = protectionSupersedeSchema.parse(input);
+    return this.write(async () => {
+      const store = this.requireStore(request.planId, request.jobId);
+      const assessment = this.requireAssessment(request.planId, request.jobId, request.assessmentId);
+      const command = { ...request, type: 'protection-supersede', expectedVersion: 0 };
+      const admitted = this.commands.admit(command);
+      if (admitted.kind === 'repeat') {
+        const earlier = store.ledger.replay().map(line => line.transaction.event).find(event => event.type === 'protection-request-superseded' && event.command.commandId === request.commandId);
+        if (earlier?.type !== 'protection-request-superseded') throw new CommandRejection('conflict', 'Command ID belongs to another execution');
+        const decision = earlier.checkFindings.find(event => event.type === 'check-finding-decided');
+        if (decision?.type !== 'check-finding-decided' || decision.data.decision.decision.action !== 'supersede-protection-request') throw new Error('Supersession has no finding decision');
+        return { checkFinding: decision.data.checkFinding, request: decision.data.decision.decision.request,
+          paths: decision.data.decision.decision.paths, ...(earlier.finalization ? { finalization: earlier.finalization } : {}), receipt: admitted.receipt };
+      }
+      if (assessment.status !== 'completed' || assessment.request.kind !== 'final' || store.assessments().at(-1)?.id !== assessment.id)
+        throw new CommandRejection('conflict', 'Supersession requires the latest completed final assessment');
+      const readiness = assessment.stages.find(stage => stage.name === 'approval-readiness')?.evidence as { tree?: unknown } | undefined;
+      const review = (assessment.stages.find(stage => stage.name === 'review-accepted') ?? assessment.stages.find(stage => stage.name === 'review'))?.evidence as {
+        result?: { status?: string; value?: { concerns?: unknown[]; missing?: unknown[]; requirements?: Array<{ outcome: string }> } };
+      } | undefined;
+      if (typeof readiness?.tree !== 'string' || review?.result?.status !== 'submitted' || !review.result.value
+        || review.result.value.concerns?.length !== 0 || review.result.value.missing?.length !== 0
+        || !Array.isArray(review.result.value.requirements) || review.result.value.requirements.some(answer => answer.outcome !== 'met')
+        || assessment.outcome?.gaps.length !== 0) {
+        throw new CommandRejection('conflict', 'The current candidate has no complete accepted semantic review');
+      }
+      const held = assessment.stages.find(stage => stage.name === 'protection')?.evidence as ProtectionComparison | undefined;
+      if (!held || held.baselineCommit !== store.job.protection.baselineCommit || held.candidateCommit !== assessment.request.candidate)
+        throw new CommandRejection('conflict', 'The final assessment has no matching protection comparison');
+      const state = this.findingState(store);
+      const protection = authorizeProtection(held, acceptedProtectionExceptions(state, store.assessments()));
+      if (protection.violations.length) throw new CommandRejection('conflict', 'The current candidate still has unauthorized protected paths');
+      const entry = state.findings.get(request.checkFinding);
+      if (!entry || entry.pendingUserDecision !== request.request || entry.verification.kind !== 'assessment')
+        throw new CommandRejection('conflict', 'The named assessment finding has no matching pending request');
+      const pending = entry.decisions.find(item => item.id === request.request);
+      const paths = [...new Set(entry.reports.flatMap(report => report.observation.locations.map(location => location.path)))];
+      if (pending?.decision.action !== 'request-user-decision' || pending.source.kind !== 'tree' || pending.source.id === readiness.tree
+        || !paths.length || !pending.decision.conflicts.some(conflict => paths.includes(conflict.document))
+        || pending.decision.conflicts.some(conflict => conflict.document !== store.job.plan.path && !paths.includes(conflict.document))
+        || entry.reports.some(report => report.observation.kind !== 'review-concern' || report.source.kind !== 'tree'
+        || report.source.id === readiness.tree || report.suggests === null || report.observation.locations.length === 0
+        || !report.observation.locations.every(location => {
+          const linked = state.findings.get(report.suggests!);
+          return linked?.verification.kind === 'check' && linked.verification.required && linked.verification.producer === 'check:protection'
+            && linked.verification.obligation.subject === `protected:${location.path}`;
+        })) || paths.some(path => !protection.changes.some(change => change.path === path && change.authorizedBy !== null))) {
+        throw new CommandRejection('invalid-request', 'The pending request is not an obsolete, exactly authorized protection concern');
+      }
+      const authority = protection.changes.filter(change => paths.includes(change.path)).map(change => change.authorizedBy!);
+      const accepted = this.commands.accept(command, admitted.contentHash, store.job.jobId, store.ledger.version + 1, this.now());
+      const findingCommand: CheckFindingCommand = { type: 'dispose', checkFinding: entry.id, expectedRevision: entry.revision,
+        decision: { actor: { kind: 'harness', reason: `exact protection authority in ${assessment.id}` }, source: { kind: 'tree', id: readiness.tree },
+          rationale: `The pending request concerns earlier source; ${assessment.id} accepted the current candidate and exact protected paths ${paths.join(', ')}. No offered option is answered.`,
+          evidence: [{ kind: 'assessment-stage', ref: `assessments/${assessment.id}/stages/review-accepted.json`, hash: null },
+            { kind: 'assessment-stage', ref: `assessments/${assessment.id}/stages/protection.json`, hash: null },
+            ...authority.map(item => ({ kind: 'check-finding-decision' as const, ref: item.id, hash: `sha256:${item.hash}` }))],
+          communication: { mode: 'quiet' }, decision: { action: 'supersede-protection-request', request: request.request, assessment: assessment.id, paths } } };
+      const decided = decideFindingTransaction<AssistedEvent, { readonly type: 'protection-request-superseded'; readonly data: {
+        readonly assessmentId: string; readonly command: typeof accepted;
+        readonly checkFindings: readonly import('../../check-findings/src/interfaces/check-findings.js').CheckFindingEvent[];
+      } }>(state, () => ({ commands: [findingCommand], compose: result => ({ event: {
+        type: 'protection-request-superseded', data: { assessmentId: assessment.id, command: accepted, checkFindings: result.events },
+      } }) }), carrier => ({ type: 'protection-request-superseded', ...carrier.data, checkFindings: [...carrier.data.checkFindings] }));
+      if (decided.kind !== 'transaction' || decided.transaction.event.type !== 'protection-request-superseded')
+        throw new CommandRejection('conflict', decided.kind === 'refused' ? decided.refusal.message : 'Supersession was not recorded');
+      const priorEvents = store.ledger.replay().flatMap(line => 'checkFindings' in line.transaction.event ? line.transaction.event.checkFindings ?? [] : []);
+      const prospective = replayCheckFindingEvents([...priorEvents, ...decided.transaction.event.checkFindings]);
+      if (!prospective.ok) throw new Error(prospective.rejection.message);
+      const finalization = finalizeApproval({ assessment, job: store.job, assessments: store.assessments(), state: prospective.state,
+        commandId: request.commandId, finalizedAt: accepted.receipt.acceptedAt });
+      if (finalization === null) throw new CommandRejection('conflict', 'The retained final assessment has no valid approval readiness');
+      await store.ledger.append({ ...decided.transaction, event: { ...decided.transaction.event, finalization } });
+      this.commands.remember(accepted);
+      return { checkFinding: entry.id, request: request.request, paths, ...(finalization ? { finalization } : {}), receipt: accepted.receipt };
     });
   }
 

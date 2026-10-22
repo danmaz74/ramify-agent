@@ -464,6 +464,9 @@ function settlementOf(entry: CheckFindingEntry): CheckFindingSettlement | null {
       return { kind: 'fixed-by-assessment', decision: decision.id, by, rationale: decision.rationale };
     case 'supersede':
       return { kind: 'superseded', decision: decision.id, by, replacement: action.replacement };
+    case 'supersede-protection-request':
+      return { kind: 'superseded-protection-request', decision: decision.id, by,
+        request: action.request, assessment: action.assessment, paths: [...action.paths] };
     case 'waive':
       return { kind: 'waived', decision: decision.id, by, reason: decision.rationale, acceptedRisk: action.acceptedRisk, uncertainty: action.uncertainty };
     case 'defer':
@@ -528,6 +531,8 @@ function decisionView(decision: CheckFindingDecision): CheckFindingDecisionView 
     case 'fix-by-check': view = { action: 'fix-by-check', witness: witnessView(action.witness) }; break;
     case 'fix-by-assessment': view = { action: 'fix-by-assessment', reassessed: [...action.reassessed] }; break;
     case 'supersede': view = { action: 'supersede', reassessed: [...action.reassessed], replacement: action.replacement }; break;
+    case 'supersede-protection-request': view = { action: 'supersede-protection-request', request: action.request,
+      assessment: action.assessment, paths: [...action.paths] }; break;
     case 'waive': view = { action: 'waive', authority: authority(action.authority), acceptedRisk: action.acceptedRisk, uncertainty: action.uncertainty }; break;
     case 'revoke-waiver': view = { action: 'revoke-waiver', reason: action.reason }; break;
     case 'defer':

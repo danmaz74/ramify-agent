@@ -273,6 +273,32 @@ test('the history sits beside its attempt, candidate diff and repair session', a
   expect(opened).toEqual(['ga-0005']);
 });
 
+test('a superseded protection request names current authority without presenting an answer to its old options', async () => {
+  const settled = summary('finding:case-0011', { standing: 'closed', reason: 'superseded', awaiting: null,
+    pendingUserDecision: null, userCommands: [], decisions: 2,
+    settlement: { kind: 'superseded-protection-request', decision: 'cfd-0032', by: { kind: 'harness', reason: 'exact current authority' },
+      request: 'cfd-0008', assessment: 'as-0032', paths: ['docs/contract.spec.md'] } });
+  const stub = client({ checkFindings: {
+    [checkFindingKey({ workItem: 'work-item:case-001', select: 'reported' })]: list([], 'reported'),
+    [checkFindingKey({ workItem: 'work-item:case-001', select: 'all' })]: list([settled], 'all'),
+  }, checkFindingDetails: { 'finding:case-0011': checkFindingDetailSchema.parse({
+    protocol: 'check-findings/2', runId, version, summary: settled,
+    reports: { total: 0, items: [] }, decisions: { total: 1, items: [{ id: 'cfd-0032', considered: 2,
+      by: { kind: 'harness', reason: 'exact current authority' }, rationale: 'Earlier protected bytes were replaced.', risk: null, materialChoice: null,
+      action: { action: 'supersede-protection-request', request: 'cfd-0008', assessment: 'as-0032', paths: ['docs/contract.spec.md'] } }] },
+    relations: [], attempts: [], repairs: [],
+  }) } });
+  renderWorkItem(stub);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show settled signals' }));
+  const card = await screen.findByRole('listitem', { name: 'CheckFinding finding:case-0011' });
+  expect(within(card).getByRole('group', { name: 'Protection request supersession' }).textContent)
+    .toContain('Request cfd-0008 superseded after assessment as-0032 verified exact authority for docs/contract.spec.md');
+  expect(within(card).queryByRole('group', { name: 'Decision requested' })).toBeNull();
+  fireEvent.click(within(card).getByRole('button', { name: 'History' }));
+  expect((await within(card).findByLabelText('History of finding:case-0011')).textContent)
+    .toContain('superseded protection request cfd-0008 under as-0032 for docs/contract.spec.md; no choice was answered');
+});
+
 test('the run\'s modules show their unsettled counts, which do not sum to the run\'s, and one opens its list', async () => {
   const stub = client({
     checkFindingModules: checkFindingModuleCountsSchema.parse({ protocol: 'check-findings/2', runId, version,

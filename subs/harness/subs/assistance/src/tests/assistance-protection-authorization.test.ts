@@ -10,12 +10,15 @@ import { emptyCheckFindingState } from '../../../check-findings/src/replay.js';
 import { finalizeApproval } from '../approval.js';
 import { createAssessor } from '../assessment.js';
 import { AssistanceService } from '../service.js';
+import { factualFindingKey } from '../findings.js';
 import type { AssistedProtection } from '../contracts.js';
 import { scriptedCandidates, type ScriptedCommit } from '../../../autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 
 const baseline = 'a'.repeat(40), edited = 'b'.repeat(40), retained = 'c'.repeat(40);
 const diverged = 'd'.repeat(40), restored = 'e'.repeat(40);
 const contract = 'docs/contract.spec.md';
+const protectionFinding = factualFindingKey('check:protection', `protected:${contract}`).replace(/^draft:/u, '');
+const historicalFinding = 'finding:historical-protection-request';
 const originalText = 'The feature returns 2.\n';
 const acceptedText = 'The feature returns 2 with a revised contract.\n';
 const otherText = 'The feature returns 3.\n';
@@ -29,7 +32,7 @@ const source = (base: string, text: string, changed = true): ScriptedCommit => (
   comparisons: base === baseline ? undefined : { [baseline]: { changes: text === originalText ? [] : [{ status: 'M', path: contract }] } },
 });
 
-async function fixture(options: { second?: boolean; pending?: boolean; plainUnmet?: boolean; gap?: boolean; auditFailed?: boolean; auditReused?: boolean; reviewMissing?: boolean; semantic?: boolean } = {}) {
+async function fixture(options: { second?: boolean; pending?: boolean; plainUnmet?: boolean; gap?: boolean; auditFailed?: boolean; auditReused?: boolean; reviewMissing?: boolean; semantic?: boolean; historicalProtectionRequest?: boolean; unrelatedConflict?: boolean; requestOnCurrent?: boolean } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'assistance-protection-authorization-'));
   roots.push(root);
   await mkdir(join(root, 'plans', 'sample'), { recursive: true });
@@ -67,7 +70,8 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
         expect(read.text).toContain('feature returns');
         if (options.second) await input.prepared.tools.definitions.find(tool => tool.name === 'snapshot_read')!
           .execute({ path: 'docs/other.spec.md' }, new AbortController().signal);
-        const report = { inspected: options.second ? [contract, 'docs/other.spec.md'] : [contract], missing: [], concerns: options.semantic ? [{ findingKey: 'draft:finding:implementation-defect', summary: 'Implementation defect', consequence: 'Feature fails', rationale: 'Source defect', uncertainty: 'None', remedy: 'Repair implementation', locations: [{ path: contract, startLine: 1, endLine: 1 }], suggests: null, risk: 'medium', ground: null }] : [], codeAssessment: 'The feature returns 2.',
+        const historical = options.historicalProtectionRequest && input.candidate === retained;
+        const report = { inspected: options.second ? [contract, 'docs/other.spec.md'] : [contract], missing: [], concerns: options.semantic || historical ? [{ findingKey: historical ? `draft:${historicalFinding}` : 'draft:finding:implementation-defect', summary: historical ? 'Protected contract requires authority' : 'Implementation defect', consequence: 'Feature fails', rationale: 'Source defect', uncertainty: 'None', remedy: 'Repair implementation', locations: [{ path: contract, startLine: 1, endLine: 1 }], suggests: historical ? protectionFinding : null, risk: 'medium', ground: null }] : [], codeAssessment: 'The feature returns 2.',
           scopeAssessment: 'The candidate implements the captured plan.', design: { needed: false,
             reason: 'No interface change.', assessment: 'No ownership change.' },
           requirements: [
@@ -81,11 +85,24 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
           sessionId: 'scripted-review', eventCount: 1 };
   });
   let clock = new Date('2026-10-18T20:00:00.000Z');
+  let reconciliations = 0;
   const serviceOptions = { now: () => clock, projectRoot: root, registrationProtection: async () => protection, resolveCommit: async (_project: string, revision: string) => revision,
     currentHead: async () => baseline, isCleanRepository: async () => true,
     assessor: createAssessor({ candidates, operations: async () => ({} as SessionOperations), audit, review,
       reconcile: async input => {
-        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'finding:implementation-defect', rationale: 'Implementation still needs repair.',
+if (options.historicalProtectionRequest && ++reconciliations === (options.requestOnCurrent ? 2 : 1)) {
+          const proposed = { relations: [], dispositions: [{ checkFinding: historicalFinding, rationale: 'Ask about the earlier protected contract.',
+            communication: { mode: 'quiet' as const }, action: { action: 'request-user-decision' as const,
+              conflicts: [{ document: contract, text: (options.requestOnCurrent ? otherText : acceptedText).trim() },
+                ...(options.unrelatedConflict ? [{ document: 'src/feature.ts', text: 'export const feature = 2;' }] : [])],
+              options: [{ id: 'approve-old', summary: 'Approve old', consequence: 'Retain old bytes.' },
+                { id: 'restore-old', summary: 'Restore old', consequence: 'Remove old bytes.' }] } }],
+            next: { kind: 'await-user' as const }, brief: 'Earlier protected contract needs authority.' };
+          const validated = await input.submission.validate(proposed);
+          if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+          return { status: 'submitted' as const, value: validated.value, operationId: input.operationId, sessionId: 'historical-request', eventCount: 1 };
+        }
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: options.historicalProtectionRequest ? historicalFinding : 'finding:implementation-defect', rationale: 'Implementation still needs repair.',
           communication: { mode: 'quiet' }, action: { action: 'repair' } }], next: { kind: 'correct', goal: 'Repair behavior.' }, brief: 'Repair remains.' });
         if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
         return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'scripted-reconcile', eventCount: 1 };
@@ -111,6 +128,81 @@ afterEach(async () => {
 });
 
 describe('exact protection authorization through an assisted assessment', () => {
+  it('retires only an earlier linked protection request after current exact authority, and replays the clear gate', async () => {
+    const { service, job, assess, audit, review, serviceOptions } = await fixture({ historicalProtectionRequest: true });
+    await assess(baseline, edited);
+    const old = await assess(edited, retained);
+    const historical = service.findings('sample', job.jobId).find(item => item.pendingUserDecision !== null)!;
+    expect(historical).toMatchObject({ verification: { kind: 'assessment' }, pendingUserDecision: expect.any(String) });
+    expect(historical.reports[0]?.suggests).toBe(protectionFinding);
+    const current = await assess(retained, diverged, 'final');
+    const prior = { planId: 'sample', jobId: job.jobId, assessmentId: current.id,
+      checkFinding: historical.id, request: historical.pendingUserDecision!, commandId: 'supersede-old' };
+    await expect(service.protectionSupersede(prior)).rejects.toThrow('unauthorized protected paths');
+    await service.protectionAccept({ planId: 'sample', jobId: job.jobId, assessmentId: current.id,
+      path: contract, userName: 'Owner', authority: 'current-exact-diff', commandId: 'accept-current' });
+    const before = service.assessmentResult('sample', job.jobId, current.id);
+    expect(before?.gate).toBe('action-required');
+    const settled = await service.protectionSupersede(prior);
+    expect(settled).toMatchObject({ checkFinding: historical.id, request: historical.pendingUserDecision,
+      paths: [contract], finalization: { outcome: { gate: 'clear' } } });
+    expect(service.assessmentResult('sample', job.jobId, current.id)).toMatchObject({ gate: 'clear' });
+    const historicalAfter = service.findings('sample', job.jobId).find(item => item.id === historical.id)!;
+    expect(historicalAfter.decisions.map(item => item.decision.action)).toEqual(['request-user-decision', 'supersede-protection-request']);
+    expect(historicalAfter.decisions.some(item => item.decision.action === 'answer-user-decision')).toBe(false);
+    expect(await service.protectionSupersede(prior)).toEqual(settled);
+    await expect(service.protectionSupersede({ ...prior, commandId: 'second-supersession' })).rejects.toThrow('no matching pending request');
+    await service.close(); services.splice(services.indexOf(service), 1);
+    const reopened = await AssistanceService.open(serviceOptions); services.push(reopened);
+    expect(await reopened.protectionSupersede(prior)).toEqual(settled);
+    expect(reopened.assessmentResult('sample', job.jobId, current.id)).toMatchObject({ gate: 'clear' });
+    expect(audit).toHaveBeenCalledTimes(3);
+    expect(review).toHaveBeenCalledTimes(3);
+    expect(old.outcome?.gate).toBe('action-required');
+  });
+
+  it('keeps a pending request about the current candidate even after exact path authority', async () => {
+    const { service, job, assess } = await fixture({ historicalProtectionRequest: true });
+    await assess(baseline, edited);
+    const current = await assess(edited, retained, 'final');
+    const pending = service.findings('sample', job.jobId).find(item => item.pendingUserDecision !== null)!;
+    await service.protectionAccept({ planId: 'sample', jobId: job.jobId, assessmentId: current.id,
+      path: contract, userName: 'Owner', authority: 'current-exact-diff', commandId: 'accept-current' });
+    await expect(service.protectionSupersede({ planId: 'sample', jobId: job.jobId, assessmentId: current.id,
+      checkFinding: pending.id, request: pending.pendingUserDecision!, commandId: 'same-source' }))
+      .rejects.toThrow('no complete accepted semantic review');
+    expect(service.findings('sample', job.jobId).find(item => item.id === pending.id)?.pendingUserDecision).toBe(pending.pendingUserDecision);
+  });
+
+  it('does not retire a current-source request even when its report came from an earlier tree', async () => {
+    const { service, job, assess } = await fixture({ historicalProtectionRequest: true, requestOnCurrent: true });
+    await assess(baseline, edited);
+    await assess(edited, retained);
+    const current = await assess(retained, diverged, 'final');
+    const pending = service.findings('sample', job.jobId).find(item => item.pendingUserDecision !== null)!;
+    expect(pending.reports[0]?.source.id).not.toBe(pending.decisions.at(-1)?.source.id);
+    await service.protectionAccept({ planId: 'sample', jobId: job.jobId, assessmentId: current.id,
+      path: contract, userName: 'Owner', authority: 'current-exact-diff', commandId: 'accept-current' });
+    await expect(service.protectionSupersede({ planId: 'sample', jobId: job.jobId, assessmentId: current.id,
+      checkFinding: pending.id, request: pending.pendingUserDecision!, commandId: 'current-request' }))
+      .rejects.toThrow('not an obsolete');
+    expect(service.findings('sample', job.jobId).find(item => item.id === pending.id)?.pendingUserDecision).toBe(pending.pendingUserDecision);
+  });
+
+  it('does not retire a request that also cites unrelated authority', async () => {
+    const { service, job, assess } = await fixture({ historicalProtectionRequest: true, unrelatedConflict: true });
+    await assess(baseline, edited);
+    await assess(edited, retained);
+    const current = await assess(retained, diverged, 'final');
+    const pending = service.findings('sample', job.jobId).find(item => item.pendingUserDecision !== null)!;
+    await service.protectionAccept({ planId: 'sample', jobId: job.jobId, assessmentId: current.id,
+      path: contract, userName: 'Owner', authority: 'current-exact-diff', commandId: 'accept-current' });
+    await expect(service.protectionSupersede({ planId: 'sample', jobId: job.jobId, assessmentId: current.id,
+      checkFinding: pending.id, request: pending.pendingUserDecision!, commandId: 'mixed-authority' }))
+      .rejects.toThrow('not an obsolete');
+    expect(service.findings('sample', job.jobId).find(item => item.id === pending.id)?.pendingUserDecision).toBe(pending.pendingUserDecision);
+  });
+
   it('requires an authorized choice, then accepts only its retained Git entry without fabricating same-tree repair evidence', async () => {
     const { root, service, job, assess } = await fixture();
     const first = await assess(baseline, edited);

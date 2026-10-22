@@ -95,6 +95,10 @@ export function createAssistanceMcpServer(service: AssistanceService): McpServer
     inputSchema: z.object({ ...assessmentId, path: z.string(), user_name: z.string(), authority: z.string(), command_id: z.string() }) },
   args => answer(() => service.protectionAccept({ planId: args.plan_id, jobId: args.job_id, assessmentId: args.assessment_id,
     path: args.path, userName: args.user_name, authority: args.authority, commandId: args.command_id })));
+  server.registerTool('protection_supersede', { description: 'Retire an obsolete pending protection request after the latest final assessment accepts the unchanged candidate and exact current protection authorities cover its linked paths. Original request and choices remain in history; no option is answered.',
+    inputSchema: z.object({ ...assessmentId, check_finding: z.string(), request: z.string(), command_id: z.string() }).strict() },
+  args => answer(() => service.protectionSupersede({ planId: args.plan_id, jobId: args.job_id, assessmentId: args.assessment_id,
+    checkFinding: args.check_finding, request: args.request, commandId: args.command_id })));
   return server;
 }
 

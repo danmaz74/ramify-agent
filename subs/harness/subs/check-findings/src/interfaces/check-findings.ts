@@ -311,6 +311,9 @@ export const checkFindingActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('fix-by-assessment'), reassessed: z.array(checkFindingReportIdSchema).min(1).max(100) }).strict(),
   /** Closes an `assessment` CheckFinding with a replacing judgment; no code change is claimed. */
   z.object({ action: z.literal('supersede'), reassessed: z.array(checkFindingReportIdSchema).min(1).max(100), replacement: prose }).strict(),
+  /** Closes an obsolete pending protection request under a later exact, accepted protection assessment. It does not answer an offered option. */
+  z.object({ action: z.literal('supersede-protection-request'), request: checkFindingDecisionIdSchema,
+    assessment: ref, paths: z.array(ref).min(1).max(100) }).strict(),
   /**
    * Closes as waived: the signal is understood and the code stays as it is,
    * with the authority, the risk accepted and the uncertainty. Claims no

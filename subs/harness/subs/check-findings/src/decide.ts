@@ -138,7 +138,7 @@ function decideDisposal(state: CheckFindingState, id: CheckFindingId, expectedRe
   if (entry === undefined) return reject('unknown-check-finding', `${id} is no CheckFinding`);
   if (entry.revision !== expectedRevision) return reject('stale-revision', `the decision considered ${id} at revision ${expectedRevision}, but it is at ${entry.revision}`);
   const action = input.decision;
-  if (entry.pendingUserDecision !== null && action.action !== 'answer-user-decision' && !acceptsDeviation(entry, input)) {
+  if (entry.pendingUserDecision !== null && action.action !== 'answer-user-decision' && action.action !== 'supersede-protection-request' && !acceptsDeviation(entry, input)) {
     return reject('awaiting-user-decision', `${id} awaits the user's answer to ${entry.pendingUserDecision}`);
   }
   const refusal = refusalOf(entry, input);
@@ -242,6 +242,17 @@ function refusalOf(entry: CheckFindingEntry, input: CheckFindingDecisionInput): 
       const request = entry.decisions.find(decision => decision.id === action.request);
       const options = request?.decision.action === 'request-user-decision' ? request.decision.options : [];
       if (!options.some(option => option.id === action.option)) return reject('unknown-option', `${action.request} offers no option ${action.option}`);
+      return null;
+    }
+    case 'supersede-protection-request': {
+      if (entry.pendingUserDecision !== action.request || entry.verification.kind !== 'assessment') {
+        return reject('no-pending-user-decision', `${id} has no matching pending assessment request ${action.request}`);
+      }
+      if (input.actor.kind !== 'harness') return reject('insufficient-authority', 'only the harness supersedes a protection request after exact authorization');
+      if (entry.decisions.find(decision => decision.id === action.request)?.decision.action !== 'request-user-decision') {
+        return reject('invalid-command', `${action.request} is no request on ${id}`);
+      }
+      if (new Set(action.paths).size !== action.paths.length) return reject('invalid-command', 'protection paths must be distinct');
       return null;
     }
     case 'revise-obligation':
