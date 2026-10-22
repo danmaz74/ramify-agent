@@ -9,7 +9,7 @@ import type { SessionOperations } from '../../agent/src/interfaces/session-opera
 import { decideCheckFindingChange } from '../../check-findings/src/decide.js';
 import type { CheckFindingCommand, CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
 import { gitCandidateSource, type CandidateSource } from '../../evidence/src/git.js';
-import { openCandidateSnapshot, snapshotTools, verifySnapshotEvidence, resolveSnapshotPath, type CandidateSnapshot } from '../../reviews/src/snapshot.js';
+import { openCandidateSnapshot, snapshotTools, resolveSnapshotPath, type CandidateSnapshot } from '../../reviews/src/snapshot.js';
 import { prepareAssistedReview, type AssistedReviewSubmission } from '../../reviews/src/assisted.js';
 import { bindCandidateConcerns, type ConcernBinding } from '../../reviews/src/concern-binding.js';
 import { ReviewQueue } from '../../reviews/src/scheduler.js';
@@ -19,7 +19,7 @@ import type { Assessor, AssistedEvidenceReference, AssistedOutcome, AssistedAsse
 import { auditAssistedCandidate, isAuditEvidenceReference, readAuditEvidence, type AuditEvidenceReference } from './audit.js';
 import { approvalReadiness } from './approval.js';
 import { compareProtection, type ProtectionComparison } from './protection.js';
-import { captureAssistanceDocuments, readCandidateDocument, type AssistanceDocuments } from './documents.js';
+import { captureAssistanceDocuments, readCandidateDocument, requireCurrentAssistanceDocuments, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
 import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, predecessorAssessment, retainedRequirementAnswers, substantiveGaps, reportReviewConcerns, reportAuditInstability, knownFindingSummary, unverifiedSemanticClosures } from './findings.js';
@@ -46,7 +46,7 @@ interface ReviewEvidence {
   readonly bindings: readonly ConcernBinding[];
   readonly read: readonly string[];
   readonly inspected: readonly string[];
-  readonly sourceVerification?: 'git-exact-text/1' | 'candidate-inspection/1';
+  readonly sourceVerification: 'candidate-inspection/1';
   readonly limitations?: readonly string[];
 }
 type ReconciliationEvidence = PiAssessmentResult<BoundReconciliation> & { readonly exactSourceReads?: readonly string[] };
@@ -132,10 +132,11 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       const cached = (retained.stages.find(stage => stage.name === 'reconciliation-accepted') ?? retained.stages.find(stage => stage.name === 'reconciliation'))?.evidence as ReconciliationEvidence | undefined;
       if (cached?.status !== 'submitted' || !unverifiedSemanticClosures({ state: context.findingState(), commands: cached.value.commands,
         evidence: { kind: 'assisted-source-verification', ref: retained.id, hash: null } }).length) continue;
+      const review = (retained.stages.find(stage => stage.name === 'review-accepted') ?? retained.stages.find(stage => stage.name === 'review'))?.evidence as ReviewEvidence | undefined;
+      if (review) requireCurrentReviewEvidence(review);
       try {
         const historical = await openCandidateSnapshot(source, projectRoot, { commit: retained.request.candidate,
           base: retained.request.kind === 'final' ? baseline : retained.request.base });
-        const review = (retained.stages.find(stage => stage.name === 'review-accepted') ?? retained.stages.find(stage => stage.name === 'review'))?.evidence as ReviewEvidence | undefined;
         const deliberatelyOmitted = (retained.stages.find(stage => stage.name === 'review-policy')?.evidence as { mode?: string } | undefined)?.mode === 'not-run';
         if (review?.result.status === 'submitted') await verifyRetainedReview(review, { snapshot: historical, source, projectRoot, signal });
         else if (!deliberatelyOmitted) throw new Error('Historical settlement has no retained accepted review');
@@ -146,29 +147,25 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       }
     }
 
-    const captureDocuments = (discoverReferences = false) => captureAssistanceDocuments({ projectRoot, planId: job.planId,
-      planMarkdown: context.planMarkdown, baselineCommit: baseline, candidates: source, discoverReferences });
-    const savedDocuments = stages<AssistanceDocuments | DocumentsReference>('documents');
+    const captureDocuments = () => captureAssistanceDocuments({ projectRoot, planId: job.planId,
+      planMarkdown: context.planMarkdown, baselineCommit: baseline });
+    const savedDocuments = stages<unknown>('documents');
     let documents: AssistanceDocuments;
-    if (isDocumentsReference(savedDocuments)) {
+    if (savedDocuments !== undefined) {
+      if (!isDocumentsReference(savedDocuments)) throw new Error('Assisted documents stage must use a git-references document reference');
       if (savedDocuments.baselineCommit !== baseline) throw new Error('Retained documents name another baseline');
-      try { documents = await context.readEvidence(savedDocuments.artifact) as AssistanceDocuments; }
+      let retained: unknown;
+      try { retained = await context.readEvidence(savedDocuments.artifact); }
       catch {
         // Recovery uses the same immutable source and must reproduce the exact committed artifact.
-        documents = await captureDocuments();
-        const regenerated = await context.retainEvidence(documents);
+        retained = await captureDocuments();
+        const regenerated = await context.retainEvidence(retained);
         if (regenerated.sha256 !== savedDocuments.artifact.sha256 || regenerated.path !== savedDocuments.artifact.path) {
-          // Older compact references captured discovered companions. Only a
-          // missing historical artifact needs their original capture policy.
-          const historical = await captureDocuments(true);
-          const restored = await context.retainEvidence(historical);
-          if (restored.sha256 !== savedDocuments.artifact.sha256 || restored.path !== savedDocuments.artifact.path)
-            throw new Error('Retained document evidence is unavailable and could not be reproduced exactly');
-          documents = historical;
+          throw new Error('Retained git-references document evidence is unavailable and could not be reproduced exactly');
         }
       }
-    } else if (savedDocuments) documents = savedDocuments;
-    else {
+      documents = requireCurrentAssistanceDocuments(retained);
+    } else {
       documents = await captureDocuments();
       await record('documents', { schema: 'ramify-agent.assisted-document-reference/1', baselineCommit: baseline,
         artifact: await context.retainEvidence(documents) } satisfies DocumentsReference);
@@ -246,12 +243,14 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
           if (`assessments/${item.id}/stages/${stage.name}.json` === ref) {
             if (stage.name === 'audit') return readAuditEvidence(stage.evidence, context.readEvidence);
             if (stage.name !== 'documents') return stage.evidence;
-            return isDocumentsReference(stage.evidence) ? context.readEvidence(stage.evidence.artifact) : stage.evidence;
+            if (!isDocumentsReference(stage.evidence)) throw new Error('Assisted documents stage must use a git-references document reference');
+            return requireCurrentAssistanceDocuments(await context.readEvidence(stage.evidence.artifact));
           }
         throw new Error('No retained evidence at that reference');
       },
     });
     let reviewed = stages<ReviewEvidence>('review-accepted') ?? stages<ReviewEvidence>('review');
+    if (reviewed) requireCurrentReviewEvidence(reviewed);
     if (reviewed?.result.status === 'submitted') {
       try {
         await verifyRetainedReview(reviewed, { snapshot, source, projectRoot, signal });
@@ -470,25 +469,19 @@ async function verifyRetainedReview(review: ReviewEvidence, input: {
 }): Promise<void> {
   if (review.result.status !== 'submitted') throw new Error('Historical settlement has no accepted review');
   const report = review.result.value;
-  if (review.sourceVerification === 'candidate-inspection/1') {
-    // The accepted report belongs to this immutable candidate. Ordinary shell
-    // evidence may be binary and has no snapshot_read receipt to reproduce.
-    // Retained limitations and optional historical inventories impose no reads.
-    for (const path of report.requirements.flatMap(answer => answer.evidencePaths)) {
-      const held = resolveSnapshotPath(input.snapshot, path);
-      if ((!held.ok || held.kind !== 'file') && !input.snapshot.changes.some(change => change.path === path && change.status === 'D'))
-        throw new Error(`Retained candidate evidence ${path} is unavailable`);
-    }
-    return;
+  // The accepted report belongs to this immutable candidate. Ordinary shell
+  // evidence may be binary and has no snapshot_read receipt to reproduce.
+  // Retained limitations and optional inventories impose no reads.
+  for (const path of report.requirements.flatMap(answer => answer.evidencePaths)) {
+    const held = resolveSnapshotPath(input.snapshot, path);
+    if ((!held.ok || held.kind !== 'file') && !input.snapshot.changes.some(change => change.path === path && change.status === 'D'))
+      throw new Error(`Retained candidate evidence ${path} is unavailable`);
   }
-  const paths = [...review.read, ...review.inspected, ...report.inspected, ...report.requirements.flatMap(answer => answer.evidencePaths),
-    ...report.concerns.flatMap(concern => concern.ground === null ? [] : [concern.ground.path])];
-  if (review.sourceVerification === 'git-exact-text/1') {
-    // This producer verified every delivered channel. An exact read of a
-    // repaired file need not rely on the old malformed base's patch text.
-    await verifyCandidateReads(review.read, input);
-    await verifySnapshotEvidence(input.snapshot, input.source, input.projectRoot, paths.filter(path => !review.read.includes(path)), input.signal);
-  } else await verifySnapshotEvidence(input.snapshot, input.source, input.projectRoot, paths, input.signal);
+}
+
+function requireCurrentReviewEvidence(review: ReviewEvidence): void {
+  if (review.sourceVerification !== 'candidate-inspection/1')
+    throw new Error('Assisted review requires sourceVerification candidate-inspection/1');
 }
 
 async function verifyReconciliationSource(reconciliation: ReconciliationEvidence & { status: 'submitted' }, input: {
