@@ -137,7 +137,9 @@ export class CommittingGates {
     let latestAttempt: GateAttempt | undefined = last;
     const attempts = prior.map(entry => entry.gate.id);
     let current = request;
-    let retries = Math.max(0, prior.length - 1);
+    // A resumed request with a fresh attempt ID has already spent every
+    // retained attempt in this group. Re-entering the same ID has not.
+    let retries = Math.max(0, prior.length - (last?.id === request.id ? 1 : 0));
     for (;;) {
       if (this.host.awaitGateAdmission !== undefined && !await this.host.awaitGateAdmission()) {
         if (latestAttempt !== undefined) return latestAttempt;

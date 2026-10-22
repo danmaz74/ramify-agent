@@ -143,6 +143,7 @@ import type { ParentSession, CompletionBasis, Reconciled, ReconciliationOwner } 
 
 import { readVerifiedTextBlobBytes } from '../../../../evidence/src/git-text.js';
 import { checkExecutionObstruction } from './check-execution-recovery.js';
+import { mayRetryTask } from '../../../../recovery/src/reentry.js';
 
 
 
@@ -2258,7 +2259,8 @@ export class Acceptance {
     const previousRecord = previous === undefined ? null : await this.ports.readRecord(runLayout.gate(previous.data.gate), runSchemas.gate);
     const previousOperation = previous === undefined ? null : await this.ports.readRecord(runLayout.gateOperation(previous.data.gate), runSchemas.gateOperation);
     const priorForCandidate = previousRecord?.kind === 'valid' && previousOperation?.kind === 'valid'
-      && previousOperation.value.finalCandidate?.candidate === prepared.id
+      && (previousOperation.value.finalCandidate?.candidate === prepared.id
+        || previousOperation.value.finalAssessment?.candidate === prepared.id)
       ? previousRecord.value : null;
     const head = priorForCandidate === null ? await this.git.currentHead(this.projectRoot) : null;
     let committed!: (commit: string) => void;
@@ -2280,6 +2282,9 @@ export class Acceptance {
     const [gateResult, assessmentResult] = await Promise.allSettled([settledGate, assessment]);
     if (gateResult.status === 'rejected') throw gateResult.reason;
     if (assessmentResult.status === 'rejected') throw assessmentResult.reason;
+    // A gate receipt can survive a crash before its per-test reports do.
+    // Replaying stable report keys also completes a partially ingested batch.
+    if (priorForCandidate !== null) await this.ports.gateHost.reportInstability?.(gateResult.value);
     if (priorForCandidate === null) await this.ports.afterWrite('gate-committed', this.input.record.jobId);
     if (assessmentResult.value === null) return false;
     const attempt = gateResult.value;
@@ -2664,36 +2669,51 @@ export class Acceptance {
     const recentOperation = recentFinal === undefined ? null : await this.ports.readRecord(runLayout.gateOperation(recentFinal.data.gate), runSchemas.gateOperation);
     let previousFinal = recentRecord?.kind === 'valid' &&
       (recentOperation?.kind === 'valid' && recentOperation.value.finalCandidate?.candidate === binding.candidateId ||
+        recentOperation?.kind === 'valid' && recentOperation.value.finalAssessment?.candidate === binding.candidateId
+          && recentOperation.value.finalAssessment.assessment === binding.assessment.id ||
         this.events('candidate-bound-to-gate').some(event => event.data.gate === recentFinal?.data.gate && event.data.candidate === binding.candidateId))
       ? recentFinal : undefined;
+    let infrastructureAttempt = 0;
     if (previousFinal !== undefined && recentRecord?.kind === 'valid' && this.observe().policy.recovery !== undefined) {
       const obstruction = checkExecutionObstruction(recentRecord.value);
       if (obstruction !== null && this.ports.gateHost.recoverGate !== undefined) {
-        let alreadyResumed = false;
-        for (const resumed of this.events('operation-recovery-resumed').filter(event => event.sequence > previousFinal!.sequence)) {
-          const recovery = await this.ports.readRecord(runLayout.operationRecovery(resumed.data.occurrenceId), runSchemas.operationRecovery);
-          if (recovery.kind === 'valid' && recovery.value.boundary.kind === 'gate'
-            && recovery.value.boundary.checkpoint === 'final'
-            && recovery.value.boundary.candidate === (recentRecord.value.audited ?? recentRecord.value.head)) {
-            alreadyResumed = true;
-            break;
+        const priorAttempts = this.events('gate-attempted').filter(event => event.sequence > latestQualificationChange
+          && event.data.checkpoint === 'final');
+        const retries = Math.max(0, priorAttempts.length - 1);
+        if (obstruction.automatic && mayRetryTask({ attempt: retries,
+          limit: this.observe().policy.limits.infrastructureRetriesPerGate, classification: 'transport' })) {
+          if (this.ports.gateHost.retryGateDelay !== undefined
+            && !await this.ports.gateHost.retryGateDelay(Math.min(1000 * (retries + 1), 2000))) return;
+          infrastructureAttempt = recentRecord.value.infrastructureAttempt + 1;
+          previousFinal = undefined;
+        }
+        if (previousFinal !== undefined) {
+          let alreadyResumed = false;
+          for (const resumed of this.events('operation-recovery-resumed').filter(event => event.sequence > previousFinal!.sequence)) {
+            const recovery = await this.ports.readRecord(runLayout.operationRecovery(resumed.data.occurrenceId), runSchemas.operationRecovery);
+            if (recovery.kind === 'valid' && recovery.value.boundary.kind === 'gate'
+              && recovery.value.boundary.checkpoint === 'final'
+              && recovery.value.boundary.candidate === (recentRecord.value.audited ?? recentRecord.value.head)) {
+              alreadyResumed = true;
+              break;
+            }
           }
-        }
-        for (const paused of this.events('operation-recovery-paused').filter(event => event.sequence > previousFinal!.sequence)) {
-          const recovery = await this.ports.readRecord(runLayout.operationRecovery(paused.data.occurrenceId), runSchemas.operationRecovery);
-          if (recovery.kind === 'valid' && recovery.value.boundary.kind === 'gate'
-            && recovery.value.boundary.checkpoint === 'final'
-            && recovery.value.boundary.candidate === (recentRecord.value.audited ?? recentRecord.value.head)
-            && this.events('job-continued').some(event => event.sequence > paused.sequence && event.data.command !== undefined)) {
-            alreadyResumed = true;
-            break;
+          for (const paused of this.events('operation-recovery-paused').filter(event => event.sequence > previousFinal!.sequence)) {
+            const recovery = await this.ports.readRecord(runLayout.operationRecovery(paused.data.occurrenceId), runSchemas.operationRecovery);
+            if (recovery.kind === 'valid' && recovery.value.boundary.kind === 'gate'
+              && recovery.value.boundary.checkpoint === 'final'
+              && recovery.value.boundary.candidate === (recentRecord.value.audited ?? recentRecord.value.head)
+              && this.events('job-continued').some(event => event.sequence > paused.sequence && event.data.command !== undefined)) {
+              alreadyResumed = true;
+              break;
+            }
           }
+          if (!alreadyResumed && !await this.ports.gateHost.recoverGate(recentRecord.value, obstruction.diagnostic, 0, [recentRecord.value.id])) return;
+          if ((await this.ports.previewCandidateTree()).tree !== binding.assessment.candidate.tree) {
+            throw new CandidateReassessmentRequired('The externally repaired final candidate needs fresh assessment');
+          }
+          previousFinal = undefined;
         }
-        if (!alreadyResumed && !await this.ports.gateHost.recoverGate(recentRecord.value, obstruction.diagnostic, 0, [recentRecord.value.id])) return;
-        if ((await this.ports.previewCandidateTree()).tree !== binding.assessment.candidate.tree) {
-          throw new CandidateReassessmentRequired('The externally repaired final candidate needs fresh assessment');
-        }
-        previousFinal = undefined;
       }
     }
     let gateId = previousFinal?.data.gate ?? gateAttemptId(this.gates.gateCount() + 1);
@@ -2720,6 +2740,7 @@ export class Acceptance {
           head,
           policy: this.observe().policy,
           proposedBy: null,
+          infrastructureAttempt,
         }, undefined, undefined, undefined, { ...binding, tree: binding.assessment.candidate.tree });
       } catch (error) {
         if (!(error instanceof CandidateDriftError)) throw error;
@@ -2728,6 +2749,9 @@ export class Acceptance {
       }
     }
     gateId = attempt!.id;
+    // Retained final attempts can bypass committingCheckpoint after a crash.
+    // The ingestion is idempotent and must precede reconciliation/publication.
+    await this.ports.gateHost.reportInstability?.(attempt);
 
     if (attempt.audited !== null && attempt.evidence !== null) {
       const auditedTree = await this.candidates.commitTree(this.projectRoot, attempt.audited);

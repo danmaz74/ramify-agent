@@ -5,6 +5,7 @@ import type { RunEvent } from '../../../../../src/run/log.js';
 import type { ReviewPolicy } from '../../review-policy.js';
 import type { RunPolicy } from '../../../../../src/run/records.js';
 import type { RunWrite } from '../../../../../src/run/log.js';
+import type { AutonomousRunService } from '../../../../../src/run/service.js';
 import type { ConfiguredAuditPort } from '../../../../../../audit/src/check-execution.js';
 import type { CandidateTreePreview } from '../../../../../../evidence/src/candidate-tree.js';
 import { reviewLayout, type ReviewAttempt } from '../../reviews/records.js';
@@ -98,6 +99,8 @@ export interface ReviewRun {
   readonly agentOptions?: ScriptedAgentOptions;
   /** Given the scripted fake once the service is open, before the run starts. */
   readonly agentReady?: (agent: ScriptedAgent) => void;
+  /** Instrument a named lifecycle cut before execution starts. */
+  readonly serviceReady?: (service: AutonomousRunService) => void;
   /** The module architect's turns in place of the three assignments and the completion request. */
   readonly architect?: ReadonlyArray<readonly ScriptStep[]>;
   /** The run's `now`, for a scenario that moves the clock. */
@@ -209,6 +212,7 @@ export async function reviewRun(root: string, cleanups: Array<() => Promise<void
     ...(scenario.now === undefined ? {} : { now: scenario.now }),
   });
   if (opened.agent !== undefined) scenario.agentReady?.(opened.agent);
+  scenario.serviceReady?.(opened.service);
   if (scenario.detached !== true) cleanups.push(() => opened.service.close());
   const command = startRun(plan);
   if (command.type !== 'start-run') throw new Error('Unexpected start command');

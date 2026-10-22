@@ -17,7 +17,7 @@ import { assign, completionProposed, outline, submit, treeInputs, write } from '
 import { requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { disposition, reconcile, submission } from '../../../../../../src/tests/helpers/check-findings-composition.js';
 import { mockGit } from '../../../../../../src/tests/helpers/mock-git.js';
-import { attemptRecord, candidates, eventsOf, finalReviewTree, gate, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, revisionGates, store, tool } from './helpers/reviews.js';
+import { attemptRecord, candidates, eventsOf, finalReviewTree, gate, limit, notes, notesDirectory, plan, reviewRun, reviewScript, reviewTarget, revisionGates, store, tool } from './helpers/reviews.js';
 import { freeze, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 
 vi.mock('node:child_process', async original =>
@@ -456,6 +456,79 @@ describe('the gate audit and the run mutex', () => {
     expect(prompt).toContain(runLayout.gate('ga-0006'));
     run.git.assertComplete();
   }, 60_000);
+
+  test.each(['before-ingestion', 'between-observations'] as const)(
+    'restart %s replays every final warning before completion without repeating the audit', async cut => {
+      const root = await reviewTarget(cleanups);
+      const passing = passingAudit();
+      const auditCalls: string[] = [];
+      const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+        auditCalls.push(input.attemptId);
+        const result = await passing.run(input);
+        if (input.attemptId !== 'ga-0006') return result;
+        const provider = result.provider as { summary: Record<string, unknown> };
+        return { ...result, provider: { ...provider, summary: { ...provider.summary,
+          warningDispositions: ['node', 'browser'].map(project => ({ entry: {
+            checkId: 'tests', command: 'vitest', runner: 'vitest', project,
+            path: `${notesDirectory}/src/tests/notes.test.ts`, kind: 'test', testId: 'the note limit',
+          }, basis: 'retained-instability' })), flakinessPolicy: { onFailure: 'warning' },
+        } } };
+      } };
+      const frozen = gate();
+      const scenario = { detached: true, configuredAudit: warningAudit, engineer: engineers(), previewCount: 5,
+        reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
+        reconcilers: { 'final-instability-ga-0006': reconcile({ ...submission([
+          disposition('cf-0001', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+          disposition('cf-0002', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+        ], { kind: 'complete' }), testOrigins: [
+          { checkFinding: 'cf-0001', origin: 'existing' as const, basis: 'This exact test exists in the original execution baseline.' },
+          { checkFinding: 'cf-0002', origin: 'existing' as const, basis: 'This exact test exists in the original execution baseline.' },
+        ] }) },
+        serviceReady: (service: import('../../../../src/run/service.js').AutonomousRunService) => {
+          if (cut === 'before-ingestion') {
+            const reporter = service as unknown as { reportGateInstability: (run: unknown, gate: { id: string }) => Promise<void> };
+            const original = reporter.reportGateInstability.bind(service);
+            reporter.reportGateInstability = async (run, gate) => {
+              if (gate.id === 'ga-0006') { frozen.open(); await freeze(); }
+              return original(run, gate);
+            };
+          } else {
+            const owner = service as unknown as { commitCheckFindings: (run: { record: { jobId: string } }, build: unknown) => Promise<unknown> };
+            const original = owner.commitCheckFindings.bind(service);
+            owner.commitCheckFindings = async (run, build) => {
+              const result = await original(run, build);
+              const events = service.events(plan, run.record.jobId) ?? [];
+              const reports = events.filter(event => event.type === 'check-findings-recorded'
+                && event.data.cause.kind === 'producer' && event.data.cause.producer === 'check:audit-instability');
+              if (reports.length === 1) { frozen.open(); await freeze(); }
+              return result;
+            };
+          }
+        },
+      };
+      const first = await reviewRun(root, cleanups, scenario);
+      await frozen.opened;
+      const before = await runEventsOnDisk(root, plan, first.runId);
+      expect(eventsOf(before, 'check-findings-recorded')).toHaveLength(cut === 'before-ingestion' ? 0 : 1);
+      await staleCrashLock(root);
+      const resumed = await openRuns(root, { git: first.git.git, candidates: first.source,
+        configuredAudit: warningAudit, script: reviewScript(scenario),
+        policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }),
+      });
+      cleanups.push(() => resumed.service.close());
+      await resumed.service.settled(plan, first.runId);
+      const events = await runEventsOnDisk(root, plan, first.runId);
+      expect(onlyRun(resumed.service, plan).state, JSON.stringify(eventsOf(events, 'job-failed'))).toBe('completed');
+      expect(auditCalls.filter(id => id === 'ga-0006')).toHaveLength(1);
+      expect(eventsOf(events, 'gate-attempted').filter(event => event.data.checkpoint === 'final')).toHaveLength(1);
+      expect(eventsOf(events, 'check-findings-recorded')).toHaveLength(2);
+      const reconciled = eventsOf(events, 'final-instability-reconciled');
+      expect(reconciled).toHaveLength(1);
+      expect(reconciled[0]!.data.next).toBe('complete');
+      expect(reconciled[0]!.data.checkFindings.map(change => change.type === 'check-finding-decided'
+        ? change.data.checkFinding : null)).toEqual(['cf-0001', 'cf-0002']);
+      expect(eventsOf(events, 'job-completed')[0]!.sequence).toBeGreaterThan(eventsOf(events, 'final-instability-reconciled')[0]!.sequence);
+    }, 90_000);
 
   test('a final-only added-test warning cannot be waived and plans reliable coverage repair', async () => {
     const root = await reviewTarget(cleanups);

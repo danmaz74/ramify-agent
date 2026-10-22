@@ -78,6 +78,61 @@ test.each(['environment', 'target'] as const)('a final check %s repair resumes q
   expect(git.unexpected).toEqual([]);
 });
 
+test.each([1, 3] as const)('final audit handles %i transient obstructions against the same assessment and retry budget', async failures => {
+  const copy = await copyFixture(); cleanup.push(copy.remove);
+  const tree = 'a'.repeat(40);
+  const git = fixtureScratchGit(mockGit({ currentHead: async () => 'base', isCleanRepository: async () => true,
+    createRunBranch: async () => ({ branch: 'ramify-agent-run/fixture', created: true }),
+    changedPaths: async () => [], changedEntries: async () => [], findCommitByTrailers: async () => null,
+    commitAccepted: async () => null,
+    previewCandidateTree: async () => ({ repositoryRoot: copy.root, head: 'base', tree }),
+    recoveryStatus: async () => ({ index: 'index', staged: [], unstaged: [], untracked: [] }),
+  }));
+  const candidates = scriptedCandidates(copy.root, { base: { tree, base: 'base', files: {}, changes: [] },
+    [tree]: { tree, base: 'base', files: {}, changes: [] } });
+  const audit = passingAudit(); let calls = 0;
+  const configuredAudit: ConfiguredAuditPort = { read: (...args) => audit.read(...args), run: async input => {
+    calls++;
+    if (calls > 1 && calls <= failures + 1) return { status: 'failed', requestId: `${input.runId}:${input.attemptId}`, mode: input.mode, nested: input.nested ?? false,
+      projects: null, discovery: null, requestedSourceCommit: input.sourceCommit, auditedSourceCommit: null, reused: false, reuse: null,
+      requestedMode: null, executedMode: null, fallbackReason: null, verdict: null, reportCommit: null, runRef: null, treeRef: null,
+      definition: { path: input.configuration.path, blob: input.configuration.blob }, detail: 'Temporary audit timeout',
+      provider: { status: 'failed', error: { code: 'timeout', message: 'Temporary audit timeout', retryable: true } }, checks: {} };
+    return audit.run(input);
+  } };
+  const agent = createScriptedAgent(declaringScenarios([{ kind: 'submit', input: emptyAnalysis() }]));
+  const { service } = await openRuns(copy.root, { git, candidates, agent, configuredAudit,
+    policy: root => testPolicy(root, { recovery: true }) });
+  cleanup.push(() => service.close());
+  const receipt = await service.execute(startRun('review-notes'));
+  if (failures === 1) await service.settled('review-notes', receipt.jobId);
+  else await until(() => service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused')
+    || ['completed', 'failed'].includes(service.getRun('review-notes', receipt.jobId)?.state ?? ''));
+  const events = service.events('review-notes', receipt.jobId)!;
+  expect(calls).toBe(failures === 1 ? 3 : 4);
+  expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(1);
+  const finals = events.filter((event): event is Extract<(typeof events)[number], { type: 'gate-attempted' }> =>
+    event.type === 'gate-attempted' && event.data.checkpoint === 'final');
+  const attempts = await Promise.all(finals.map(async event => gateAttemptSchema.parse(JSON.parse(await readFile(
+    runPath(copy.root, 'review-notes', receipt.jobId, runLayout.gate(event.data.gate)), 'utf8')))));
+  expect(attempts.map(attempt => attempt.infrastructureAttempt)).toEqual(failures === 1 ? [0, 1] : [0, 1, 2]);
+  expect(attempts.every(attempt => attempt.head === 'base')).toBe(true);
+  if (failures === 1) {
+    expect(events.at(-1)?.type, JSON.stringify(events.at(-1))).toBe('job-completed');
+    expect(events.filter(event => event.type === 'operation-recovery-paused')).toHaveLength(0);
+    expect(finals.map(event => event.data.verdict)).toEqual(['not-verified', 'passed']);
+    expect(events.filter(event => event.type === 'candidate-bound-to-gate')).toMatchObject([
+      { data: { gate: finals[1]!.data.gate, tree } },
+    ]);
+  } else {
+    expect(events.filter(event => event.type === 'operation-recovery-paused'),
+      JSON.stringify({ state: service.getRun('review-notes', receipt.jobId)?.state, events: events.map(event => [event.type, event.data]) })).toHaveLength(1);
+    expect(events.filter(event => event.type === 'job-completed')).toHaveLength(0);
+    expect(finals.map(event => event.data.verdict)).toEqual(['not-verified', 'not-verified', 'not-verified']);
+  }
+  expect(git.unexpected).toEqual([]);
+}, 60_000);
+
 test('a settled readiness audit pause reruns ordinary setup and its prerequisite', async () => {
   const copy = await copyFixture(); cleanup.push(copy.remove);
   await writeFile(join(copy.root, 'ramify-agent.json'), JSON.stringify({ schema: 'ramify-agent.project/1',
