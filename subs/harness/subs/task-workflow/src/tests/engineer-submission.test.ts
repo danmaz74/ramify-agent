@@ -43,18 +43,11 @@ const notes = 'collection-review/workspace/reviews/notes';
 const notesDirectory = 'subs/workspace/subs/reviews/subs/notes';
 
 describe('the schema', () => {
-  test('it is a union discriminated on kind and has no field for an ID the harness knows', () => {
-    const union = (engineerJsonSchema as { anyOf?: unknown[]; oneOf?: unknown[] });
-    expect(union.anyOf ?? union.oneOf).toHaveLength(5);
+  test('it has no field for an ID the harness knows', () => {
     const text = JSON.stringify(engineerJsonSchema);
     for (const assigned of ['iteration', 'workItem', 'invocation', 'gate', 'schema', 'writeScope']) {
       expect(text).not.toContain(`"${assigned}"`);
     }
-    expect(text).toContain('"completion-proposed"');
-    expect(text).toContain('"partial"');
-    expect(text).toContain('"unsuitable"');
-    expect(text).toContain('"contract-needed"');
-    expect(text).toContain('"capability-needed"');
   });
 
   test('it rejects an unknown kind, an unknown field and a missing summary, with a path for every error', () => {

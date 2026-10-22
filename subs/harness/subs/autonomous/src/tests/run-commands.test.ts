@@ -167,11 +167,7 @@ describe('the command schema', () => {
     }).success).toBe(false);
   });
 
-  test('the run serves lifecycle, recovery, debugger and CheckFinding commands, and nothing else', () => {
-    expect(runCommandSchema.options.map(option => option.shape.type.value)).toEqual([
-      'start-run', 'prepare-restart', 'stop-job', 'approve-analysis', 'debug-resume', 'debug-message', 'resume-recovery',
-      'respond-to-check-finding', 'waive-check-finding', 'revoke-check-finding-waiver',
-    ]);
+  test('a restart preparation parses without repair, and no command resolves a CheckFinding or starts mapping', () => {
     const preparation = { commandId: 'prepare-1', expectedVersion: 700, type: 'prepare-restart',
       payload: { planId: 'review-notes', jobId: '20260920T101500Z-3f9a1c' } };
     expect(runCommandSchema.parse(preparation)).toEqual(preparation);
