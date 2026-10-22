@@ -14,7 +14,7 @@ import { captureProjectionFiles, recordedProjectionConsumers } from './helpers/p
 
 const failures = [
   { run: '20260921T080000Z-000001', code: 'unsupported-version', schema: '999' },
-  { run: '20260921T080000Z-000002', code: 'unreadable', schema: '1' },
+  { run: '20260921T080000Z-000002', code: 'unreadable', schema: '2' },
 ] as const;
 
 test('reopening keeps supported run answers and refuses malformed and unsupported records without query writes', async () => {
@@ -31,16 +31,17 @@ test('reopening keeps supported run answers and refuses malformed and unsupporte
       await writeFile(join(invalidRun, runLayout.events), lines.join('\n').replaceAll(runId, failure.run) + '\n');
       const log = await RunLog.open(join(invalidRun, runLayout.events), failure.run);
       await commitRecord(log.ledger, { event: log.next({ type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' } }), records: [
-        { path: 'hypotheses/hyp-001.json', id: 'hyp-001', revision: 1, body: { schema: `ramify-agent.hypothesis/${failure.schema}` } },
+        { path: 'hypotheses/hypothesis%3Aunreadable/1.json', id: 'hypothesis:unreadable', revision: 1, body: { schema: `ramify-agent.hypothesis/${failure.schema}` } },
       ] });
       await log.append({ type: 'job-completed', data: { gate: 'ga-recorded', commit: 'a'.repeat(40), workItems: 0 } });
     }
   }, message => {
-    assert.match(message, /closed iteration scratch could not be cleaned: hypotheses\/hyp-001\.json/);
+    assert.ok(message.includes('closed iteration scratch could not be cleaned:')
+      && message.includes('hypotheses/hypothesis%3Aunreadable/1.json'), message);
     warnings.push(message);
   });
   try {
-    assert.equal(warnings.length, 1);
+    assert.equal(warnings.length, 2);
     const supported = async () => {
       const run = runResponseSchema.parse(await fixture.queries.run('review-notes', runId));
       const events = runEventPageSchema.parse(await fixture.queries.events('review-notes', runId, 0));
@@ -62,7 +63,7 @@ test('reopening keeps supported run answers and refuses malformed and unsupporte
     const first = await supported();
     assert.deepEqual(await captureProjectionFiles(fixture.root), prior);
     await fixture.reopen();
-    assert.equal(warnings.length, 2);
+    assert.equal(warnings.length, 4);
     const before = await captureProjectionFiles(fixture.root);
     assert.deepEqual(await supported(), first);
     for (const failure of failures) {
@@ -71,7 +72,7 @@ test('reopening keeps supported run answers and refuses malformed and unsupporte
       assert.ok(caught && typeof caught === 'object' && 'code' in caught && 'evidence' in caught && 'message' in caught);
       assert.equal(caught.code, failure.code);
       assert.ok(Array.isArray(caught.evidence) && caught.evidence.some(value => typeof value === 'string'
-        && value.endsWith(`plans/review-notes/.harness/jobs/${failure.run}/hypotheses/hyp-001.json`)));
+        && value.endsWith(`plans/review-notes/.harness/jobs/${failure.run}/hypotheses/hypothesis%3Aunreadable/1.json`)));
       const http = errorResponseSchema.parse(await fixture.get(protocolPaths.run('review-notes', failure.run), 422)).error;
       assert.deepEqual(http, { code: caught.code, message: caught.message, evidence: caught.evidence });
     }
