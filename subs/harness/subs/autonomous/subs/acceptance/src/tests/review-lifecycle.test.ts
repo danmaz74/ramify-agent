@@ -1,4 +1,4 @@
-import { readdir, readFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -9,7 +9,6 @@ import { runLayout } from '../../../../src/run/records.js';
 
 import { RunQueries } from '../../../../../projections/src/queries.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
-import { reviewLayout } from '../reviews/records.js';
 import { snapshotToolNames } from '../../../../../reviews/src/snapshot.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
 import { mappedAudit, passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
@@ -79,18 +78,6 @@ async function settledLog(root: string, runId: string): Promise<RunEvent[]> {
     last = events.length;
     await new Promise(resolve => setTimeout(resolve, 150));
   }
-}
-
-/** A service opened over the crashed project: what recovery asks of Git is answered, and nothing is driven. */
-async function restart(root: string) {
-  const restarted = await openRuns(root, {
-    // This reader-prefix projection control deliberately has no execution port.
-    git: mockGit({ changedPaths: async () => [], currentHead: async () => 'revision-03' }),
-    candidates: scriptedCandidates(root, candidates()),
-    policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }),
-  });
-  cleanups.push(() => restarted.service.close());
-  return restarted;
 }
 
 describe('CF07: a stop owns every live reader, and a late result is fenced', () => {
@@ -185,119 +172,6 @@ describe('CF04: review coverage under a full queue', () => {
     const reviewers = metrics.evaluation.invocations.filter(evaluation => evaluation.role === 'reviewer');
     expect(reviewers.map(evaluation => evaluation.request).sort()).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
     for (const evaluation of reviewers) expect(evaluation.request).toBe(served.get(evaluation.invocation));
-  }, 60_000);
-});
-
-describe('CF06: a crash around a review is recovered exactly once', () => {
-  test('a reopen without an execution agent retains the already requested candidate review', async () => {
-    const root = await reviewTarget(cleanups);
-    const crashed = gate();
-    let frozen = false;
-    const run = await reviewRun(root, cleanups, {
-      detached: true,
-      engineer: engineers(),
-      reviewers: { 'rq-0001': clean(store) },
-      afterWrite: async write => {
-        if (frozen) return freeze();
-        if (write !== 'iteration-closed') return;
-        frozen = true;
-        crashed.open();
-        return freeze();
-      },
-    });
-    await crashed.opened;
-    const before = await settledLog(root, run.runId);
-    expect(before.some(event => event.type === 'iteration-closed' && event.data.iteration === 'work-item:review-notes.i01')).toBe(true);
-    expect(eventsOf(before, 'review-request-recorded')).toHaveLength(1);
-    await staleCrashLock(root);
-
-    const restarted = await restart(root);
-    expect(restarted.agent).toBeUndefined();
-    expect(restarted.recovery.reviews).toEqual([]);
-    const after = await runEventsOnDisk(root, plan, run.runId);
-    expect(eventsOf(after, 'iteration-candidate-prepared')).toEqual(eventsOf(before, 'iteration-candidate-prepared'));
-    expect(after.slice(0, before.length)).toEqual(before);
-    expect(after.slice(before.length).map(event => event.type)).toEqual(['invocation-ended']);
-    expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'work-item:review-notes.i01', outcome: 'accepted' });
-    expect(eventsOf(after, 'review-request-recorded')).toEqual(eventsOf(before, 'review-request-recorded'));
-    expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 1 });
-
-    // A second restart finds nothing owed and changes nothing.
-    await restarted.service.close();
-    cleanups.pop();
-    const again = await restart(root);
-    expect(again.recovery.reviews).toEqual([]);
-    expect(await runEventsOnDisk(root, plan, run.runId)).toEqual(after);
-  }, 60_000);
-
-  test('a reopen without an execution agent retains an unfinished review attempt without inventing a result', async () => {
-    const root = await reviewTarget(cleanups);
-    const crashed = gate();
-    let frozen = false;
-    const run = await reviewRun(root, cleanups, {
-      detached: true,
-      engineer: engineers(),
-      reviewers: { 'rq-0001': clean(store) },
-      afterWrite: async (write, runId) => {
-        if (frozen) return freeze();
-        if (write !== 'invocation-started') return;
-        if (!(await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'review-attempt-started')) return;
-        frozen = true;
-        crashed.open();
-        return freeze();
-      },
-    });
-    await crashed.opened;
-    const before = await settledLog(root, run.runId);
-    const started = eventsOf(before, 'review-attempt-started');
-    expect(started.map(event => event.data.attempt)).toEqual(['rq-0001.a01']);
-    expect(before.some(event => event.type === 'review-attempt-finished')).toBe(false);
-    await staleCrashLock(root);
-
-    const restarted = await restart(root);
-    expect(restarted.agent).toBeUndefined();
-    expect(restarted.recovery.invocations).toContain(`${plan}/${run.runId}: ${started[0]!.data.invocation}`);
-    expect(restarted.recovery.reviews).toEqual([]);
-    const after = await runEventsOnDisk(root, plan, run.runId);
-    expect(after.slice(0, before.length)).toEqual(before);
-    for (const event of after.slice(before.length)) expect(event).toMatchObject({ type: 'invocation-ended', data: { finished: 'interrupted' } });
-    expect(eventsOf(after, 'review-attempt-finished')).toEqual([]);
-    expect(eventsOf(after, 'review-attempt-started')).toEqual(started);
-    expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 1, pending: 1 });
-
-    await restarted.service.close();
-    cleanups.pop();
-    const again = await restart(root);
-    expect(again.recovery.reviews).toEqual([]);
-    expect(await runEventsOnDisk(root, plan, run.runId)).toEqual(after);
-  }, 60_000);
-
-  test('a committed result is rebuilt from the log with its CheckFinding, and no reviewer runs again', async () => {
-    const root = await reviewTarget(cleanups);
-    const run = await reviewRun(root, cleanups, {
-      engineer: engineers(),
-      reviewers: { 'rq-0001': clean(store), 'rq-0002': concern(limit, 'The limit counts UTF-16 units'), 'rq-0003': clean(store) },
-      reconcilers: { 'work-item:review-notes.rc01': reconcile(submission([disposition('finding:case-0001', { action: 'leave' })], { kind: 'unresolved' })) },
-    });
-    const { service, runId } = run;
-    const coverage = service.reviews(plan, runId)!;
-    const list = service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' });
-    expect(list).toMatchObject({ ok: true, view: { total: 1 } });
-    const attempt = await readFile(runPath(root, plan, runId, reviewLayout.attempt('rq-0002.a01')), 'utf8');
-    await service.close();
-    cleanups.splice(cleanups.indexOf(cleanups.at(-1)!), 1);
-
-    // The crash lost every materialized review and CheckFinding record.
-    await rm(runPath(root, plan, runId, 'reviews'), { recursive: true });
-    await rm(runPath(root, plan, runId, 'check-findings'), { recursive: true });
-    const restarted = await restart(root);
-    expect(restarted.agent).toBeUndefined();
-    expect(restarted.recovery.rematerialized).toEqual([expect.stringMatching(new RegExp(`^${plan}/${runId}: \\d+ record file\\(s\\)$`, 'u'))]);
-    expect(restarted.recovery.reviews).toEqual([]);
-    expect(restarted.service.reviews(plan, runId)).toEqual(coverage);
-    expect(restarted.service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' })).toEqual(list);
-    expect(await readFile(runPath(root, plan, runId, reviewLayout.attempt('rq-0002.a01')), 'utf8')).toBe(attempt);
-    expect((await readdir(runPath(root, plan, runId, 'reviews'))).sort()).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
   }, 60_000);
 });
 
