@@ -385,6 +385,23 @@ export function allRows(): Array<RecoveryRow & { readonly name: string; readonly
   ];
 }
 
+/*
+ * The rows are split across three files only so that they run in parallel.
+ * The delegation and chains files run the scenarios named here, and
+ * composition-recovery.test.ts runs every other row, so together they run
+ * the whole table.
+ */
+const recoverySplit = {
+  delegation: ['delegation'],
+  chains: ['placement', 'name-rejection', 'revision', 'cycle'],
+} as const satisfies Record<string, readonly ScenarioName[]>;
+
+/** The rows one recovery file runs. */
+export function rowsFor(part: keyof typeof recoverySplit | 'remaining'): ReturnType<typeof allRows> {
+  const named: readonly ScenarioName[] = part === 'remaining' ? Object.values(recoverySplit).flat() : recoverySplit[part];
+  return allRows().filter(row => named.includes(row.scenario) !== (part === 'remaining'));
+}
+
 /** Crashes one row's scenario at its boundary, restarts twice, and holds the recovered state to every check. */
 export async function verifyRow(row: RecoveryRow & { readonly name: string; readonly write: RunWrite }): Promise<void> {
   const stated = scenarios[row.scenario];

@@ -27,3 +27,21 @@ test('each prepared revision of an invocation names the part it recorded', () =>
   expect(summary({ recorded: 'operation-identity' })).toBe('Invocation inv-0001 recorded its session operation identity');
   expect(summary({})).toBe('Invocation inv-0001 prepared its actual delivered inputs and operation identity');
 });
+
+test('a committed descriptive close projects the whole batch and its coordinator invocation', () => {
+  const event = runEventSchema.parse({ sequence: 7, jobId: 'j', at: '2026-09-20T10:15:00.000Z', type: 'nonfunctional-deviations-recorded', data: {
+    assessment: 'nfa-001', actionInvocation: 'inv-0006', checkFindings: [], deviations: [
+      { deviation: 'plan-deviation:performance', nfr: 'non-functional-requirement:performance', checkFinding: 'finding:performance' },
+      { deviation: 'plan-deviation:accessibility', nfr: 'non-functional-requirement:accessibility', checkFinding: 'finding:accessibility' },
+    ] } });
+  expect(projectEvent(event)).toMatchObject({ transition: 'nonfunctional-deviations-recorded',
+    summary: '2 non-functional deviations recorded for assessment nfa-001',
+    refs: [{ kind: 'invocation', id: 'inv-0006' }] });
+});
+
+test('the phase start does not advertise the retained marker as a round cap', () => {
+  const event = runEventSchema.parse({ sequence: 1, jobId: 'j', at: '2026-09-20T10:15:00.000Z',
+    type: 'nonfunctional-phase-started', data: { catalogHash: 'a'.repeat(64), maxRounds: 1 } });
+  expect(projectEvent(event)).toMatchObject({ transition: 'nonfunctional-phase-started',
+    summary: 'Non-functional assessment phase started' });
+});

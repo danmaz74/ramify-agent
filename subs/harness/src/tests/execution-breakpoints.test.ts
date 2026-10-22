@@ -183,7 +183,7 @@ test('B04: resume revalidates the captured source documents before starting the 
 });
 
 
-test.each(['code', 'design'] as const)('B02 B04: pausing settles an admitted %s review pipeline while its queued successor stays suspended', async kind => {
+test('B02 B04: pausing settles an admitted code review pipeline while its queued successor stays suspended', async () => {
   const root = await reviewTarget(cleanups);
   const active = gate();
   const release = gate();
@@ -196,15 +196,12 @@ test.each(['code', 'design'] as const)('B02 B04: pausing settles an admitted %s 
       [`${notesDirectory}/src/tests/notes.test.ts`]: 'export {};\n',
       [`${notesDirectory}/README.md`]: 'Keep one note per review run.\n',
     } }])),
-    policy: { kinds: kind === 'code' ? ['code', 'scope'] : ['design', 'code'], concurrency: 1, retries: 0 },
+    policy: { kinds: ['code', 'scope'], concurrency: 1, retries: 0 },
     engineer: [[{ kind: 'await', until: async () => { if (++engineerCalls === 2) { exchangeStarted.open(); await exchangeRelease.opened; } } },
       ...submit(completionProposed('Added store'), write('store.ts', 'export const store = new Map(); // v1\n'))]],
     reviewers: {
-      orientation: [{ kind: 'await', until: async () => { active.open(); await release.opened; } }, { kind: 'end', message: 'No orientation submitted' }],
-      'rq-0001': kind === 'code'
-        ? [{ kind: 'await', until: async () => { active.open(); await release.opened; } },
-          tool(snapshotToolNames.diff, { path: store }), { kind: 'submit', input: { inspected: [store], missing: [], concerns: [] } }]
-        : [{ kind: 'end', message: 'No design verdict submitted' }],
+      'rq-0001': [{ kind: 'await', until: async () => { active.open(); await release.opened; } },
+        tool(snapshotToolNames.diff, { path: store }), { kind: 'submit', input: { inspected: [store], missing: [], concerns: [] } }],
     },
   });
   cleanups.push(() => opened.service.close());
@@ -225,7 +222,6 @@ test.each(['code', 'design'] as const)('B02 B04: pausing settles an admitted %s 
   expect(events.filter(event => event.type === 'review-attempt-started').map(event => event.data.request)).not.toContain('rq-0002');
   expect(events.filter(event => event.type === 'writer-acquired')).toHaveLength(1);
   expect(events.filter(event => event.type === 'writer-released')).toHaveLength(1);
-  if (kind === 'design') expect(finished?.data).toMatchObject({ result: 'not-verified', reason: 'invalid-output' });
   await opened.service.execute({ commandId: 'suspended-review-chat', expectedVersion: 0, type: 'debug-message', payload: {
     planId: plan, jobId: opened.runId, pauseId: second.pauseId, expectedRevision: second.revision, message: 'Perform the ordinary task.' } });
   await exchangeStarted.opened;

@@ -224,8 +224,7 @@ export function acceptanceBoundaries(root: string, mode: string, recovery = fals
       expect(sourceCalls.filter(call => call.startsWith('readBlob'))).toEqual(suspendedChanges.map(entry => `readBlob ${scenarios} ${entry.path}`).sort());
       for (const commit of [integrated, corrected]) {
         expect(candidateCalls).toContain(`commitTree ${commit}`);
-        if (commit === integrated || mode === 'review-restart' || mode === 'review-submission-restart')
-          expect(candidateCalls).toContain(`treeEntries ${commit}`);
+        if (commit === integrated) expect(candidateCalls).toContain(`treeEntries ${commit}`);
       }
       expect(candidateCalls.some(call => call.startsWith('diffPatch'))).toBe(true);
       // A resumed consumer is verified through its ordinary iteration gate.

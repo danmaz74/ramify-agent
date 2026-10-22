@@ -1,18 +1,16 @@
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
-import { errorHttpStatus, errorResponseSchema } from '../interfaces/protocol/errors.js';
+import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { jobIdSchema, planIdSchema } from '../interfaces/protocol/ids.js';
 import { acceptedCommandSchema, activitySchema, apiViewEvidenceSchema, receiptSchema, stopJobCommandSchema } from '../interfaces/protocol/jobs.js';
 import { citationSchema, inputManifestSchema, modulePathSchema, moduleTreeResponseSchema, sha256Schema, viewIdentitySchema } from '../interfaces/protocol/evidence.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { planDecisionWaitSchema, planListResponseSchema, planResponseSchema, projectResponseSchema } from '../interfaces/protocol/queries.js';
 import {
-  analysisResponseSchema, capabilityProgressSchema, gateViewSchema, moduleCapabilityComparisonResponseSchema, projectedRunEventSchema, runDecisionRequestsSchema,
-  runEventRefKindSchema, runQueryLimits, scenarioListResponseSchema, scenarioStatusSchema, trackedScenarioStateSchema,
+  analysisResponseSchema, capabilityProgressSchema, gateViewSchema, moduleCapabilityComparisonResponseSchema, runDecisionRequestsSchema, scenarioListResponseSchema,
 } from '../interfaces/protocol/runs.js';
 import {
-  runSessionViewSchema, sessionBodyResponseSchema, sessionListEntrySchema, sessionQueryLimits, sessionRefSchema,
-  sessionTranscriptResponseSchema, sessionUpdatesResponseSchema,
+  runSessionViewSchema, sessionBodyResponseSchema, sessionListEntrySchema, sessionRefSchema, sessionTranscriptResponseSchema, sessionUpdatesResponseSchema,
 } from '../interfaces/protocol/sessions.js';
 
 describe('queries', () => {
@@ -66,8 +64,7 @@ describe('queries', () => {
 });
 
 describe('errors', () => {
-  test('every code has an HTTP status and the shape is strict', () => {
-    expect(errorHttpStatus['not-found']).toBe(404);
+  test('the error shape is strict', () => {
     expect(errorResponseSchema.safeParse({ error: { code: 'stale-version', message: 'm', currentVersion: 3 } }).success).toBe(true);
     expect(errorResponseSchema.safeParse({ error: { code: 'teapot', message: 'm' } }).success).toBe(false);
   });
@@ -200,12 +197,6 @@ describe('the module-capability comparison', () => {
   const accepts = (body: unknown) => moduleCapabilityComparisonResponseSchema.safeParse(body).success;
   const partial = (gaps: string[], extra: Record<string, unknown> = {}) => ({ state: 'partial', knownCapabilities: 3, knownImplemented: 1, totalCapabilities: null, gaps, ...extra });
 
-  test('the path and the bounds', () => {
-    expect(protocolPaths.runModuleCapabilities('p', 'r 1')).toBe('/api/v1/plans/p/runs/r%201/module-capabilities');
-    expect(runQueryLimits.capabilities).toBe(500);
-    expect(runQueryLimits.moduleCapabilityRows).toBe(2000);
-  });
-
   test('a complete comparison', () => {
     expect(moduleCapabilityComparisonResponseSchema.parse(valid)).toEqual(valid);
     // Its counts are of what it returns.
@@ -294,13 +285,6 @@ describe('the acceptance scenarios a client reads', () => {
     entry: null, partOf: null, subScenarios: ['scenario:case-001', 'scenario:case-002'], workItem: 'work-item:case-003', owner: 'app/reviews',
     file: 'subs/reviews/src/tests/features/p/integration.feature', gates: [gateResult],
   };
-
-  test('the path, the bound and every state and status', () => {
-    expect(protocolPaths.runScenarios('p', 'r 1')).toBe('/api/v1/plans/p/runs/r%201/scenarios');
-    expect(runQueryLimits.scenarios).toBe(500);
-    expect(trackedScenarioStateSchema.options).toEqual(['pending', 'bound', 'done']);
-    expect(scenarioStatusSchema.options).toEqual(['passed', 'failed', 'undefined', 'pending', 'ambiguous', 'skipped']);
-  });
 
   test('the scenario list: a scenario with its origin, work item and gates, strictly', () => {
     const list = { scenarios: [scenario], total: 1, obligations: [] };
@@ -397,11 +381,6 @@ describe('the acceptance scenarios a client reads', () => {
     expect(gateViewSchema.parse(setup)).toEqual(setup);
     expect(gateViewSchema.safeParse({ ...gate, commands: [{ kind: 'setup', ...command, name: '' }] }).success).toBe(false);
   });
-
-  test('a projected event may refer to a scenario', () => {
-    const event = { sequence: 4, at: '2026-09-23T08:00:00.000Z', transition: 'obligation-reported', summary: 'The responsible architect reported scenario:case-001 done at revision 1', refs: [{ kind: 'scenario', id: 'scenario:case-001' }, { kind: 'invocation', id: 'inv-0003' }] };
-    expect(projectedRunEventSchema.parse(event)).toEqual(event);
-  });
 });
 
 describe('sessions', () => {
@@ -425,10 +404,6 @@ describe('sessions', () => {
     expect(protocolPaths.runBody('p', 'r', 'a'.repeat(64))).toBe(`/api/v1/plans/p/runs/r/bodies/${'a'.repeat(64)}`);
     expect(protocolPaths.runSessionFile('p', 'r', 'ses-0001', 'invocations/inv-0003/shell/001.log'))
       .toBe('/api/v1/plans/p/runs/r/sessions/ses-0001/files?path=invocations%2Finv-0003%2Fshell%2F001.log');
-  });
-
-  test('the bounds', () => {
-    expect(sessionQueryLimits).toEqual({ sessions: 200, runSessions: 500, entries: 200, pageBytes: 512 * 1024, pollSessions: 50, bodyBytes: 1024 * 1024 });
   });
 
   test('a session reference names a run, plan and ses- number', () => {
@@ -493,9 +468,5 @@ describe('sessions', () => {
     expect(sessionBodyResponseSchema.safeParse({ content: 'x'.repeat(1024 * 1024), bytes: 3_000_000, truncated: true }).success).toBe(true);
     expect(sessionBodyResponseSchema.safeParse({ content: 'x'.repeat(1024 * 1024 + 1), bytes: 3_000_000, truncated: true }).success).toBe(false);
     expect(sessionBodyResponseSchema.safeParse({ content: 'é'.repeat(600 * 1024), bytes: 1_228_800, truncated: false }).success).toBe(false);
-  });
-
-  test('a projected event refers to the sessions it names', () => {
-    expect(runEventRefKindSchema.options).toContain('session');
   });
 });

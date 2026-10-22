@@ -1,5 +1,5 @@
 import { afterEach, describe, test, vi } from 'vitest';
-import { allRows, machineNames, verifyRow } from './helpers/recovery-table.js';
+import { machineNames, rowsFor, verifyRow } from './helpers/recovery-table.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
 vi.mock('node:child_process', async original =>
@@ -17,14 +17,13 @@ afterEach(() => {
  * `helpers/recovery-table.ts`. Git and the commands readiness would spawn
  * are answered rather than run, by answers the scenario states and the crash
  * and both restarts share. The rows are split across three files only
- * so that they run in parallel; `composition.test.ts` asserts that
- * together they are the whole table.
+ * so that they run in parallel; `rowsFor` in `helpers/recovery-table.ts`
+ * splits the table so that together they run all of it.
  */
 
-const scenarios: readonly string[] = ['iteration', 'stop', 'engineer-budget'];
 
 describe('the composed recovery table: the run, its work items, iterations, gates, writer, budget and stop', () => {
-  for (const row of allRows().filter(candidate => scenarios.includes(candidate.scenario))) {
+  for (const row of rowsFor('remaining')) {
     test(`${row.name} (${row.machines.map(machine => `${machine}, ${machineNames[machine]}`).join('; ')}): ${row.stated}`, async () => {
       await verifyRow(row);
     }, 300_000);

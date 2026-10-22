@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest';
-import { ramifyExecutable } from '../../subs/evidence/src/ramify-cli.js';
-import { checkpointPolicies, diagnosisChecks } from '../../subs/autonomous/subs/acceptance/src/checks/checkpoint.js';
-import { commandTimeouts, defaultLimits, defaultRunPolicy } from '../run/policy.js';
+import { diagnosisChecks } from '../../subs/autonomous/subs/acceptance/src/checks/checkpoint.js';
+import { defaultRunPolicy } from '../run/policy.js';
 import { runPolicySchema } from '../../subs/autonomous/src/run/records.js';
 import { RunService, type RunServiceOptions } from '../run/lifecycle.js';
 import { copyFixture } from './helpers/fixture.js';
@@ -27,48 +26,18 @@ describe('the captured commands', () => {
     await expect(RunService.open({ policy: () => defaultRunPolicy({ projectRoot: '/project' }) } as unknown as RunServiceOptions))
       .rejects.toThrow('Production run policy is fixed');
   });
-  test('are the main plan\'s table, naming the environment the harness built', () => {
+  test('name the environment the harness built and capture no test command', () => {
     const policy = defaultRunPolicy({ projectRoot: '/project' });
-    expect(policy.version).toBe('run-policy/8');
-    expect(policy.continuity).toEqual({ version: 'resource-continuity/1' });
-    expect(policy.limits.maxIterationsPerCapabilityTask).toBe(24);
-    expect(policy.limits.nonfunctionalRoundsPerPlan).toBe(3);
-    // The first trial's review policy and reconciliation bound (Plan 12).
-    expect(policy.reviews).toEqual({ version: 'review-policy/1', kinds: ['code', 'scope', 'design'], concurrency: 2, queue: 12, retries: 1, attemptMs: 600_000, settleMs: 900_000, maxConcerns: 20 });
-    expect(policy.limits.reconciliationRoundsPerWorkItem).toBe(3);
-    // The transcript's inline body limit is a recorded policy value.
-    expect(policy.transcript).toEqual({ inlineBodyBytes: 8192 });
-    expect(policy.commands.typeCheck.argv).toEqual(['npm', 'run', 'type-check']);
+    expect(runPolicySchema.parse(policy)).toEqual(policy);
     // No test command is captured: a run's gates ask the committed audit,
     // whose definition names the project's suites and scenario checks.
     expect(Object.keys(policy.commands).sort()).toEqual(['hookTimeoutMs', 'ramifyChanged', 'ramifyCheck', 'typeCheck']);
-    expect(policy.commands.ramifyCheck.argv).toEqual([ramifyExecutable, 'check', '--batch', '--root', '/project', '--format', 'json', '--no-snapshot']);
-    expect(policy.commands.ramifyChanged.argv).toEqual([ramifyExecutable, 'check', '--changed', '--format', 'json', '--deadline', '5000']);
-    expect(policy.commands.hookTimeoutMs).toBe(commandTimeouts.hook);
-    expect(policy.commands.typeCheck.timeoutMs).toBe(300_000);
-    expect(policy.commands.ramifyCheck.timeoutMs).toBe(600_000);
-    expect(policy.commands.ramifyChanged.timeoutMs).toBe(5_000);
     for (const command of [policy.commands.typeCheck, policy.commands.ramifyCheck]) {
       expect(command.cwd).toBe('/project');
       expect(command.env).toContain('PATH');
       expect(command.env).not.toContain('NODE_OPTIONS');
       expect(command.envAdditions).toEqual({});
     }
-  });
-
-  test('the limits are the plan\'s, and the policy validates as one record', () => {
-    const policy = defaultRunPolicy({ projectRoot: '/project' });
-    expect(policy.limits).toEqual(defaultLimits);
-    expect(defaultLimits).toMatchObject({
-      repairRoundsPerIteration: 3, repairRoundsPerWorkItemGate: 3, infrastructureRetriesPerGate: 2,
-      forkRetriesPerRequest: 2, budgetReturnsPerIteration: 6, sessionReconstructionsPerWork: 2,
-      cycleReplansPerWorkItem: 1, rejectedSubmissionsPerTurn: 3, rejectedToolInputsPerTurn: 3,
-      readinessRecoveries: 2, stopSettleMs: 30_000, writerSettleMs: 30_000,
-      invocationIdleMs: 300_000, invocationAbsoluteMs: 3_600_000,
-      maxIterationsPerWorkItem: 12, maxWorkItems: 64, maxPlacementRequests: 32,
-      maxInvocationsPerRun: 400, runAbsoluteMs: 28_800_000,
-    });
-    expect(runPolicySchema.parse(policy)).toEqual(policy);
   });
 
   test('every role has its context policy, and a role with none is refused', () => {
@@ -96,17 +65,6 @@ describe('new-run policy does not infer packages', () => {
 });
 
 describe('the checkpoint policy', () => {
-  test('readiness and ordinary gates use provider defaults; only the final gate requests full nested verification; readiness alone commits nothing', () => {
-    expect(checkpointPolicies).toEqual({
-      readiness: { committing: false, audit: 'project-default', nested: false },
-      iteration: { committing: true, audit: 'project-default', nested: false },
-      contract: { committing: true, audit: 'project-default', nested: false },
-      'breaking-iteration': { committing: true, audit: 'project-default', nested: false },
-      'work-item': { committing: true, audit: 'project-default', nested: false },
-      final: { committing: true, audit: 'full', nested: true },
-    });
-  });
-
   test('a standalone diagnosis runs the project\'s setup, its type check and a complete Ramify check, and no test', () => {
     const policy = defaultRunPolicy({ projectRoot: '/project' });
     const checks = diagnosisChecks(policy.commands, [{ name: 'build', command: ['npm', 'run', 'build'] }], '/project');

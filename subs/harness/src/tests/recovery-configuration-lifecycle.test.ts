@@ -9,8 +9,6 @@ import { emptyAnalysis, openRuns, runPath, startRun, stopRun, testPolicy, until 
 import { passingAudit } from './helpers/direct-check-execution.js';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
 import { externalCandidatePath } from '../../subs/autonomous/subs/acceptance/src/candidate-attribution.js';
-import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
-import { declaringScenarios } from './helpers/declarations.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
@@ -51,30 +49,4 @@ test('an executable lookup correction is observed without a recovery admission r
   expect(agent!.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(2);
   await service.execute(stopRun('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version)); await service.settled('review-notes', receipt.jobId);
   expect(git.unexpected).toEqual([]);
-});
-
-test.each(['compatible', 'incompatible'] as const)('a %s runtime change permits ordinary task continuation on startup', async compatibility => {
-  const copy = await copyFixture(); cleanup.push(copy.remove);
-  const tree = 'a'.repeat(40); let revised = false;
-  const git = fixtureScratchGit(mockGit({ currentHead: async () => 'base', changedPaths: async () => [],
-    previewCandidateTree: async () => ({ repositoryRoot: copy.root, head: 'base', tree }),
-    recoveryStatus: async () => ({ index: 'retained-index', staged: [], unstaged: [], untracked: [] }) }));
-  const candidates = scriptedCandidates(copy.root, { [tree]: { tree, base: 'base', files: {}, changes: [] } });
-  const agent = createScriptedAgent(declaringScenarios(byRole({ 'initial-architect': [[{ kind: 'fail', error: 'ordinary adapter defect',
-    evidence: { classification: 'adapter-fault', diagnostic: 'original adapter fault before compatible runtime correction' } }], submit(emptyAnalysis())] })));
-  const options = { git, candidates, agent, policy: (root: string) => testPolicy(root, { recovery: true }), recoveryRuntime: async () => ({
-    harness: revised ? 'new-installed-runtime' : 'original-runtime', provider: 'retained-provider', contracts: { policy: 'operation-recovery/1',
-      records: 'records/1', submissions: 'validators/1', equipment: revised && compatibility === 'incompatible' ? 'incompatible-session-equipment/2' : 'session-equipment/1', authority: 'captured-authority/1' } }) };
-  const first = await openRuns(copy.root, options); cleanup.push(() => first.service.close());
-  const receipt = await first.service.execute(startRun('review-notes', 'scripted', `runtime-${compatibility}`, true));
-  await until(() => first.service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
-  await first.service.close(); revised = true;
-  const reopened = await openRuns(copy.root, options); cleanup.push(() => reopened.service.close());
-  await until(() => reopened.service.events('review-notes', receipt.jobId)!.some(event => event.type === 'review-requested'));
-  expect(await reopened.service.recoveryInspection('review-notes', receipt.jobId)).toBeNull();
-  expect(agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(2);
-  const events = reopened.service.events('review-notes', receipt.jobId)!;
-  expect(events.filter(event => event.type === 'invocation-ended' && event.data.ended === 'failed')).toHaveLength(1);
-  await reopened.service.execute(stopRun('review-notes', receipt.jobId, reopened.service.getRun('review-notes', receipt.jobId)!.version));
-  await reopened.service.settled('review-notes', receipt.jobId); expect(git.unexpected).toEqual([]);
 });

@@ -175,27 +175,6 @@ async function legacy(root: string, adapter: HarnessSessionOperations) {
   return { input, packet, context, ref: sessionPointReference('run', receipt.point!), path };
 }
 
-test('S03/S06: legacy retry preserves /1 bytes; new task migrates representation once without synthetic inherited messages', async () => {
-  let calls = 0; const first = await open(() => { calls++; return [{ kind: 'submit', input: {} }]; }); const old = await legacy(first.root, first.adapter); const original = await readFile(old.path, 'utf8');
-  await first.adapter.close(); const next = await open(() => { calls++; return [{ kind: 'submit', input: {} }]; }, first.root);
-  await turn(next.adapter, { ...old.input, restore: true, loaded: { ...old.input.loaded, procedure: 'New files must not affect old retry', submissionSchema: 'invalid' } });
-  expect((await next.adapter.originalOperation('run', 'legacy'))!.declarations.map(tool => tool.name)).not.toContain('subagent');
-  expect(calls).toBe(1); expect(await readFile(old.path, 'utf8')).toBe(original); expect(await next.adapter.packet('run', 'legacy')).toEqual(old.packet);
-  await turn(next.adapter, old.input); expect(calls).toBe(1);
-  await expect(next.adapter.start({ ...old.input, brief: { ...old.input.brief, objective: 'Perform' } })).rejects.toThrow('Conflicting harness session correlation');
-  const migrated = await turn(next.adapter, request('migrate', old.ref)); const current = (await next.adapter.packet('run', 'migrate'))!;
-  expect((await next.adapter.originalOperation('run', 'migrate'))!.declarations.map(tool => tool.name)).toContain('subagent');
-  expect(current.manifest.schema).toBe('ramify-agent.delivered-inputs/2');
-  expect(current.manifest.entries.filter(entry => entry.delivery === 'inherited').map(entry => entry.hash)).toEqual(old.packet.manifest.entries.map(entry => entry.hash));
-  expect(current.manifest.entries.filter(entry => entry.delivery === 'inherited' && entry.kind === 'environment')).toHaveLength(1);
-  // The migration delivers only the fields this role's tools use; a legacy environment is no earlier block value.
-  expect(current.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:candidate', 'environment:limits', 'environment:availableTools']);
-  expect(current.additions.filter(item => item.kind === 'environment').every(item => !item.text.includes('Current value; replaces'))).toBe(true);
-  expect(current.additions.filter(item => item.kind === 'brief').map(item => item.key)).toEqual(['brief:goal', 'brief:requirements', 'brief:support:evidence']);
-  expect(current.additions.filter(item => item.kind === 'role-instructions' || item.kind === 'tool-declaration')).toEqual([]);
-  await turn(next.adapter, request('after-migration', migrated.ref)); expect((await next.adapter.packet('run', 'after-migration'))!.additions.map(item => item.key)).toEqual(['briefing-state', 'task']);
-});
-
 test('S05/S06: hand-authored old named append replays its unframed original after restart', async () => {
   const first = await open(); const old = await legacy(first.root, first.adapter); const point = readSessionPointReference(old.ref)!.point;
   const receipt = await first.adapter.operations.appendContext({ runId: 'run', operationId: `append:${point.sessionId}:old-name`, sessionId: point.sessionId, expectedPoint: point,

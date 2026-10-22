@@ -1,5 +1,5 @@
 import { afterEach, describe, test, vi } from 'vitest';
-import { allRows, machineNames, verifyRow, verifyAvailableAppend } from './helpers/recovery-table.js';
+import { machineNames, rowsFor, verifyRow, verifyAvailableAppend } from './helpers/recovery-table.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
 vi.mock('node:child_process', async original =>
@@ -17,11 +17,10 @@ afterEach(() => {
  * `helpers/recovery-table.ts`. Git and the commands readiness would spawn
  * are answered rather than run, by answers the scenario states and the crash
  * and both restarts share. The rows are split across three files only
- * so that they run in parallel; `composition.test.ts` asserts that
- * together they are the whole table.
+ * so that they run in parallel; `rowsFor` in `helpers/recovery-table.ts`
+ * splits the table so that together they run all of it.
  */
 
-const scenarios: readonly string[] = ['placement', 'name-rejection', 'revision', 'cycle'];
 
 describe('the composed recovery table: placement, contract revision and a cycle', () => {
   for (const boundary of ['context-package-append-requested', 'decision-accepted', 'brief-appending'] as const) {
@@ -29,7 +28,7 @@ describe('the composed recovery table: placement, contract revision and a cycle'
       await verifyAvailableAppend(boundary);
     }, 300_000);
   }
-  for (const row of allRows().filter(candidate => scenarios.includes(candidate.scenario))) {
+  for (const row of rowsFor('chains')) {
     test(`${row.name} (${row.machines.map(machine => `${machine}, ${machineNames[machine]}`).join('; ')}): ${row.stated}`, async () => {
       await verifyRow(row);
     }, 300_000);

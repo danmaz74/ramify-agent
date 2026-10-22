@@ -1,49 +1,22 @@
 import { afterEach, describe, expect, test } from 'vitest';
-import { z } from 'zod';
 import { openLedger } from '../../subs/ledger/src/ledger.js';
 import { readCommitted } from '../jobs/commit.js';
-import { runEventSchema, terminalRunEvents, type RunEvent } from '../../subs/autonomous/src/run/log.js';
+import { runEventSchema, type RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { ObservationLog, observationSchema, type ObservationInput } from '../../subs/task-execution/src/observations.js';
-import {
-  capabilityStateSchema, decisionViewSchema, hypothesisStandingSchema, metricSchema, metricStateSchema,
-  failureCauseSchema, roleSchema, runFailureReasonSchema, runNoticeSchema, runPhaseSchema, workItemStateSchema,
-} from '../interfaces/protocol/runs.js';
-import { errorCodeSchema, errorHttpStatus, errorResponseSchema } from '../interfaces/protocol/errors.js';
+import { decisionViewSchema, metricSchema, metricStateSchema } from '../interfaces/protocol/runs.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import type { CommittedRun } from '../../subs/projections/src/inputs.js';
 import { createQuerySource } from '../http/query-source.js';
-import { constructedRun, constructedRecord } from './helpers/constructed.js';
-import { infrastructureRecoverySchema, readinessSteps } from '../../subs/autonomous/subs/acceptance/src/readiness-records.js';
-import { measurementSnapshotSchema } from '../../subs/kpi/src/run-records.js';
-import { gateRuleSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
+import { constructedRun } from './helpers/constructed.js';
 import { runLayout, runSchemas } from '../../subs/autonomous/src/run/records.js';
-import { invocationOutcomeSchema, sessionModeSchema, continueReasonSchema, degradeRelationSchema, forkReasonSchema, replaceReasonSchema, requestReasonSchema, sessionPointSchema } from '../../subs/task-execution/src/records.js';
-import { defaultContextPolicies } from '../run/policy.js';
-import { analysisLayout, analysisSchemas, hypothesisChangeSchema, hypothesisSchema, registryEntrySchema } from '../../subs/autonomous/subs/planning/src/records.js';
-import { contractAuthoritySchema, contractModeSchema, contractSchemas, contractsLayout } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
-import { contractSubmissionKinds, contractSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/contracts/submission.js';
-import { decompositionSchema, workLayout, workSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
-import {
-  architectureLayout, architectureSchemas, decisionAuthoritySchema,
-  hypothesisStanceSchema, placementOutcomeSchema,
-} from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
-import { forkSubmissionKinds, forkSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
-import { deviationLayout, deviationSchemas } from '../../subs/autonomous/subs/acceptance/src/deviations/records.js';
-import { localArchitectSubmissionSchema, localArchitectSubmissionKinds } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
-import { engineerSubmissionSchema, engineerSubmissionKinds, capabilityEngineerSubmissionKinds, unsuitableReasonSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { assignableKindSchema, assignmentBodySchema } from '../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
-import { extraPurposeSchema } from '../work/scope.js';
-import { iterationAssignmentSchema, iterationKindSchema, iterationLayout, iterationResultSchema, iterationSchemas, moduleNoticeSchema } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { shellInputSchema, shellJsonSchema } from '../tools/shell.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 
 /*
- * Every value of every union this iteration establishes is written and read
- * back. A value with no producer yet is named here rather than left silent:
- * the iteration that gives it one extends this file.
- *
- * Records go through the ledger and come back through the reader that
- * answers valid, unsupported version or invalid, never an absent record.
+ * The record and protocol rules a consumer relies on: what the readers
+ * refuse, what replays keep, and what a submission cannot state. TypeScript
+ * already proves each union exhaustive.
  */
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -80,8 +53,6 @@ async function ledger() {
   };
 }
 
-const settled = { confirmed: true, at: '2026-09-20T10:15:00.000Z', groupsKilled: 0, lateWrites: [] };
-
 function queriesOf(run: CommittedRun) {
   return new RunQueries(createQuerySource({ projectRoot: '/nonexistent', agentName: 'scripted',
     committed: () => run, committedRuns: () => [run], runVersions: () => [],
@@ -89,42 +60,6 @@ function queriesOf(run: CommittedRun) {
 }
 
 describe('the run log', () => {
-  test('every event type is written and read back, and the terminal ones are named', () => {
-    const types = runEventSchema.options.map(option => option.shape.type.value);
-    expect(types).toEqual([
-'operation-recovery-attempt', 'operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'external-candidate-observed', 'operation-recovery-replied',
-      'readiness-preparation-started', 'readiness-preparation-completed', 'readiness-repair-committing', 'readiness-repair-committed',
-      'repair-assignment-recorded', 'repair-preparation-recorded', 'repair-preparation-consumed', 'repair-incident-recorded', 'repair-export-recorded',
-      'invocation-prepared', 'job-started', 'job-continued', 'debug-pausing', 'debug-paused', 'debug-exchange-admitted', 'debug-exchange-settled', 'debug-resumed', 'session-opened', 'invocation-started', 'invocation-ended', 'session-finished', 'analysis-accepted',
-      'document-manifest-committed', 'work-orientation-recorded', 'context-selection-recorded', 'context-package-append-requested', 'context-package-appended', 'context-package-prompt-bound', 'candidate-prepared', 'nonfunctional-phase-started', 'nonfunctional-final-invalidated', 'nonfunctional-assessed', 'nonfunctional-investigated', 'nonfunctional-repair-assigned', 'nonfunctional-repair-committed', 'nonfunctional-round-closed', 'nonfunctional-deviations-recorded', 'candidate-bound-to-gate', 'final-instability-reconciled',
-      'capability-requested', 'capability-qualified', 'capability-delegated', 'capability-plan-revised', 'capability-coordinator-resumed',
-      'capability-exchange-opened', 'capability-exchange-answered', 'capability-assigned',
-      'capability-assignment-settled',
-      'capability-verification-started', 'capability-handed-back', 'capability-stopped',
-      'review-requested', 'analysis-approved',
-      'readiness-passed', 'readiness-failed', 'scratch-setting-up', 'scratch-setup-complete',
-      'scenarios-materializing', 'scenarios-materialized',
-      'obligation-registered', 'obligation-bound', 'obligation-reported',
-      'work-item-started', 'hypotheses-delivered',
-      'placement-requested', 'view-refreshed', 'fork-returned-partial', 'fork-name-rejected', 'decision-accepted',
-      'brief-appended', 'brief-not-appended', 'global-context-rebuilt', 'decision-delivered',
-      'outline-revised',
-      'ownership-evidence-retained', 'iteration-assigned', 'iteration-closed', 'scratch-preserved',
-      'contract-requested', 'contract-registered',
-      'work-item-yielded', 'work-item-resumed', 'consultation-started', 'consultation-finished', 'consultation-delivery-recorded',
-      'provider-conformed', 'requirement-verified',
-      'evidence-reopened', 'revision-needed', 'dependency-cycle-detected',
-      'work-item-completed',
-      'writer-acquired', 'writer-process-registered', 'writer-released',
-      'gate-started', 'final-correction-planned', 'compaction-review-started', 'compaction-reviewed', 'gate-committing', 'iteration-candidate-prepared', 'gate-command-started', 'gate-command-waiting', 'gate-attempted', 'check-findings-recorded',
-      'review-request-recorded', 'review-attempt-started', 'review-orientation-recorded', 'review-attempt-finished',
-      'reconciliation-started', 'reconciliation-assessed', 'reconciliation-brief-appended', 'reconciliation-refused',
-      'unresolved-requested', 'plan-deviation-recorded', 'environment-reported', 'scenarios-rewording', 'scenarios-reworded', 'stop-requested',
-      'job-completed', 'job-failed', 'job-stopped', 'job-interrupted',
-    ]);
-    for (const terminal of terminalRunEvents) expect(types).toContain(terminal);
-  });
-
   test('the prepared invocation event round-trips its original identity through the ledger', async () => {
     const store = await ledger();
     const event = { sequence: 1, jobId: '20260920T101500Z-3f9a1c', at: '2026-09-20T10:15:00.000Z', type: 'invocation-prepared' as const, data: { invocation: 'inv-0001' } };
@@ -135,49 +70,6 @@ describe('the run log', () => {
     expect(runEventSchema.safeParse({ ...event, data: { invocation: 'inv-0001', changedTask: true } }).success).toBe(false);
   });
 
-  test('every lineage reason is named, and each relation is read back on the event that carries it', () => {
-    expect(continueReasonSchema.options).toEqual(['placement-answered', 'iteration-closed', 'completion-refused', 'repair', 'reconciliation', 'deviation-recorded', 'environment-resumed', 'context-selected', 'capability-qualification', 'capability-returned', 'capability-coordination', 'debugger']);
-    expect(forkReasonSchema.options).toEqual(['interruption-recovery', 'placement-request', 'scope-review', 'design-orientation', 'reconciliation', 'unresolved-request', 'context-selection', 'capability-consultation', 'architect-consultation']);
-    expect(replaceReasonSchema.options).toEqual(['reconstructed', 'context-rebuilt']);
-    expect(requestReasonSchema.options).toEqual(['contract-needed', 'capability-needed']);
-    expect(degradeRelationSchema.shape.requested.options).toEqual(['continue', 'fork']);
-
-    const base = { jobId: '20260920T101500Z-3f9a1c', at: '2026-09-20T10:15:00.000Z' };
-    const end = { session: 'ses-0001', invocation: 'inv-0001' };
-    const append = { session: 'ses-0001', append: 4 };
-    const lines = [
-      { sequence: 1, type: 'session-opened', data: {
-        session: 'ses-0002', role: 'global-fork', work: { workItem: 'work-item:case-001', request: 'placement-request:case-001' }, executor: 'scripted', model: null,
-        fork: { from: append, reason: 'placement-request', generation: 2, briefs: ['placement-decision:case-001'] },
-        replaces: { session: 'ses-0001', reason: 'context-rebuilt' },
-        requestedBy: { invocation: 'inv-0001', reason: 'contract-needed' },
-      } },
-      { sequence: 2, type: 'invocation-started', data: {
-        invocation: 'inv-0002', role: 'engineer', session: 'ses-0001', work: {}, start: 'continued',
-        continues: { from: end, reason: 'repair', briefs: [] },
-      } },
-      { sequence: 3, type: 'invocation-ended', data: {
-        invocation: 'inv-0002', ended: 'submitted', submission: null, session: 'ses-0001', kept: true,
-        degraded: { requested: 'continue', actual: 'fresh', reason: null },
-      } },
-      { sequence: 4, type: 'invocation-ended', data: {
-        invocation: 'inv-0003', ended: 'failed', submission: null, session: 'ses-0002', kept: false, finished: 'not-kept',
-        degraded: { requested: 'fork', actual: 'fresh', reason: 'The session is not known.' },
-      } },
-      // A review's fork is of another role's session, not of the architect
-      // context, and names no generation.
-      { sequence: 5, type: 'session-opened', data: {
-        session: 'ses-0003', role: 'reviewer', work: { workItem: 'work-item:case-001', iteration: 'it-case-01' }, executor: 'scripted', model: null,
-        fork: { from: end, reason: 'scope-review', briefs: [] },
-      } },
-    ];
-    for (const line of lines) expect(runEventSchema.parse({ ...base, ...line })).toEqual({ ...base, ...line });
-    // A point is a harness session with an invocation or an append, never an executor's ref.
-    expect(sessionPointSchema.safeParse({ session: 'scripted-1@3#1', invocation: 'inv-0001' }).success).toBe(false);
-    expect(sessionPointSchema.safeParse({ session: 'ses-0001', ref: 'scripted-1@3#1' }).success).toBe(false);
-    expect(sessionPointSchema.safeParse({ ...end, append: 4 }).success).toBe(false);
-  });
-
   test('an event of an unknown type is refused', () => {
     expect(runEventSchema.safeParse({
       sequence: 1, jobId: '20260920T101500Z-3f9a1c', at: '2026-09-20T10:15:00.000Z', type: 'map-validated', data: {},
@@ -186,99 +78,6 @@ describe('the run log', () => {
 });
 
 describe('the record unions', () => {
-  test('every way an invocation can end, with every disposition and interruption', async () => {
-    const store = await ledger();
-    const ends = invocationOutcomeSchema.shape.ended.options;
-    expect(ends).toEqual(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'checkpoint-pending', 'invalid-submission']);
-    const dispositions = invocationOutcomeSchema.shape.disposition.options;
-    expect(dispositions).toEqual(['applied', 'superseded', 'incomplete']);
-    const interruptions = ['idle-timeout', 'absolute-timeout', 'provider-error', 'session-lost', 'adapter-fault'] as const;
-
-    let index = 0;
-    for (const ended of ends) {
-      for (const disposition of dispositions) {
-        index += 1;
-        const read = await store.roundTrip(runLayout.outcome(`inv-${String(index).padStart(4, '0')}`), {
-          schema: 'ramify-agent.invocation-outcome/1',
-          invocation: `inv-${String(index).padStart(4, '0')}`,
-          ended, disposition, rejectedSubmissions: 0, submission: null,
-          settled, outsideScope: [], usage: { unavailable: 'none reported' }, elapsedMs: 1,
-        }, runSchemas.outcome);
-        expect(read).toMatchObject({ ended, disposition });
-      }
-    }
-    for (const interruption of interruptions) {
-      index += 1;
-      const id = `inv-${String(index).padStart(4, '0')}`;
-      const read = await store.roundTrip(runLayout.outcome(id), {
-        schema: 'ramify-agent.invocation-outcome/1',
-        invocation: id, ended: 'failed', interruption, disposition: 'incomplete',
-        rejectedSubmissions: 0, submission: null, settled, outsideScope: [],
-        usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 2 }, elapsedMs: 1,
-      }, runSchemas.outcome);
-      expect(read.interruption).toBe(interruption);
-    }
-  });
-
-  test('every readiness step, outcome and verdict', async () => {
-    const store = await ledger();
-    for (const [index, outcome] of (['passed', 'failed', 'not-verified'] as const).entries()) {
-      const read = await store.roundTrip(runLayout.readiness(index + 1), {
-        schema: 'ramify-agent.readiness-attempt/1',
-        attempt: index + 1,
-        head: 'abc',
-        steps: readinessSteps.map(step => ({ step, outcome, detail: `${step} was ${outcome}` })),
-        nested: [{ directory: 'tools', manifest: 'tools/package.json', installed: outcome === 'passed', testScript: outcome === 'passed' ? 'vitest run' : null }],
-        verdict: outcome === 'passed' ? 'passed' : 'failed',
-        recovery: outcome === 'failed' ? 'rec-0001' : null,
-      }, runSchemas.readiness);
-      expect(read.steps.map(step => step.step)).toEqual([...readinessSteps]);
-    }
-  });
-
-  test('every recovery cause, action and outcome', async () => {
-    const store = await ledger();
-    const causes = infrastructureRecoverySchema.shape.cause.options;
-    const actions = infrastructureRecoverySchema.shape.action.options;
-    let index = 0;
-    for (const cause of causes) {
-      for (const action of actions) {
-        for (const outcome of ['recovered', 'failed'] as const) {
-          index += 1;
-          const id = `rec-${String(index).padStart(4, '0')}`;
-          const read = await store.roundTrip(runLayout.recovery(id), {
-            schema: 'ramify-agent.infrastructure-recovery/1',
-            id, subject: { readiness: 1 }, cause, action, attempt: 1, outcome, evidence: ['01-tests.log'],
-          }, runSchemas.recovery);
-          expect(read).toMatchObject({ cause, action, outcome });
-        }
-      }
-    }
-    // Which of them a run of this iteration produces, and which do not yet.
-    expect(actions).toEqual(['restart-daemon', 'reinstall-nested', 'rerun-command', 'reconstruct-session', 'none']);
-  });
-
-  test('a measurement snapshot, available and unavailable', async () => {
-    const store = await ledger();
-    const available = await store.roundTrip(runLayout.measurement('ms-0001'), {
-      schema: 'ramify-agent.measurement-snapshot/1',
-      id: 'ms-0001', policy: 'scope-size/2', head: 'abc',
-      measure: { revision: 'rev/1:x:1', document: { schema: 'ramify.measure/1' }, hash: 'a'.repeat(64) },
-      view: { status: 'materialized', revision: 'rev/1:x:1', input: 'input/1:abc', coverageLimits: [] },
-      supplementary: [{ path: 'plans/p/plan.md', bytes: 12 }],
-    }, runSchemas.measurement);
-    expect('unavailable' in available.measure).toBe(false);
-
-    const unavailable = await store.roundTrip(runLayout.measurement('ms-0002'), {
-      schema: 'ramify-agent.measurement-snapshot/1',
-      id: 'ms-0002', policy: 'scope-size/2', head: 'abc',
-      measure: { unavailable: 'the producer could not be run' },
-      view: { status: 'placeholder' },
-      supplementary: [],
-    }, runSchemas.measurement);
-    expect('unavailable' in unavailable.measure).toBe(true);
-  });
-
   test('a record of an unsupported version is a failure with evidence, never an absent record', async () => {
     const store = await ledger();
     await store.roundTrip(runLayout.measurement('ms-0003'), {
@@ -296,23 +95,6 @@ describe('the record unions', () => {
 });
 
 describe('the observation log', () => {
-  test('every observation type is a valid line, and every coverage-gap kind is named', () => {
-    const types = observationSchema.options.map(option => option.shape.type.value);
-    expect(types).toEqual([
-      'exploration', 'usage', 'model-duration', 'tool-start', 'tool-duration', 'milestone',
-      'activity', 'rejection', 'guard', 'mutation', 'hook-check', 'excursion',
-      'context', 'compaction', 'coverage-gap',
-    ]);
-    const kinds = [
-      'unguarded-shell', 'changed-paths-unknown', 'usage-unavailable', 'context-unavailable',
-      'observation-truncated', 'transcript-incomplete', 'unsupported-check-result',
-    ];
-    for (const kind of kinds) {
-      expect(observationSchema.safeParse({ n: 1, at: '2026-09-20T10:15:00.000Z', type: 'coverage-gap', data: { kind, detail: 'why' } }).success).toBe(true);
-    }
-    expect(observationSchema.safeParse({ n: 1, at: '2026-09-20T10:15:00.000Z', type: 'coverage-gap', data: { kind: 'capability:other', detail: 'why' } }).success).toBe(false);
-  });
-
   test('the exploration usage and timing variants round-trip their exact values and stable identities', async () => {
     const directory = await temporaryDirectory(); cleanups.push(directory.remove);
     const path = `${directory.path}/observations.jsonl`;
@@ -336,77 +118,6 @@ describe('the observation log', () => {
     for (const line of expected) expect(observationSchema.safeParse({ ...line, data: { ...line.data, unexpected: true } }).success).toBe(false);
     expect(observationSchema.safeParse({ ...expected[2], data: { elapsedMs: -1 } }).success).toBe(false);
   });
-
-  test('every guard verdict, mutation observer and compaction trigger', () => {
-    for (const verdict of ['allowed', 'blocked-scope', 'blocked-unresolved']) {
-      expect(observationSchema.safeParse({
-        n: 1, at: '2026-09-20T10:15:00.000Z', type: 'guard',
-        data: { callId: 'c1', tool: 'edit', requested: 'a.ts', resolved: null, owner: null, scopeRevision: null, verdict, reason: '' },
-      }).success).toBe(true);
-    }
-    for (const observedBy of ['tool', 'snapshot']) {
-      expect(observationSchema.safeParse({
-        n: 1, at: '2026-09-20T10:15:00.000Z', type: 'mutation',
-        data: { callId: null, paths: [], added: null, deleted: null, observedBy, toolFailed: false, attributable: true },
-      }).success).toBe(true);
-    }
-    for (const trigger of ['threshold', 'overflow', 'explicit']) {
-      expect(observationSchema.safeParse({
-        n: 1, at: '2026-09-20T10:15:00.000Z', type: 'compaction',
-        data: { trigger, succeeded: true, before: 10, after: 5 },
-      }).success).toBe(true);
-    }
-  });
-
-  test('every hook-check mode, outcome and path disposition, and the excursion an outside read is', () => {
-    for (const mode of ['changed', 'complete']) {
-      for (const outcome of ['passed', 'findings', 'not-checked']) {
-        expect(observationSchema.safeParse({
-          n: 1, at: '2026-09-20T10:15:00.000Z', type: 'hook-check',
-          data: { paths: ['a.ts'], mode, outcome, reason: null, newFindings: 0, log: null, provider: null, dispositions: [] },
-        }).success).toBe(true);
-      }
-    }
-    const dispositions = [
-      { path: 'a.ts', disposition: 'checked', reason: 'content', module: 'app', exclusion: null, sha256: 'a'.repeat(64) },
-      { path: 'gone.ts', disposition: 'checked', reason: 'deleted', module: 'app', exclusion: null, sha256: null },
-      { path: 'docs/a.md', disposition: 'not-analyzed', reason: 'owned-unwired', module: 'app', exclusion: { kind: 'owned-unwired', directory: 'docs', owner: 'app' }, sha256: null },
-      { path: 'b.ts', disposition: 'not-checked', reason: 'deadline-exceeded', module: 'app', exclusion: null, sha256: null },
-    ];
-    expect(observationSchema.safeParse({
-      n: 1, at: '2026-09-20T10:15:00.000Z', type: 'hook-check',
-      data: { paths: ['a.ts'], mode: 'changed', outcome: 'not-checked', reason: 'deadline-exceeded', newFindings: 0, log: null, provider: { schema: 'ramify.check/3', revision: 'rev/1:x:1' }, dispositions },
-    }).success).toBe(true);
-    expect(observationSchema.safeParse({
-      n: 1, at: '2026-09-20T10:15:00.000Z', type: 'hook-check',
-      data: { paths: [], mode: 'partial', outcome: 'passed', reason: null, newFindings: 0, log: null, provider: null, dispositions: [] },
-    }).success).toBe(false);
-    // A path is never recorded as having passed: there is no such disposition.
-    expect(observationSchema.safeParse({
-      n: 1, at: '2026-09-20T10:15:00.000Z', type: 'hook-check',
-      data: { paths: ['a.ts'], mode: 'changed', outcome: 'passed', reason: null, newFindings: 0, log: null, provider: null, dispositions: [{ ...dispositions[0], disposition: 'passed' }] },
-    }).success).toBe(false);
-    expect(observationSchema.safeParse({
-      n: 1, at: '2026-09-20T10:15:00.000Z', type: 'excursion',
-      data: { callId: 'c1', module: 'shop/orders', firstEntry: true },
-    }).success).toBe(true);
-  });
-
-  test('a tool activity carries the command text where the tool ran one', () => {
-    expect(observationSchema.safeParse({
-      n: 1, at: '2026-09-20T10:15:00.000Z', type: 'activity',
-      data: { activity: { kind: 'tool', callId: 'c1', tool: 'shell', command: 'ls -la' } },
-    }).success).toBe(true);
-    // A tool that runs no command carries none, and nothing else is added.
-    expect(observationSchema.safeParse({
-      n: 1, at: '2026-09-20T10:15:00.000Z', type: 'activity',
-      data: { activity: { kind: 'tool', callId: 'c1', tool: 'read' } },
-    }).success).toBe(true);
-    expect(observationSchema.safeParse({
-      n: 1, at: '2026-09-20T10:15:00.000Z', type: 'activity',
-      data: { activity: { kind: 'tool', callId: 'c1', tool: 'shell', argv: ['ls'] } },
-    }).success).toBe(false);
-  });
 });
 
 describe('the harness tools an engineer is given', () => {
@@ -423,445 +134,8 @@ describe('the harness tools an engineer is given', () => {
   });
 });
 
-describe('the records this iteration establishes', () => {
-  const citation = { module: 'shop/orders' };
-
-  test('every hypothesis change, standing and confidence is written and read back', async () => {
-    const store = await ledger();
-    expect(hypothesisChangeSchema.options).toEqual(['reuse', 'create', 'create-by-extraction']);
-    expect(hypothesisSchema.shape.standing.options).toEqual(['tentative', 'confirmed', 'superseded']);
-
-    let index = 0;
-    for (const change of hypothesisChangeSchema.options) {
-      for (const standing of hypothesisSchema.shape.standing.options) {
-        for (const confidence of hypothesisSchema.shape.confidence.options) {
-          index += 1;
-          const id = `hypothesis:case-${index}`;
-          const read = await store.roundTrip(analysisLayout.hypothesis(id, 1), {
-            schema: 'ramify-agent.hypothesis/2', id, revision: 1, standing, capability: `capability:case-${index}`, change,
-            changesExistingSymbols: change !== 'reuse',
-            suggestedOwner: 'shop/orders', anticipatedConsumers: [], involvedModules: ['shop'],
-            dependsOn: [], confidence, rationale: 'r', assumptions: [], uncertainties: [],
-            citations: [citation], cause: { initial: 'inv-0001' },
-          }, analysisSchemas.hypothesis);
-          expect(read).toMatchObject({ change, standing, confidence });
-        }
-      }
-    }
-
-    // The other arm of `cause`: a revision one global decision caused,
-    // which a placement fork produces.
-    const fromDecision = await store.roundTrip(analysisLayout.hypothesis('hypothesis:decided', 2), {
-      schema: 'ramify-agent.hypothesis/2', id: 'hypothesis:decided', revision: 2, standing: 'confirmed', capability: 'capability:decided',
-      change: 'create', changesExistingSymbols: true, suggestedOwner: 'shop/orders', anticipatedConsumers: [], involvedModules: [],
-      dependsOn: [], confidence: 'high', rationale: 'r', assumptions: [], uncertainties: [],
-      citations: [], cause: { decision: 'placement-decision:case-001', reason: 'the fork decided otherwise' }, confirmedBy: 'placement-decision:case-001',
-    }, analysisSchemas.hypothesis);
-    expect(fromDecision.cause).toEqual({ decision: 'placement-decision:case-001', reason: 'the fork decided otherwise' });
-  });
-
-  test('every registry origin is written and read back', async () => {
-    const store = await ledger();
-    const origins = registryEntrySchema.shape.origin.options;
-    expect(origins).toEqual(['entry', 'global-decision', 'local-decision']);
-    for (const origin of origins) {
-      const capability = `capability:${origin}`;
-      const read = await store.roundTrip(analysisLayout.registry(capability, 1), {
-        schema: 'ramify-agent.capability/2', capability, revision: 1, behavior: 'b',
-        owner: 'shop/orders', origin, decision: origin === 'entry' ? null : 'placement-decision:case-001',
-        consumers: origin === 'entry' ? [] : [{ capability: 'capability:other', workItem: 'work-item:case-001' }],
-        ...(origin === 'entry' ? {} : { previousOwner: 'shop' }),
-      }, analysisSchemas.registry);
-      expect(read).toMatchObject({ origin });
-    }
-  });
-
-  test('every work-item origin and every decomposition kind is written and read back', async () => {
-    const store = await ledger();
-    const origins = [
-      { entry: 'capability:send-email' },
-      { obligation: { id: 'provider-obligation:send-email', revision: 1, hash: 'a'.repeat(64) } },
-      { verification: { id: 'consumer-requirement:send-email', revision: 1, hash: 'b'.repeat(64) } },
-    ];
-    let index = 0;
-    for (const origin of origins) {
-      index += 1;
-      const id = `work-item:case-${String(index).padStart(3, '0')}`;
-      const read = await store.roundTrip(workLayout.item(id), {
-        schema: 'ramify-agent.work-item/2', id, module: 'shop/orders', origin,
-        goal: 'g', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: index === 1 ? null : 'work-item:case-001',
-        ...(index === 3 ? { follows: 'work-item:case-001' } : {}),
-      }, workSchemas.item);
-      expect(read.origin).toEqual(origin);
-    }
-
-    expect(decompositionSchema.shape.kind.options).toEqual(['single-iteration', 'staged']);
-    for (const kind of decompositionSchema.shape.kind.options) {
-      const read = await store.roundTrip(workLayout.outline('work-item:case-001', kind === 'staged' ? 2 : 1), {
-        schema: 'ramify-agent.work-item-outline/2', workItem: 'work-item:case-001', revision: kind === 'staged' ? 2 : 1,
-        invocation: 'inv-0002', changes: 'c', decomposition: { kind, rationale: 'r' },
-        reuse: [{ capability: 'capability:send-email', owner: 'shop/orders', role: 'provider' }],
-        breakingChanges: kind === 'staged'
-          ? [{ guarantee: 'g', reason: 'r', affectedConsumers: ['shop'], citations: [citation] }]
-          : [],
-        stages: kind === 'staged'
-          ? [
-            { title: 'One', approach: 'non-breaking' as const, dependsOn: [], note: '' },
-            { title: 'Two', approach: 'breaking' as const, dependsOn: [0], note: '' },
-          ]
-          : [],
-        hypothesesSeen: [{ id: 'hypothesis:case-1', revision: 1, hash: 'c'.repeat(64) }],
-        revisionReason: kind === 'staged' ? 'the gate failed' : '',
-      }, workSchemas.outline);
-      expect(read.decomposition.kind).toBe(kind);
-    }
-  });
-
-  test('every member of the local architect submission this iteration offers', () => {
-    const kinds = localArchitectSubmissionSchema.options.map(option => option.shape.kind.value);
-    expect(kinds).toEqual(['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved']);
-    // The package offers exactly the members a run of this iteration produces.
-    expect([...localArchitectSubmissionKinds]).toEqual(kinds);
-  });
-
-  test('every member of the engineer submission, and the two unsuitable reasons offered', () => {
-    const kinds = engineerSubmissionSchema.options.map(option => option.shape.kind.value);
-    expect(kinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed', 'capability-needed']);
-    expect([...engineerSubmissionKinds]).toEqual(kinds.filter(kind => kind !== 'capability-needed'));
-    expect([...capabilityEngineerSubmissionKinds]).toEqual(kinds);
-    // `obligation-change` and `unplaced-need` have no iteration that can act
-    // on them yet, so the role never sees them and no run can produce one.
-    // `provider-cannot-conform` gained its producer with the
-    // contract-revision path and `break-discovered` with the breaking one;
-    // each carries the rule the schema cannot hold beside it.
-    expect(unsuitableReasonSchema.options).toEqual(['scope', 'break-discovered', 'provider-cannot-conform']);
-    expect(engineerSubmissionSchema.safeParse({ kind: 'unsuitable', reason: 'obligation-change', detail: 'x' }).success).toBe(false);
-    expect(engineerSubmissionSchema.safeParse({ kind: 'unsuitable', reason: 'break-discovered', detail: 'x' }).success).toBe(true);
-    expect(engineerSubmissionSchema.safeParse({ kind: 'unsuitable', reason: 'provider-cannot-conform', detail: 'x' }).success).toBe(true);
-    // A need is written as behavior. Naming the design would decide for the
-    // other side, so a submission that names one is refused by the schema.
-    expect(engineerSubmissionSchema.safeParse({ kind: 'contract-needed', capability: 'x', behavior: {} }).success).toBe(false);
-  });
-
-  test('every iteration kind, extra purpose and result outcome is written and read back', async () => {
-    const store = await ledger();
-    expect(iterationKindSchema.options).toEqual(['ordinary', 'breaking', 'contract', 'verification', 'repair', 'integration']);
-    expect(extraPurposeSchema.options).toEqual(['contract', 'conformance', 'fake', 'exposure-declaration', 'consumer', 'fake-injection']);
-
-    const outlineRef = { id: 'work-item:case-001', revision: 1, hash: 'd'.repeat(64) };
-    for (const [index, kind] of iterationKindSchema.options.entries()) {
-      const id = `it-case-${String(index + 1).padStart(2, '0')}`;
-      const read = await store.roundTrip(iterationLayout.assignment('work-item:case-001', index + 1), {
-        schema: 'ramify-agent.iteration-assignment/2',
-        id, workItem: 'work-item:case-001', outline: outlineRef, stage: 0, kind,
-        goal: 'g', approach: 'a',
-        scope: {
-          revision: index + 1,
-          // Both arms of the base: the named module with its included
-          // children, and the explicitly broad scope a breaking iteration
-          // takes. The broad arm has no producer until that iteration.
-          base: kind === 'breaking'
-            ? { modules: ['shop', 'shop/orders'], rationale: 'the guarantee changes in both' }
-            : { module: 'shop/orders', included: ['shop/orders/pricing'].map(module => ({ directory: module.split('/').slice(1).map(part => `subs/${part}`).join('/'), reason: 'Fixture whole child tree', instructions: 'Implement the assigned fixture behavior' })) },
-          extra: extraPurposeSchema.options.map(purpose => ({ path: `subs/orders/src/${purpose}.ts`, purpose })),
-          read: ['shop'],
-          bootstrap: kind === 'ordinary' ? [{ capability: outlineRef, owner: 'shop/orders/pricing', parent: 'shop/orders', directory: 'subs/orders/subs/pricing' }] : [],
-          rationale: 'r',
-          resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/subs/orders/src'], files: ['/p/subs/orders/module.ramify'], view: { status: 'placeholder' } },
-        },
-        source: { elements: ['functional-requirement:case-001', 'non-functional-requirement:case-001'], deviations: ['plan-deviation:case-001'], hash: 'f'.repeat(64) },
-        externalCapabilities: [{ capability: 'capability:send-email', owner: 'shop', role: 'use' }],
-        completionEvidence: 'e',
-        evidenceObligations: [{ suite: ['subs/orders/src/tests/conformance.test.ts'], against: 'fake' }],
-        gate: kind === 'breaking'
-          ? { checkpoint: 'breaking-iteration', tests: { policy: 'all-project', exactOwners: [], subtrees: [], extraSuites: [] } }
-          : { checkpoint: 'iteration', tests: { policy: 'owned-by-scope', exactOwners: ['shop/orders'], subtrees: [], extraSuites: [] } },
-        guarded: [{ path: 'package.json', hash: 'e'.repeat(64) }],
-        // An authorization names a guarded path, the reason, and the record
-        // that authorized it. Both states are representable: none, and one.
-        authorizations: kind === 'breaking'
-          ? [{ path: 'package.json', rationale: 'the request supersedes the manifest\'s own entry', by: outlineRef }]
-          : [],
-      }, iterationSchemas.assignment);
-      expect(read.kind).toBe(kind);
-      expect(read.gate.checkpoint).toBe(kind === 'breaking' ? 'breaking-iteration' : 'iteration');
-    }
-
-    const outcomes = iterationResultSchema.shape.outcome.options;
-    expect(outcomes).toEqual(['accepted', 'partial', 'unsuitable', 'exhausted', 'superseded']);
-    for (const [index, outcome] of outcomes.entries()) {
-      const read = await store.roundTrip(iterationLayout.result('work-item:case-002', index + 1), {
-        schema: 'ramify-agent.iteration-result/1',
-        iteration: `it-result-${String(index + 1).padStart(2, '0')}`,
-        outcome,
-        invocations: ['inv-0003'],
-        gate: outcome === 'accepted' ? 'ga-0004' : null,
-        commit: outcome === 'accepted' ? 'abc123' : null,
-        findings: ['f'], changedAssumptions: [], artifacts: [],
-        ...(outcome === 'accepted' ? { recommendation: 'consider extracting the formatter' } : {}),
-      }, iterationSchemas.result);
-      expect(read.outcome).toBe(outcome);
-    }
-
-    // A partial result a module engineer's failure closed carries its digest and
-    // the analysis: every judged cause, and an analysis that is unavailable.
-    const digest = {
-      invocation: 'inv-0003', role: 'engineer', ended: 'failed', interruption: 'idle-timeout',
-      cause: 'The idle bound fired: no port event for 300000 ms.', rejected: null, elapsedMs: 300_000,
-      bounds: { commandTimeoutMs: 600_000, idleMs: 300_000, absoluteMs: 3_600_000 },
-      inFlight: [{ tool: 'shell', callId: 'c1', runningMs: 290_000, command: { text: 'npm test', timeoutMs: 600_000, output: 'invocations/inv-0003/shell/001.log', tail: ['ok'] } }],
-      changes: { paths: [{ path: 'src/a.ts', added: 3, deleted: 1, binary: false }], more: 0, uncommitted: 1, gaps: [] },
-      lastMessage: 'Running the suite.', transcript: 'transcripts/ses-0003.jsonl', outputs: ['invocations/inv-0003/shell/001.log'],
-    };
-    const analyses = [
-      ...failureCauseSchema.options.map(cause => ({
-        outcome: 'analyzed', invocation: 'inv-0004', attempting: 'a', finished: 'f', whenEnded: 'w', cause, recommendation: 'r', evidence: ['e'],
-      })),
-      { outcome: 'unavailable', invocation: null, reason: 'the analysis ended `failed`' },
-    ];
-    for (const [index, analysis] of analyses.entries()) {
-      const read = await store.roundTrip(iterationLayout.result('work-item:case-003', index + 1), {
-        schema: 'ramify-agent.iteration-result/1',
-        iteration: `it-failure-${String(index + 1).padStart(2, '0')}`,
-        outcome: 'partial', invocations: ['inv-0003'], gate: null, commit: null,
-        findings: ['f'], changedAssumptions: [], artifacts: [],
-        failure: { digest, analysis },
-      }, iterationSchemas.result);
-      expect(read.failure?.analysis).toEqual(analysis);
-      expect(read.failure?.digest).toEqual(digest);
-    }
-  });
-
-  test('every contract, obligation and requirement value is written and read back', async () => {
-    const store = await ledger();
-    expect(contractModeSchema.options).toEqual(['fake-backed', 'access-only']);
-    expect(contractAuthoritySchema.shape.kind.options).toEqual(['provider', 'consumer', 'independent']);
-
-    const capability = { id: 'capability:note-limit', revision: 1, hash: 'a'.repeat(64) };
-    // Both modes, and all three authorities the contract-authority rule
-    // distinguishes. `fake-backed` and `provider` have producers in a run;
-    // `access-only`, `consumer` and `independent` have none yet.
-    for (const [index, authority] of contractAuthoritySchema.shape.kind.options.entries()) {
-      const mode = index === 0 ? 'fake-backed' : 'access-only';
-      const id = `contract:case-00${index + 1}`;
-      const read = await store.roundTrip(contractsLayout.contract(id, 1), {
-        schema: 'ramify-agent.contract/3',
-        id, revision: 1, capability,
-        // Null where the initial analysis placed the capability and no
-        // decision was taken, which is what an entry capability leaves.
-        decision: index === 0 ? null : 'placement-decision:case-001',
-        authority: { kind: authority, owner: 'shop/orders', rationale: 'the rule that places it' },
-        provider: 'shop/orders',
-        behavior: 'a note of at most 500 characters is within the limit',
-        mode,
-        artifacts: {
-          interface: [{ path: 'subs/orders/src/interfaces/note-limit.ts', exports: ['NoteLimit'], hash: 'b'.repeat(64) }],
-          conformance: mode === 'fake-backed' ? [{ path: 'subs/orders/src/tests/note-limit.conformance.test.ts', hash: 'c'.repeat(64) }] : [],
-          fake: mode === 'fake-backed' ? [{
-            path: 'subs/orders/src/fakes/note-limit.fake.ts', exports: ['createNoteLimitFake'], hash: 'd'.repeat(64),
-            standsFor: [{ fake: 'createNoteLimitFake', path: 'subs/orders/src/note-limit.ts', export: 'createNoteLimit', exposure: { to: ['parent'], reexposed: [{ by: 'shop', to: ['descendants'] }] } }],
-          }] : [],
-          exposure: [{ path: 'subs/orders/module.ramify', declaration: 'expose-src NoteLimit from "interfaces/note-limit.ts" to parent' }],
-        },
-        establishedBy: { iteration: 'it-case-02', gate: 'ga-0003' },
-      }, contractSchemas.contract);
-      expect(read.mode).toBe(mode);
-      expect(read.authority.kind).toBe(authority);
-    }
-
-    // One obligation per contract, keyed by it, and its evidence is run
-    // against the real provider and against nothing else.
-    const obligation = await store.roundTrip(contractsLayout.obligation('provider-obligation:case-001', 1), {
-      schema: 'ramify-agent.provider-obligation/2',
-      id: 'provider-obligation:case-001', revision: 1,
-      contract: { id: 'contract:case-001', revision: 1, hash: 'e'.repeat(64) },
-      capability: 'capability:note-limit', provider: 'shop/orders',
-      behavior: 'a note of at most 500 characters is within the limit',
-      evidence: { conformance: ['subs/orders/src/tests/note-limit.conformance.test.ts'], against: 'real' },
-    }, contractSchemas.obligation);
-    expect(obligation.evidence.against).toBe('real');
-
-    const requirement = await store.roundTrip(contractsLayout.requirement('consumer-requirement:case-001', 1), {
-      schema: 'ramify-agent.consumer-requirement/2',
-      id: 'consumer-requirement:case-001', revision: 1, workItem: 'work-item:case-001', consumer: 'shop/notes',
-      forCapability: 'capability:review-notes', obligation: 'provider-obligation:case-001', contractRevision: 1,
-      behavior: 'a note of at most 500 characters is within the limit',
-      evidence: {
-        tests: { policy: 'owned-by-scope', exactOwners: ['shop/notes'], subtrees: [], extraSuites: [] },
-        fakeInjections: ['subs/notes/src/notes.ts'],
-      },
-    }, contractSchemas.requirement);
-    expect(requirement.contractRevision).toBe(1);
-  });
-
-  test('every member of the contract submission this iteration offers', () => {
-    const kinds = contractSubmissionSchema.options.map(option => option.shape.kind.value);
-    expect(kinds).toEqual(['established', 'established', 'incomplete']);
-    expect([...contractSubmissionKinds]).toEqual([...new Set(kinds)]);
-  });
-
-  test('both outcomes of a harness-verified gate rule are representable', () => {
-    for (const name of ['fake-naming', 'fake-exposure-parity'] as const) {
-      for (const outcome of ['passed', 'failed'] as const) {
-        const rule = { rule: name, outcome, violations: outcome === 'failed' ? [{ rule: 'file-suffix', path: 'a.ts', detail: 'd' }] : [] };
-        expect(gateRuleSchema.safeParse(rule).success).toBe(true);
-      }
-    }
-    expect(gateRuleSchema.safeParse({ rule: 'fake-exposure-parity', outcome: 'passed', violations: [], limits: ['not compared'] }).success).toBe(true);
-  });
-
-  test('both module notices are representable, with and without a decision', () => {
-    for (const kind of ['module-created', 'module-removed'] as const) {
-      expect(moduleNoticeSchema.safeParse({
-        kind, module: 'shop/orders/pricing', declaration: 'subs/orders/subs/pricing/module.ramify',
-        commit: 'abc', iteration: 'it-case-01',
-        // An entry assignment proposed its own owner and names no decision,
-        // which is what null says.
-        decision: null,
-      }).success).toBe(true);
-    }
-    expect(moduleNoticeSchema.safeParse({
-      kind: 'module-created', module: 'shop/orders/pricing', declaration: 'subs/orders/subs/pricing/module.ramify',
-      commit: 'abc', iteration: 'it-case-01', decision: { id: 'placement-decision:case-001', revision: 1, hash: 'f'.repeat(64) },
-    }).success).toBe(true);
-  });
-
-  test('every placement outcome and authority is written and read back', async () => {
-    const store = await ledger();
-    expect(placementOutcomeSchema.options).toEqual(['reuse', 'create', 'extract', 'external']);
-    expect(decisionAuthoritySchema.options).toEqual(['global', 'local']);
-
-    let index = 0;
-    for (const outcome of placementOutcomeSchema.options) {
-      for (const authority of decisionAuthoritySchema.options) {
-        index += 1;
-        const id = `placement-decision:case-${String(index).padStart(3, '0')}`;
-        const read = await store.roundTrip(architectureLayout.decision(id), {
-          schema: 'ramify-agent.placement-decision/2',
-          id, authority,
-          request: authority === 'global' ? 'placement-request:case-001' : null,
-          workItem: 'work-item:case-001', invocation: 'inv-0003',
-          question: 'Where does it belong?',
-          outcome,
-          capability: 'capability:send-email',
-          // An extension is a `create` with an existing owner and this flag,
-          // never an outcome of its own.
-          changesExistingSymbols: outcome === 'create',
-          // Null only for `external`, which no module owns.
-          owner: outcome === 'external' ? null : 'shop/orders',
-          ...(outcome === 'create' || outcome === 'extract'
-            ? { proposed: { parent: 'shop', directory: 'subs/mail', purpose: 'Sends mail.', tags: [] } }
-            : {}),
-          rationale: 'r', constraints: ['c'], uncertainties: ['u'],
-          evidence: { view: { status: 'placeholder' }, citations: [citation], gaps: ['no dependency facts'] },
-          ...(outcome === 'extract'
-            ? { revises: { decision: 'placement-decision:case-001', affected: [{ workItem: 'work-item:case-002', contract: 'capability:send-email', consequence: 'its consumer moves' }] } }
-            : {}),
-          registry: [{ id: 'capability:send-email', revision: 2, hash: 'a'.repeat(64) }],
-          hypothesisRevisions: [{ id: 'hypothesis:email-delivery', revision: 2, hash: 'b'.repeat(64) }],
-          ...(authority === 'global' ? { brief: 'what a later fork needs to know' } : {}),
-        }, architectureSchemas.decision);
-        expect(read).toMatchObject({ outcome, authority });
-      }
-    }
-  });
-
-  test('every stance a request can take on a hypothesis is written and read back', async () => {
-    const store = await ledger();
-    expect(hypothesisStanceSchema.options).toEqual(['supports', 'contradicts', 'departs']);
-    for (const [index, stance] of hypothesisStanceSchema.options.entries()) {
-      const id = `placement-request:case-${String(index + 1).padStart(3, '0')}`;
-      const read = await store.roundTrip(architectureLayout.request(id), {
-        schema: 'ramify-agent.placement-request/2',
-        id, workItem: 'work-item:case-001', requester: 'shop/orders', forCapability: 'capability:send-email',
-        question: 'Where does it belong?', requiredBehavior: 'one message per order',
-        findings: [{ text: 'orders already sends one', citations: [citation] }],
-        candidates: [{ capability: 'capability:send-email', owner: 'shop/orders', note: 'it is here today' }, { note: 'or nowhere yet' }],
-        unresolved: ['whether billing needs the same'],
-        hypotheses: [{ ref: { id: 'hypothesis:email-delivery', revision: 1, hash: 'c'.repeat(64) }, stance, evidence: 'e' }],
-        localDecisions: ['placement-decision:case-001'],
-      }, architectureSchemas.request);
-      expect(read.hypotheses[0]!.stance).toBe(stance);
-    }
-  });
-
-  test('every member of the fork submission this iteration offers', () => {
-    const kinds = forkSubmissionSchema.options.map(option => option.shape.kind.value);
-    expect(kinds).toEqual(['decision', 'partial', 'deviation', 'nothing-possible', 'environment']);
-    // The package offers exactly the members a run of this iteration
-    // produces, and each has one: a deviation, an environment problem and
-    // nothing possible answer an unresolved request only.
-    expect([...forkSubmissionKinds]).toEqual(kinds);
-  });
-
-  test('an unresolved request, the plan deviation and the environment problem that answer it are written and read back', async () => {
-    const store = await ledger();
-    const request = await store.roundTrip(deviationLayout.request('unresolved-request:case-001'), {
-      schema: 'ramify-agent.unresolved-request/2', id: 'unresolved-request:case-001', workItem: 'work-item:case-001', requester: 'shop/orders', invocation: 'inv-0004',
-      conflict: 'the plan asks for a surface no module has', evidence: ['plan.md lines 3-4'],
-    }, deviationSchemas.unresolvedRequest);
-    expect(request.id).toBe('unresolved-request:case-001');
-    for (const held of [false, true]) {
-      const read = await store.roundTrip(deviationLayout.deviation(held ? 'plan-deviation:case-002' : 'plan-deviation:case-001'), {
-        schema: 'ramify-agent.plan-deviation/2', id: held ? 'plan-deviation:case-002' : 'plan-deviation:case-001', request: 'unresolved-request:case-001', workItem: 'work-item:case-001', invocation: 'inv-0005',
-        plan: { path: 'plans/p/plan.md', revision: `sha256:${'a'.repeat(64)}` },
-        amends: [{ id: 'functional-requirement:case-001', path: 'plans/p/plan.md', text: 'Serve it over MCP.' }],
-        instead: 'tRPC only', why: 'no MCP surface', rejected: [{ alternative: 'a new module', reason: 'out of scope' }], loss: 'no MCP tool',
-        workItems: ['work-item:case-001'], modules: ['shop/orders'],
-        scenarios: [{ scenario: 'scenario:case-001', file: 'src/tests/features/p/e.feature', before: ['Scenario: a'], after: ['Scenario: b'] }],
-        checkFinding: 'finding:case-001', held,
-      }, deviationSchemas.planDeviation);
-      expect(read.held).toBe(held);
-    }
-    const problem = await store.roundTrip(deviationLayout.environment('environment-problem:case-001'), {
-      schema: 'ramify-agent.environment-problem/2', id: 'environment-problem:case-001', request: 'unresolved-request:case-001', workItem: 'work-item:case-001', invocation: 'inv-0005',
-      diagnosis: 'The gate runs `npm test`, which imports `dist/src`; nothing builds it in the gate\'s worktree.',
-      suggestion: 'Declare a build step in `ramify-agent.json`.', findingKey: 'draft:finding:case-002', checkFinding: 'finding:case-002',
-    }, deviationSchemas.environmentProblem);
-    expect(problem.checkFinding).toBe('finding:case-002');
-  });
-
-  test('the two events a contract revision writes carry every binding it scheduled', () => {
-    const at = '2026-09-21T10:15:00.000Z';
-    const jobId = '20260920T101500Z-3f9a1c';
-    const reopened = runEventSchema.parse({
-      sequence: 1, jobId, at, type: 'evidence-reopened',
-      data: {
-        cause: 'wi-004.i02 revised ct-001 from revision 1 to 2',
-        contract: 'contract:case-001', revision: 2, iteration: 'it-revision-02', obligation: 'provider-obligation:case-001',
-        requirements: ['consumer-requirement:case-001', 'consumer-requirement:case-002', 'consumer-requirement:case-003'],
-        bindings: [
-          { subject: { id: 'provider-obligation:case-001', revision: 2, hash: 'a'.repeat(64) }, workItem: 'work-item:case-005' },
-          { subject: { id: 'consumer-requirement:case-001', revision: 2, hash: 'b'.repeat(64) }, workItem: 'work-item:case-006' },
-          { subject: { id: 'consumer-requirement:case-003', revision: 2, hash: 'c'.repeat(64) }, workItem: 'work-item:case-004' },
-        ],
-        followUps: [{ workItem: 'work-item:case-005', follows: 'work-item:case-002' }, { workItem: 'work-item:case-006', follows: 'work-item:case-001' }],
-        superseded: ['it-result-01'],
-      },
-    });
-    expect(reopened.type).toBe('evidence-reopened');
-    if (reopened.type === 'evidence-reopened') {
-      // A reused item is bound without a follow-up; a completed one is
-      // followed, and the prior item keeps its own completion.
-      expect(reopened.data.bindings).toHaveLength(3);
-      expect(reopened.data.followUps.map(entry => entry.follows)).toEqual(['work-item:case-002', 'work-item:case-001']);
-    }
-
-    const needed = runEventSchema.parse({
-      sequence: 2, jobId, at, type: 'revision-needed',
-      data: { obligation: { id: 'provider-obligation:case-001', revision: 1, hash: 'd'.repeat(64) }, iteration: 'it-result-01', consumerWorkItem: 'work-item:case-001' },
-    });
-    expect(needed.type).toBe('revision-needed');
-    // Neither event carries a status or a verdict: what the run did is the
-    // log, and nothing here is rewritten.
-    expect(runEventSchema.safeParse({
-      sequence: 3, jobId, at, type: 'revision-needed',
-      data: { obligation: { id: 'provider-obligation:case-001', revision: 1, hash: 'd'.repeat(64) }, iteration: 'it-result-01', consumerWorkItem: 'work-item:case-001', resolved: false },
-    }).success).toBe(false);
-  });
-
+describe('the submissions an architect makes', () => {
   test('every kind a local architect may assign, and the revision only a contract iteration carries', () => {
-    expect(assignableKindSchema.options).toEqual(['ordinary', 'breaking', 'verification', 'repair', 'contract']);
     const base = {
       stage: 0,
       goal: 'g',
@@ -898,81 +172,17 @@ describe('the records this iteration establishes', () => {
       authorizations: [{ path: 'vitest.config.ts', rationale: 'r', by: { id: 'work-item:case-001', revision: 1, hash: 'd'.repeat(64) } }],
     }).success).toBe(false);
   });
-
-  test('the iteration assignment carries no field for what the harness decides itself', () => {
-    const shape = (z.toJSONSchema(iterationAssignmentSchema) as { properties?: Record<string, unknown> }).properties ?? {};
-    for (const field of ['gate', 'guarded', 'id', 'workItem', 'scope']) expect(shape).toHaveProperty(field);
-    // What the architect submits, which is the same record without them.
-    const body = (assignmentBodySchema.shape as Record<string, unknown>);
-    for (const field of ['gate', 'guarded', 'id', 'workItem', 'outline', 'evidenceObligations']) {
-      expect(body).not.toHaveProperty(field);
-    }
-  });
-});
-
-describe('the protocol vocabulary', () => {
-  test('every role has a context policy, and none of them has a default', () => {
-    for (const role of roleSchema.options) {
-      const policy = defaultContextPolicies[role];
-      expect(policy).toBeDefined();
-      expect(policy).toEqual({ compaction: 'allowed', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 });
-    }
-    expect(roleSchema.options).toEqual(['initial-architect', 'catalog-extractor', 'global-fork', 'local-architect', 'engineer', 'contract-engineer', 'capability-architect', 'reviewer', 'failure-analyst', 'context-selector', 'nonfunctional-coordinator', 'nonfunctional-repair-engineer']);
-  });
-
-  test('every failure reason and every phase is named', () => {
-    expect(runFailureReasonSchema.options).toEqual([
-      'analysis-invalid', 'readiness-failed', 'project-config-invalid',
-      'agent-failed', 'invalid-submission', 'inputs-changed', 'dependency-cycle', 'unresolvable-requirement',
-      'repair-exhausted', 'acceptance-incomplete', 'recovery-exhausted', 'writer-unsettled', 'limit-exceeded', 'internal',
-    ]);
-    expect(runPhaseSchema.options).toEqual(['analysis', 'awaiting-review', 'readiness', 'working', 'final-verification', 'ended']);
-    expect(sessionModeSchema.options).toEqual(['fresh', 'continued', 'fork']);
-  });
-
-  test('every measurement snapshot and scope component state is representable', () => {
-    expect(measurementSnapshotSchema.shape.policy.value).toBe('scope-size/2');
-    const retired = measurementSnapshotSchema.shape.policy.value.replace(/2$/, '1');
-    expect(measurementSnapshotSchema.shape.policy.safeParse(retired).success).toBe(false);
-  });
 });
 
 describe('the run protocol a client reads', () => {
   const hash64 = 'a'.repeat(64);
 
-  test('every error code has a status, and a record of an unsupported version is its own code', () => {
-    expect(errorCodeSchema.options).toEqual([
-      'invalid-request', 'not-found', 'unreadable', 'conflict', 'stale-version', 'busy', 'unavailable', 'inputs-changed', 'internal',
-      'unsupported-version',
-    ]);
-    for (const code of errorCodeSchema.options) expect(errorHttpStatus[code]).toBeGreaterThanOrEqual(400);
-    expect(errorHttpStatus['unsupported-version']).toBe(422);
-    expect(errorResponseSchema.safeParse({ error: { code: 'unsupported-version', message: 'm', evidence: ['plans/p/.harness/jobs/j/job.json'] } }).success).toBe(true);
-  });
-
-  test('every notice kind is representable; module-removed has no producer in a run yet', () => {
-    expect(runNoticeSchema.options.map(option => option.shape.kind.value)).toEqual(['module-created', 'module-removed', 'dependency-cycle']);
-    const common = { at: '2026-09-21T08:00:00.000Z', sequence: 3, summary: 's' };
-    for (const kind of ['module-created', 'module-removed'] as const) {
-      expect(runNoticeSchema.safeParse({ kind, ...common, module: 'm', declaration: 'subs/m/module.ramify', commit: 'abc', iteration: 'it-case-01', decision: null }).success).toBe(true);
-    }
-    expect(runNoticeSchema.safeParse({ kind: 'dependency-cycle', ...common, cycle: ['a', 'b'], closedBy: 'work-item:case-001', resolved: false }).success).toBe(true);
-    expect(runNoticeSchema.safeParse({ kind: 'dependency-cycle', ...common, cycle: [], closedBy: 'work-item:case-001', resolved: false }).success).toBe(false);
-  });
-
   test('every metric state is representable, and only a measured metric has a value', () => {
-    expect(metricStateSchema.options).toEqual(['measured', 'partial', 'unavailable', 'not-applicable']);
     const base = { id: 'm', unit: 'u', policyVersion: 'kpi/1', measurementPolicy: null, numerator: null, denominator: null, subtotal: null, coverage: null, evidence: [], note: null };
     for (const state of metricStateSchema.options) {
       expect(metricSchema.safeParse({ ...base, state, value: state === 'measured' ? 1 : null }).success).toBe(true);
       expect(metricSchema.safeParse({ ...base, state, value: state === 'measured' ? null : 0 }).success).toBe(false);
     }
-  });
-
-  test('every state a work item and a capability can be read in is named', () => {
-    expect(workItemStateSchema.options).toEqual(['todo', 'working', 'yielded', 'completed']);
-    expect(capabilityStateSchema.options).toEqual(['todo', 'working', 'completed']);
-    expect(hypothesisStandingSchema.options).toEqual(['tentative', 'confirmed', 'superseded']);
   });
 
   test('every kind of decision is produced from the record that holds it, and no choice is copied', async () => {

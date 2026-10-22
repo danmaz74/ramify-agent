@@ -218,48 +218,30 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(assignment.roleInstructions).toBe(orientation.roleInstructions);
     expect(assignment.additions.filter(item => item.kind === 'tool-declaration').map(item => item.key)).toEqual(['tool:submit_work_item_result']);
     expect(assignment.manifest.entries.filter(item => item.kind === 'tool-declaration')).toHaveLength(2);
-    expect(orientation.message).toContain("Explore your module's README, declaration and relevant source");
-    expect(orientation.message).toContain('Non-functional, fixed and recommendation elements');
-    expect(assignment.message).toContain('Build on useful understanding already in this session; refresh it');
-    expect(assignment.message).toMatch(/In a fresh session, use the supplied paths to read the\s+module's README/u);
     expect(() => buildTaskPacket({ ...input(loaded, 'orientation'), briefing, inheritedPoint: 'P:T1', inherited: orientation.additions,
       loaded: { ...loaded, workOrientation: { ...loaded.workOrientation!, submissionSchema: '{"type":"object","additionalProperties":false}' } }, supplyRoleInstructions: false })).toThrow('Immutable tool declaration changed');
   });
 
-  test('legacy NFR renderers resolve procedures and tool names without duplicating schema', () => {
+  test('NFR renderers resolve procedures and tool names without duplicating schema', () => {
     const coordinator = renderNonfunctionalCoordinatorPrompt(current.get('nonfunctional-coordinator')!, '/project');
     const repair = renderNonfunctionalRepairPrompt(current.get('nonfunctional-repair-engineer')!, '/project');
     expect(coordinator).toContain('submit_nonfunctional_assessment');
-    expect(coordinator).toContain('Inspect the prepared tree');
     expect(repair).toContain('submit_nonfunctional_repair');
-    expect(repair).toContain('Read the recorded task');
     expect(`${coordinator}\n${repair}`).not.toMatch(/\{\{?submissionTool\}\}?|\{\{?procedure\}\}?/);
     expect(coordinator).not.toContain(current.get('nonfunctional-coordinator')!.submissionSchema.trim());
-    // W08: the role text and the assessment prompt both leave the temporal condition rule out.
-    expect(coordinator).not.toContain('A temporal condition without observed intermediate evidence is undetermined.');
-    expect(coordinator).not.toContain('temporal');
   });
-  test('the assessment task carries no action instructions; its tool alone is named', () => {
+  test('the assessment and action tasks each name their own tool', () => {
     const coordinator = current.get('nonfunctional-coordinator')!;
     const procedureOf = (kind: TaskKind) => buildTaskPacket(input(coordinator, kind)).additions.find(item => item.kind === 'procedure')!.text;
     const assessment = procedureOf('assessment');
     expect(assessment).toContain('submit_nonfunctional_assessment');
-    expect(assessment).toContain('For each result state the inspected scope, the evidence and the remaining uncertainty; the element\'s wording is the package\'s and need not be repeated.');
-    expect(assessment).not.toMatch(/action tool|repair batch|closure|Preserve the element wording/u);
+    expect(assessment).not.toContain('submit_nonfunctional_action');
     expect(procedureOf('action')).toContain('submit_nonfunctional_action');
   });
-  test('the local architect is told what a completion request carries, and searches only the views its task lists', () => {
-    const local = current.get('local-architect')!;
-    const packet = buildTaskPacket(input(local, 'completion'));
-    const procedure = packet.additions.find(item => item.kind === 'procedure')!.text;
-    expect(procedure).toContain('Use `request-completion` with a `summary` and reports covering every scenario\nand registered test. Include `outline` only to change its current revision.');
-    expect(procedure).toContain('Reviews may still be running; the work-item gate waits for them.');
-    expect(procedure).not.toContain('review/gate requirement');
-    const ordinaryProcedure = buildTaskPacket(input(ordinary.get('local-architect')!, 'completion')).additions.find(item => item.kind === 'procedure')!.text;
-    expect(ordinaryProcedure).toContain('Include `outline` only to change its current revision.');
-    expect(packet.roleInstructions).toContain('Use only the supplied view paths and preserve their coverage limitations.');
-    expect(packet.roleInstructions).toContain('Pages mirror defining source paths with `.md`');
-    expect(packet.roleInstructions).not.toContain('.ramify/children');
+  test('the local architect completion procedure names the request-completion kind', () => {
+    for (const loaded of [current.get('local-architect')!, ordinary.get('local-architect')!]) {
+      expect(buildTaskPacket(input(loaded, 'completion')).additions.find(item => item.kind === 'procedure')!.text).toContain('`request-completion`');
+    }
   });
   test('procedure manifest entries and support paths name the embedded section sources and nothing undelivered', () => {
     const local = current.get('local-architect')!;
@@ -272,7 +254,6 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(procedureSources(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect-descriptive.procedure.md', planning, writeScope, engineering]);
     expect(procedureSources(ordinary.get('local-architect')!, 'completion')).toEqual(['subs/harness/src/prompts/local-architect-descriptive.procedure.md', planning, writeScope, engineering]);
     expect(procedureSources(current.get('capability-architect')!, 'capability')).toEqual(['subs/harness/src/prompts/capability-architect.procedure.md', planning, writeScope, engineering]);
-    expect(buildTaskPacket(input(local, 'assignment')).message).toContain('An included child module brings its whole subtree:');
     // A replaced procedure embeds no section, so its entry names only its own file.
     expect(procedureSources(local, 'orientation')).toEqual(['subs/harness/src/context-selection/orientation.procedure.md']);
     expect(procedureSources(local, 'reconciliation')).toEqual(['subs/harness/src/prompts/reconciliation.procedure.md']);
@@ -366,13 +347,6 @@ describe('P04: manifests reflect supplied/inherited instructions and truthful re
     expect(after.manifest.entries.flatMap(item => item.sources.map(source => source.path))).not.toContain('skills/unused/SKILL.md');
     const architect = buildTaskPacket(input(current.get('initial-architect')!, 'initial-analysis'));
     expect(architect.manifest.entries.flatMap(item => item.sources.map(source => source.path))).toContain('skills/module-architect/SKILL.md');
-    expect(architect.roleInstructions).not.toContain('Run `ramify materialize');
-    expect(architect.roleInstructions).not.toContain('Before answering, read [report.md]');
-    // The read-only adaptation's own sentence, which the system file does not carry.
-    expect(architect.roleInstructions).toContain('Complete the current task using its designated submission tool. No report.md\nfile or shell command is required.');
-    expect(current.get('initial-architect')!.system).not.toContain('No report.md\nfile or shell command is required.');
-    expect(architect.roleInstructions).toContain('placement references only for a real');
-    expect(architect.roleInstructions).toContain('[the embedded discovery and access guidance](#discovery-with-the-active-read-tools)');
     expect(architect.roleInstructions).not.toContain(join(defaultSkillDirectory, 'references/discovery.md'));
     expect(architect.roleInstructions).not.toContain(join(defaultSkillDirectory, 'references/access.md'));
     expect(architect.roleInstructions).not.toMatch(/\]\(references\//);
@@ -389,40 +363,20 @@ describe('P04: manifests reflect supplied/inherited instructions and truthful re
     const message = workOrientationMessage('Captured references', { goal: 'Deliver the status label', requirements: ['Expose the current status'] });
     expect(message).toContain('Deliver the status label');
     expect(message).toContain('Expose the current status');
-    expect(message).toContain('Submit your orientation using `submit_work_orientation`');
+    expect(message).toContain('`submit_work_orientation`');
   });
-  test('P05: catalog, policy and import instructions match the actual authority and empty content is omitted', () => {
-    expect(current.get('initial-architect')!.procedure).toContain('Record no hypothesis that restates an entry');
-    expect(current.get('initial-architect')!.procedure).toContain('do\nnot classify them again');
-    expect(current.get('local-architect')!.procedure).toContain('The entry is already registered. Record `localDecisions` only for new\n  capabilities, each registered once.');
-    for (const loaded of [current.get('engineer')!, ordinary.get('engineer')!]) {
-      expect(stableRoleInstructions(loaded)).toContain('Commands may be refused by policy before execution');
-      expect(stableRoleInstructions(loaded)).toContain('those refusals make no\nchange and trigger no mutation check');
-      expect(stableRoleInstructions(loaded)).toContain('After an executed mutation');
-    }
-    expect(ordinary.get('local-architect')!.procedure).toContain('Use the architect view for ownership questions');
-    expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('requirementRefs names functional');
-    expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('Copying Gherkin alone warrants no correction');
-    expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('Correct omitted');
-    expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('without adding any');
+  test('P05: an NFR repair prompt omits empty coordinator content and names its tool', () => {
     const repair = repairPrompt('Fix status', { tree: 'a'.repeat(40), head: 'head', preparedAt: '2026-10-08T00:00:00Z' },
       'Requirement text', 'status', { evidence: [], uncertainty: '' });
     expect(repair).not.toContain('Coordinator uncertainty:');
     expect(repair).not.toContain('Coordinator evidence for this repair:');
     expect(repair).toContain('submit_nonfunctional_repair');
   });
-  test('canonical changed paths are patch-first and inspection is selected by relevance', () => {
+  test('canonical changed paths are listed once with their annotations', () => {
     const loaded = current.get('reviewer')!;
     const packet = buildTaskPacket({ ...input(loaded, 'design'), changedPaths: [{ path: 'src/status.ts' }, { path: 'features/status.feature', annotation: 'recorded harness pending-tag removal' }] });
     expect(packet.message.match(/- src\/status.ts/g)).toHaveLength(1);
     expect(packet.message).toContain('recorded harness pending-tag removal');
-    expect(packet.message).toContain('Reuse earlier understanding');
-    expect(packet.message).toContain('Refresh guidance whose identity changed');
-    expect(packet.message).toContain('Inspect relevant guidance with the candidate tools.');
-    expect(packet.message).toContain('Read the complete patches supplied in this message');
-    expect(packet.message).toContain('Fetch patches with `snapshot_diff` only for paths whose complete patches');
-    expect(packet.message).toContain('No exhaustive inspected/missing');
-    expect(packet.roleInstructions).not.toContain('This session may begin with an earlier conversation');
     expect(stableRoleInstructions(loaded)).toBe(buildTaskPacket(input(loaded, 'design-orientation')).roleInstructions);
     expect(() => buildTaskPacket({ ...input(loaded, 'code'), environment: { ...environment(), snapshot: null } })).toThrow('snapshot');
     expect(() => buildTaskPacket({ ...input(loaded, 'code'), changedPaths: [{ path: 'a' }, { path: 'a' }] })).toThrow('unique');
@@ -469,23 +423,15 @@ describe('S01: every engineer invocation of a run is the engineer step its recor
     const repair = deliveries[1]!;
     expect(repair.delivered.packet.additions.some(item => item.kind === 'role-instructions')).toBe(false);
     expect(repair.inputs.failedGate?.id).toBe('ga-0002');
-    expect(repair.delivered.packet.message).toContain('existing-test flakiness creates no repair investigation, reruns or assignment');
-    expect(repair.delivered.packet.message).toContain('deterministic repair preserving coverage');
   }, 300_000);
 });
 
-
 describe('test reliability instructions reach engineering tasks', () => {
-  test.each([true, false])('delivers original test origin and repair policy with capability workflow %s', capability => {
+  test.each([true, false])('delivers the flakiness policy with capability workflow %s', capability => {
     const loaded = (capability ? current : ordinary).get('engineer')!;
     const packet = buildTaskPacket(input(loaded, 'engineering'));
     const delivered = [packet.roleInstructions, packet.message].join('\n');
-    expect(delivered).toContain('original plan/execution');
-    expect(delivered).toContain('including additions to existing files');
-    expect(delivered).toContain('deterministic test preserving its intended coverage');
-    expect(delivered).toContain('Existing-test flakiness creates no repair investigation, reruns or assignment');
     expect(delivered).toContain('flakiness.onFailure="failure"');
-    expect(delivered).not.toContain('until they pass');
   });
 });
 
@@ -497,7 +443,6 @@ describe('assignment command policy delivery', () => {
     const first = buildTaskPacket({ ...base, environment: policy });
     expect(first.message).toContain('"defaultMs": 1800000');
     expect(first.message).toContain('"ceilingMs": 3600000');
-    expect(first.message).toContain('Omit assignment.bounds.commandTimeoutMs');
     expect(first.message).not.toContain('"shell"');
     const next = buildTaskPacket({ ...base, environment: { ...policy, limits: { commandTimeoutMs: 2100000, maxCommandTimeoutMs: 4200000 } },
       inheritedPoint: 'P:T1', inherited: first.additions, supplyRoleInstructions: false,

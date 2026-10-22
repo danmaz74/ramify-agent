@@ -11,8 +11,10 @@ afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) awai
 
 /*
  * The frozen catalog is unreadable as the first candidate is committed;
- * the fixture restores it after recording the review. The scope review
- * cannot cite its assignment package, so it is recorded as unavailable.
+ * the fixture restores it at the first write after the review request is
+ * recorded, so later iterations and the final gate read a valid catalog.
+ * The scope review cannot cite its assignment package, so it is recorded
+ * as unavailable.
  */
 test('an assignment package that cannot be cited leaves a scope review explicitly not verified', async () => {
   const root = await reviewTarget(cleanups);
@@ -28,6 +30,10 @@ test('an assignment package that cannot be cited leaves a scope review explicitl
         const path = runPath(root, plan, runId, accepted.data.evidence.catalog.path);
         catalog = { path, bytes: await readFile(path, 'utf8') };
         await writeFile(path, '{"schema":"not a catalog"}\n');
+      } else if (catalog !== undefined && !restored
+        && (await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'review-request-recorded')) {
+        await writeFile(catalog.path, catalog.bytes);
+        restored = true;
       }
     },
     architect: [
@@ -46,7 +52,6 @@ test('an assignment package that cannot be cited leaves a scope review explicitl
   const request = eventsOf(run.events, 'review-request-recorded')[0];
   expect(request).toBeDefined();
   const record = JSON.parse(await readFile(runPath(root, plan, run.runId, reviewLayout.request(request!.data.request)), 'utf8')) as ReviewRequest;
-  if (!restored && catalog !== undefined) { await writeFile(catalog.path, catalog.bytes); restored = true; }
   expect(restored).toBe(true);
   expect(record.inputsUnavailable).toContain('The scope review\'s assignment package could not be cited');
   expect(record.source).toBeUndefined();

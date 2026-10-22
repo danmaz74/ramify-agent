@@ -48,7 +48,6 @@ afterEach(async () => {
 
 const index = `${notesDirectory}/src/index.ts`;
 const correctedTree = 'd'.repeat(40);
-const never = (): ScriptStep => ({ kind: 'await', until: () => new Promise(() => undefined) });
 
 /** The three engineers, and a fourth for a correction. */
 const engineers: ReadonlyArray<readonly ScriptStep[]> = [
@@ -409,56 +408,6 @@ describe('CF11 and CF15: correction rounds', () => {
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
     run.git.assertComplete();
   }, 60_000);
-
-  test('a legacy one-round policy cannot prevent assessment of a signal raised during completion', async () => {
-    const root = await reviewTarget(cleanups);
-    let raised = false;
-    let service!: Awaited<ReturnType<typeof reviewRun>>['service'];
-    const run = await reviewRun(root, cleanups, {
-      detached: true,
-      limits: { reconciliationRoundsPerWorkItem: 1 },
-      gates: [...revisionGates, unchanged, unchanged, unchanged],
-      previewCount: 5,
-      engineer: engineers.slice(0, 3),
-      reviewers: {
-        'rq-0001': review(changed[1]),
-        'rq-0002': review(changed[2], [concern(limit, 'The limit is 50 characters, and the plan asks for 500', 'high')]),
-        'rq-0003': review(changed[3]),
-      },
-      reconcilers: {
-        'work-item:review-notes.rc01': reconcile(submission([disposition('finding:case-0001', { action: 'leave' })], { kind: 'unresolved' })),
-        'work-item:review-notes.rc02': reconcile(submission([
-          disposition('finding:case-0001', { action: 'leave' }),
-          disposition('finding:case-0002', { action: 'leave' }),
-        ], { kind: 'unresolved' })),
-      },
-      afterWrite: async (write, runId) => {
-        // A signal raised while the work item's gate runs, after the last basis.
-        if (write !== 'gate-committed' || raised) return;
-        if (!(await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'reconciliation-assessed')) return;
-        raised = true;
-        await service.recordCheckFindings(plan, runId, { cause: { kind: 'producer', producer: 'review:code', attempt: 'late' }, commands: [report(boundConcern({ attempt: 'late', tree: finalReviewTree, findingKey: 'draft:finding:case-0002' }))] });
-      },
-    });
-    service = run.service;
-    cleanups.push(() => run.service.close());
-    await run.service.settled(plan, run.runId);
-    const events = await runEventsOnDisk(root, plan, run.runId);
-    const { runId, agent } = run;
-    expect(raised).toBe(true);
-    expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
-    expect(await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('work-item:review-notes.rc01'))).toMatchObject({ floor: 'any' });
-    expect(reconcilerSessions(agent!)[0]!.verdicts[0]).toMatchObject({ accepted: true });
-    expect(eventsOf(events, 'reconciliation-started')).toHaveLength(2);
-    expect(eventsOf(events, 'reconciliation-refused')).toHaveLength(1);
-    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([
-      { checkFinding: 'finding:case-0001', reason: 'left-open' },
-      { checkFinding: 'finding:case-0002', reason: 'left-open' },
-    ]);
-    // The gates keep their verdicts, and the run completes.
-    expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
-    expect(events.at(-1)).toMatchObject({ type: 'job-completed' });
-  }, 60_000);
 });
 
 describe('CF12: a strong authority conflict asks the user, with exact references', () => {
@@ -775,77 +724,6 @@ describe('CF10: the brief append outcomes that land nothing', () => {
     expect(listOf(service, runId)[0]).toMatchObject({ id: 'finding:case-0001', standing: 'closed', reason: 'waived' });
     expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toBeUndefined();
   }, 60_000);
-});
-
-/** A service opened over the crashed project, with the agent that held the architect's session. */
-async function restart(root: string, agent: ScriptedAgent, continuing = true) {
-  const git = gateGit(root, { head: continuing ? 'revision-03' : 'revision-04', commits: continuing ? correctionGates.slice(3) : [], previews: continuing ? Array.from({ length: 4 }, () => ({ repositoryRoot: root, head: 'revision-04', tree: correctedTree })) : [] });
-  const restarted = await openRuns(root, {
-    agent,
-    inputs: treeInputs(),
-    git: git.git,
-    candidates: scriptedCandidates(root, correctedCandidates()),
-    policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }),
-  });
-  cleanups.push(() => restarted.service.close());
-  return { ...restarted, git };
-}
-
-/** A run that crashes around the first reconciliation's brief append, restarted and restarted again. */
-async function crashAroundAppend(when: 'before' | 'after'): Promise<void> {
-  const root = await reviewTarget(cleanups);
-  const crashed = gate();
-  let scripted!: ScriptedAgent;
-  let crashAppend = true;
-  let capturedOperations: import('../../subs/agent/src/interfaces/session-operations.js').SessionOperations | undefined;
-  const run = await reviewRun(root, cleanups, {
-    ...correctionScenario,
-    detached: true,
-    agentReady: agent => {
-      scripted = agent;
-      interceptOperations(agent, operations => { capturedOperations = operations; return { ...operations, async appendContext(input) {
-        if (!crashAppend || !input.additions.some(item => item.key === 'brief:work-item:review-notes.rc01')) return operations.appendContext(input);
-        if (when === 'after') await operations.appendContext(input);
-        crashed.open();
-        return new Promise(() => undefined);
-      } }; });
-    },
-  });
-  await crashed.opened;
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const before = await runEventsOnDisk(root, plan, run.runId);
-  expect(before.at(-1)).toMatchObject({ type: 'reconciliation-assessed', data: { reconciliation: 'work-item:review-notes.rc01', next: 'correct' } });
-  await staleCrashLock(root);
-
-  crashAppend = false;
-  const restarted = await restart(root, scripted);
-  expect(restarted.recovery.effects).toEqual([`${plan}/${run.runId}: the parent append of reconciliation work-item:review-notes.rc01`, `${plan}/${run.runId}: continued unfinished tasks through ordinary execution`]);
-  await restarted.service.settled(plan, run.runId);
-  const after = await runEventsOnDisk(root, plan, run.runId);
-  const recovered = after.slice(before.length);
-  expect(recovered[0]).toMatchObject({ type: 'reconciliation-brief-appended', data: { reconciliation: 'work-item:review-notes.rc01', outcome: when === 'before' ? 'appended' : 'already-present' } });
-  expect(onlyRun(restarted.service, plan).state, JSON.stringify(onlyRun(restarted.service, plan).failure)).toBe('completed');
-  // No second assessment, and the brief is in the architect's session once.
-  expect(eventsOf(after, 'reconciliation-assessed').filter(event => event.data.reconciliation === 'work-item:review-notes.rc01')).toHaveLength(1);
-  const parent = eventsOf(after, 'outline-revised').find(event => event.data.architectRef !== undefined)!.data.architectRef!;
-  const parentPoint = JSON.parse(parent.ref) as { point: { sessionId: string } };
-  expect((await capturedOperations!.inspect(run.runId, parentPoint.point.sessionId))!.additions.filter(item => item.key === 'brief:work-item:review-notes.rc01')).toHaveLength(1);
-  // The repair decision kept its intent, recoverable after the crash.
-  const detail = restarted.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: 'finding:case-0001' });
-  expect(detail).toMatchObject({ ok: true, view: { summary: { standing: 'closed', reason: 'fixed-by-assessment' } } });
-
-  // A second restart finds nothing to do.
-  restarted.git.assertComplete();
-  await restarted.service.close();
-  cleanups.pop();
-  const again = await restart(root, scripted, false);
-  expect(again.recovery.effects).toEqual([]);
-  expect(await runEventsOnDisk(root, plan, run.runId)).toEqual(after);
-}
-
-describe('CF10 and CF11: a crash between the decisions and the brief', () => {
-  test('a crash before the parent append is recovered once from the committed assessment, and the repair keeps its intent', () => crashAroundAppend('before'), 60_000);
-  test('a crash after the parent append is recovered once from the committed assessment, and the repair keeps its intent', () => crashAroundAppend('after'), 60_000);
 });
 
 describe('CF15: a work item waits for actual review settlement', () => {

@@ -22,7 +22,7 @@ export async function openCommitLog(directory: string): Promise<Ledger<CommitEve
   return await openLedger({ logPath: join(directory, 'events.jsonl'), recordsRoot: directory, eventSchema: commitEventSchema });
 }
 
-export const logPathOf = (directory: string): string => join(directory, 'events.jsonl');
+const logPathOf = (directory: string): string => join(directory, 'events.jsonl');
 
 /** One record body of the shape a reader accepts: its schema literal, its ID and its revision. */
 export function recordRef(path: string, id: string, revision: number, extra: Record<string, unknown> = {}): RecordRef {
