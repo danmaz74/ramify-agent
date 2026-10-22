@@ -1,3 +1,5 @@
+// The kernel canary that torn-line replay depends on: torn-line.test.ts replays
+// torn tails without a process, assuming what an actual SIGKILL leaves on disk.
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

@@ -1,5 +1,6 @@
-import { invokeProbe, probeOperations, probeStore } from './helpers/spec.js';
+import { invokeProbe, probeOperations, probeSpec, probeStore, unbounded } from './helpers/spec.js';
 import { describe, expect, test, vi } from 'vitest';
+import { assistantText, contextBudgetReached } from '../interfaces/port.js';
 import type { AgentEvent, SessionSpec, SubmissionVerdict } from '../interfaces/port.js';
 import { createScriptedAgent } from '../scripted.js';
 import * as engine from '../session-operations.js';
@@ -228,5 +229,33 @@ describe('scripted provider burst persistence', () => {
       expect((await turn.handle.settled()).outcome).toEqual({ kind: 'submitted', input: 'accepted' }); expect(judged).toEqual(['accepted']);
       expect(persisted).toEqual(['batch:event:0', 'batch:event:1', 'batch:event:2', 'batch:event:3', 'batch:event:4', 'batch:event:5', 'batch:event:6', 'batch:event:7', 'batch:event:8']); expect(events).toHaveLength(9);
     } finally { replacement.mockRestore(); }
+  });
+});
+
+describe('port functions and session operations over the fake', () => {
+  test('an unknown context size is never room: the budget cannot fire on it', () => {
+    const policy = { compaction: 'allowed' as const, budgetTokens: null, budgetFraction: 0.5, reportReserveTokens: 1_000 };
+    expect(contextBudgetReached(policy, null, 40_000)).toBe(false);
+    expect(contextBudgetReached(policy, 18_999, 40_000)).toBe(false);
+    expect(contextBudgetReached(policy, 19_000, 40_000)).toBe(true);
+    // With no window reported, the absolute figure is the budget.
+    expect(contextBudgetReached({ ...policy, budgetTokens: 5_000 }, 4_500, null)).toBe(true);
+    expect(contextBudgetReached({ ...unbounded }, 10_000_000, 40_000)).toBe(false);
+  });
+
+  test('a message\'s display text is its text, or the tools it calls', () => {
+    const read = { type: 'tool-call' as const, callId: 'c', tool: 'read', input: {}, action: { kind: 'other' as const } };
+    expect(assistantText([{ type: 'thinking', visibility: 'full', text: 'hmm' }, { type: 'text', text: ' Done. ' }, read])).toBe('Done.');
+    expect(assistantText([read, { ...read, tool: 'grep' }])).toBe('(calls read, grep)');
+    expect(assistantText([{ type: 'thinking', visibility: 'unmarked', text: 'only thinking' }])).toBe('');
+  });
+
+  test('a repeated model-free append has one identity and conflicting bytes do not replace it', async () => {
+    const agent = createScriptedAgent([{ kind: 'end' }]); const parent = await invokeProbe(agent, probeSpec().spec); await parent.outcome;
+    const operations = probeOperations(agent); const P = JSON.parse(parent.ref); const before = agent.sessions.length;
+    const request = { runId: 'probe', operationId: 'one-brief', sessionId: P.sessionId, expectedPoint: P, additions: [{ key: 'brief', kind: 'brief' as const, text: 'ONCE', revision: '1' }] };
+    const first = await operations.appendContext(request); expect(await operations.appendContext(request)).toEqual(first);
+    expect((await operations.appendContext({ ...request, additions: [{ ...request.additions[0]!, text: 'CHANGED' }] })).status).toBe('conflict');
+    expect(agent.sessions).toHaveLength(before); expect((await operations.inspect('probe', P.sessionId))!.additions.map(item => item.text)).toEqual(['ONCE']);
   });
 });

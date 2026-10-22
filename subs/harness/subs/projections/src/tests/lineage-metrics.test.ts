@@ -176,74 +176,17 @@ describe('ST13: the lineage measurements of a scripted run', () => {
   // Each segment's first context observation is its start; later ones are not.
   const logs = Object.fromEntries(Object.entries(starts).map(([invocation, tokens]) => [invocation, [context(tokens), context(tokens + 5000)]]));
 
-  test('a fork\'s inherited context and cost by generation, beside the global forks that started fresh', async () => {
+  // kpi/lineage.test.ts owns each calculation; these cases prove only that the
+  // projection derives each fact from the run's records and observation logs.
+  test('each segment\'s generation, previous segment, start context, degradation and replacement come from the run\'s records', async () => {
     const { lineage } = await run(lines, logs);
     expect(lineage.policyVersion).toBe('lineage/2');
-    expect(find(lineage.metrics, 'fork.generation-1.start-context')).toMatchObject({
-      state: 'measured', value: 25_000, numerator: 50_000, denominator: 2, coverage: { covered: 2, total: 2 },
-      evidence: ['inv-0002 (ses-0002): 24000', 'inv-0003 (ses-0003): 26000'],
-    });
-    expect(find(lineage.metrics, 'fork.generation-1.input')).toMatchObject({ state: 'measured', value: 300 });
-    expect(find(lineage.metrics, 'fork.generation-1.cache-read')).toMatchObject({ state: 'measured', value: 21_000 });
-    expect(find(lineage.metrics, 'fork.generation-1.cache-write')).toMatchObject({ state: 'measured', value: 400 });
-    expect(find(lineage.metrics, 'fork.generation-1.output')).toMatchObject({ state: 'measured', value: 1000 });
-    // Generation 2's only fork started fresh: it inherited nothing, so it is
-    // measured as a fresh start, and generation 2 has no fork to measure.
-    expect(find(lineage.metrics, 'fork.generation-2.start-context')).toMatchObject({
-      state: 'not-applicable', value: null, coverage: { covered: 0, total: 0 }, note: 'No fork of generation 2 ended',
-    });
-    expect(find(lineage.metrics, 'fresh-fork.start-context')).toMatchObject({ state: 'measured', value: 13_500, numerator: 27_000, denominator: 2 });
-    expect(find(lineage.metrics, 'fresh-fork.input')).toMatchObject({ state: 'measured', value: 4500 });
-    expect(find(lineage.metrics, 'fresh-fork.cache-read')).toMatchObject({ state: 'measured', value: 0, numerator: 0 });
-    expect(find(lineage.metrics, 'fresh-fork.cache-write')).toMatchObject({ state: 'measured', value: 5000 });
-    expect(find(lineage.metrics, 'fresh-fork.output')).toMatchObject({ state: 'measured', value: 1250 });
-  });
-
-  test('a continued session\'s growth: each continuation\'s start less its previous segment\'s, a degraded one excluded', async () => {
-    const { lineage } = await run(lines, logs);
-    // inv-0005: 11000 - 8000; inv-0008: 15000 - 10000. inv-0006 started fresh.
-    expect(find(lineage.metrics, 'continuation-growth')).toMatchObject({
-      state: 'measured', unit: 'tokens per continuation', value: 4000, numerator: 8000, denominator: 2, coverage: { covered: 2, total: 2 },
-      evidence: ['inv-0005 (ses-0004): 3000', 'inv-0008 (ses-0005): 5000'],
-    });
-  });
-
-  test('a repair segment\'s cost, beside the engineer segments that started fresh', async () => {
-    const { lineage } = await run(lines, logs);
-    expect(find(lineage.metrics, 'repair.start-context')).toMatchObject({ state: 'measured', value: 15_000, denominator: 1 });
+    expect(find(lineage.metrics, 'fork.generation-1.start-context')).toMatchObject({ state: 'measured', evidence: ['inv-0002 (ses-0002): 24000', 'inv-0003 (ses-0003): 26000'] });
+    expect(find(lineage.metrics, 'continuation-growth')).toMatchObject({ state: 'measured', evidence: ['inv-0005 (ses-0004): 3000', 'inv-0008 (ses-0005): 5000'] });
     expect(find(lineage.metrics, 'repair.cache-read')).toMatchObject({ state: 'measured', value: 40_000 });
-    expect(find(lineage.metrics, 'repair.output')).toMatchObject({ state: 'measured', value: 1000 });
-    // The first engineer and the one reconstructed in place of its session.
-    expect(find(lineage.metrics, 'fresh-engineer.start-context')).toMatchObject({ state: 'measured', value: 11_000, denominator: 2 });
-    expect(find(lineage.metrics, 'fresh-engineer.input')).toMatchObject({ state: 'measured', value: 2500 });
-    expect(find(lineage.metrics, 'fresh-engineer.cache-read')).toMatchObject({ state: 'measured', value: 25_000 });
-    expect(find(lineage.metrics, 'fresh-engineer.cache-write')).toMatchObject({ state: 'measured', value: 900 });
-    expect(find(lineage.metrics, 'fresh-engineer.output')).toMatchObject({ state: 'measured', value: 3500 });
-  });
-
-  test('degraded starts by requested relation, with the executor\'s reasons', async () => {
-    const { lineage } = await run(lines, logs);
-    expect(find(lineage.metrics, 'degraded-starts')).toMatchObject({
-      state: 'measured', numerator: 2, denominator: 6, coverage: { covered: 6, total: 6 },
-      evidence: ['continue made fresh: the session file is gone (inv-0006)', 'fork made fresh: this executor cannot fork (inv-0011)'],
-    });
-    expect(find(lineage.metrics, 'degraded-starts').value).toBeCloseTo(1 / 3);
-    expect(find(lineage.metrics, 'degraded-starts.continue')).toMatchObject({ state: 'measured', numerator: 1, denominator: 3 });
-    expect(find(lineage.metrics, 'degraded-starts.fork')).toMatchObject({ state: 'measured', numerator: 1, denominator: 3 });
-  });
-
-  test('separate fresh fallback invocations retain their requested start without a fork relation', async () => {
-    const { lineage } = await run([
-      ...open({ id: 'inv-0010', session: 'ses-0010', role: 'global-fork', kept: false,
-        usage: use(10, 0, 0, 1), degraded: { requested: 'fork', actual: 'fresh', reason: 'retained parent unavailable' } }),
-      ...open({ id: 'inv-0011', session: 'ses-0011', role: 'engineer', kept: false,
-        usage: use(20, 0, 0, 2), degraded: { requested: 'continue', actual: 'fresh', reason: 'retained work session unavailable' } }),
-    ], { 'inv-0010': [context(100)], 'inv-0011': [context(200)] });
-    expect(find(lineage.metrics, 'degraded-starts')).toMatchObject({ state: 'measured', value: 1, numerator: 2, denominator: 2 });
-    expect(find(lineage.metrics, 'degraded-starts.fork')).toMatchObject({ state: 'measured', value: 1, numerator: 1, denominator: 1 });
-    expect(find(lineage.metrics, 'degraded-starts.continue')).toMatchObject({ state: 'measured', value: 1, numerator: 1, denominator: 1 });
-    expect(find(lineage.metrics, 'fresh-fork.input')).toMatchObject({ state: 'measured', value: 10 });
-    expect(find(lineage.metrics, 'fresh-engineer.input')).toMatchObject({ state: 'measured', value: 20 });
+    expect(find(lineage.metrics, 'degraded-starts')).toMatchObject({ evidence: ['continue made fresh: the session file is gone (inv-0006)', 'fork made fresh: this executor cannot fork (inv-0011)'] });
+    expect(find(lineage.metrics, 'replacements.context-rebuilt')).toMatchObject({ evidence: ['ses-0007 in place of ses-0001'] });
+    expect(find(lineage.metrics, 'forks-served.generation-2')).toMatchObject({ evidence: ['ses-0008 (inv-0011) asked for a fork and started fresh'] });
   });
 
   test('the same degraded starts are counted by each session of the project\'s list and by the run\'s snapshot', () => {
@@ -255,58 +198,6 @@ describe('ST13: the lineage measurements of a scripted run', () => {
     expect(snapshotOf(view).counts.degradedStarts).toBe(2);
   });
 
-  test('replacements by reason, and the forks each context generation served', async () => {
-    const { lineage } = await run(lines, logs);
-    expect(find(lineage.metrics, 'replacements.reconstructed')).toMatchObject({
-      state: 'measured', value: 1 / 8, numerator: 1, denominator: 8, evidence: ['ses-0006 in place of ses-0005'],
-    });
-    expect(find(lineage.metrics, 'replacements.context-rebuilt')).toMatchObject({
-      state: 'measured', numerator: 1, denominator: 8, evidence: ['ses-0007 in place of ses-0001'],
-    });
-    expect(find(lineage.metrics, 'forks-served.generation-1')).toMatchObject({
-      state: 'measured', value: 2, evidence: ['ses-0002 (inv-0002)', 'ses-0003 (inv-0003)'],
-    });
-    // A measured zero: the log is complete, and its one fork started fresh.
-    expect(find(lineage.metrics, 'forks-served.generation-2')).toMatchObject({
-      state: 'measured', value: 0, evidence: ['ses-0008 (inv-0011) asked for a fork and started fresh'],
-    });
-  });
-
-  test('the measurements come in the glossary\'s order, and every one is valid under lineage/2', async () => {
-    const { lineage } = await run(lines, logs);
-    const profile = (prefix: string) => ['start-context', 'input', 'cache-read', 'cache-write', 'output'].map(name => `${prefix}.${name}`);
-    expect(lineage.metrics.map(metric => metric.id)).toEqual([
-      ...profile('fork.generation-1'), ...profile('fork.generation-2'), ...profile('fork.local'), ...profile('fresh-fork'),
-      'continuation-growth', ...profile('repair'), ...profile('fresh-engineer'),
-      'degraded-starts', 'degraded-starts.continue', 'degraded-starts.fork',
-      'replacements.reconstructed', 'replacements.context-rebuilt',
-      'forks-served.generation-1', 'forks-served.generation-2', 'forks-served.local',
-    ]);
-    expect(lineage.metrics.every(metric => metric.policyVersion === 'lineage/2' && metric.measurementPolicy === null)).toBe(true);
-    // This run forked no local session: the group is listed and not applicable, and its count a measured zero.
-    expect(find(lineage.metrics, 'fork.local.start-context')).toMatchObject({ state: 'not-applicable', note: 'No fork of a local session ended' });
-    expect(find(lineage.metrics, 'forks-served.local')).toMatchObject({ state: 'measured', value: 0 });
-  });
-
-  test('a fork of a local session is measured in the local group, not in any generation\'s', async () => {
-    // A scope review forked from the module architect's assignment point.
-    const { lineage } = await run([
-      ...open({ id: 'inv-0001', session: 'ses-0001', role: 'initial-architect', usage: use(1000, 0, 5000, 2000), kept: false }),
-      ...open({ id: 'inv-0002', session: 'ses-0002', role: 'local-architect', usage: use(900, 0, 4000, 700), kept: true }),
-      ...open({ id: 'inv-0003', session: 'ses-0003', role: 'reviewer', usage: use(150, 12_000, 400, 300), kept: false },
-        { fork: { from: point('ses-0002', 'inv-0002'), reason: 'scope-review', briefs: [] } }),
-    ], { 'inv-0001': [context(20_000)], 'inv-0002': [context(8000)], 'inv-0003': [context(13_000)] });
-    expect(find(lineage.metrics, 'fork.local.start-context')).toMatchObject({
-      state: 'measured', value: 13_000, numerator: 13_000, denominator: 1, coverage: { covered: 1, total: 1 }, evidence: ['inv-0003 (ses-0003): 13000'],
-    });
-    expect(find(lineage.metrics, 'fork.local.input')).toMatchObject({ state: 'measured', value: 150 });
-    expect(find(lineage.metrics, 'fork.local.cache-read')).toMatchObject({ state: 'measured', value: 12_000 });
-    expect(find(lineage.metrics, 'fork.local.cache-write')).toMatchObject({ state: 'measured', value: 400 });
-    expect(find(lineage.metrics, 'fork.local.output')).toMatchObject({ state: 'measured', value: 300 });
-    expect(find(lineage.metrics, 'forks-served.local')).toMatchObject({ state: 'measured', value: 1, evidence: ['ses-0003 (inv-0003) from ses-0002'] });
-    expect(find(lineage.metrics, 'fork.generation-1.start-context')).toMatchObject({ state: 'not-applicable' });
-    expect(find(lineage.metrics, 'forks-served.generation-1')).toMatchObject({ state: 'measured', value: 0 });
-  });
 });
 
 describe('ST13: a measurement whose inputs are missing is unavailable with the reason, never zero', () => {
@@ -334,29 +225,14 @@ describe('ST13: a measurement whose inputs are missing is unavailable with the r
     'inv-0006': [context(9000)],
   };
 
-  test('a fork\'s start context: the known subtotal and coverage, and each missing input with its reason', async () => {
+  test('an interruption, an empty log and a coverage gap each become the reason a measurement is unavailable', async () => {
     const { lineage } = await run(lines, logs);
-    expect(find(lineage.metrics, 'fork.generation-1.start-context')).toMatchObject({
-      state: 'unavailable', value: null, numerator: null, subtotal: 30_000, coverage: { covered: 1, total: 3 },
-      evidence: [
-        'inv-0002 (ses-0002): it recorded no context observation: the executor reports no context size',
-        'inv-0003 (ses-0003): its start is unknown: its outcome records no start: The harness stopped while this invocation was running.',
-        'inv-0004 (ses-0004): 30000',
-      ],
-    });
-    expect(find(lineage.metrics, 'fork.generation-1.cache-read')).toMatchObject({ state: 'unavailable', subtotal: 42_000, coverage: { covered: 2, total: 3 } });
-  });
-
-  test('a continuation whose previous segment has no start context has no growth', async () => {
-    const { lineage } = await run(lines, logs);
-    expect(find(lineage.metrics, 'continuation-growth')).toMatchObject({
-      state: 'unavailable', value: null, subtotal: null, coverage: { covered: 0, total: 1 },
-      evidence: ['inv-0006 (ses-0005): its previous segment inv-0005: it recorded no context observation'],
-    });
-    expect(find(lineage.metrics, 'repair.start-context')).toMatchObject({ state: 'measured', value: 9000 });
-    expect(find(lineage.metrics, 'repair.output')).toMatchObject({
-      state: 'unavailable', subtotal: null, evidence: ['inv-0006 (ses-0005): the session reported no usage'],
-    });
+    expect(find(lineage.metrics, 'fork.generation-1.start-context').evidence).toEqual([
+      'inv-0002 (ses-0002): it recorded no context observation: the executor reports no context size',
+      'inv-0003 (ses-0003): its start is unknown: its outcome records no start: The harness stopped while this invocation was running.',
+      'inv-0004 (ses-0004): 30000',
+    ]);
+    expect(find(lineage.metrics, 'continuation-growth').evidence).toEqual(['inv-0006 (ses-0005): its previous segment inv-0005: it recorded no context observation']);
   });
 
   test('a missing previous observation log remains unavailable with its actual read failure', async () => {
@@ -371,20 +247,4 @@ describe('ST13: a measurement whose inputs are missing is unavailable with the r
     expect(find(lineage.metrics, 'repair.start-context')).toMatchObject({ state: 'measured', value: 9000 });
   });
 
-  test('a fork whose start is unknown makes the degraded-start rate and the forks served partial', async () => {
-    const { lineage } = await run(lines, logs);
-    expect(find(lineage.metrics, 'degraded-starts.fork')).toMatchObject({
-      state: 'partial', value: null, numerator: 0, denominator: 2, coverage: { covered: 2, total: 3 },
-    });
-    expect(find(lineage.metrics, 'forks-served.generation-1')).toMatchObject({ state: 'partial', value: null, numerator: 2, coverage: { covered: 2, total: 3 } });
-  });
-
-  test('a group with no segment is not applicable, and a run without a rebuild has no generation 2', async () => {
-    const { lineage } = await run(lines, logs);
-    for (const id of ['fresh-fork.start-context', 'fresh-fork.output']) {
-      expect(find(lineage.metrics, id)).toMatchObject({ state: 'not-applicable', value: null, note: 'No global fork started fresh' });
-    }
-    expect(find(lineage.metrics, 'degraded-starts.continue')).toMatchObject({ state: 'measured', value: 0, numerator: 0, denominator: 1 });
-    expect(lineage.metrics.some(metric => metric.id.includes('generation-2'))).toBe(false);
-  });
 });

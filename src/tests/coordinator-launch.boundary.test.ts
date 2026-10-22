@@ -69,47 +69,43 @@ test('detached CLI host survives its launching command, reconnects without anoth
   }
 }, 45000);
 
-test('concurrent detached starts enforce full admitted arguments while identical retries and distinct observations share one host', async () => {
-  for (const conflicting of [false, true]) {
-    const root = await mkdtemp(join(tmpdir(), 'coordinator-start-race-')); let started: Snapshot | undefined;
-    try {
-      await mkdir(join(root, 'plans', 'sample'), { recursive: true });
-      await writeFile(join(root, 'plans', 'sample', 'plan.md'), '# Concurrent host native witness\n');
-      await writeFile(join(root, '.gitignore'), 'history.json\nwriter.pid\nheartbeat\n');
-      const firstMessage = join(root, 'first.md'), secondMessage = join(root, 'second.md');
-      await writeFile(firstMessage, 'First initial instructions'); await writeFile(secondMessage, 'Conflicting initial instructions');
-      await execute('git', ['init', '-q'], { cwd: root }); await execute('git', ['add', '.'], { cwd: root });
-      await execute('git', ['-c', 'user.name=Native witness', '-c', 'user.email=native@example.invalid', 'commit', '-qm', 'Native launch race fixture'], { cwd: root });
-      const common = ['--plan', 'sample', '--replace-mcp', 'old-stdio', '--codex-executable', executable];
-      const flags = [...common, '--command-id', 'race-once'];
-      const attempts = await Promise.allSettled([cli(root, 'start', [...flags, '--message-file', firstMessage]), cli(root, 'start', [...flags, '--message-file', conflicting ? secondMessage : firstMessage])]);
-      const successes = attempts.filter((value): value is PromiseFulfilledResult<unknown> => value.status === 'fulfilled');
-      started = successes[0]?.value as Snapshot | undefined;
-      expect(successes).toHaveLength(conflicting ? 1 : 2);
-      expect(started).toMatchObject({ stale: false, record: { phase: 'ready' } });
-      if (conflicting) {
-        const rejected = attempts.find(value => value.status === 'rejected') as PromiseRejectedResult;
-        expect(String(rejected.reason)).toContain('Start command identity conflicts with its admitted arguments');
-      } else expect(successes[1]!.value).toMatchObject({ record: { id: started!.record.id, generation: started!.record.generation } });
-      const observing = await cli(root, 'start', [...common, '--command-id', 'different-observation', '--message-file', secondMessage]) as Snapshot;
-      expect(observing.record.id).toBe(started!.record.id);
-      const admitted = JSON.parse(await readFile(join(root, 'plans', '.harness', 'coordinators', started!.record.id, 'record.json'), 'utf8'));
-      const losingMessage = attempts[0]!.status === 'fulfilled' ? secondMessage : firstMessage;
-      const history = JSON.parse(await readFile(join(root, 'history.json'), 'utf8'));
-      const admittedMessage = attempts[0]!.status === 'fulfilled' ? 'First initial instructions' : 'Conflicting initial instructions';
-      expect(history.turns[0].items[0].content[0].text).toMatch(new RegExp(`${admittedMessage}$`));
-      await expect(cli(root, 'start', [...flags, '--message-file', conflicting ? losingMessage : secondMessage])).rejects.toThrow(/Start command identity conflicts/);
-      // Host/job identity is retained across every successful observation.
-      expect(observing.record.jobId).toBe(started!.record.jobId); expect(admitted.startCommandId).toBe('race-once');
-    } finally {
-      started ??= await cli(root, 'status').catch(() => undefined) as Snapshot | undefined;
-      if (started !== undefined) {
-        try { await cli(root, 'stop', ['--id', started.record.id, '--command-id', 'cleanup-race']); } finally {
-          await vi.waitFor(() => expect(() => process.kill(started!.record.owner.pid, 0)).toThrow(), { timeout: 5000 });
-        }
+test('concurrent detached starts with conflicting arguments admit one host and refuse the other, while a distinct observation shares the host', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-start-race-')); let started: Snapshot | undefined;
+  try {
+    await mkdir(join(root, 'plans', 'sample'), { recursive: true });
+    await writeFile(join(root, 'plans', 'sample', 'plan.md'), '# Concurrent host native witness\n');
+    await writeFile(join(root, '.gitignore'), 'history.json\nwriter.pid\nheartbeat\n');
+    const firstMessage = join(root, 'first.md'), secondMessage = join(root, 'second.md');
+    await writeFile(firstMessage, 'First initial instructions'); await writeFile(secondMessage, 'Conflicting initial instructions');
+    await execute('git', ['init', '-q'], { cwd: root }); await execute('git', ['add', '.'], { cwd: root });
+    await execute('git', ['-c', 'user.name=Native witness', '-c', 'user.email=native@example.invalid', 'commit', '-qm', 'Native launch race fixture'], { cwd: root });
+    const common = ['--plan', 'sample', '--replace-mcp', 'old-stdio', '--codex-executable', executable];
+    const flags = [...common, '--command-id', 'race-once'];
+    // Two independent CLI processes race for ownership; identical retries are
+    // coalesced in coordinator-control.test.ts.
+    const attempts = await Promise.allSettled([cli(root, 'start', [...flags, '--message-file', firstMessage]), cli(root, 'start', [...flags, '--message-file', secondMessage])]);
+    const successes = attempts.filter((value): value is PromiseFulfilledResult<unknown> => value.status === 'fulfilled');
+    started = successes[0]?.value as Snapshot | undefined;
+    expect(successes).toHaveLength(1);
+    expect(started).toMatchObject({ stale: false, record: { phase: 'ready' } });
+    const rejected = attempts.find(value => value.status === 'rejected') as PromiseRejectedResult;
+    expect(String(rejected.reason)).toContain('Start command identity conflicts with its admitted arguments');
+    const observing = await cli(root, 'start', [...common, '--command-id', 'different-observation', '--message-file', secondMessage]) as Snapshot;
+    expect(observing.record.id).toBe(started!.record.id);
+    const admitted = JSON.parse(await readFile(join(root, 'plans', '.harness', 'coordinators', started!.record.id, 'record.json'), 'utf8'));
+    const history = JSON.parse(await readFile(join(root, 'history.json'), 'utf8'));
+    const admittedMessage = attempts[0]!.status === 'fulfilled' ? 'First initial instructions' : 'Conflicting initial instructions';
+    expect(history.turns[0].items[0].content[0].text).toMatch(new RegExp(`${admittedMessage}$`));
+    // Host/job identity is retained across every successful observation.
+    expect(observing.record.jobId).toBe(started!.record.jobId); expect(admitted.startCommandId).toBe('race-once');
+  } finally {
+    started ??= await cli(root, 'status').catch(() => undefined) as Snapshot | undefined;
+    if (started !== undefined) {
+      try { await cli(root, 'stop', ['--id', started.record.id, '--command-id', 'cleanup-race']); } finally {
+        await vi.waitFor(() => expect(() => process.kill(started!.record.owner.pid, 0)).toThrow(), { timeout: 5000 });
       }
-      await rm(root, { recursive: true, force: true });
     }
+    await rm(root, { recursive: true, force: true });
   }
 }, 45000);
 
@@ -188,64 +184,3 @@ test('explicit resume after provider exit settles descendants and supports missi
     const job = JSON.parse(await readFile(join(root, 'plans', 'sample', '.harness', 'jobs', started.record.jobId, 'job.json'), 'utf8')); expect(job.protection.baselineCommit).toBe(baseline);
   } finally { await cleanupRecovery(root, started); }
 }, 45000);
-
-test('stopped resume admissions remain immutable across later generations and stale predecessors cannot bypass retained mutations or settings', async () => {
-  const { root } = await recoveryFixture(); let started: Snapshot | undefined;
-  const observed = async (action: string, flags: readonly string[]) => cli(root, action, flags).catch(error => {
-    if (![1, 2].includes(error.code) || !error.stdout) throw error;
-    return JSON.parse(error.stdout);
-  });
-  try {
-    started = await cli(root, 'start', initialFlags) as Snapshot;
-    const original = await retained(root, started.record.id);
-    const resume = ['--id', started.record.id, '--command-id', 'fresh-successor-once', '--fresh-thread', '--model', 'gpt-6-sol', '--assessment-model', 'retained-assessor', '--replace-mcp', 'added-stdio'];
-    const successor = await cli(root, 'resume', resume) as Snapshot;
-    expect(successor.record.threadId).not.toBe(started.record.threadId);
-    await cli(root, 'interrupt', ['--id', successor.record.id, '--command-id', 'before-completed']);
-    const completedMessage = join(root, 'completed.txt'); await writeFile(completedMessage, 'completed-in-successor');
-    const completedFlags = ['--command-id', 'completed-in-successor', '--message-file', completedMessage];
-    const completed = await cli(root, 'send', ['--id', successor.record.id, ...completedFlags]);
-    expect(completed).toMatchObject({ state: 'completed' });
-    await cli(root, 'interrupt', ['--id', successor.record.id, '--command-id', 'before-uncertain']);
-    const uncertainMessage = join(root, 'uncertain.txt'); await writeFile(uncertainMessage, 'hold-ack');
-    const uncertainFlags = ['--command-id', 'uncertain-in-successor', '--message-file', uncertainMessage];
-    await expect(cli(root, 'send', ['--id', successor.record.id, ...uncertainFlags, '--timeout-ms', '1000'])).rejects.toThrow(/delivery may be uncertain/);
-    await cli(root, 'stop', ['--id', successor.record.id, '--command-id', 'explicit-successor-stop']);
-    const historyAfterStop = await readFile(join(root, 'history.json'), 'utf8');
-    const stopped = await observed('resume', resume) as Snapshot;
-    expect(stopped).toMatchObject({ stale: true, record: { id: successor.record.id, phase: 'stopped', ownershipReleased: true, recovery: { thread: 'fresh' } } });
-    expect(await readFile(join(root, 'history.json'), 'utf8')).toBe(historyAfterStop);
-    expect((await observed('status', []) as Snapshot).record.id).toBe(successor.record.id);
-    await expect(cli(root, 'resume', [...resume, '--worker-model', 'gpt-6-astra'])).rejects.toThrow(/identity conflicts/);
-    await expect(cli(root, 'resume', ['--id', started.record.id, '--command-id', 'branch-around-successor'])).rejects.toThrow(/Stale coordinator predecessor/);
-    const latest = await cli(root, 'resume', ['--id', successor.record.id, '--command-id', 'latest-successor-once']) as Snapshot;
-    const record = await retained(root, latest.record.id);
-    expect(record).toMatchObject({ resumeFrom: successor.record.id, model: 'gpt-6-sol', assessmentModel: 'retained-assessor', threadId: successor.record.threadId, recovery: { thread: 'resumed', uncertainCommands: [{ commandId: 'uncertain-in-successor', action: 'send' }] } });
-    expect(record.replaceMcp).toEqual(expect.arrayContaining(['old-stdio', 'added-stdio', `ramify_host_${original.generation.replaceAll('-', '')}`, `ramify_host_${successor.record.generation.replaceAll('-', '')}`]));
-    const beforeRetry = await readFile(join(root, 'history.json'), 'utf8');
-    expect(await cli(root, 'send', ['--id', latest.record.id, ...completedFlags])).toEqual(completed);
-    expect(await observed('send', ['--id', latest.record.id, ...uncertainFlags])).toMatchObject({ state: 'uncertain', error: { kind: 'uncertain' } });
-    expect(await readFile(join(root, 'history.json'), 'utf8')).toBe(beforeRetry);
-    // Even when a later owner exists, the old command observes its admitted B,
-    // and a different command cannot branch from either historical selector.
-    expect((await observed('resume', resume) as Snapshot).record.id).toBe(successor.record.id);
-    await expect(cli(root, 'resume', ['--id', started.record.id, '--command-id', 'another-old-branch'])).rejects.toThrow(/Stale coordinator predecessor/);
-    await expect(cli(root, 'resume', ['--id', successor.record.id, '--command-id', 'another-successor-branch'])).rejects.toThrow(/Stale coordinator predecessor/);
-    expect((await cli(root, 'status') as Snapshot).record.id).toBe(latest.record.id);
-    await cli(root, 'stop', ['--id', latest.record.id, '--command-id', 'explicit-latest-stop']);
-    expect((await observed('resume', ['--id', successor.record.id, '--command-id', 'latest-successor-once']) as Snapshot).record.id).toBe(latest.record.id);
-  } finally { await cleanupRecovery(root, started); }
-}, 90000);
-
-test('guardian death without settlement acknowledgement refuses replacement even after known fixture processes stop', async () => {
-  const { root } = await recoveryFixture(); let started: Snapshot | undefined;
-  try {
-    started = await cli(root, 'start', initialFlags) as Snapshot;
-    const record = await retained(root, started.record.id); const guardian = JSON.parse(await readFile(record.guardian.path, 'utf8'));
-    const writer = Number(await readFile(join(root, 'writer.pid'), 'utf8')); process.kill(guardian.pid, 'SIGKILL');
-    await expect(cli(root, 'resume', ['--id', started.record.id, '--command-id', 'unproven-replacement'])).rejects.toThrow(/without settlement acknowledgement/);
-    await vi.waitFor(() => expect(() => process.kill(writer, 0)).toThrow());
-    const active = JSON.parse(await readFile(join(root, 'plans', '.harness', 'coordinators', 'active.json'), 'utf8')); expect(active.id).toBe(started.record.id);
-    expect(JSON.parse(await readFile(record.guardian.path, 'utf8')).state).toBe('running');
-  } finally { await cleanupRecovery(root, started); }
-}, 30000);

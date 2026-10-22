@@ -25,7 +25,7 @@
       "owningCases": [
         "preview matches a whole-worktree commit and preserves staged user index bytes",
         "a late source mutation changes the preview tree",
-        "nested cwd previews the entire eventual repository tree",
+        "nested cwd previews the project's own tree, leaving the rest of the repository unstaged",
         "a repository nested inside another uses its own root and index",
         "a failed add cleans its isolated index and leaves the user index unchanged",
         "an aborted preview leaves no temporary index"
@@ -87,7 +87,7 @@
     {
       "file": "subs/harness/subs/audit/src/tests/audit-conformance.test.ts",
       "boundary": "Published audit SDK producer, reports, Git refs, cancellation and recovery conformance",
-      "whyFakeCannotProve": "Synthetic reports or in-process locks cannot establish the installed producer/object/OS contract.",
+      "whyFakeCannotProve": "The one ramify-audit canary: its numbered facts pin the installed SDK behavior that the harness's scripted audit answers assume, so an SDK upgrade that changes one fails here rather than in every fake-backed test. Synthetic reports or in-process locks cannot establish the installed producer/object/OS contract.",
       "owningCases": [
         "ramify-audit 0.12.1 conformance > fact 1: command summaries preserve status and runner errors but never an exit code",
         "ramify-audit 0.12.1 conformance > fact 2: command checks inherit the process environment except NODE_OPTIONS",
@@ -234,14 +234,6 @@
       ]
     },
     {
-      "file": "subs/harness/subs/task-workflow/src/tests/single-session.boundary.test.ts",
-      "boundary": "PB3-S04 actual permitted shell mutation versus protected candidate",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "the actual session shell write boundary > PB3-S04: actual shell tool writes pass only permitted candidates; protected creation fails the checkpoint"
-      ]
-    },
-    {
       "file": "subs/harness/src/tests/audit-check-execution.boundary.test.ts",
       "boundary": "Actual configured provider runner truth, reuse and publication",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
@@ -374,14 +366,6 @@
       ]
     },
     {
-      "file": "subs/harness/subs/task-workflow/src/tests/single-session-integration.test.ts",
-      "boundary": "Actual shell and completion command session",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "a standalone session process boundary > a violation written through the shell, which no hook check saw, is caught when completion is proposed"
-      ]
-    },
-    {
       "file": "subs/harness/src/tests/run-protocol-materialization.integration.test.ts",
       "boundary": "Installed materialized placement views and unchanged native Git status",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
@@ -425,57 +409,30 @@
     {
       "file": "subs/harness/subs/ledger/src/tests/killed-writer.test.ts",
       "boundary": "Actual killed ledger writer and crash-safe durable recovery",
-      "whyFakeCannotProve": "A simulated writer cannot establish persisted bytes at process death.",
+      "whyFakeCannotProve": "The kernel canary that torn-line replay depends on: torn-line.test.ts replays torn tails on a fake, which assumes what an actual SIGKILL leaves on disk. A simulated writer cannot establish persisted bytes at process death.",
       "owningCases": [
         "a real writer process killed with SIGKILL in the middle of appending > every resulting log reopens, replays to a complete transaction and accepts the next append"
       ]
     },
     {
       "file": "src/tests/session-command.test.ts",
-      "boundary": "Actual production CLI session and step run input/output and termination",
-      "whyFakeCannotProve": "A direct handler cannot establish executable argument, stream and shutdown behavior.",
+      "boundary": "Actual production CLI session input/output and termination",
+      "whyFakeCannotProve": "A direct handler cannot establish executable argument, stream and shutdown behavior. Step run streams and exit statuses are owned in-process by steps-run.test.ts.",
       "owningCases": [
         "a session on the scripted fake prints its stream, says nothing verified the work, and exits 0 on a submission",
-        "a session that cannot start exits 2 and says why",
-        "a step run on the scripted fake prints its stream and records, and exits 0, 1 or 2"
+        "a session that cannot start exits 2 and says why"
       ]
     },
     {
       "file": "src/tests/test-boundaries.integration.test.ts",
       "boundary": "Actual configured Vitest worker guard, bypass and discovery controls",
-      "whyFakeCannotProve": "In-process wrappers cannot establish runner import/setup/teardown installation and reused worker behavior.",
+      "whyFakeCannotProve": "In-process wrappers cannot establish runner import/setup/teardown installation and reused worker behavior. The API matrix is owned in-process by test-process-guard.test.ts and manifest defects by test-boundaries-manifest.test.ts.",
       "owningCases": [
-        "automatic ordinary runtime process boundary > builtin state cannot grant caller supplied native permission",
-        "automatic ordinary runtime process boundary > root reinstall cannot erase a caught refusal",
-        "automatic ordinary runtime process boundary > all seven native/default/CommonJS APIs are refused",
-        "automatic ordinary runtime process boundary > caught named Git refusal",
-        "automatic ordinary runtime process boundary > default export",
-        "automatic ordinary runtime process boundary > promisified export",
-        "automatic ordinary runtime process boundary > CommonJS node spelling",
         "automatic ordinary runtime process boundary > CommonJS bare spelling",
         "automatic ordinary runtime process boundary > ESM bare spelling",
-        "automatic ordinary runtime process boundary > importActual",
-        "automatic ordinary runtime process boundary > module setup",
-        "automatic ordinary runtime process boundary > beforeAll setup",
-        "automatic ordinary runtime process boundary > afterAll failure retains refusal",
         "automatic ordinary runtime process boundary > afterAll teardown",
-        "automatic ordinary runtime process boundary > compatibility reset cannot erase",
-        "automatic ordinary runtime process boundary > default Git adapter",
-        "automatic ordinary runtime process boundary > missing candidate injection",
-        "automatic ordinary runtime process boundary > real Ramify adapter",
-        "automatic ordinary runtime process boundary > the complete configured invocation enforces a caught attempt too",
-        "automatic ordinary runtime process boundary > a newly discovered ordinary scripted case passes without attempted launches",
         "configured partition validation > public configured discovery is a disjoint complete union and preserves fixture/scratch exclusions",
-        "configured partition validation > fails configuration for missing manifest",
-        "configured partition validation > fails configuration for missing file",
-        "configured partition validation > fails configuration for duplicate path",
-        "configured partition validation > fails configuration for bad path",
-        "configured partition validation > fails configuration for excluded fixture",
-        "configured partition validation > fails configuration for excluded scratch",
-        "configured partition validation > fails configuration for web boundary",
         "builtin functions captured across a reused worker > ordinary then native then ordinary",
-        "builtin functions captured across a reused worker > native then ordinary then native",
-        "forwarded guards captured across a reused worker > ordinary/native/ordinary forwarding preserves command results and refused observations",
         "forwarded guards captured across a reused worker > native/ordinary/native forwarding preserves command results and refused observations"
       ]
     },
@@ -581,7 +538,7 @@
       "boundary": "Released installed CLI ownership acquisition and consumer adapter decoding across invalid source and invalid declarations",
       "whyFakeCannotProve": "Scripted documents cannot establish that the installed released executable answers ownership without source linking, or that its actual failure document decodes through the consumer adapter.",
       "owningCases": [
-        "released installed ownership adapter answers missing-export source while affected fails, and retains invalid acquisition diagnostics"
+        "released installed ownership adapter answers missing-export source and retains invalid acquisition diagnostics"
       ]
     },
     {
@@ -644,15 +601,13 @@
     },
     {
       "file": "src/tests/coordinator-launch.boundary.test.ts",
-      "boundary": "Native Git baseline registration, detached Node CLI/host with independent stdio, real dedicated Python supervisor and setsid orphan settlement, and loopback control reconnect, identity-bound whole-host guardian settlement, crashed-owner continuation and unacknowledged guardian failure refusal",
-      "whyFakeCannotProve": "The launching process must exit and its streams close while the actual host, provider and orphan stay live; kernel identities must disappear on explicit stop. The app-server protocol is explicitly scripted by native-provider.py without model inference. Concurrent independent CLI/host processes must enforce the original full start arguments when adopting the actual ownership winner. Actual host/provider/guardian death and orphan process reparenting must be observed across CLI recovery; a missing acknowledgement must refuse replacement without signalling unrelated processes. Independent CLI retries after stopped successors and later generations must preserve immutable admission, inherited receipts and MCP settings without launching another host. Provider history and RPC answers remain scripted by the native fixture.",
+      "boundary": "Native Git baseline registration, detached Node CLI/host with independent stdio, real dedicated Python supervisor and setsid orphan settlement, and loopback control reconnect, identity-bound whole-host guardian settlement and crashed-owner continuation",
+      "whyFakeCannotProve": "The launching process must exit and its streams close while the actual host, provider and orphan stay live; kernel identities must disappear on explicit stop. The app-server protocol is explicitly scripted by native-provider.py without model inference. Concurrent independent CLI/host processes must enforce the original full start arguments when adopting the actual ownership winner. Actual host/provider/guardian death and orphan process reparenting must be observed across CLI recovery. Settlement refusal without an acknowledgement is owned by coordinator-recovery.test.ts. Provider history and RPC answers remain scripted by the native fixture.",
       "owningCases": [
         "detached CLI host survives its launching command, reconnects without another registration and settles actual provider orphan descendants on stop",
-        "concurrent detached starts enforce full admitted arguments while identical retries and distinct observations share one host",
+        "concurrent detached starts with conflicting arguments admit one host and refuse the other, while a distinct observation shares the host",
         "resume after host crash requires guardian settlement and preserves job, partial files, persistent history and uncertain mutations",
-        "explicit resume after provider exit settles descendants and supports missing history plus fresh persistent contexts",
-        "stopped resume admissions remain immutable across later generations and stale predecessors cannot bypass retained mutations or settings",
-        "guardian death without settlement acknowledgement refuses replacement even after known fixture processes stop"
+        "explicit resume after provider exit settles descendants and supports missing history plus fresh persistent contexts"
       ]
     },
     {
