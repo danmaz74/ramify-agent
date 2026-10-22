@@ -51,10 +51,8 @@
     {
       "file": "subs/harness/subs/evidence/src/tests/project-boundary.test.ts",
       "boundary": "Installed CLI project-root and package boundary behavior",
-      "whyFakeCannotProve": "The assertions require native tool or kernel behavior and actual output, objects or process settlement.",
+      "whyFakeCannotProve": "Root refusal, auxiliary-source denial and the hook check's per-path dispositions and exit codes are what the installed Ramify answers; ramify-cli.test.ts and hook-checks.test.ts decode and reduce recorded answers and cannot show the installed command line produces them.",
       "owningCases": [
-        "installed Ramify project boundary > marked root, four inert owned docs extensions and analyzed scripts use current ownership identity",
-        "installed Ramify project boundary > an invocation from a nested module selects the marked project and both API source areas",
         "installed Ramify project boundary > an unmarked explicit target is refused before analysis",
         "installed Ramify project boundary > auxiliary source is analyzed and a hidden child import is denied",
         "installed Ramify hook dispositions > excluded-only exits 0 and 1, mixed, cold and deadline exit 2, source deletion, an auxiliary boundary violation, a scratch warning and configuration"
@@ -148,15 +146,6 @@
         "PB3-S04 P04: intercepted and direct candidate-classifier controls cannot bypass captured inputs or harness state",
         "PB3-P04: explicitly included independent project configs are guarded without workspace membership",
         "PB3-S06: removing child declarations cannot widen capture; included child removal remains within both permissions"
-      ]
-    },
-    {
-      "file": "subs/harness/src/tests/measurement.boundary.test.ts",
-      "boundary": "Installed measurement and command adapters over actual project files",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "the frozen baseline > a run freezes B from its first snapshot, and job.json names it",
-        "the recipe > the architect view is measured at its publication size when one is published"
       ]
     },
     {
@@ -306,35 +295,17 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/fixture-check.test.ts",
-      "boundary": "Installed checker validates fresh target fixture",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
+      "file": "subs/harness/src/tests/installed-ramify.boundary.test.ts",
+      "boundary": "Installed Ramify ownership, materialized views, measurement and complete check over small projects",
+      "whyFakeCannotProve": "Ownership, materialized views, measurement and the complete check are produced by the installed Ramify; ramify-cli.test.ts, module-creation.test.ts, requirement-verification.test.ts, measurement.test.ts and integration-scenarios.test.ts run the same harness logic on scripted Ramify answers and cannot show the real command line gives them, and the collection-review fixture those tests copy is only checked here.",
       "owningCases": [
-        "the collection-review fixture satisfies Ramify's rules > a fresh copy checks with no error and no warning beyond its configuration files"
-      ]
-    },
-    {
-      "file": "subs/harness/src/tests/requirement-architect-view.test.ts",
-      "boundary": "Installed materializer generates architect fake/real symbol evidence",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "P2: architectural evidence does not present a fake as production behavior > the architect view of the accepted state shows the fake under its fake name"
-      ]
-    },
-    {
-      "file": "subs/harness/src/tests/integration-scenarios-integration.test.ts",
-      "boundary": "Installed checker accepts ancestor imports only through declared exposure",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "AS08: an integration scenario bound through expose-test > the scripted run completes with the integration scenario done, and the real checker accepts the ancestor's imports only through the exposures"
-      ]
-    },
-    {
-      "file": "subs/harness/src/tests/module-creation-integration.test.ts",
-      "boundary": "Installed materializer refreshes created module architectural evidence",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "G9: an accepted proposed entry owner reaches implementation > a bootstrap assignment creates the module with nested source and its first test, and the notice is read from the commit"
+        "ownership and project roots > a marked root reports owned-unwired docs as ignored, analyzes auxiliary scripts and excludes an owned nested project",
+        "ownership and project roots > a materialization started in a nested module selects the marked project and both API source areas",
+        "the materialized architect view > a module created after a materialization enters the refreshed view",
+        "the materialized architect view > a fake beside its real provider is recorded under its fake name",
+        "the materialized architect view > the measurement producer measures owned source, and the architect view once it is published",
+        "the complete check > an ancestor's test import passes through expose-test, and is denied once the exposure is removed",
+        "the complete check > a fresh copy of the collection-review fixture checks with no error and no warning"
       ]
     },
     {
