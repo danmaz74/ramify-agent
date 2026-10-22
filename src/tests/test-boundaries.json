@@ -301,16 +301,6 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/plan21-workflows.integration.test.ts",
-      "boundary": "Actual installed nested partial/full gates and scoped architect workflow",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "F5/F6 ordinary workflow: failure, repair and full nested acceptance > a failed nested final audit keeps its declarations and report; a repaired run reports unfinished work, reassesses and passes",
-        "F5/F6 capability workflow: delegation, handback and suspended consumer resumption > a delegated handback reports its own outcome only; the suspended consumer resumes across a restart, and its architect reports the consumer scenario",
-        "F5 standalone work: the same scope, hooks and diagnosis, with no commit > a standalone session through the command entry diagnoses its tree in place and commits nothing"
-      ]
-    },
-    {
       "file": "subs/harness/src/tests/run-git.integration.test.ts",
       "boundary": "Actual commit recovery, unchanged commits and producer composition",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
@@ -324,7 +314,7 @@
     {
       "file": "subs/harness/src/tests/project-boundary-audit.integration.test.ts",
       "boundary": "Actual nested producer discovery, recovery and cancellation",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
+      "whyFakeCannotProve": "Nested discovery, per-project report commits, receipt recovery and cancellation of a held grandchild process are answered by the installed ramify-audit over real Git worktrees; gate-diagnostics.test.ts and merge-readiness.test.ts derive the gate from scripted nested answers and cannot show that the provider produces them.",
       "owningCases": [
         "a full nested final audit over F4 (PB3-E05) > audits every eligible project, skips the external tree with its reason, and fails on a nested failure under a passing root",
         "a full nested final audit over F4 (PB3-E05) > indeterminate nested discovery leaves the final gate unverified, whatever the root answered",
