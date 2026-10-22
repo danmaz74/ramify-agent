@@ -6,14 +6,15 @@ import { citationSchema, modulePathSchema } from '../../../../../src/interfaces/
 import { contingentRepairDelegationSchema } from '../../work-coordination/src/repair/repair-preparation.js';
 import { moduleProposalSchema, hypothesisChangeSchema } from './records.js';
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../task-execution/src/submissions.js';
-import { validateInitialAnalysis, type AnalysisEvidence, type InitialAnalysisSubmission } from './submission.js';
+import { acceptArchitectElements, analysisRuleErrors, type AnalysisEvidence, type AnalysisRecordInputs } from './submission.js';
+import type { ElementCatalog } from '../../../../plan-evidence/src/interfaces/catalog.js';
 
 const key = (namespace: string) => z.string().regex(new RegExp(`^draft:${namespace}:[a-z0-9]+(?:-[a-z0-9]+)*$`),
   `a submission-local ${namespace} key, such as draft:${namespace}:preview-missing-predecessor`);
-const functionalKey = z.string().min(1).describe('A draft:functional-requirement:<name> key from elements of this submission; accepted IDs are invalid.');
+const functionalKey = key('functional-requirement').describe('A draft:functional-requirement:<name> key from elements of this submission; accepted IDs are invalid.');
 const capabilityKey = key('capability');
 const hypothesisKey = key('hypothesis');
-const contextKey = z.string().min(1).describe('A draft:context:<name> key from elements of this submission; accepted IDs are invalid.');
+const contextKey = key('context').describe('A draft:context:<name> key from elements of this submission; accepted IDs are invalid.');
 const nonBehavioral = z.object({
   functionalAcceptanceKey: functionalKey.describe('A draft:functional-requirement:<name> key in this submission; an accepted non-functional-requirement ID is invalid.'),
   kind: z.literal('non-behavioral'), test: z.string().min(1),
@@ -79,9 +80,8 @@ export function validateDescriptiveInitialAnalysis(input: unknown, evidence: Ana
     });
   });
   if (errors.length > 0) return { ok: false, errors };
-  const validated = validateInitialAnalysis(normalizeDescriptiveAnalysis(value), evidence);
-  if (validated.ok) return shape;
-  return { ok: false, errors: validated.errors.map(error => ({ ...error, path: descriptivePath(error.path) })) };
+  const ruleErrors = analysisRuleErrors(analysisProjectionOf(value), evidence);
+  return ruleErrors.length === 0 ? shape : { ok: false, errors: ruleErrors.map(error => ({ ...error, path: descriptivePath(error.path) })) };
 }
 
 function descriptivePath(path: string): string {
@@ -101,8 +101,8 @@ function descriptivePath(path: string): string {
     .replace(/\.capability(?=\.|$)/g, '.capabilityKey');
 }
 
-/** Existing form/owner rules receive the same values, with local names normalized to slugs. */
-export function normalizeDescriptiveAnalysis(input: DescriptiveInitialAnalysisSubmission): InitialAnalysisSubmission {
+/** Derive the internal analysis record inputs after the current author shape has been validated. */
+function analysisProjectionOf(input: DescriptiveInitialAnalysisSubmission): AnalysisRecordInputs {
   const name = (value: string) => value.slice(value.lastIndexOf(':') + 1);
   const form = normalizeDescriptiveScenarioForm(input);
   return {
@@ -129,4 +129,9 @@ export function normalizeDescriptiveAnalysis(input: DescriptiveInitialAnalysisSu
     scenarios: form.scenarios.map(scenario => ({ ...scenario, entry: name(scenario.entry) })),
     integrationScenarios: form.integrationScenarios,
   };
+}
+
+/** The validated current author submission enters catalog acceptance as one internal projection. */
+export function acceptDescriptiveArchitectElements(catalog: ElementCatalog, submission: DescriptiveInitialAnalysisSubmission) {
+  return acceptArchitectElements(catalog, analysisProjectionOf(submission));
 }

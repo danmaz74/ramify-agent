@@ -3,8 +3,8 @@ import { describe, expect, test } from 'vitest';
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { openElementCatalog, type ElementCatalog, type SubmittedElement } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { acceptIntake, acceptPrinciples, applyCheck, correctionSchema, type CheckState, type CheckSubmission, type IntakeSubmission } from '../../subs/autonomous/subs/planning/src/extraction.js';
-import { acceptArchitectElements, type AnalysisEvidence } from '../../subs/autonomous/subs/planning/src/submission.js';
-import { normalizeDescriptiveAnalysis, validateDescriptiveInitialAnalysis } from '../../subs/autonomous/subs/planning/src/descriptive.js';
+import { type AnalysisEvidence } from '../../subs/autonomous/subs/planning/src/submission.js';
+import { acceptDescriptiveArchitectElements, validateDescriptiveInitialAnalysis } from '../../subs/autonomous/subs/planning/src/descriptive.js';
 import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { entryAssignmentsSchema } from '../../subs/autonomous/subs/planning/src/records.js';
 
@@ -43,7 +43,7 @@ function extracted(): CheckState {
   if (!read.ok) throw new Error(JSON.stringify(read.errors));
   const fixed = acceptPrinciples(read.catalog, 'document:mail-principles', { elements: [element('audited', 'fixed', 'document:mail-principles')] });
   if (!fixed.ok) throw new Error(JSON.stringify(fixed.errors));
-  return acceptArchitectElements(fixed.catalog, normalizeDescriptiveAnalysis(currentAnalysis(analysis([entry('send-email', 'mail')]), 'document:mail-plan')));
+  return acceptDescriptiveArchitectElements(fixed.catalog, currentAnalysis(analysis([entry('send-email', 'mail')]), 'document:mail-plan'));
 }
 
 function check(extra: Partial<CheckSubmission> = {}): CheckSubmission {
@@ -244,7 +244,7 @@ describe('Plan23 consumer catalog/form corrections', () => {
     const submitted = currentAnalysis(scripted, 'document:mail-plan');
     const available = { ...evidence(open), registeredTests: new Set(['test:mail-send']) };
     expect(validateDescriptiveInitialAnalysis(submitted, available).ok).toBe(true);
-    const accepted = acceptArchitectElements(open, normalizeDescriptiveAnalysis(submitted));
+    const accepted = acceptDescriptiveArchitectElements(open, submitted);
     expect(accepted.analysis.entries[0]!.nonBehavioralAcceptance).toEqual([{ kind: 'non-behavioral', ref: 'functional-requirement:send-email-acceptance', test: 'test:mail-send' }]);
     const entryAssignment = accepted.analysis.entries[0]!;
     const durable = entryAssignmentsSchema.parse({ schema: 'ramify-agent.entry-assignments/2', view: { status: 'placeholder' }, entries: [{

@@ -7,7 +7,7 @@ import type { CatalogFinding } from './records.js';
 import { finished, kept, type SessionKeeping } from '../../../../task-execution/src/results.js';
 import { baselineScope } from '../../../../kpi/src/capture.js';
 import { acceptAnalysis } from './accept.js';
-import { acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisToolName, type AnalysisEvidence, type InitialAnalysisSubmission } from './submission.js';
+import { incorporatedExtraction, incorporatedScenarios, initialAnalysisToolName, type AnalysisEvidence, type AnalysisRecordInputs } from './submission.js';
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -29,7 +29,7 @@ import type { RecordRef as CommitRecord } from '../../../../../src/jobs/commit.j
 import type { InvocationResult } from '../../../../task-execution/src/results.js';
 import { validateAgainst, type SubmissionValidation } from '../../../../task-execution/src/submissions.js';
 import type { JsonSchema } from '../../../../agent/src/interfaces/port.js';
-import { descriptiveInitialAnalysisJsonSchema, descriptiveInitialAnalysisSchemaId, normalizeDescriptiveAnalysis,
+import { acceptDescriptiveArchitectElements, descriptiveInitialAnalysisJsonSchema, descriptiveInitialAnalysisSchemaId,
   validateDescriptiveInitialAnalysis, type DescriptiveInitialAnalysisSubmission } from './descriptive.js';
 import { checkJsonSchema, checkSubmissionSchema, type CheckSubmission } from './extraction.js';
 
@@ -76,7 +76,7 @@ export interface PlanningPorts {
   readonly fail: (reason: RunFailureReason, text: string, evidence?: readonly string[]) => Promise<void>;
   readonly stage: (path: string, text: string) => Promise<void>;
   readonly afterWrite: (write: 'analysis-evidence-staged' | 'analysis-accepted') => Promise<void>;
-  readonly captureRepairAssignment: (invocation: string, assignment: NonNullable<InitialAnalysisSubmission['contingentRepairAssignment']>) => Promise<boolean>;
+  readonly captureRepairAssignment: (invocation: string, assignment: NonNullable<AnalysisRecordInputs['contingentRepairAssignment']>) => Promise<boolean>;
   readonly commit: (event: AnalysisAcceptedTransition, records: readonly CommitRecord[]) => Promise<unknown>;
 }
 /** Plans from captured inputs; only the lifecycle commit makes its staged bundle authoritative. */
@@ -170,7 +170,7 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
 
   // Each checker reads one document once every element of it exists, and
   // corrects the catalog and the citations before any ID is final.
-  let state: CheckState = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(result.value));
+  let state: CheckState = acceptDescriptiveArchitectElements(catalog, result.value);
   const findings: CatalogFinding[] = [];
   for (const document of documents.manifest.documents) {
     const checked = await extract<CheckSubmission>('check', {

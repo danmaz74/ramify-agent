@@ -253,6 +253,17 @@ describe('every query of a completed run, over HTTP', () => {
     ]);
     const detail = workItemResponseSchema.parse((await get(server, protocolPaths.runWorkItem(plan, runId, 'work-item:review-note'))).body);
     expect(detail.iterations).toHaveLength(2);
+    for (const id of ['wi-001', 'scenario:review-note']) {
+      const invalid = await get(server, protocolPaths.runWorkItem(plan, runId, id));
+      expect(invalid.status).toBe(400);
+      expect(errorResponseSchema.parse(invalid.body).error).toMatchObject({
+        code: 'invalid-request', message: expect.stringContaining('work-item:<name>'),
+      });
+      expect(errorResponseSchema.parse(invalid.body).error.message).toContain('work-items list');
+    }
+    const unknownItem = await get(server, protocolPaths.runWorkItem(plan, runId, 'work-item:unknown'));
+    expect(unknownItem.status).toBe(404);
+    expect(errorResponseSchema.parse(unknownItem.body).error.code).toBe('not-found');
     expect(detail.iterations[0]!.result?.outcome).toBe('partial');
     expect(detail.iterations[1]!.result?.outcome).toBe('accepted');
     const engineer = detail.iterations[0]!.invocations.find(invocation => invocation.role === 'engineer')!;

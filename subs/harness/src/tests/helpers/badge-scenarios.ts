@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { InitialAnalysisSubmission } from '../../../subs/autonomous/subs/planning/src/submission.js';
+import type { AnalysisRecordInputs } from '../../../subs/autonomous/subs/planning/src/submission.js';
 import { extractPlanScenarios } from '../../../subs/scenarios/src/extraction.js';
 import { analysis, entry } from './analysis.js';
 import { fixtureRoot } from './fixture.js';
@@ -37,7 +37,7 @@ export async function badgePlanText(): Promise<string> {
  * The initial analysis of the plan: one entry at the badge's owner, whose
  * two scenarios are the plan's, restated verbatim with the plan as origin.
  */
-export async function badgeAnalysis(): Promise<InitialAnalysisSubmission> {
+export async function badgeAnalysis(): Promise<AnalysisRecordInputs> {
   const { scenarios } = extractPlanScenarios(await badgePlanText(), 'document:status-badge-tone-plan');
   const badge = entry(badgePlan, sharedUi, 'The status badge takes a tone and carries it in its markup.');
   return analysis([badge], [], [],

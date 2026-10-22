@@ -8,7 +8,7 @@ import { documentManifestSchema } from '../../../../../plan-evidence/src/interfa
 import { elementCatalogSchema, openElementCatalog, serializeElementCatalog } from '../../../../../plan-evidence/src/interfaces/catalog.js';
 import { RunQueries } from '../../../../../projections/src/queries.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
-import { validateInitialAnalysis } from '../submission.js';
+import { validateDescriptiveInitialAnalysis } from '../descriptive.js';
 import { acceptIntake, checkMessage, intakeMessage, intakeToolName, type CheckState, type IntakeSubmission } from '../extraction.js';
 import { readCapturedDocuments } from '../documents.js';
 import { runRecordSchema } from '../../../../src/run/records.js';
@@ -128,7 +128,7 @@ test('accepts the intake\'s elements and incorporation once, and projects them b
   const fixed = acceptIntake(open, captured.manifest, { ...valid, elements: [{ ...valid.elements[1]!, kind: 'fixed' }] });
   expect(fixed.ok).toBe(false);
   if (!fixed.ok) expect(fixed.errors.map(item => item.path)).toEqual(['elements.0.kind']);
-  const architect = validateInitialAnalysis({ ...emptyAnalysis(), elements: [{ ...valid.elements[1]! }] }, { index: null, catalog: open, documents: captured, planScenarios: [] });
+  const architect = validateDescriptiveInitialAnalysis({ ...emptyAnalysis(), elements: [{ ...valid.elements[1]! }] }, { index: null, catalog: open, documents: captured, planScenarios: [] });
   expect(architect.ok).toBe(false);
   if (!architect.ok) expect(architect.errors.map(item => item.path)).toContain('elements.0.kind');
   if (process.env.CATALOG_REVIEW_EXPORT) await writeFile(process.env.CATALOG_REVIEW_EXPORT, JSON.stringify(projection));
@@ -165,22 +165,23 @@ test('incorporation selects a companion scenario while a linked example stays ou
 
   const submission = {
     elements: [
-      { key: 'draft:functional-requirement:timely-request', kind: 'functional', document: 'document:example-plan', text: 'A request completes promptly.', conditions: [], uncertainty: '' },
-      { key: 'draft:functional-requirement:timely-accepted', kind: 'functional', document: 'document:example-companion', text: 'A request completes within 30 seconds.', conditions: [], uncertainty: '' },
+      { key: 'draft:functional-requirement:timely-request', kind: 'functional' as const, document: 'document:example-plan', text: 'A request completes promptly.', conditions: [], uncertainty: '' },
+      { key: 'draft:functional-requirement:timely-accepted', kind: 'functional' as const, document: 'document:example-companion', text: 'A request completes within 30 seconds.', conditions: [], uncertainty: '' },
     ],
     entries: [{ capability: 'timely-response', description: 'A request completes promptly.', owner: 'example',
       requirementRefs: ['draft:functional-requirement:timely-request'], acceptanceRefs: ['draft:functional-requirement:timely-accepted'], contextRefs: [], citations: [] }],
-    hypotheses: [], coverageLimits: [], scenarios: [{ key: 'timely', entry: 'timely-response', origin: { kind: 'plan', planScenario: 'plan-scenario:a-response-is-timely' },
+    hypotheses: [], coverageLimits: [], scenarios: [{ key: 'timely', entry: 'timely-response', origin: { kind: 'plan' as const, planScenario: 'plan-scenario:a-response-is-timely' },
       refs: ['draft:functional-requirement:timely-accepted'], gherkin: extracted.source.join('\n') }], integrationScenarios: [] };
   const evidence = (value: typeof accepted.incorporation) => ({ index: null, catalog: accepted.catalog, incorporation: value, documents: { manifest, bytes }, planScenarios: [] });
-  expect(validateInitialAnalysis(submission, evidence(accepted.incorporation)).ok).toBe(true);
+  const authored = currentAnalysis(submission, 'document:example-plan');
+  expect(validateDescriptiveInitialAnalysis(authored, evidence(accepted.incorporation)).ok).toBe(true);
   // The example's scenario becomes binding only by incorporation, and then the submission lacks it.
   const withExample = { ...accepted.incorporation, documents: accepted.incorporation.documents.map(item => item.document === 'document:example-example' ? { ...item, scenarios: true } : item) };
-  expect(validateInitialAnalysis(submission, evidence(withExample))).toMatchObject({ ok: false,
+  expect(validateDescriptiveInitialAnalysis(authored, evidence(withExample))).toMatchObject({ ok: false,
     errors: [expect.objectContaining({ path: 'scenarios', expected: expect.stringContaining('rule 3') })] });
-  const { elements: _elements, ...withoutElements } = submission;
+  const { elements: _elements, ...withoutElements } = authored;
   void _elements;
-  expect(validateInitialAnalysis(withoutElements, evidence(accepted.incorporation))).toMatchObject({ ok: false,
+  expect(validateDescriptiveInitialAnalysis(withoutElements, evidence(accepted.incorporation))).toMatchObject({ ok: false,
     errors: expect.arrayContaining([expect.objectContaining({ path: 'elements' })]) });
 
   expect(intake({ ...incorporation, documents: incorporation.documents.slice(0, 2) })).toMatchObject({ ok: false,

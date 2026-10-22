@@ -1,11 +1,9 @@
 import { z } from 'zod';
-import { contingentRepairDelegationSchema } from '../../work-coordination/src/repair/repair-preparation.js';
 import { symbolRecords, type ArchitectIndex, type ModuleEntry } from '../../../../evidence/src/views.js';
-import { citationSchema, modulePathSchema } from '../../../../../src/interfaces/protocol/evidence.js';
-import type { JsonSchema } from '../../../../agent/src/interfaces/port.js';
-import { moduleProposalSchema } from './records.js';
-import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../task-execution/src/submissions.js';
-import { hypothesisChangeSchema, slugSchema } from './records.js';
+import { citationSchema } from '../../../../../src/interfaces/protocol/evidence.js';
+import type { ModuleProposal } from './records.js';
+import type { SubmissionError } from '../../../../task-execution/src/submissions.js';
+import { hypothesisChangeSchema } from './records.js';
 import { extractDocumentScenarios, type PlanScenario, type PlanScenarioExtraction } from '../../../../scenarios/src/extraction.js';
 import type { DocumentManifest } from '../../../../plan-evidence/src/interfaces/contracts.js';
 import {
@@ -13,92 +11,73 @@ import {
 } from '../../../../plan-evidence/src/interfaces/catalog.js';
 import type { Incorporation } from './evidence-contracts.js';
 import {
-  integrationScenarioSubmissionSchema, scenarioSubmissionSchema, validateScenarioForm, nonBehavioralAcceptanceSchema,
+  validateScenarioForm, nonBehavioralAcceptanceSchema, scenarioSubmissionSchema, integrationScenarioSubmissionSchema,
   type ScenarioFormResult, type ScenarioViewNames,
 } from '../../../../scenarios/src/form.js';
 
 /*
- * The plan architect's submission, `initial-architect/3`: the functional
- * and context elements it read from the plan documents, the entry
- * capabilities that cite them, the deeper hypotheses it forecasts, and the
- * acceptance scenarios of every entry. Entries and hypotheses stay separate,
- * and a hypothesis never creates work, an obligation or a completion
- * requirement.
+ * Internal inputs for acceptance, derived only after the current author
+ * submission has passed its strict schema. No second author shape is parsed
+ * here. Entries and hypotheses stay separate: a hypothesis never creates
+ * work, an obligation or a completion requirement.
  *
- * Every rule the schema cannot hold is here: an owner the refreshed view has
+ * The evidence rules here verify an owner the refreshed view has
  * or a valid proposal, slugs unique in the run, elements read from captured
  * plan documents, element citations of the right kind, and citations whose
- * module, file and symbol the cited view actually records. A failure changes nothing and returns every error with
- * its path to the same session. Only when all of those hold are the
+ * module, file and symbol the cited view actually records. A failure changes
+ * nothing and returns every error with its path to the same session. Only when all of those hold are the
  * scenarios' form rules applied, and the first one broken is the answer.
  */
 
-const text = z.string().min(1);
+export interface AnalysisEntryInput {
+  capability: string;
+  description: string;
+  owner: string;
+  proposed?: ModuleProposal | undefined;
+  requirementRefs: string[];
+  acceptanceRefs: string[];
+  contextRefs: string[];
+  citations: z.infer<typeof citationSchema>[];
+  nonBehavioralAcceptance?: z.infer<typeof nonBehavioralAcceptanceSchema>[] | undefined;
+}
 
-export { slugSchema };
-
-const entrySchema = z.object({
-  capability: slugSchema,
-  description: text,
-  owner: modulePathSchema,
-  proposed: moduleProposalSchema.optional(),
-  /** Keys of the functional elements that state the entry's requirement. */
-  requirementRefs: z.array(text),
-  /** Keys of the functional elements that state its acceptance; its scenarios cite each one. */
-  acceptanceRefs: z.array(text),
-  /** Keys of the context elements a reader needs to understand the entry. */
-  contextRefs: z.array(text),
-  citations: z.array(citationSchema),
-  nonBehavioralAcceptance: z.array(nonBehavioralAcceptanceSchema.extend({
-    ref: nonBehavioralAcceptanceSchema.shape.ref.describe(
-      'The submission-local key of a functional acceptance element in this submission. An accepted intake non-functional-requirement:<name> ID is not a functional citation; '
-      + 'intake non-functional elements retain their classification, coverage and identity. The harness converts this key '
-      + 'to its catalog ID after acceptance; the named test must already be registered.',
-    ),
-  })).optional(),
-}).strict();
-
-const hypothesisSubmissionSchema = z.object({
-  id: slugSchema,
-  capability: slugSchema,
-  change: hypothesisChangeSchema,
-  /** Whether implementing the forecast capability is expected to change symbols that already have consumers. */
-  changesExistingSymbols: z.boolean(),
-  suggestedOwner: modulePathSchema,
-  anticipatedConsumers: z.array(text),
-  involvedModules: z.array(modulePathSchema),
-  dependsOn: z.array(slugSchema),
-  confidence: z.enum(['low', 'medium', 'high']),
-  rationale: text,
-  assumptions: z.array(z.string()),
-  uncertainties: z.array(z.string()),
-  citations: z.array(citationSchema),
-}).strict();
+export interface AnalysisHypothesisInput {
+  id: string;
+  capability: string;
+  change: z.infer<typeof hypothesisChangeSchema>;
+  changesExistingSymbols: boolean;
+  suggestedOwner: string;
+  anticipatedConsumers: string[];
+  involvedModules: string[];
+  dependsOn: string[];
+  confidence: 'low' | 'medium' | 'high';
+  rationale: string;
+  assumptions: string[];
+  uncertainties: string[];
+  citations: z.infer<typeof citationSchema>[];
+}
 
 /**
- * What the plan architect submits. The harness assigns every ID it knows
- * already, the elements' and the scenarios' included; an element is named
- * by its submission-local key until then.
+ * The validated current submission projected for evidence rules and record
+ * derivation. This type has no parser or unknown-input validation entrypoint.
  */
-export const initialAnalysisSubmissionSchema = z.object({
-  /** The functional and context elements of the plan documents. */
-  elements: z.array(submittedElementSchema),
-  /** Optional root delegation for one unexpected architect preparation obstruction. */
-  contingentRepairAssignment: contingentRepairDelegationSchema.optional(),
-  entries: z.array(entrySchema),
-  hypotheses: z.array(hypothesisSubmissionSchema),
-  coverageLimits: z.array(z.string()),
-  scenarios: z.array(scenarioSubmissionSchema),
-  integrationScenarios: z.array(integrationScenarioSubmissionSchema),
-}).strict();
-export type InitialAnalysisSubmission = z.infer<typeof initialAnalysisSubmissionSchema>;
+export interface AnalysisRecordInputs {
+  elements: z.infer<typeof submittedElementSchema>[];
+  contingentRepairAssignment?: {
+    root: string;
+    included: { directory: string; reason: string; instructions: string }[];
+    instructions: string;
+  } | undefined;
+  entries: AnalysisEntryInput[];
+  hypotheses: AnalysisHypothesisInput[];
+  coverageLimits: string[];
+  scenarios: z.infer<typeof scenarioSubmissionSchema>[];
+  integrationScenarios: z.infer<typeof integrationScenarioSubmissionSchema>[];
+}
 /** An accepted submission whose element keys the harness rewrote to element IDs. */
-export type ResolvedAnalysis = Omit<InitialAnalysisSubmission, 'elements'>;
-export type SubmittedEntry = InitialAnalysisSubmission['entries'][number];
-export type SubmittedHypothesis = InitialAnalysisSubmission['hypotheses'][number];
-
-/** The schema the agent's tool is given, taken from the same definition that validates. */
-export const initialAnalysisJsonSchema = z.toJSONSchema(initialAnalysisSubmissionSchema) as JsonSchema;
+export type ResolvedAnalysis = Omit<AnalysisRecordInputs, 'elements'>;
+export type SubmittedEntry = AnalysisRecordInputs['entries'][number];
+export type SubmittedHypothesis = AnalysisRecordInputs['hypotheses'][number];
 
 export const initialAnalysisToolName = 'submit_initial_analysis';
 
@@ -128,21 +107,16 @@ export interface AnalysisEvidence {
 export const reservedCapabilitySlug = 'integration';
 
 /**
- * Validates one submission: the strict schema, then the rules the schema
- * cannot hold. Nothing changes on a failure, and every error names its path.
+ * Apply evidence and scenario-form rules to the private record inputs after
+ * the current author schema has admitted the submission. Nothing changes on
+ * a failure, and every error names its path.
  */
-export function validateInitialAnalysis(input: unknown, evidence: AnalysisEvidence): SubmissionValidation<InitialAnalysisSubmission> {
-  const shape = validateAgainst(initialAnalysisSubmissionSchema, input);
-  if (!shape.ok) return shape;
-  const errors = beyondTheSchema(shape.value, evidence);
-  errors.push(...elementErrors(shape.value, evidence));
-  if (errors.length > 0) return { ok: false, errors };
-  const form = scenarioFormOf(shape.value, evidence);
-  if (form.ok) return shape;
-  return {
-    ok: false,
-    errors: [{ path: form.path, message: form.message, expected: `a submission that keeps scenario form rule ${form.rule}` }],
-  };
+export function analysisRuleErrors(analysis: AnalysisRecordInputs, evidence: AnalysisEvidence): SubmissionError[] {
+  const errors = beyondTheSchema(analysis, evidence);
+  errors.push(...elementErrors(analysis, evidence));
+  if (errors.length > 0) return errors;
+  const form = scenarioFormOf(analysis, evidence);
+  return form.ok ? [] : [{ path: form.path, message: form.message, expected: `a submission that keeps scenario form rule ${form.rule}` }];
 }
 
 /**
@@ -228,7 +202,7 @@ export function analysisElementReferences(analysis: Pick<ResolvedAnalysis, 'entr
 }
 
 /** The architect's elements are functional or context, read from captured plan documents, and every citation names one of them. */
-function elementErrors(submission: InitialAnalysisSubmission, evidence: AnalysisEvidence): SubmissionError[] {
+function elementErrors(submission: AnalysisRecordInputs, evidence: AnalysisEvidence): SubmissionError[] {
   const errors: SubmissionError[] = [];
   const kinds = new Map(submission.elements.map(element => [element.key, element.kind]));
   const citations = analysisCitationErrors(submission, key => kinds.get(key), 'the key of an element of this submission');
@@ -258,7 +232,7 @@ function elementErrors(submission: InitialAnalysisSubmission, evidence: Analysis
  * every key rewritten to its element ID. Only a validated submission is
  * accepted, so a failure here is the harness disagreeing with itself.
  */
-export function acceptArchitectElements(catalog: ElementCatalog, submission: InitialAnalysisSubmission): { readonly catalog: ElementCatalog; readonly analysis: ResolvedAnalysis } {
+export function acceptArchitectElements(catalog: ElementCatalog, submission: AnalysisRecordInputs): { readonly catalog: ElementCatalog; readonly analysis: ResolvedAnalysis } {
   const accepted = acceptElements(catalog, submission.elements, analysisElementReferences(submission));
   if (!accepted.ok) throw new Error(`An accepted analysis has invalid elements: ${accepted.errors.join('; ')}`);
   const id = (key: string) => accepted.ids.get(key) ?? key;
@@ -286,7 +260,7 @@ function viewNamesOf(index: ArchitectIndex | null): ScenarioViewNames {
   };
 }
 
-function beyondTheSchema(submission: InitialAnalysisSubmission, evidence: AnalysisEvidence): SubmissionError[] {
+function beyondTheSchema(submission: AnalysisRecordInputs, evidence: AnalysisEvidence): SubmissionError[] {
   const errors: SubmissionError[] = [];
   const capabilities = new Set<string>();
   /** Directories one submission proposes, with the entry that first proposed each. */

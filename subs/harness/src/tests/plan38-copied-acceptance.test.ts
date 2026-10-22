@@ -8,8 +8,8 @@ import {
 } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { extractDocumentScenarios, type PlanScenario } from '../../subs/scenarios/src/extraction.js';
 import { applyCheck, checkMessage, type CheckState, type CheckSubmission, type ExtractionInputs } from '../../subs/autonomous/subs/planning/src/extraction.js';
-import { acceptArchitectElements, type AnalysisEvidence } from '../../subs/autonomous/subs/planning/src/submission.js';
-import { descriptiveInitialAnalysisSubmissionSchema, normalizeDescriptiveAnalysis, validateDescriptiveInitialAnalysis } from '../../subs/autonomous/subs/planning/src/descriptive.js';
+import { type AnalysisEvidence } from '../../subs/autonomous/subs/planning/src/submission.js';
+import { descriptiveInitialAnalysisSubmissionSchema, acceptDescriptiveArchitectElements, validateDescriptiveInitialAnalysis } from '../../subs/autonomous/subs/planning/src/descriptive.js';
 import { acceptAnalysis } from '../../subs/autonomous/subs/planning/src/accept.js';
 import { briefed, engineerScenarioSection } from '../../subs/autonomous/subs/work-coordination/src/work/scenario-briefing.js';
 import { architectScenarioSections } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
@@ -63,7 +63,7 @@ beforeAll(async () => {
   const submission = descriptiveInitialAnalysisSubmissionSchema.parse(submitted);
   const validated = validateDescriptiveInitialAnalysis(submission, evidence(intake.catalog));
   if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
-  state = acceptArchitectElements(intake.catalog, normalizeDescriptiveAnalysis(validated.value));
+  state = acceptDescriptiveArchitectElements(intake.catalog, validated.value);
   expect(state.catalog).toEqual(retained);
 });
 

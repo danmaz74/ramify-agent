@@ -1520,6 +1520,14 @@ describe('the acceptance matrix, composed', () => {
           elements: [{ id: 'functional-requirement:retain-reviewer-notes', text: 'Retain reviewer notes.' }],
         } });
         expect((work.body as { acceptedReferences: { elements: unknown[] } }).acceptedReferences.elements).toContainEqual(catalogElement);
+        const obsoleteWork = await inspect('work-item', 'wi-001');
+        expect(obsoleteWork.status).toBe(2);
+        expect(obsoleteWork.error).toContain('invalid-request');
+        expect(obsoleteWork.error).toContain('work-item:<name>');
+        expect(obsoleteWork.error).toContain('work-items list');
+        const unknownWork = await inspect('work-item', 'work-item:unknown');
+        expect(unknownWork.status).toBe(2);
+        expect(unknownWork.error).toContain('not-found');
         expect((await inspect('finding', 'finding:reviewer-notes-1')).body)
           .toMatchObject({ summary: { id: 'finding:reviewer-notes-1', planDeviation: { id: 'plan-deviation:move-reviewer-notes' } } });
         expect((await inspect('deviation', 'plan-deviation:move-reviewer-notes')).body)
@@ -1528,6 +1536,18 @@ describe('the acceptance matrix, composed', () => {
         expect(missing.status).toBe(2);
         expect(missing.error).toContain('No accepted plan deviation plan-deviation:unknown');
       } finally { stdout.mockRestore(); stderr.mockRestore(); }
+      const version = run.service.getRun(plan, run.runId)!.version;
+      const acceptedScenario = await get(protocolPaths.runExecutionScenario(plan, run.runId, 'scenario:reviewer-notes-retained', version));
+      expect(acceptedScenario.status).toBe(200);
+      const obsoleteScenario = await get(protocolPaths.runExecutionScenario(plan, run.runId, 'sc-001', version));
+      expect(obsoleteScenario.status).toBe(400);
+      expect(errorResponseSchema.parse(obsoleteScenario.body).error).toMatchObject({
+        code: 'invalid-request', message: expect.stringContaining('scenario:<name>'),
+      });
+      expect(errorResponseSchema.parse(obsoleteScenario.body).error.message).toContain('scenarios list');
+      const unknownScenario = await get(protocolPaths.runExecutionScenario(plan, run.runId, 'scenario:unknown', version));
+      expect(unknownScenario.status).toBe(404);
+      expect(errorResponseSchema.parse(unknownScenario.body).error.code).toBe('not-found');
       const reviews = await get(protocolPaths.runReviews(plan, run.runId));
       expect(reviews.status).toBe(200);
       expect(reviewListResponseSchema.parse(reviews.body).protocol).toBe('check-findings/2');

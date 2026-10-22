@@ -11,6 +11,7 @@ import { concern, disposition, reconcile, review, submission } from './check-fin
 import { declaringScenarios } from './declarations.js';
 import { createPassingCheckExecution } from './direct-check-execution.js';
 import { FakeRamifyCli } from './fake-ramify.js';
+import { fixtureScratchGit } from './mock-git.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { completionProposed, submit, treeInputs, write } from './iterations.js';
 import { base, candidates, limit, materialized, notesDirectory, plan, reviewScript, reviewTarget, revisionGates, store, tool, reviewUnchangedCommit as unchanged } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
@@ -22,7 +23,7 @@ import { passingAudit } from './direct-check-execution.js';
  * witness of Plan 12 iteration 8. The run is the review tests' work item of
  * three iterations, each reviewed by code, scope and design readers, driven
  * by the scripted fake through the real harness server: its readers raise
- * three concerns and one scope review is partial; the reconciliation asks
+ * three concerns and one scope review records an inspection limit; the reconciliation asks
  * the person about the first concern, defers the second and waives the
  * third as a reported material choice, and the work item waits for the
  * answer. Once the person answers, the next round settles the answered
@@ -70,33 +71,33 @@ const script = reviewScript({
   ],
   reviewers: {
     'orientation': orientation,
-    'rq-0001': review([store], [concern(store, 'A review run should keep several notes', 'high')]),
+    'rq-0001': review([store], [concern(store, 'A review run should keep several notes', 'high', null, 'draft:finding:multiple-notes')]),
     'rq-0002': review([store]),
     'rq-0003': review([store]),
-    'rq-0004': review([limit], [concern(limit, 'The limit should count bytes', 'medium')]),
-    // A partial scope review: the limit was not inspected.
+    'rq-0004': review([limit], [concern(limit, 'The limit should count bytes', 'medium', null, 'draft:finding:byte-limit')]),
+    // A scope review with a stated inspection limit: the limit was not inspected.
     'rq-0005': [tool(snapshotToolNames.list, { path: `${notesDirectory}/src` }), { kind: 'submit', input: { inspected: [], missing: [{ path: limit, reason: 'The reader ran out of its time budget' }], concerns: [] } }],
     'rq-0006': review([limit]),
-    'rq-0007': review([store, index], [concern(store, 'The store could be a plain object', 'low')]),
+    'rq-0007': review([store, index], [concern(store, 'The store could be a plain object', 'low', null, 'draft:finding:plain-object-store')]),
     'rq-0008': review([store, index]),
     'rq-0009': review([store, index]),
   },
   reconcilers: {
-    'wi-001.rc01': reconcile(submission([
-      disposition('cf-0001', { action: 'request-user-decision', conflicts: [{ document: 'plan', text: 'A note belongs to exactly one review run.' }], options }),
-      disposition('cf-0002', { action: 'defer', revisit: 'When a caller needs a byte limit.' }),
-      disposition('cf-0003', { action: 'waive', uncertainty: 'A plain object would serve as well.' }, {
+    'work-item:review-notes.rc01': reconcile(submission([
+      disposition('finding:multiple-notes', { action: 'request-user-decision', conflicts: [{ document: principles, text: 'A note belongs to exactly one review run.' }], options }),
+      disposition('finding:byte-limit', { action: 'defer', revisit: 'When a caller needs a byte limit.' }),
+      disposition('finding:plain-object-store', { action: 'waive', uncertainty: 'A plain object would serve as well.' }, {
         communication: { mode: 'report', choice: 'The store stays a Map.', uncertainty: 'A plain object would serve as well.', reason: 'It departs from the reviewer\'s suggestion.' },
       }),
     ], { kind: 'await-user' })),
     // After the answer: the answered concern is waived under the person's
     // choice, and a signal whose waiver the person revoked is left below the floor.
-    'wi-001.rc02': reconcile(
+    'work-item:review-notes.rc02': reconcile(
       submission([
-        disposition('cf-0001', { action: 'waive', uncertainty: 'None: the person chose one note per run.' }),
-        disposition('cf-0003', { action: 'leave' }),
+        disposition('finding:multiple-notes', { action: 'waive', uncertainty: 'None: the person chose one note per run.' }),
+        disposition('finding:plain-object-store', { action: 'leave' }),
       ], { kind: 'unresolved' }),
-      submission([disposition('cf-0001', { action: 'waive', uncertainty: 'None: the person chose one note per run.' })], { kind: 'complete' }),
+      submission([disposition('finding:multiple-notes', { action: 'waive', uncertainty: 'None: the person chose one note per run.' })], { kind: 'complete' }),
     ),
   },
 });
@@ -110,7 +111,7 @@ const server = await startServerWith({
   agent,
   runs: {
     inputs: treeInputs(),
-    git: git.git,
+    git: fixtureScratchGit(git.git),
     candidates: scriptedCandidates(root, commits()),
 
     configuredAudit: passingAudit(),
@@ -128,7 +129,7 @@ if (started.status !== 202) throw new Error(`The run was not started: ${started.
 const { receipt: { jobId: runId } } = commandResponseSchema.parse(await started.json());
 // The fixture is ready once the person's decision is pending.
 await until(async () => {
-  const response = await fetch(`${server.url}${protocolPaths.runCheckFinding(plan, runId, 'cf-0001')}`);
+  const response = await fetch(`${server.url}${protocolPaths.runCheckFinding(plan, runId, 'finding:multiple-notes')}`);
   if (response.status !== 200) return false;
   return checkFindingDetailSchema.parse(await response.json()).summary.pendingUserDecision !== null;
 }, 60_000);

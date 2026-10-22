@@ -20,7 +20,7 @@ function contract(revision: number, mode: 'fake-backed' | 'access-only' = 'fake-
     authority: { kind: 'provider', owner: reviews, rationale: 'Provider owns the behavior.' },
     provider: reviews, behavior: 'Shared behavior.', mode,
     artifacts: { interface: [], conformance: [], fake: [], exposure: [] },
-    establishedBy: { iteration: 'it-contract', gate: 'ga-contract' },
+    establishedBy: { iteration: 'work-item:first.i01', gate: 'ga-contract' },
   });
 }
 
@@ -46,7 +46,7 @@ function base(): Line[] {
       { path: at('work', 'work-item:provider'), body: item('work-item:provider', { obligation: { id: 'provider-obligation:shared', revision: 1, hash } }) },
     ] },
     { type: 'contract-registered', data: {
-      contract: contractId, revision: 1, mode: 'fake-backed', iteration: 'it-contract',
+      contract: contractId, revision: 1, mode: 'fake-backed', iteration: 'work-item:first.i01',
       obligation: 'provider-obligation:shared', requirements: [firstRequirement, secondRequirement], providerWorkItem: 'work-item:provider',
     }, records: [
       { path: at('contracts', contractId), body: contract(1) },
@@ -93,7 +93,7 @@ describe('execution map causal projection', () => {
         { path: at('registry', consumerId), body: registered(consumerId, { schema: 'ramify-agent.capability/2' }) },
       ] },
       { type: 'contract-registered', data: { contract: agreementId, revision: 1, mode: 'fake-backed',
-        iteration: 'it-contract', obligation: obligationId, requirements: [requirementId], providerWorkItem: null },
+        iteration: 'work-item:first.i01', obligation: obligationId, requirements: [requirementId], providerWorkItem: null },
       records: [{ path: at('contracts', agreementId), body: agreement },
         { path: at('obligations', obligationId), body: providerObligation },
         { path: at('requirements', requirementId), body: consumerRequirement }] },
@@ -116,7 +116,7 @@ describe('execution map causal projection', () => {
         { path: at('registry', provider), body: registered(provider) },
       ] },
       { type: 'contract-registered', data: { contract: contractId, revision: 1, mode: 'access-only',
-        iteration: 'it-contract', obligation: null, requirements: [], providerWorkItem: null },
+        iteration: 'work-item:first.i01', obligation: null, requirements: [], providerWorkItem: null },
       records: [{ path: at('contracts', contractId), body: contract(1, 'access-only') }] },
     ]);
     const index = executionCoreOf(runView(run));
@@ -132,9 +132,9 @@ describe('execution map causal projection', () => {
     const providerWorking = projected([{ type: 'work-item-started', data: { workItem: 'work-item:provider', module: reviews, origin: 'obligation' } }]);
     expect(node(providerWorking, firstRequirement)).toMatchObject({ state: 'working', providerStage: 'working' });
     const conformed: Line = { type: 'provider-conformed', data: { obligation: 'provider-obligation:shared', revision: 1,
-      workItem: 'work-item:provider', iteration: 'it-provider', gate: 'ga-provider' } };
+      workItem: 'work-item:provider', iteration: 'work-item:provider.i01', gate: 'ga-provider' } };
     const verified: Line = { type: 'requirement-verified', data: { requirement: firstRequirement, revision: 1,
-      workItem: 'work-item:first', iteration: 'it-first', gate: 'ga-first' } };
+      workItem: 'work-item:first', iteration: 'work-item:first.i01', gate: 'ga-first' } };
     const beforeReopen = projected([conformed, verified]);
     expect(node(beforeReopen, firstRequirement)).toMatchObject({ state: 'verified', verifiedRevision: 1, providerStage: 'conformed' });
     expect(node(beforeReopen, secondRequirement)).toMatchObject({ state: 'provider-conformed', verifiedRevision: null, providerStage: 'conformed' });
@@ -143,7 +143,7 @@ describe('execution map causal projection', () => {
     expect(beforeReopen.links.some(link => link.kind === 'depends-on' &&
       link.from.key === provider && link.to.key === first)).toBe(true);
     const reopened = projected([conformed, verified, { type: 'evidence-reopened', data: {
-      cause: 'changed interface', contract: contractId, revision: 2, iteration: 'it-contract-2',
+      cause: 'changed interface', contract: contractId, revision: 2, iteration: 'work-item:first.i02',
       obligation: 'provider-obligation:shared', requirements: [firstRequirement, secondRequirement], bindings: [], followUps: [], superseded: [],
     }, records: [
       { path: at('contracts', contractId, 2), body: contract(2) },
@@ -192,7 +192,7 @@ describe('execution map causal projection', () => {
   it('keeps failed and repaired attempts as separate cards with a typed repair edge', () => {
     const gate = (id: string, repairRound: number, verdict: 'failed' | 'passed') => gateAttemptSchema.parse({
       schema: 'ramify-agent.gate-attempt/3', id, checkpoint: 'iteration',
-      subject: { workItem: 'work-item:first', iteration: `it-${repairRound}` }, proposedBy: null,
+      subject: { workItem: 'work-item:first', iteration: `work-item:first.i0${repairRound + 1}` }, proposedBy: null,
       repairRound, infrastructureAttempt: 0, head: 'head', commit: null, audited: null, evidence: null,
       guardedChanges: [], commands: [], verdict, cause: verdict === 'failed' ? 'check-failed' : null,
       next: verdict === 'failed' ? 'repair' : 'accept',

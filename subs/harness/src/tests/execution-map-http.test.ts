@@ -75,7 +75,18 @@ test('HTTP pages the complete census and serves exact capability/scenario detail
     protocolPaths.runExecutionScenario('review-notes', runId, scenario.id, 1))).body);
   expect(scenarioDetail.detail).toMatchObject({ state: 'available', source });
   expect((await get(origin, protocolPaths.runExecutionCapability('review-notes', runId, 'missing', 1))).status).toBe(404);
-  expect((await get(origin, protocolPaths.runExecutionScenario('review-notes', runId, 'missing', 1))).status).toBe(404);
+  for (const id of ['sc-001', 'capability:full-description']) {
+    const invalid = await get(origin, protocolPaths.runExecutionScenario('review-notes', runId, id, 1));
+    expect(invalid.status).toBe(400);
+    expect(errorResponseSchema.parse(invalid.body).error).toMatchObject({
+      code: 'invalid-request', message: expect.stringContaining('scenario:<name>'),
+    });
+    expect(errorResponseSchema.parse(invalid.body).error.message).toContain(`run ${runId}`);
+    expect(errorResponseSchema.parse(invalid.body).error.message).toContain('scenarios list');
+  }
+  const unknownScenario = await get(origin, protocolPaths.runExecutionScenario('review-notes', runId, 'scenario:unknown', 1));
+  expect(unknownScenario.status).toBe(404);
+  expect(errorResponseSchema.parse(unknownScenario.body).error.code).toBe('not-found');
   expect(errorResponseSchema.parse((await get(origin,
     protocolPaths.runExecutionCapability('review-notes', runId, 'capability:full-description', 0))).body).error)
     .toMatchObject({ code: 'stale-version', currentVersion: 1 });

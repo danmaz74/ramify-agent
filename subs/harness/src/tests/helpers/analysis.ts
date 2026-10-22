@@ -1,4 +1,4 @@
-import type { InitialAnalysisSubmission } from '../../../subs/autonomous/subs/planning/src/submission.js';
+import type { AnalysisRecordInputs } from '../../../subs/autonomous/subs/planning/src/submission.js';
 import type { DescriptiveInitialAnalysisSubmission } from '../../../subs/autonomous/subs/planning/src/descriptive.js';
 import type { LocalArchitectSubmission } from '../../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 
@@ -36,7 +36,7 @@ export function entry(capability: string, owner: string, description = `The modu
 }
 
 /** One hypothesis of an analysis, which creates nothing. */
-export function hypothesis(id: string, extra: Partial<InitialAnalysisSubmission['hypotheses'][number]> = {}) {
+export function hypothesis(id: string, extra: Partial<AnalysisRecordInputs['hypotheses'][number]> = {}) {
   return {
     id,
     capability: id,
@@ -64,7 +64,7 @@ export function hypothesis(id: string, extra: Partial<InitialAnalysisSubmission[
 export function architectScenario(
   subject: { readonly capability: string; readonly acceptanceRefs: readonly string[] },
   key = `${subject.capability}-is-used`,
-): InitialAnalysisSubmission['scenarios'][number] {
+): AnalysisRecordInputs['scenarios'][number] {
   return {
     key,
     entry: subject.capability,
@@ -87,9 +87,9 @@ export function analysis(
   entries: ReadonlyArray<ReturnType<typeof entry>>,
   hypotheses: ReadonlyArray<ReturnType<typeof hypothesis>> = [],
   coverageLimits: readonly string[] = [],
-  scenarios: InitialAnalysisSubmission['scenarios'] = entries.map(one => architectScenario(one)),
-  integrationScenarios: InitialAnalysisSubmission['integrationScenarios'] = [],
-): InitialAnalysisSubmission {
+  scenarios: AnalysisRecordInputs['scenarios'] = entries.map(one => architectScenario(one)),
+  integrationScenarios: AnalysisRecordInputs['integrationScenarios'] = [],
+): AnalysisRecordInputs {
   return {
     elements: elementsOf(entries),
     entries: [...entries],
@@ -101,8 +101,8 @@ export function analysis(
 }
 
 /** One element of the root plan for every key the entries cite: functional, or context for `contextRefs`. */
-export function elementsOf(entries: ReadonlyArray<{ readonly requirementRefs: readonly string[]; readonly acceptanceRefs: readonly string[]; readonly contextRefs: readonly string[] }>): InitialAnalysisSubmission['elements'] {
-  const elements = new Map<string, InitialAnalysisSubmission['elements'][number]>();
+export function elementsOf(entries: ReadonlyArray<{ readonly requirementRefs: readonly string[]; readonly acceptanceRefs: readonly string[]; readonly contextRefs: readonly string[] }>): AnalysisRecordInputs['elements'] {
+  const elements = new Map<string, AnalysisRecordInputs['elements'][number]>();
   for (const entry of entries) {
     for (const key of [...entry.requirementRefs, ...entry.acceptanceRefs]) {
       if (!elements.has(key)) elements.set(key, { key, kind: 'functional', document: 'document:fixture-plan', text: `The plan asks for ${key}.`, conditions: [], uncertainty: '' });
@@ -115,7 +115,7 @@ export function elementsOf(entries: ReadonlyArray<{ readonly requirementRefs: re
 }
 
 /** Build the current author tool payload from a rule-test fixture and its captured root document. */
-export function currentAnalysis(input: InitialAnalysisSubmission, rootDocument: string): DescriptiveInitialAnalysisSubmission {
+export function currentAnalysis(input: AnalysisRecordInputs, rootDocument: string): DescriptiveInitialAnalysisSubmission {
   const namespace = { functional: 'functional-requirement', context: 'context', 'non-functional': 'non-functional-requirement',
     fixed: 'fixed-requirement', recommendation: 'recommendation' } as const;
   const elementKeys = new Map(input.elements.map(element => [element.key,

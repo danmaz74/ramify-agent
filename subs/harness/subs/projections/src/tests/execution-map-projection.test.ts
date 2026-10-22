@@ -37,7 +37,7 @@ function gate(id: string, status: 'passed' | 'failed', unrun: boolean, checkpoin
   };
   return gateAttemptSchema.parse({
     schema: 'ramify-agent.gate-attempt/3', id, checkpoint,
-    subject: checkpoint === 'iteration' ? { workItem: 'work-item:case-001', iteration: 'it-case-001' } : {},
+    subject: checkpoint === 'iteration' ? { workItem: 'work-item:case-001', iteration: 'work-item:case-001.i01' } : {},
     proposedBy: null, repairRound: 0, infrastructureAttempt: 0, head: 'before', commit: null,
     audited: checkpoint === 'readiness' ? null : 'audited-commit',
     evidence: checkpoint === 'readiness' ? null : { runRef: 'refs/audited/run', reportCommit: 'report', treeRef: 'refs/audited/tree' },
@@ -66,7 +66,7 @@ function assignment(id: string, workItem: string, revision: number) {
     schema: 'ramify-agent.iteration-assignment/2', id, workItem,
     outline: { id: workItem, revision, hash }, stage: 0, kind: 'ordinary', goal: `Do ${id}`, approach: 'Implement it.',
     scope: { revision, base: { module: reviews, included: [] },
-      extra: [{ path: `subs/reviews/src/${id}.ts`, purpose: 'contract' }], read: [], bootstrap: [], rationale: 'Recorded scope.',
+      extra: [{ path: `subs/reviews/src/assignment-${revision}.ts`, purpose: 'contract' }], read: [], bootstrap: [], rationale: 'Recorded scope.',
       resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: [], files: [], view: { status: 'placeholder' } } },
     externalCapabilities: [], completionEvidence: 'Check it.', evidenceObligations: [],
     gate: { checkpoint: 'iteration', tests: { policy: 'owned-by-scope', exactOwners: [], subtrees: [], extraSuites: [] } },
@@ -165,7 +165,7 @@ describe('execution core from committed run records', () => {
     expect(index.nodes.find(node => node.key === 'scenario:case-001')).toMatchObject({ state: 'done', latestRealResult: 'failed' });
     expect(index.nodes.find(node => node.key === 'capability:full-description')).toMatchObject({ scenarios: { failed: 1, passed: 0 } });
     expect(index.nodes.find(node => node.key === 'gate:ga-later')).toMatchObject({ verdict: 'failed', audit: 'unavailable', evidencePresent: true,
-      cause: 'check-failed', subject: { workItem: 'work-item:case-001', iteration: 'it-case-001' } });
+      cause: 'check-failed', subject: { workItem: 'work-item:case-001', iteration: 'work-item:case-001.i01' } });
     // A readiness gate that recorded no audit reads as one that has not started its audit.
     expect(index.nodes.find(node => node.key === 'gate:ga-ready')).toMatchObject({ audit: 'not-started' });
     expect(index.gaps).toContain('Audit result for gate ga-later is unavailable: the gate retains publication refs but no overall outcome.');
@@ -206,8 +206,8 @@ describe('execution core from committed run records', () => {
       { capability: 'second-root', capabilityId: 'capability:second-root', description: 'The second full description.', owner: reviews,
         functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], citations: [] },
     ] });
-    const first = assignment('it-case-001', 'work-item:case-001', 1);
-    const second = assignment('it-case-002', 'work-item:case-001', 2);
+    const first = assignment('work-item:case-001.i01', 'work-item:case-001', 1);
+    const second = assignment('work-item:case-001.i02', 'work-item:case-001', 2);
     const result = iterationResultSchema.parse({ schema: 'ramify-agent.iteration-result/1', iteration: first.id,
       outcome: 'accepted', invocations: [], gate: 'ga-first', commit: 'accepted-commit', findings: [], changedAssumptions: [], artifacts: [] });
     const run = constructedRun([
@@ -238,9 +238,9 @@ describe('execution core from committed run records', () => {
       owner: `${reviews}/theme`, proposed: { parent: reviews, directory: 'subs/reviews/subs/theme' },
     });
     expect(index.nodes.filter(node => node.kind === 'iteration').map(node => [node.key, node.ordinal, node.outlineRevision, node.state, node.module])).toEqual([
-      ['iteration:it-case-001', 1, 1, 'completed', reviews], ['iteration:it-case-002', 2, 2, 'assigned', reviews],
+      ['iteration:case-001.i01', 1, 1, 'completed', reviews], ['iteration:case-001.i02', 2, 2, 'assigned', reviews],
     ]);
-    expect(index.nodes.find(node => node.key === 'iteration:it-case-002')).toMatchObject({ scopeExceptions: [{ path: 'subs/reviews/src/it-case-002.ts', purpose: 'contract' }] });
+    expect(index.nodes.find(node => node.key === 'iteration:case-001.i02')).toMatchObject({ scopeExceptions: [{ path: 'subs/reviews/src/assignment-2.ts', purpose: 'contract' }] });
     expect(index.nodes.filter(node => node.kind === 'gate').map(node => [node.key, node.active, node.verdict])).toEqual([
       ['gate:ga-final', false, 'passed'], ['gate:ga-running', true, null],
     ]);

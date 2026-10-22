@@ -11,8 +11,7 @@ import { initialAnalysisToolName } from '../submission.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { documentManifestSchema } from '../../../../../plan-evidence/src/interfaces/contracts.js';
 import { acceptElements, createPackage, openElementCatalog } from '../../../../../plan-evidence/src/interfaces/catalog.js';
-import { descriptiveInitialAnalysisSubmissionSchema, normalizeDescriptiveAnalysis, validateDescriptiveInitialAnalysis } from '../descriptive.js';
-import { acceptArchitectElements } from '../submission.js';
+import { descriptiveInitialAnalysisSubmissionSchema, acceptDescriptiveArchitectElements, validateDescriptiveInitialAnalysis } from '../descriptive.js';
 import { acceptAnalysis } from '../accept.js';
 import { applyCheck, checkSubmissionSchema, type CheckSubmission } from '../extraction.js';
 import { renderFeatureFiles } from '../../../../../scenarios/src/rendering.js';
@@ -68,7 +67,7 @@ describe('descriptive initial analysis', () => {
     const validated = validateDescriptiveInitialAnalysis(submission, evidence);
     expect(validated.ok).toBe(true);
     if (!validated.ok) return;
-    const acceptedElements = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(validated.value));
+    const acceptedElements = acceptDescriptiveArchitectElements(catalog, validated.value);
     const accepted = acceptAnalysis(acceptedElements.analysis, { invocation: 'inv-0001',
       view: { status: 'placeholder' }, planId: 'preview', planScenarios: [], index: null, catalog: acceptedElements.catalog });
     expect(acceptedElements.catalog.elements.find(item => item.id === 'functional-requirement:preview-missing-predecessor')).toMatchObject({
@@ -112,14 +111,13 @@ describe('descriptive initial analysis', () => {
     const bad = structuredClone(submission);
     bad.entries[0]!.functionalRequirementKeys = ['non-functional-requirement:keep-snapshot-isolated'];
     expect(validateDescriptiveInitialAnalysis(bad, evidence)).toMatchObject({ ok: false, errors: [expect.objectContaining({
-      path: 'entries.0.functionalRequirementKeys.0', message: expect.stringContaining('accepted non-functional'),
-      expected: expect.stringContaining('draft:functional-requirement'),
+      path: 'entries.0.functionalRequirementKeys.0', message: expect.stringContaining('a submission-local functional-requirement key'),
     })] });
     expect(catalog).toEqual(intake.catalog);
   });
 
   test('a later authorized catalog proposal collides with an accepted descriptive name and a qualifier succeeds', () => {
-    const first = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(descriptiveInitialAnalysisSubmissionSchema.parse(submission)));
+    const first = acceptDescriptiveArchitectElements(catalog, descriptiveInitialAnalysisSubmissionSchema.parse(submission));
     const proposed = { key: 'draft:functional-requirement:preview-missing-predecessor', kind: 'functional' as const,
       document: manifest.root, text: 'A different obligation wants the same name.', conditions: [], uncertainty: '' };
     const colliding = applyCheck({ catalog: first.catalog, analysis: first.analysis }, manifest.root, 'inv-0002',
@@ -145,10 +143,15 @@ describe('descriptive initial analysis', () => {
     expect(descriptiveInitialAnalysisSubmissionSchema.safeParse({ ...submission, entries: [{
       ...submission.entries[0], requirementRefs: submission.entries[0]!.functionalRequirementKeys,
     }] }).success).toBe(false);
+    for (const changed of [
+      { ...submission, entries: [{ ...submission.entries[0], capabilityKey: 'add-revision-preview' }] },
+      { ...submission, scenarios: [{ ...submission.scenarios[0], scenarioKey: 'preview-missing-predecessor' }] },
+      { ...submission, entries: [{ ...submission.entries[0], functionalAcceptanceKeys: ['functional-requirement:reject-unknown-predecessor'] }] },
+    ]) expect(descriptiveInitialAnalysisSubmissionSchema.safeParse(changed).success).toBe(false);
   });
 
   test('authorized catalog replacement retires its name and rewrites affected citations together', () => {
-    const acceptedElements = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(descriptiveInitialAnalysisSubmissionSchema.parse(submission)));
+    const acceptedElements = acceptDescriptiveArchitectElements(catalog, descriptiveInitialAnalysisSubmissionSchema.parse(submission));
     const check: CheckSubmission = ({
       corrections: [{ action: 'replace', reason: 'The acceptance is two distinct obligations.',
         retire: ['functional-requirement:reject-unknown-predecessor'], elements: [
@@ -197,7 +200,7 @@ describe('descriptive initial analysis', () => {
       }],
     });
     expect(validateDescriptiveInitialAnalysis(initial, { ...evidence, registeredTests }).ok).toBe(true);
-    const accepted = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(initial));
+    const accepted = acceptDescriptiveArchitectElements(catalog, initial);
     const correction = checkSubmissionSchema.parse({
       corrections: [{ action: 'replace', reason: 'The coverage has separate review and branch obligations.',
         retire: ['functional-requirement:keep-snapshot-coverage'], elements: [

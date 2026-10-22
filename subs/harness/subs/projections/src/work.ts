@@ -5,7 +5,7 @@ import {
 } from '../../../src/interfaces/protocol/runs.js';
 import type { GateAttempt } from '../../autonomous/subs/acceptance/src/checks/records.js';
 import { digestLines } from '../../autonomous/subs/work-coordination/src/work/failure.js';
-import { originKindOf, type WorkItem } from '../../autonomous/subs/work-coordination/src/work/records.js';
+import { originKindOf, workItemSchema, type WorkItem } from '../../autonomous/subs/work-coordination/src/work/records.js';
 import type { IterationAssignment } from '../../autonomous/subs/work-coordination/src/work/iterations.js';
 import { readAcceptedEvidence, acceptedAnalysisReferences, type AcceptedEvidence } from '../../autonomous/subs/planning/src/evidence.js';
 import { deliverPackage } from '../../autonomous/subs/work-coordination/src/context-selection/delivery.js';
@@ -147,8 +147,13 @@ function packageOf(assignment: IterationAssignment, evidence: AcceptedEvidence, 
 
 /** One work item with its outlines, iterations, gates, requirements and placement requests. */
 export async function workItemOf(view: RunView, id: string): Promise<WorkItemResponse> {
+  if (!workItemSchema.shape.id.safeParse(id).success) {
+    throw new ProjectionError('invalid-request',
+      `"workItem" requires an accepted work-item:<name> ID; read run ${view.record.jobId}'s work-items list for accepted IDs.`);
+  }
   const item = view.records.workItems.find(candidate => candidate.id === id);
-  if (item === undefined) throw new ProjectionError('not-found', `Run ${view.record.jobId} has no work item ${id}`);
+  if (item === undefined) throw new ProjectionError('not-found',
+    `Run ${view.record.jobId} has no work item ${id}; read this run's work-items list for accepted IDs.`);
   const states = itemStates(view);
   const verified = new Set<string>();
   for (const event of view.events) {

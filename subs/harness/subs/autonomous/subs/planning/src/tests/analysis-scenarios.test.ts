@@ -10,7 +10,8 @@ import type { ArchitectIndex } from '../../../../../evidence/src/views.js';
 import { extractPlanScenarios } from '../../../../../scenarios/src/extraction.js';
 import { scenarioSourceHash, type ScenarioRecord } from '../../../../../scenarios/src/records.js';
 import { acceptAnalysis } from '../accept.js';
-import { acceptArchitectElements, validateInitialAnalysis, type InitialAnalysisSubmission } from '../submission.js';
+import { acceptArchitectElements, type AnalysisRecordInputs } from '../submission.js';
+import { validateDescriptiveInitialAnalysis } from '../descriptive.js';
 import { documentManifestSchema } from '../../../../../plan-evidence/src/interfaces/contracts.js';
 import { openElementCatalog } from '../../../../../plan-evidence/src/interfaces/catalog.js';
 import { runLayout, runRecordSchema } from '../../../../src/run/records.js';
@@ -92,7 +93,7 @@ async function planWithScenarios(root: string): Promise<string> {
  * and plan-scenario:the-panel-shows-an-attached-note an integration scenario decomposed into one sub-scenario per
  * entry, the panel's bridged with a Given.
  */
-function scenarioAnalysis(plan: string): InitialAnalysisSubmission {
+function scenarioAnalysis(plan: string): AnalysisRecordInputs {
   const [attach, panel] = extractScenarioFixture(plan).scenarios;
   const note = entry('reviewer-note', reviews, 'A reviewer can attach one note to a completed review run.');
   const inPanel = entry('note-in-panel', sharedUi, 'The review panel shows the note under the findings.');
@@ -123,7 +124,7 @@ function scenarioAnalysis(plan: string): InitialAnalysisSubmission {
 function script(initial: unknown) {
   return (spec: SessionSpec) => spec.role === 'catalog-extractor' ? []
     : [{ kind: 'submit' as const, input: spec.role === 'initial-architect'
-      ? currentAnalysis(initial as InitialAnalysisSubmission, 'document:review-notes-plan') : requestCompletion() }];
+      ? currentAnalysis(initial as AnalysisRecordInputs, 'document:review-notes-plan') : requestCompletion() }];
 }
 
 async function target(): Promise<string> {
@@ -324,7 +325,7 @@ describe('acceptance', () => {
   test('without a view, a proposed owner is placed where its proposal puts it', () => {
     const proposed = entry('note-archive', 'collection-review/archive', 'Keeps notes.', { parent: 'collection-review', directory: 'subs/archive/', purpose: 'Keeps notes.', tags: ['testing'] });
     const submitted = analysis([proposed, entry('reviewer-note', reviews)]);
-    expect(validateInitialAnalysis(submitted, { index: null, catalog, planScenarios: [] }).ok).toBe(true);
+    expect(validateDescriptiveInitialAnalysis(currentAnalysis(submitted, 'document:fixture-plan'), { index: null, catalog, planScenarios: [] }).ok).toBe(true);
     const resolved = acceptArchitectElements(catalog, submitted);
     const accepted = acceptAnalysis(resolved.analysis, { invocation: 'inv-0002', view: { status: 'placeholder' }, planId: 'p', planScenarios: [], index: null, catalog: resolved.catalog });
     expect(accepted.scenarios.map(record => [record.id, record.owner, record.file])).toEqual([
@@ -340,14 +341,14 @@ describe('the form rules, through the real validation path', () => {
   const one = entry('reviewer-note', reviews);
   const own = { key: 'plan-one', entry: 'reviewer-note', origin: { kind: 'plan' as const, planScenario: 'plan-scenario:it-works' }, gherkin: 'Scenario: It works\n  When it is used\n  Then it works' };
   const valid = analysis([one], [], [], [own, architectScenario(one)]);
-  const rejected = (submission: InitialAnalysisSubmission) => {
-    const result = validateInitialAnalysis(submission, { index: null, catalog, planScenarios });
+  const rejected = (submission: AnalysisRecordInputs) => {
+    const result = validateDescriptiveInitialAnalysis(currentAnalysis(submission, 'document:fixture-plan'), { index: null, catalog, planScenarios });
     if (result.ok) throw new Error('the submission was accepted');
     return result.errors;
   };
 
   test('the valid analysis is accepted', () => {
-    expect(validateInitialAnalysis(valid, { index: null, catalog, planScenarios }).ok).toBe(true);
+    expect(validateDescriptiveInitialAnalysis(currentAnalysis(valid, 'document:fixture-plan'), { index: null, catalog, planScenarios }).ok).toBe(true);
   });
 
   test('rule 1: a gherkin value that is not one untagged scenario with a step', () => {
@@ -360,7 +361,7 @@ describe('the form rules, through the real validation path', () => {
 
   test('rule 2: a scenario naming no entry of the submission', () => {
     const errors = rejected({ ...valid, scenarios: [own, { ...architectScenario(one), entry: 'elsewhere' }] });
-    expect([errors[0]!.path, errors[0]!.message]).toEqual(['scenarios.1.entry', expect.stringMatching(/^Scenario form rule 2 /)]);
+    expect([errors[0]!.path, errors[0]!.message]).toEqual(['scenarios.1.entryCapabilityKey', expect.stringMatching(/^Scenario form rule 2 /)]);
   });
 
   test('rule 3: a plan scenario that is missing, or restated otherwise', () => {
@@ -379,28 +380,28 @@ describe('the form rules, through the real validation path', () => {
     const two = entry('note-in-panel', sharedUi);
     const sub = { key: 'use-it', entry: 'note-in-panel', origin: { kind: 'architect' as const }, partOf: 'plan-scenario:it-works', refs: [...two.acceptanceRefs], gherkin: 'Scenario: Used\n  When it is used\n  Then it is used' };
     const errors = rejected(analysis([one, two], [], [], [architectScenario(one), sub], [{ planScenario: 'plan-scenario:it-works', subScenarios: ['use-it'] }]));
-    expect([errors[0]!.path, errors[0]!.message]).toEqual(['integrationScenarios.0.subScenarios', expect.stringMatching(/^Scenario form rule 5 .*"Then it works"/)]);
+    expect([errors[0]!.path, errors[0]!.message]).toEqual(['integrationScenarios.0.subScenarioKeys', expect.stringMatching(/^Scenario form rule 5 .*"Then it works"/)]);
   });
 
   test('rule 6: an acceptance element no scenario cites', () => {
     const errors = rejected({ ...valid, scenarios: [own, { ...architectScenario(one), refs: [] }] });
-    expect([errors[0]!.path, errors[0]!.message]).toEqual(['entries.0.acceptanceRefs.0', expect.stringMatching(/^Scenario form rule 6 /)]);
+    expect([errors[0]!.path, errors[0]!.message]).toEqual(['entries.0.functionalAcceptanceKeys.0', expect.stringMatching(/^Scenario form rule 6 /)]);
   });
 
   test('the form rules follow every other rule: an analysis with other errors answers those alone', () => {
     const errors = rejected({ ...valid, entries: [{ ...one, requirementRefs: ['nowhere'] }], scenarios: [] });
-    expect(errors.map(error => error.path)).toEqual(['entries.0.requirementRefs.0']);
+    expect(errors.map(error => error.path)).toEqual(['entries.0.functionalRequirementKeys.0']);
   });
 
   test('an architect scenario\'s refs name functional elements of the submission', () => {
     const errors = rejected({ ...valid, scenarios: [own, { ...architectScenario(one), refs: [...one.acceptanceRefs, 'nowhere'] }] });
-    expect(errors.map(error => error.path)).toEqual(['scenarios.1.refs.1']);
+    expect(errors.map(error => error.path)).toEqual(['scenarios.1.functionalAcceptanceKeys.1']);
   });
 
   test('the capability slug "integration" is reserved for the integration scenarios\' file', () => {
     const reserved = entry('integration', reviews);
     const errors = rejected(analysis([reserved]));
-    expect(errors.map(error => error.path)).toEqual(['entries.0.capability']);
+    expect(errors.map(error => error.path)).toEqual(['entries.0.capabilityKey']);
     expect(errors[0]!.message).toContain('integration.feature');
   });
 

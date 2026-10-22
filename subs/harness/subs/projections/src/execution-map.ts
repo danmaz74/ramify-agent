@@ -32,7 +32,13 @@ export async function executionMapOf(view: RunView, tree: ModuleTree): Promise<E
 }
 
 const key = (kind: ExecutionNode['kind'], id: string): string => {
-  if (kind === 'iteration' || kind === 'session' || kind === 'gate') return `${kind}:${id}`;
+  // An iteration's accepted ID includes its work-item namespace. The graph
+  // gives the iteration its own kind without nesting two ID namespaces.
+  if (kind === 'iteration') {
+    if (!id.startsWith('work-item:')) throw new Error(`Iteration ${id} has no accepted work-item identity`);
+    return `iteration:${id.slice('work-item:'.length)}`;
+  }
+  if (kind === 'session' || kind === 'gate') return `${kind}:${id}`;
   if (kind === 'contract' && id.startsWith('provider-obligation:')) return `contract:${id.slice('provider-obligation:'.length)}`;
   return id;
 };

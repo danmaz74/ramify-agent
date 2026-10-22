@@ -5,7 +5,8 @@ import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ArchitectIndex } from '../../../../../evidence/src/views.js';
 import { architectIndex, moduleEntry } from '../../../../../../src/tests/helpers/views.js';
-import { acceptArchitectElements, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis } from '../submission.js';
+import { acceptArchitectElements, analysisRuleErrors, initialAnalysisToolName, type AnalysisEvidence, type AnalysisRecordInputs } from '../submission.js';
+import { descriptiveInitialAnalysisJsonSchema as initialAnalysisJsonSchema, validateDescriptiveInitialAnalysis } from '../descriptive.js';
 import { documentManifestSchema } from '../../../../../plan-evidence/src/interfaces/contracts.js';
 import { acceptElements, openElementCatalog } from '../../../../../plan-evidence/src/interfaces/catalog.js';
 import { extensionIsANewForecast } from '../records.js';
@@ -14,7 +15,7 @@ import { type Invocation, type InvocationOutcome } from '../../../../../task-exe
 import { loadPromptPackages } from '../../../../../../src/prompts/packages.js';
 import { copyFixture, fixtureRoot } from '../../../../../../src/tests/helpers/fixture.js';
 import { emptyAnalysis, installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
-import { architectScenario, elementsOf } from '../../../../../../src/tests/helpers/analysis.js';
+import { architectScenario, currentAnalysis, elementsOf } from '../../../../../../src/tests/helpers/analysis.js';
 import { demonstrationScript } from '../../../../../../src/http/server.js';
 import { extractPlanScenarios } from '../../../../../scenarios/src/extraction.js';
 import { join } from 'node:path';
@@ -64,6 +65,12 @@ const intake = acceptElements(openElementCatalog(hash('manifest'), manifest), [
 if (!intake.ok) throw new Error(intake.errors.join('; '));
 const catalog = intake.catalog;
 
+/** Assert pure internal record rules without exposing another author submission contract. */
+function ruleResult(input: AnalysisRecordInputs, evidence: AnalysisEvidence) {
+  const errors = analysisRuleErrors(input, evidence);
+  return errors.length === 0 ? { ok: true as const, value: input } : { ok: false as const, errors };
+}
+
 /** One hypothesis of a submission, which creates nothing. */
 function forecast(extra: Record<string, unknown> = {}) {
   return {
@@ -85,7 +92,7 @@ function forecast(extra: Record<string, unknown> = {}) {
 }
 
 /** A submission of these entries, each with the one architect scenario the form rules require of it, and an element for every key they cite. */
-function submission(entries: ReadonlyArray<ReturnType<typeof entry>>, hypotheses: readonly unknown[] = []) {
+function submission(entries: ReadonlyArray<ReturnType<typeof entry>>, hypotheses: readonly unknown[] = []): AnalysisRecordInputs {
   return {
     elements: elementsOf(entries as unknown as Parameters<typeof elementsOf>[0]).map(element => ({ ...element, document: 'document:shop-plan' })),
     entries: [...entries],
@@ -93,7 +100,7 @@ function submission(entries: ReadonlyArray<ReturnType<typeof entry>>, hypotheses
     coverageLimits: [],
     scenarios: entries.map(one => architectScenario(one as unknown as Parameters<typeof architectScenario>[0])),
     integrationScenarios: [],
-  };
+  } as unknown as AnalysisRecordInputs;
 }
 
 function entry(capability: string, extra: Record<string, unknown> = {}) {
@@ -115,7 +122,7 @@ test('Plan 36: nonbehavioral acceptance cites a functional key and preserves int
   ] })]);
   const before = structuredClone(catalog);
   const evidence = { index, catalog, registeredTests: new Set(['registered-render-check']) };
-  const valid = validateInitialAnalysis(input, evidence);
+  const valid = ruleResult(input, evidence);
   expect(valid.ok).toBe(true);
   if (!valid.ok) throw new Error(JSON.stringify(valid.errors));
   const accepted = acceptArchitectElements(catalog, valid.value);
@@ -125,20 +132,20 @@ test('Plan 36: nonbehavioral acceptance cites a functional key and preserves int
   expect(accepted.catalog.elements.filter(element => element.kind === 'non-functional')).toEqual(
     before.elements.filter(element => element.kind === 'non-functional'),
   );
-  const invalid = validateInitialAnalysis({ ...input, entries: [{ ...input.entries[0],
+  const invalid = ruleResult({ ...input, entries: [{ ...input.entries[0],
     nonBehavioralAcceptance: [{ ref: 'non-functional-requirement:fast', kind: 'non-behavioral', test: 'registered-render-check' }],
   }] }, evidence);
   expect(invalid).toMatchObject({ ok: false, errors: expect.arrayContaining([
     expect.objectContaining({ path: 'entries.0.nonBehavioralAcceptance.0', expected: expect.stringContaining('functional') }),
   ]) });
-  expect(validateInitialAnalysis(input, { ...evidence, registeredTests: new Set() })).toMatchObject({ ok: false,
+  expect(ruleResult(input, { ...evidence, registeredTests: new Set() })).toMatchObject({ ok: false,
     errors: [expect.objectContaining({ path: 'entries.0.nonBehavioralAcceptance.0.test' })] });
   expect(catalog).toEqual(before);
 });
 
 describe('the schema', () => {
   test('rejects an input whose shape is wrong, with a path for every error', () => {
-    const result = validateInitialAnalysis({ elements: [], entries: 'none', hypotheses: [], coverageLimits: [], scenarios: [], integrationScenarios: [] }, { index, catalog });
+    const result = validateDescriptiveInitialAnalysis({ elements: [], entries: 'none', hypotheses: [], coverageLimits: [], scenarios: [], integrationScenarios: [] }, { index, catalog });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors).toHaveLength(1);
@@ -147,18 +154,20 @@ describe('the schema', () => {
   });
 
   test('rejects an unknown field, and a slug that is not kebab-case', () => {
-    const unknown = validateInitialAnalysis({ ...submission([]), notes: 'x' }, { index, catalog });
+    const unknown = validateDescriptiveInitialAnalysis({ ...currentAnalysis(submission([]), 'document:shop-plan'), notes: 'x' }, { index, catalog });
     expect(unknown.ok).toBe(false);
 
-    const slug = validateInitialAnalysis(submission([entry('send-email', { capability: 'Send Email' })]), { index, catalog });
+    const valid = currentAnalysis(submission([entry('send-email')]), 'document:shop-plan');
+    const slug = validateDescriptiveInitialAnalysis({ ...valid, entries: [{ ...valid.entries[0], capabilityKey: 'draft:capability:Send Email' }] }, { index, catalog });
     expect(slug.ok).toBe(false);
     if (slug.ok) return;
-    expect(slug.errors[0]!.path).toBe('entries.0.capability');
-    expect(slug.errors[0]!.message).toContain('kebab-case');
+    expect(slug.errors[0]!.path).toBe('entries.0.capabilityKey');
+    expect(slug.errors[0]!.message).toContain('submission-local capability key');
   });
 
   test('a forecast extension submitted as the retired "extend" change is refused, and told to forecast a new capability', () => {
-    const extended = validateInitialAnalysis(submission([entry('send-email')], [forecast({ change: 'extend' })]), { index, catalog });
+    const valid = currentAnalysis(submission([entry('send-email')], [forecast()]), 'document:shop-plan');
+    const extended = validateDescriptiveInitialAnalysis({ ...valid, hypotheses: [{ ...valid.hypotheses[0], change: 'extend' }] }, { index, catalog });
     expect(extended.ok).toBe(false);
     if (extended.ok) return;
     expect(extended.errors.map(error => error.path)).toEqual(['hypotheses.0.change']);
@@ -166,8 +175,8 @@ describe('the schema', () => {
     expect(extended.errors[0]!.message).toContain('new capability named for itself');
 
     // The same forecast, as the model now states it.
-    expect(validateInitialAnalysis(
-      submission([entry('send-email')], [forecast({ capability: 'send-email-with-attachment', change: 'create', changesExistingSymbols: true })]),
+    expect(validateDescriptiveInitialAnalysis(
+      currentAnalysis(submission([entry('send-email')], [forecast({ capability: 'send-email-with-attachment', change: 'create', changesExistingSymbols: true })]), 'document:shop-plan'),
       { index, catalog },
     ).ok).toBe(true);
   });
@@ -177,13 +186,13 @@ describe('the schema', () => {
     expect(Object.keys(properties).sort()).toEqual(['contingentRepairAssignment', 'coverageLimits', 'elements', 'entries', 'hypotheses', 'integrationScenarios', 'scenarios']);
     const repair = JSON.stringify(properties['contingentRepairAssignment']);
     for (const assigned of ['id', 'invocation', 'revision', 'resolved', 'schema']) expect(repair).not.toContain(`"${assigned}"`);
-    // An element is named by the architect's key; its fr-NNN or ctx-NNN is the harness's.
+    // An element is named by the architect's local key; its accepted ID is the harness's.
     expect(JSON.stringify(properties['elements'])).not.toContain('"id"');
     const hypothesis = JSON.stringify(properties['hypotheses']);
     for (const assigned of ['workItem', 'invocation', 'revision', 'standing', 'cause', 'schema']) {
       expect(hypothesis).not.toContain(`"${assigned}"`);
     }
-    // A scenario is named by the architect's key; its sc-NNN is the harness's.
+    // A scenario is named by the architect's local key; its accepted ID is the harness's.
     const scenario = JSON.stringify(properties['scenarios']);
     for (const assigned of ['id', 'hash', 'owner', 'file', 'schema']) expect(scenario).not.toContain(`"${assigned}"`);
   });
@@ -191,7 +200,7 @@ describe('the schema', () => {
 
 describe('the rules the schema cannot hold', () => {
   test('a duplicate capability slug is refused, and nothing is accepted', () => {
-    const result = validateInitialAnalysis(submission([entry('send-email'), entry('send-email')]), { index, catalog });
+    const result = ruleResult(submission([entry('send-email'), entry('send-email')]), { index, catalog });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors[0]!.path).toBe('entries.1.capability');
@@ -199,13 +208,13 @@ describe('the rules the schema cannot hold', () => {
   });
 
   test('an owner that is not in the view, and a proposal whose parent is not either', () => {
-    const missing = validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/mail' })]), { index, catalog });
+    const missing = ruleResult(submission([entry('send-email', { owner: 'shop/mail' })]), { index, catalog });
     expect(missing.ok).toBe(false);
     if (missing.ok) return;
     expect(missing.errors[0]!.path).toBe('entries.0.owner');
 
     const proposal = { parent: 'shop/nothing', directory: 'subs/nothing/subs/mail', purpose: 'Sends email.', tags: [] };
-    const bad = validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/mail', proposed: proposal })]), { index, catalog });
+    const bad = ruleResult(submission([entry('send-email', { owner: 'shop/mail', proposed: proposal })]), { index, catalog });
     expect(bad.ok).toBe(false);
     if (bad.ok) return;
     expect(bad.errors[0]!.path).toBe('entries.0.proposed.parent');
@@ -213,27 +222,27 @@ describe('the rules the schema cannot hold', () => {
 
   test('a proposed module must be a direct child under its parent\'s subs/', () => {
     const wrong = { parent: 'shop/orders', directory: 'subs/orders/src/mail', purpose: 'Sends email.', tags: [] };
-    const result = validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: wrong })]), { index, catalog });
+    const result = ruleResult(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: wrong })]), { index, catalog });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors[0]!.expected).toBe('subs/orders/subs/<name>');
 
     const right = { parent: 'shop/orders', directory: 'subs/orders/subs/mail', purpose: 'Sends email.', tags: [] };
-    expect(validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: right })]), { index, catalog }).ok).toBe(true);
+    expect(ruleResult(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: right })]), { index, catalog }).ok).toBe(true);
   });
 
   test('a citation must name a module the view has', () => {
-    const result = validateInitialAnalysis(submission([entry('send-email', { citations: [{ module: 'shop/nothing' }] })]), { index, catalog });
+    const result = ruleResult(submission([entry('send-email', { citations: [{ module: 'shop/nothing' }] })]), { index, catalog });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors[0]!.path).toBe('entries.0.citations.0.module');
   });
 
   test('a cited symbol must be an exported original the cited module owns', () => {
-    const known = validateInitialAnalysis(submission([entry('send-email', { citations: [{ module: 'shop/orders', symbol: 'price' }] })]), { index, catalog });
+    const known = ruleResult(submission([entry('send-email', { citations: [{ module: 'shop/orders', symbol: 'price' }] })]), { index, catalog });
     expect(known.ok).toBe(true);
 
-    const unknown = validateInitialAnalysis(submission([entry('send-email', { citations: [{ module: 'shop/orders', symbol: 'discount' }] })]), { index, catalog });
+    const unknown = ruleResult(submission([entry('send-email', { citations: [{ module: 'shop/orders', symbol: 'discount' }] })]), { index, catalog });
     expect(unknown.ok).toBe(false);
     if (unknown.ok) return;
     expect(unknown.errors[0]!.path).toBe('entries.0.citations.0.symbol');
@@ -243,7 +252,7 @@ describe('the rules the schema cannot hold', () => {
   test('every citation names an element of the submission by its key, never an ID or a key it does not submit', () => {
     const unknownRef = submission([entry('send-email')]);
     unknownRef.entries[0]!.requirementRefs = ['nowhere'];
-    const unknown = validateInitialAnalysis(unknownRef, { index, catalog });
+    const unknown = ruleResult(unknownRef, { index, catalog });
     expect(unknown.ok).toBe(false);
     if (unknown.ok) return;
     expect(unknown.errors.map(error => error.path)).toEqual(['entries.0.requirementRefs.0']);
@@ -252,14 +261,14 @@ describe('the rules the schema cannot hold', () => {
     // The intake's elements are already IDs of the catalog; the architect cites only what it submits.
     const earlier = submission([entry('send-email')]);
     earlier.entries[0]!.requirementRefs = ['non-functional-requirement:fast'];
-    const byId = validateInitialAnalysis(earlier, { index, catalog });
+    const byId = ruleResult(earlier, { index, catalog });
     expect(byId.ok).toBe(false);
     if (byId.ok) return;
     expect(byId.errors.map(error => error.path)).toEqual(['entries.0.requirementRefs.0']);
 
     const idKey = submission([entry('send-email')]);
     idKey.elements[0] = { ...idKey.elements[0]!, key: 'functional-requirement:send-email-request' };
-    const asId = validateInitialAnalysis(idKey, { index, catalog });
+    const asId = ruleResult(idKey, { index, catalog });
     expect(asId.ok).toBe(false);
     if (asId.ok) return;
     expect(asId.errors.map(error => error.path)).toContain('elements.0.key');
@@ -267,19 +276,19 @@ describe('the rules the schema cannot hold', () => {
 
   test('each citation names an element of the kind its field requires', () => {
     const cited = submission([entry('send-email', { contextRefs: ['draft:functional-requirement:send-email-request'] })]);
-    const context = validateInitialAnalysis(cited, { index, catalog });
+    const context = ruleResult(cited, { index, catalog });
     expect(context.ok).toBe(false);
     if (context.ok) return;
     expect(context.errors).toEqual([{ path: 'entries.0.contextRefs.0', message: 'draft:functional-requirement:send-email-request is a functional element', expected: 'a context element' }]);
 
     const background = submission([entry('send-email', { contextRefs: ['draft:context:why-email'] })]);
-    const accepted = validateInitialAnalysis(background, { index, catalog });
+    const accepted = ruleResult(background, { index, catalog });
     expect(accepted.ok).toBe(true);
     expect(background.elements.find(element => element.key === 'draft:context:why-email')?.kind).toBe('context');
     // Context is neither a requirement nor something a scenario verifies.
     background.entries[0]!.acceptanceRefs = ['draft:context:why-email'];
     background.scenarios[0]!.refs = ['draft:context:why-email'];
-    const misused = validateInitialAnalysis(background, { index, catalog });
+    const misused = ruleResult(background, { index, catalog });
     expect(misused.ok).toBe(false);
     if (misused.ok) return;
     expect(misused.errors.map(error => [error.path, error.expected])).toEqual([
@@ -290,28 +299,28 @@ describe('the rules the schema cannot hold', () => {
   test('the architect reads functional and context elements from captured plan documents only', () => {
     const principled = submission([entry('send-email')]);
     principled.elements[0] = { ...principled.elements[0]!, document: 'document:orders-principles' };
-    const fromPrinciples = validateInitialAnalysis(principled, { index, catalog });
+    const fromPrinciples = ruleResult(principled, { index, catalog });
     expect(fromPrinciples.ok).toBe(false);
     if (fromPrinciples.ok) return;
     expect(fromPrinciples.errors).toEqual([{ path: 'elements.0.document', message: 'document:orders-principles is not a captured plan document', expected: 'a captured plan document' }]);
 
     const uncaptured = submission([entry('send-email')]);
     uncaptured.elements[1] = { ...uncaptured.elements[1]!, document: 'document:uncaptured' };
-    const nowhere = validateInitialAnalysis(uncaptured, { index, catalog });
+    const nowhere = ruleResult(uncaptured, { index, catalog });
     expect(nowhere.ok).toBe(false);
     if (nowhere.ok) return;
     expect(nowhere.errors.map(error => error.path)).toEqual(['elements.1.document']);
 
     const recommended = submission([entry('send-email')]);
     recommended.elements.push({ key: 'draft:recommendation:use-a-queue', kind: 'recommendation', document: 'document:shop-plan', text: 'Prefer a queue.', conditions: [], uncertainty: '' });
-    const other = validateInitialAnalysis(recommended, { index, catalog });
+    const other = ruleResult(recommended, { index, catalog });
     expect(other.ok).toBe(false);
     if (other.ok) return;
     expect(other.errors.map(error => error.path)).toEqual(['elements.2.kind']);
 
     const twice = submission([entry('send-email')]);
     twice.elements[1] = { ...twice.elements[1]!, key: 'draft:functional-requirement:send-email-request' };
-    const duplicate = validateInitialAnalysis(twice, { index, catalog });
+    const duplicate = ruleResult(twice, { index, catalog });
     expect(duplicate.ok).toBe(false);
     if (duplicate.ok) return;
     expect(duplicate.errors.map(error => error.path)).toContain('elements.1.key');
@@ -320,7 +329,7 @@ describe('the rules the schema cannot hold', () => {
   test('scenario form rule 6: every acceptance element of an entry is in the refs of one of its scenarios', () => {
     const uncited = submission([entry('send-email', { acceptanceRefs: ['draft:functional-requirement:send-email-acceptance', 'draft:functional-requirement:send-email-receipt'] })]);
     uncited.scenarios[0]!.refs = ['draft:functional-requirement:send-email-acceptance'];
-    const result = validateInitialAnalysis(uncited, { index, catalog });
+    const result = ruleResult(uncited, { index, catalog });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors).toHaveLength(1);
@@ -329,19 +338,19 @@ describe('the rules the schema cannot hold', () => {
 
     // A requirement need not be cited by a scenario; an acceptance element must.
     uncited.scenarios[0]!.refs = ['draft:functional-requirement:send-email-acceptance', 'draft:functional-requirement:send-email-receipt'];
-    expect(validateInitialAnalysis(uncited, { index, catalog }).ok).toBe(true);
+    expect(ruleResult(uncited, { index, catalog }).ok).toBe(true);
   });
 
   test('the owner, the directory and the declaration name must agree', () => {
     const disagreeing = { parent: 'shop/orders', directory: 'subs/orders/subs/post', purpose: 'Sends email.', tags: [] };
-    const result = validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: disagreeing })]), { index, catalog });
+    const result = ruleResult(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: disagreeing })]), { index, catalog });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors[0]!.path).toBe('entries.0.proposed.directory');
     expect(result.errors[0]!.expected).toBe('subs/orders/subs/mail');
 
     const elsewhere = { parent: 'shop', directory: 'subs/mail', purpose: 'Sends email.', tags: [] };
-    const wrongParent = validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: elsewhere })]), { index, catalog });
+    const wrongParent = ruleResult(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: elsewhere })]), { index, catalog });
     expect(wrongParent.ok).toBe(false);
     if (wrongParent.ok) return;
     expect(wrongParent.errors.map(error => error.path)).toContain('entries.0.owner');
@@ -349,19 +358,19 @@ describe('the rules the schema cannot hold', () => {
 
   test('a directory a module already occupies, and two entries that define one directory differently', () => {
     const occupied = { parent: 'shop', directory: 'subs/orders', purpose: 'Sends email.', tags: [] };
-    const taken = validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/orders', proposed: occupied })]), { index, catalog });
+    const taken = ruleResult(submission([entry('send-email', { owner: 'shop/orders', proposed: occupied })]), { index, catalog });
     // An owner the view already has cannot be proposed at all.
     expect(taken.ok).toBe(false);
 
     const clash = { parent: 'shop', directory: 'subs/orders', purpose: 'Sends email.', tags: [] };
-    const conflicting = validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/mail', proposed: { ...clash, directory: 'subs/orders' } })]), { index, catalog });
+    const conflicting = ruleResult(submission([entry('send-email', { owner: 'shop/mail', proposed: { ...clash, directory: 'subs/orders' } })]), { index, catalog });
     expect(conflicting.ok).toBe(false);
     if (conflicting.ok) return;
     expect(conflicting.errors.map(error => error.message).join(' ')).toContain('already the directory of "shop/orders"');
 
     const one = { parent: 'shop', directory: 'subs/mail', purpose: 'Sends email.', tags: [] };
     const two = { parent: 'shop', directory: 'subs/mail', purpose: 'Sends letters.', tags: [] };
-    const twice = validateInitialAnalysis(
+    const twice = ruleResult(
       submission([entry('send-email', { owner: 'shop/mail', proposed: one }), entry('send-letter', { owner: 'shop/mail', proposed: two })]),
       { index, catalog },
     );
@@ -370,7 +379,7 @@ describe('the rules the schema cannot hold', () => {
     expect(twice.errors[0]!.path).toBe('entries.1.proposed');
 
     // The same definition twice is one proposal two capabilities reference.
-    const shared = validateInitialAnalysis(
+    const shared = ruleResult(
       submission([entry('send-email', { owner: 'shop/mail', proposed: one }), entry('send-letter', { owner: 'shop/mail', proposed: { ...one } })]),
       { index, catalog },
     );
@@ -379,11 +388,11 @@ describe('the rules the schema cannot hold', () => {
 
   test('a valid proposal with an existing parent is accepted', () => {
     const proposal = { parent: 'shop/orders', directory: 'subs/orders/subs/mail', purpose: 'Sends the customer an email.', tags: ['dispatch'] };
-    expect(validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: proposal })]), { index, catalog }).ok).toBe(true);
+    expect(ruleResult(submission([entry('send-email', { owner: 'shop/orders/mail', proposed: proposal })]), { index, catalog }).ok).toBe(true);
   });
 
   test('without a view the rules that need one are not applied, and no claim is accepted that was not checked', () => {
-    const result = validateInitialAnalysis(submission([entry('send-email', { owner: 'shop/nowhere' })]), { index: null, catalog });
+    const result = ruleResult(submission([entry('send-email', { owner: 'shop/nowhere' })]), { index: null, catalog });
     expect(result.ok).toBe(true);
   });
 });
@@ -522,7 +531,7 @@ describe('the scripted fake\'s demonstration, which `serve --agent fake` runs', 
 
     expect(submissions.length).toBeGreaterThan(0);
     for (const input of submissions) {
-      expect(validateInitialAnalysis(input, { index: null, catalog: openElementCatalog(hash('manifest'), manifest), planScenarios })).toEqual({ ok: true, value: input });
+      expect(validateDescriptiveInitialAnalysis(input, { index: null, catalog: openElementCatalog(hash('manifest'), manifest), planScenarios })).toEqual({ ok: true, value: input });
     }
   });
 
