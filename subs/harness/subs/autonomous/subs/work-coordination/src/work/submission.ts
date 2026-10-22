@@ -166,6 +166,8 @@ export const localArchitectSubmissionKinds = ['assign', 'request-placement', 're
  * required on a completion request, as that package's procedure states.
  */
 export const localArchitectJsonSchema = z.toJSONSchema(localArchitectSubmissionSchema) as JsonSchema;
+/** Descriptive new-run tool surface: every author input, including provider yield and outline reuse. */
+export const descriptiveLocalArchitectJsonSchema = z.toJSONSchema(localArchitectInputSchema) as JsonSchema;
 /** New-run tool surface: the input shape, without the historical provider-yield action. */
 export const capabilityLocalArchitectJsonSchema = z.toJSONSchema(z.discriminatedUnion('kind', [
   localArchitectInputSchema.options[0]!, localArchitectInputSchema.options[1]!,

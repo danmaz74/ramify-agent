@@ -239,6 +239,7 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
       registry: accepted.registry.length,
       workItems: accepted.workItems.length,
       scenarios: accepted.scenarios.length,
+      ...(descriptive ? { scenarioIds: accepted.scenarios.map(scenario => scenario.id) } : {}),
       warnings: [...accepted.warnings],
       catalog: { context: count('context'), functional: count('functional'), nonFunctional: count('non-functional'),
         fixed: count('fixed'), recommendation: count('recommendation') },

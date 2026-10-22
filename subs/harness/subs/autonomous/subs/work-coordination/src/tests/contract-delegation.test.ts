@@ -17,6 +17,7 @@ import type { RunEvent } from '../../../../src/run/log.js';
 import { contractsLayout, executionRetirementPath, type ConsumerRequirement, type ContractRecord,
   type ExecutionRetirement, type ProviderObligation } from '../contracts/records.js';
 import { workLayout, type WorkItem } from '../work/records.js';
+import { descriptiveLocalArchitectJsonSchema } from '../work/submission.js';
 import { iterationLayout, type IterationResult } from '../work/iterations.js';
 import { runLayout } from '../../../../src/run/records.js';
 import type { GateAttempt } from '../../../acceptance/src/checks/records.js';
@@ -193,16 +194,19 @@ async function run(
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
   if (options.production === true) {
-    await until(() => (opened.service.events('review-notes', receipt.jobId) ?? []).some(event =>
-      event.type === 'requirement-verified' || event.type === 'job-failed'), 30_000);
-    const observed = opened.service.events('review-notes', receipt.jobId) ?? [];
-    expect(observed.some(event => event.type === 'job-failed'), JSON.stringify(observed.slice(-10))).toBe(false);
-    // This fixture has no implemented feature binding for the unrelated final
-    // scenario gate. Stop after the real provider and consumer handback.
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const current = opened.service.getRun('review-notes', receipt.jobId)!;
-      try { await opened.service.execute(stopRun('review-notes', receipt.jobId, current.version)); break; }
-      catch (error) { if (!String(error).includes('at version') || attempt === 19) throw error; }
+    await until(() => {
+      const run = opened.service.getRun('review-notes', receipt.jobId)!;
+      const reconciliations = opened.service.events('review-notes', receipt.jobId)?.filter(event => event.type === 'reconciliation-started').length ?? 0;
+      return run.state === 'completed' || run.state === 'failed' || reconciliations > 2;
+    }, 45_000);
+    const run = opened.service.getRun('review-notes', receipt.jobId)!;
+    if (run.state !== 'completed' && run.state !== 'failed') {
+      const last = (opened.service.events('review-notes', receipt.jobId) ?? []).filter(event =>
+        ['gate-attempted', 'work-item-completed', 'work-item-blocked', 'reconciliation-started', 'reconciliation-refused',
+          'obligation-bound', 'obligation-reported'].includes(event.type)).slice(-20);
+      await opened.service.execute(stopRun('review-notes', receipt.jobId, run.version));
+      await opened.service.settled('review-notes', receipt.jobId);
+      throw new Error(`Production run did not complete: ${JSON.stringify(last)}`);
     }
   }
   await opened.service.settled('review-notes', receipt.jobId);
@@ -435,6 +439,7 @@ test.each(['fake-backed', 'access-only'] as const)(
   }, [registryChange({ capability: names.capability, owner: provider,
     behavior: 'A note of at most 500 characters is within the limit.' })]);
   const dependency = { capability: names.capability, owner: provider, role: 'request' as const };
+  const { outline: _unchangedOutline, ...unchangedCompletion } = requestCompletion();
   const plan = byRole({
     'initial-architect': [submit({ elements: [], entries: [{
       capabilityKey: 'draft:capability:review-notes', description: 'A review keeps notes within the limit.',
@@ -449,13 +454,14 @@ test.each(['fake-backed', 'access-only'] as const)(
         localDecisions: [placement] }),
       submit({ kind: 'yield-for-providers', requirements: [names.requirement], summary: 'Waiting for the real limit.' }),
       submit(assign(provider, {}, outline({ changes: 'Implement the agreed note limit.' }))),
-      submit(requestCompletion()),
-      submit(assign(consumer, { kind: 'verification', goal: 'Use and verify the real note limit.' })),
+      submit(unchangedCompletion),
+      submit(assign(consumer, { kind: 'verification', goal: 'Use and verify the real note limit.',
+        obligations: ['scenario:review-note-limit'] })),
       ...(access ? [submit(assign(consumer, { kind: 'contract', revisesContract: names.contract,
         goal: 'Replace the fulfilled fake-backed agreement with real-provider access.',
         approach: 'The provider conformed and the consumer verified the real implementation.',
         completionEvidence: 'The access-only agreement names the real provider exposure.' }))] : []),
-      submit({ ...requestCompletion(), reports: [{ id: 'scenario:review-note-limit',
+      submit({ ...unchangedCompletion, reports: [{ id: 'scenario:review-note-limit',
         judgment: 'done', basedOnRevision: 0 }] }),
     ],
     engineer: [
@@ -463,8 +469,16 @@ test.each(['fake-backed', 'access-only'] as const)(
       submit(completionProposed('The real note limit conforms.'),
         write(join(root, providerDirectory, 'src/note-limit.ts'), realProvider),
         write(join(root, providerDirectory, 'src/tests/note-limit.subjects.ts'), bothSubjects)),
-      submit(completionProposed('The consumer uses the real note limit.'),
-        write(join(root, consumerDirectory, 'src/notes.ts'), verified)),
+      submit(completionProposed('The consumer uses the real note limit.', { bindings: [{ id: 'scenario:review-note-limit', fakes: [] }] }),
+        write(join(root, consumerDirectory, 'src/notes.ts'), verified),
+        write(join(root, consumerDirectory, 'src/tests/steps/review-note-limit.ts'), [
+          "import { When, Then } from '@cucumber/cucumber';",
+          "import { addNote } from '../../notes.ts';",
+          "let note = '';",
+          "When('a reviewer adds a note', () => { note = addNote('x'.repeat(501)); });",
+          "Then('an overlong note is refused', () => { if (note !== '') throw new Error('overlong note was kept'); });",
+          '',
+        ].join('\n'))),
     ],
     'contract-engineer': [submit({ ...establishedContract,
       contractKey: `draft:${names.contract}`, providerObligationKey: `draft:${names.obligation}`,
@@ -484,12 +498,17 @@ test.each(['fake-backed', 'access-only'] as const)(
     accepted(`${names.work}.i02`, 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
     accepted(`${names.providerWork}.i01`, 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
     unchanged(names.providerWork),
-    accepted(`${names.work}.i03`, 'revision-03', modified(seam.consumer)),
+    accepted(`${names.work}.i03`, 'revision-03', [...modified(seam.consumer), ...added(`${consumerDirectory}/src/tests/steps/review-note-limit.ts`)]),
     ...(access ? [accepted(`${names.work}.i04`, 'revision-04', modified(seam.interface))] : []),
     unchanged(names.work),
     unchanged('final verification of plan "review-notes"'),
   ];
+  const omittedCompletionDeclarations: string[] = [];
   const script: Parameters<typeof openRuns>[1]['script'] = spec => {
+    if (spec.submission.name === 'submit_reconciliation') {
+      return submit({ relations: [], dispositions: [], next: { kind: 'complete' },
+        brief: 'The provider and consumer evidence resolves the completed work.' });
+    }
     if (spec.submission.name === 'submit_intake') {
       const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
       return submit({ goal: 'Keep review notes within the agreed limit.', elements: [], incorporation: {
@@ -498,7 +517,13 @@ test.each(['fake-backed', 'access-only'] as const)(
     }
     if (spec.submission.name === 'submit_principle_elements') return submit({ elements: [] });
     if (spec.submission.name === 'submit_catalog_check') return submit({ corrections: [], entries: [], scenarios: [] });
-    return typeof plan === 'function' ? plan(spec) : plan;
+    const steps = typeof plan === 'function' ? plan(spec) : plan;
+    if (spec.role === 'local-architect' && spec.submission.name === 'submit_work_item_result'
+      && steps.some(step => step.kind === 'submit' && typeof step.input === 'object' && step.input !== null
+        && (step.input as { kind?: string }).kind === 'request-completion' && !Object.hasOwn(step.input, 'outline'))) {
+      omittedCompletionDeclarations.push(spec.submission.description);
+    }
+    return steps;
   };
   const { service, runId, git, agent } = await run(root, {}, commits, { production: !access, identityContract: access ? 'descriptive' : undefined, script });
   if (!access) {
@@ -506,11 +531,21 @@ test.each(['fake-backed', 'access-only'] as const)(
     expect(captured.identityContract).toBe('descriptive');
     expect(captured.prompts['contract-engineer']).toBeDefined();
     expect(captured.policy.context['contract-engineer']).toBeDefined();
+    expect(omittedCompletionDeclarations.length).toBeGreaterThanOrEqual(1);
+    for (const declaration of omittedCompletionDeclarations) {
+      expect(declaration).toContain(JSON.stringify(descriptiveLocalArchitectJsonSchema));
+    }
   }
   expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure,
     sessions: agent?.sessions.map(session => ({ role: session.spec.role, submission: session.spec.submission.name,
-      verdicts: session.verdicts })) })).toBe(access ? 'completed' : 'stopped');
+      verdicts: session.verdicts })) })).toBe('completed');
   const log = await events(root, runId);
+  if (!access) {
+    expect(log.at(-1)?.type).toBe('job-completed');
+    expect(onlyRun(service, 'review-notes').counts.scenarios).toEqual({ pending: 0, bound: 0, done: 1 });
+    expect(log.some(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final'
+      && event.data.verdict === 'passed')).toBe(true);
+  }
   expect(log.find(event => event.type === 'contract-registered')?.data).toMatchObject({
     contract: names.contract, obligation: names.obligation, requirements: [names.requirement],
     providerWorkItem: names.providerWork,
@@ -527,6 +562,7 @@ test.each(['fake-backed', 'access-only'] as const)(
     .toEqual({ obligation: { id: names.obligation, revision: 1, hash: expect.any(String) } });
   expect((await readJson<{ schema: string }>(root, runId, workLayout.outline(names.work, 1))).schema)
     .toBe('ramify-agent.work-item-outline/2');
+  if (!access) expect(existsSync(runPath(root, 'review-notes', runId, workLayout.outline(names.work, 2)))).toBe(false);
   const providerAssignment = await readJson<{ schema: string; evidenceObligations: unknown[] }>(root, runId,
     iterationLayout.assignment(names.providerWork, 1));
   expect(providerAssignment.schema).toBe('ramify-agent.iteration-assignment/2');

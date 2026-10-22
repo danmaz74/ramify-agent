@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import type { Role } from '../interfaces/protocol/runs.js';
 import { initialAnalysisJsonSchema } from '../../subs/autonomous/subs/planning/src/submission.js';
-import { capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectSubmissionKinds, localArchitectToolName } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
+import { capabilityLocalArchitectJsonSchema, descriptiveLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectSubmissionKinds, localArchitectToolName } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { capabilityEngineerJsonSchema, engineerJsonSchema, engineerSubmissionKinds, capabilityEngineerSubmissionKinds, engineerToolName } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { capabilityActionSchema } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
 import { forkJsonSchema, forkSubmissionKinds, forkToolName } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
@@ -295,7 +295,8 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
     systemFile: localSystemFile,
     procedureFile: descriptiveCapability ? descriptiveLocalProcedureFile
       : options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
-    schema: options.capabilityWorkflow === false || descriptiveCapability ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,
+    schema: descriptiveCapability ? descriptiveLocalArchitectJsonSchema
+      : options.capabilityWorkflow === false ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,
     submissionKinds: options.capabilityWorkflow === false || descriptiveCapability
       ? [...localArchitectSubmissionKinds, 'reconciliation', 'work-orientation']
       : ['assign', 'request-placement', 'request-completion', 'unresolved', 'reconciliation', 'work-orientation'],

@@ -11,7 +11,7 @@ import { architectIndex, moduleEntry } from './helpers/views.js';
 import type { RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
 import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import {
-  capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectToolName, unchangedOutlineReason, unreportedByCompletion, validateLocalArchitect,
+  capabilityLocalArchitectJsonSchema, descriptiveLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectToolName, unchangedOutlineReason, unreportedByCompletion, validateLocalArchitect,
 } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
@@ -122,11 +122,13 @@ describe('the outline of a completion request', () => {
     expect(result.value.outline).toEqual(revised.outline);
   });
 
-  test('the capability tool lets it be omitted, while the historical one requires it', () => {
+  test('the descriptive and capability author tools allow outline reuse, while the historical one requires it', () => {
     const completion = (schema: unknown) => ((schema as { oneOf?: unknown[]; anyOf?: unknown[] }).oneOf ?? (schema as { anyOf: unknown[] }).anyOf)
       .map(member => member as { properties: { kind: { const: string } }; required?: string[] })
       .find(member => member.properties.kind.const === 'request-completion')!;
     expect(completion(capabilityLocalArchitectJsonSchema).required ?? []).not.toContain('outline');
+    expect(completion(descriptiveLocalArchitectJsonSchema).required ?? []).not.toContain('outline');
+    expect(JSON.stringify(descriptiveLocalArchitectJsonSchema)).toContain('yield-for-providers');
     expect(completion(localArchitectJsonSchema).required).toContain('outline');
   });
 });
