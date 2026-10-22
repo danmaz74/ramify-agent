@@ -1,7 +1,9 @@
 # Plan 28: prepared guidance sessions for design review
 
-**Date:** 2026-10-09. **Status:** proposed, not started. The source inventory
-below was inspected at `474ffa58` (Plan 25 merged).
+**Date:** 2026-10-09. **Reviewed:** 2026-10-16 against `091ca382`.
+**Status:** proposed; two self-run attempts failed before delivering the outcome.
+**Target:** ramify-agent. Architects determine assignments and iterations.
+This review does not start execution.
 
 ## Outcome
 
@@ -9,13 +11,15 @@ A design review starts from a reviewer session that already holds the
 selected guidance, without any model call to prepare it. The harness creates
 that session, appends the reviewer role and the full text of the selected
 principles documents and READMEs with their hashes, and keeps the resulting
-point. Each design review forks that point and receives only its review task:
-the changed paths, the patches and the instruction to judge them against the
-guidance above. A concern may name a delivered guidance file as its ground
+point. Each design review forks that point and receives its complete current
+review task, including candidate identity, assignment intent, findings, changed
+paths, patches, procedure and submission requirements. A concern may name a
+delivered guidance file as its ground
 when the candidate holds the same bytes, so the reviewer does not re-read
 guidance it already holds.
 
-There is no orientation invocation, no orientation submission and no summary.
+New preparation has no model invocation, orientation submission or generated
+summary. Historical orientation records retain those original facts.
 
 The motivation is the [Plan 25 run postmortem](../../analysis/2026-10-09-status-badge-tone-plan25-postmortem.md),
 finding 2. In run `20261009T193340Z-51f42e` the orientation (inv-0010) spent
@@ -24,44 +28,40 @@ account of the guidance that nothing reads. The design review fork (inv-0012)
 then received the guidance block as withdrawn and re-read all three READMEs
 (13,824 bytes), as its rules require.
 
-## Current implementation to build on
+## Implementation context
 
-- `RunService.reviewRequest` (`service.ts` ~1099–1115) selects guidance with
-  `guidancePaths` and keys the orientation with `orientationKey`
-  (`subs/reviews/src/inputs.ts`): guidance refs and hashes, reviewer package
-  hash, agent, model, reviewer context policy, scope (project root, work item,
-  read-only authority) and execution settings.
-- `RunService.reviewStart` (~1458–1502) forks the orientation's point. It
-  requires the point to come from an accepted invocation: the source session
-  must list the invocation, the invocation's outcome must carry the same ref,
-  and `hasPoint` must find it. Otherwise it degrades to a fresh review.
-- `RunService.orientation` and `orient` (~1510–1583) make one orientation
-  per key with `runInvocation`: system prompt `reviewer-orientation.system.md`,
-  first message `orientationMessage(guidance)`, tool `submit_orientation`,
-  validator `validateOrientation`. The record
-  (`ramify-agent.review-orientation/1`, `reviews/records.ts` ~170–190) keeps
-  `invocation`, `session`, `ref`, `outcome` and `summary`; the summary has no
-  reader.
-- The agent port already supports a model-free start: `SessionOperations`
-  (`subs/agent/src/interfaces/session-operations.ts`) has `create`
-  (instructions and tool declarations, no task), `appendContext` and `fork`
-  from a `turn` or `checkpoint` point. `HarnessSessionOperations` exposes
-  `start` (which runs a task) and `append`, but no harness-level create
-  without a task. Context-package appends already produce checkpoint points
-  that later invocations continue from (inv-0006 in the run above).
-- Fork briefings withdraw every inherited briefing section the new brief does
-  not restate, except for context-selector forks that set
-  `retainInheritedSections` (`run/session-operations.ts` ~207–211). This is
-  why the design fork received `brief:support:design-guidance` as withdrawn.
-- `validateReviewSubmission` (`subs/reviews/src/submission.ts` ~86–96) refuses
-  a concern whose ground was not answered by `snapshot_read` in the attempt.
-  `concernBindings` (`service.ts` ~1424–1445) binds the ground's hash from the
-  same read map. Recovery (~1390–1404) rebuilds that map from the candidate.
-- The reviewer role (`reviewer.system.md` lines 39–47), the design procedure
-  (`design-review.procedure.md` steps 1 and "What a concern is") and the
-  design message (`subs/reviews/src/message.ts` ~95–99, "If this session has
-  not read one of them yet, read it with `snapshot_read`") all state the
-  read-in-this-review rule.
+The original inventory was inspected at `474ffa58`; these pointers were refreshed
+against `091ca382`. Recheck them at execution. They are navigation context, not a
+required implementation breakdown. Paths below are relative to `subs/harness/`.
+
+- `src/run/after-handling.ts` selects captured guidance and calls `orientationKey`
+  from `subs/reviews/src/inputs.ts`. The current key includes guidance paths/hashes,
+  reviewer package, executor, model, context policy, scope (including work item)
+  and execution settings.
+- `src/run/service.ts`: `orientation` and `orient` still dispatch an orientation
+  model task; `reviewStart` verifies its invocation-backed point. Missing reusable
+  history can fall back fresh, while unavailable required evidence stays explicit.
+- `src/reviews/records.ts` defines `ramify-agent.review-orientation/1`, with its
+  invocation, session, reference, outcome and summary. `src/run/records.ts` defines
+  both invocation- and append-based session points. Review-specific inputs in
+  `src/steps/inputs.ts` still require a source invocation for a fork; reuse the
+  existing point support where it fits rather than inventing another point store.
+- `subs/agent/src/interfaces/session-operations.ts` already exposes model-free
+  `create`, `appendContext` and `fork`. `src/run/session-operations.ts` exposes
+  harness task `start` and context `append`, but no model-free harness create.
+- `src/steps/reviewer.ts` already retains inherited briefing sections through
+  `retainInheritedSections` in the review step constructor. Preserve that
+  behavior; it does not itself implement model-free preparation or delivered
+  guidance as a concern's ground. The withdrawal observed in the Plan 25 run
+  is historical.
+- `subs/reviews/src/submission.ts`: `validateReview` requires a current snapshot
+  read for grounds. `src/run/review-finish.ts` binds that read's hash and completes
+  both automatic and manual reviews. `src/steps/review-step.ts`, `inputs.ts` and
+  `run.ts` also derive and execute review inputs.
+- `src/prompts/reviewer.system.md`, `design-review.procedure.md` and
+  `subs/reviews/src/message.ts` state the current grounding rule. Package/task
+  delivery is in `src/prompts/packages.ts` and `tasks.ts`. Session projections and
+  usage are owned by the existing `subs/projections/` and `subs/kpi/` children.
 
 ## Changes
 
@@ -73,13 +73,23 @@ task, returning a retained point. Use it in place of `orient`:
 1. Create the session with the reviewer's own system prompt
    (`reviewer.system.md`) and the design reviewer's tool declarations
    (snapshot tools and `submit_review`), so a fork needs no role or tool
-   change. Iteration 1 confirms that these declarations do not depend on the
-   candidate; if they do, declare them at the fork as today.
+   change. Prepare only declarations independent of the candidate; otherwise
+   declare them at the actual review. Bind tool handlers, validator, execution
+   policy and submission destination to each review's own request and frozen
+   candidate. A prepared session gives no execution or submission authority.
+   Supply the current procedure through ordinary task-block delivery.
 2. Append one guidance block: each selected file's path, sha256 and full
    text, introduced as the guidance design reviews of this project are judged
    against. It asks for nothing and has no submission.
-3. Record the prepared point under the existing key, once per key, with the
-   same concurrency guard (`run.orienting`).
+3. Record the prepared point once per compatible key, including concurrent
+   requests. Remove the work item from the key, as already decided. Retain the
+   guidance paths/hashes, reviewer package, executor, model, context policy,
+   project root, review authority and execution settings that determine reuse.
+   Reuse is within one run; changed guidance requires another point.
+
+The prepared context contains no work-item assignment, candidate patches,
+findings or task-specific authority. Its originating request is provenance,
+not reusable task content. Each review receives its own complete task.
 
 The record becomes `ramify-agent.review-orientation/2`: key, guidance refs
 and hashes, request, session, ref, outcome (`prepared` or `failed`) and
@@ -99,9 +109,9 @@ degrades to the fresh design review described below, as today.
 
 ### 2. Design review task without withdrawal or re-reading
 
-- The design fork keeps the inherited guidance block current. Extend the
-  inherited-section retention used by context-selector forks to design-review
-  forks of a prepared session, rather than special-casing the key.
+- The design fork keeps the inherited guidance block current. Preserve existing
+  inherited-section retention for design-review forks when using prepared points,
+  rather than special-casing a briefing key. The inherited prefix stays intact.
 - The design task section lists the guidance refs and hashes as the
   guidance above, and drops the instruction to read them with `snapshot_read`.
 - The fresh fallback includes the same guidance block (paths, hashes, full
@@ -114,55 +124,74 @@ degrades to the fresh design review described below, as today.
 
 ### 3. Delivered guidance as a ground
 
-Pass the delivered guidance (refs and hashes) to `validateReviewSubmission`
+Pass verified delivered guidance (refs and hashes) to `validateReview`
 and `concernBindings`. A ground naming a delivered guidance path is accepted
 when the candidate's file at that path has the delivered hash; its binding
-records that hash. A path whose candidate bytes differ is refused with an
-error that says so. Recovery binds such grounds the same way. Grounds read
-with `snapshot_read` behave as today. Credibility classification is
+records that hash. Establish full-text delivery for the actual attempt, directly
+or through its exact retained point; paths and hashes alone are insufficient.
+A missing or mismatched file is refused as a delivered-only ground with an
+explanatory error. A current successful `snapshot_read` remains an independent
+way to ground that path, including after an older delivered copy became stale.
+Use canonical candidate paths and existing snapshot restrictions, never the
+live working tree. Delivery alone does not establish changed-path inspection.
+Recovery binds such grounds the same way. Credibility classification is
 unchanged: it depends on the file, not on how it reached the reviewer.
 
 ### 4. Removals
 
-Remove `reviewer-orientation.system.md`, `renderOrientationPrompt`,
+Remove from ordinary active scheduling and delivery
+`reviewer-orientation.system.md`, `renderOrientationPrompt`,
 `orientationMessage` (replaced by the prepared block builder),
 `submit_orientation`, `orientationJsonSchema`,
 `orientationSubmissionDescription`, `validateOrientation`, the
 `design-orientation` task kind from `prompts/tasks.ts`, and the orientation
-submission schema. Keep enum values that historical transcripts and records
-use readable where protocol schemas parse retained runs
-(`interfaces/protocol/transcripts.ts`, `run/records.ts`).
+submission schema. Retain parsing and narrowly needed compatibility code for
+historical transcripts, records and supported captured step inputs. Do not
+delete an enum or constructor still required by those paths.
 
-## Decisions for Dan
+Automatic execution, imported and manually derived review steps, rendering,
+effective prompt manifests and post-submission handling must implement the same
+delivery and grounding rules. Prepared points have no source invocation; update
+these consumers without inventing one or weakening invocation-backed checks.
+Prepared-session accounting must reach the existing KPI and projections owners
+through their contracts, not parent-local replacements.
 
-1. **Name.** "Design review" judges conformance to the principles documents
-   and module READMEs. Renaming it (for example to "architecture review")
-   touches the review kind, prompts, records, protocol and docs. Suggestion:
-   decide separately; this plan keeps the current name.
-2. **Reuse breadth.** The key includes the work item and the exact guidance
-   selection derived from each iteration's changed paths, so a prepared
-   session is reused only by later iterations of one work item that touch the
-   same directories. The prepared session holds no work-item content, and the
-   guidance hashes already pin its bytes. Suggestion: remove the work item
-   from the key, so work items whose changes select the same guidance share
-   one prepared session. Widening the selection itself is not proposed.
+Preparation and its point/delivery bindings use the existing durable boundaries.
+Recovery reuses committed review results and bindings without rerunning completed
+reviews. A lost reusable session has a complete fresh fallback. Missing candidate
+or guidance bytes remain unavailable review inputs, never passing coverage.
+A usable legacy `/1` point retains its original source checks; supply current
+procedure/tool updates and any missing guidance without rewriting its prefix.
+
+## Settled decisions
+
+The user settled both decisions before the October 10 self-run: keep the name
+**design review**, and remove work-item identity from the prepared-session key.
+Different work items in one run may share a point when its other identities
+match. Keep the existing bounded guidance selection and its exclusions; this
+plan does not widen selection or authorize cross-run reuse.
+
+The two self-runs delivered no usable implementation. Their failures and these
+decisions are recorded in `docs/analysis/2026-10-10-plan28-self-run.md`.
+Recheck present prerequisites instead of importing that report's old workarounds.
 
 ## Implementation
 
-Related work: [Plan 29: common prompt passages](../29-common-prompt-passages/main-plan.md)
-revises task composition and replaces environment JSON using the existing delivery
-mechanism. It preserves this plan's separate ownership of prepared guidance and
-candidate-hash grounding. Neither plan requires the other's implementation;
-serialize shared prompt/session/service edits and verify their combined behavior
-when integrating both.
+Plan 29's common prompt composition is existing behavior at this reviewed
+baseline. Use the current delivery mechanism rather than reimplementing it.
+Prepared guidance and candidate-hash grounding remain this plan's responsibility.
 
-One change, with the configured full audit through ramify-audit at the start
-(base) and at the end (final gate).
+Architects choose decomposition, owners and iterations. Preserve real dependency
+stages and keep behavior with its verification. This plan prescribes no count.
 
 Implement changes 1–4 and update `docs/harness.spec.md` (review inputs and
 orientation), `docs/architecture/check-findings.md` (the design orientation
 paragraph), the reviews module README and any metrics documentation that
-names the orientation invocation. Remove obsolete tests.
+names the orientation invocation. This explicitly extends the current review
+contract: verified full guidance delivery becomes an alternative to a current
+snapshot read for grounding. Update prompts, interface documentation and public
+projections consistently. Replace obsolete tests while preserving coverage of
+historical compatibility.
 
 Focused tests use the scripted agent:
 
@@ -175,16 +204,28 @@ Focused tests use the scripted agent:
 - The fork's delivered inputs show the guidance block inherited and not
   withdrawn.
 - A concern grounded in delivered guidance with a matching candidate hash is
-  accepted without a `snapshot_read`, and one whose candidate file changed is
-  refused. A `snapshot_read` ground still works, and recovery binds both
-  kinds.
+  accepted without a `snapshot_read`; a stale delivered-only ground is refused.
+  A current `snapshot_read` ground still works, and recovery binds both kinds.
+- Cross-work-item/concurrent reuse shares only guidance; each review binds its
+  own tools, candidate and task. Changed guidance or incompatible execution or
+  authority settings prevent reuse.
+- Automatic and manual steps deliver equivalent guidance, validate grounds and
+  complete through the shared handling. Recovery retains accepted submissions
+  without another model call; lost preparation uses fresh complete inputs.
 
-Before the final audit, run `npm run type-check` and `npm run check:self`.
+Follow `docs/testing.spec.md`: ordinary tests script external Git, CLI, audit and
+command answers. Actual provider/kernel claims need exact reviewed registration
+in `src/tests/test-boundaries.json`. Run focused checks, `npm run type-check` and
+`npm run check:self`. Baseline and iteration audits follow default committed
+audit policy. Final verification requires a full audit of the configured suite,
+including required nested projects, under `docs/harness.spec.md`; state that
+reason before requesting scope overrides. Preserve configured checks/projects.
+Audit health and the architect's semantic completion judgment remain separate.
 
 ## Acceptance and boundaries
 
-- No model call prepares a design review session, and no orientation
-  submission or summary exists.
+- No model call prepares a new design review session, and new preparation has
+  no orientation submission or summary. Historical facts remain readable.
 - A design review fork receives the guidance as current inherited context and
   can ground concerns in it without re-reading.
 - Grounds stay verified: a delivered guidance ground binds only when the
@@ -193,3 +234,84 @@ Before the final audit, run `npm run type-check` and `npm run check:self`.
 - Tests use the scripted agent and never call a model. A real trial on the
   status-badge-tone plan, or on a plan with several iterations in one work
   item, is a development check for Dan to request, not an acceptance gate.
+
+```gherkin
+Scenario: Design review starts with complete guidance and no preparation call
+  Given an audited candidate and available selected guidance
+  When its design review is scheduled
+  Then guidance preparation dispatches no model task
+  And the reviewer receives the complete guidance and its current review task
+  And its recorded start forks a prepared point without an invented source invocation
+  And preparation appears as a session with no invocation usage
+
+Scenario: Matching work items share guidance without sharing task evidence
+  Given two work items in one run have the same guidance and compatible review settings
+  When their design reviews request preparation concurrently
+  Then one prepared point serves both reviews
+  And the shared context contains neither work item's task evidence
+  And each review uses its own candidate tools, assignment and findings
+
+Scenario: Changed guidance prevents reuse of an older prepared point
+  Given a prepared point contains one guidance selection and its hashes
+  When another review selects different guidance paths or bytes
+  Then that review does not reuse the older point for the changed guidance
+  And it receives the complete selected guidance with the current hashes
+
+Scenario: Unavailable preparation has a complete fresh fallback
+  Given a review's candidate and selected guidance are readable
+  And preparation fails or its retained point is unavailable
+  When the design review starts
+  Then a fresh reviewer receives the same complete guidance and current task
+  And the actual start and reason are recorded
+  And no orientation model task is required
+
+Scenario: Verified delivery grounds a concern without another read
+  Given a reviewer received a guidance file's complete text and hash
+  And the file in the frozen candidate has that hash
+  When it submits a concern grounded in that file without reading it again
+  Then validation accepts that grounding and binds its candidate hash
+  And the existing changed-path inspection rules still apply
+
+Scenario: A current snapshot read can replace stale delivered evidence
+  Given a review attempt has an older delivered copy of a guidance file
+  And its hash differs from the file in the frozen candidate
+  When a concern cites that file with no current snapshot read
+  Then validation refuses that grounding with a mismatch explanation
+  When the reviewer reads that file through the current candidate's snapshot tool
+  And resubmits its concern
+  Then that current snapshot read can establish the ground
+
+Scenario: Recovery retains completed review judgments
+  Given a review has committed its accepted submission and ground bindings
+  When the run recovers with the prepared session unavailable
+  Then that submission and its bindings remain without rerunning the review
+  And a later review can fall back to complete fresh inputs
+
+Scenario: Historical orientation remains usable without rewriting its prefix
+  Given a version one orientation has a usable invocation-backed point
+  When a supported design review starts from that point
+  Then the legacy invocation and usage remain historical facts
+  And the fork retains its original source checks and inherited prefix
+  And current delivery supplies any missing procedure and guidance
+  And grounding uses the current candidate evidence rules
+
+Scenario: Manual and automatic reviews apply equivalent grounding rules
+  Given equivalent design-review inputs in automatic execution and a supported manual step
+  When their effective tasks are rendered and grounded concerns are submitted
+  Then both receive complete selected guidance with matching delivery provenance
+  And both validate and bind grounds against their own frozen candidate
+  And neither requires an orientation model task
+```
+
+Also verify that unavailable candidate/guidance inputs stay uncovered, invalid
+snapshot paths remain refused, and current reads can ground nonguidance files.
+Preparation alone and shorter prompts establish no measured cache, token or
+elapsed-time savings.
+
+## Execution placement
+
+This remains the reviewed design plan. Before a full harness run, package its
+self-contained execution input at
+`plans/28-design-review-guidance-sessions/plan.md`, keeping historical reports
+and authoring notes outside the captured input directory. No naming or
+reuse-breadth decision remains open.

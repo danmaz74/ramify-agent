@@ -15,6 +15,9 @@ never depends on it. It lived in the toolkit repository's `ramify-agent/`
 directory until Plan 32 extracted it into this repository. See
 [AGENTS.md](AGENTS.md) for the working rules and development workflow.
 
+When talking with agents such as Codex or Claude, use `ragent` as shorthand
+for `ramify-agent` and `raudit` for `ramify-audit`.
+
 The [glossary](docs/glossary.md#plan-architect) names the roles: a **plan
 architect** handles the plan's architecture, **module architects** coordinate
 module work items, **capability architects** coordinate delegated capability

@@ -1,6 +1,7 @@
 # Plan 36: Straightforward revision-preview corrections
 
-**Date:** 2026-10-11. **Status:** proposed; implementation has not started.
+**Date:** 2026-10-11. **Status:** implemented and qualified; the committed
+full audit passed at `ee13c24` (`ramify-agent-bfn.33`). Beads records status.
 **Target:** ramify-agent. **Execution:** ramify-agent architects derive work
 items, owner assignments and iterations from this plan and the chosen base.
 

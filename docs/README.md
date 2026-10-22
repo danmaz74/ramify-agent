@@ -2,34 +2,139 @@
 
 Design documents for the separate agent harness:
 
+- [Independent audit and semantic review](../plans/parallel-audit-review/plan.md),
+  three proposed assisted implementation iterations for concurrent checks in
+  assisted and automated execution, deterministic audit outcomes and existing
+  reconciliation for semantic obligations
+- [Adopt the proven review and fix cycle](../plans/review-fix-cycle/plan.md),
+  three proposed assisted implementation iterations covering the nine baseline
+  simplifications for both review paths; optional experiments are excluded
+- [Review and fix cycles](analysis/2026-10-19-review-fix-cycle.md), facts from
+  cucumber-viz and both ramify-agent paths, measured review costs, separate
+  judgments, and a proposal to adopt the proven workflow before trying
+  improvements individually
+- [Persistent Codex coordinator assisted plan](../plans/codex-coordinator-host/plan.md),
+  three proposed iterations after harness decomposition: provider adapter,
+  detached assisted host and controls, then recovery and cumulative qualification
+- [Persistent Codex coordinator through app-server](architecture/agent-assistance/codex-coordinator-host.proposal.md),
+  proposed detached host and CLI controls for assisted execution through client
+  disconnects, with later monitoring, compaction and notification extensions
+- [Harness decomposition assisted plan](../plans/harness-decomposition/plan.md),
+  six proposed implementation iterations covering shared persistence, assistance,
+  task execution and autonomous ownership, with compatibility and evaluation evidence
+- [Harness decomposition proposal and evaluation](architecture/harness-decomposition.proposal.md),
+  proposed workflow and runtime owners, a measured source/dependency baseline,
+  and prospective evaluation of context, coordination and verification costs
 - [Agent assistance over MCP](agent-assistance.md), setup, plan registration,
   candidate assessment and evidence; [Plan 47](plans/47-agent-assistance/main-plan.md)
   is implemented, with [passing audit and pilot evidence](plans/47-agent-assistance/implementation-results.md)
-- [Harness recovery principles](harness-recovery.principles.md): KISS, ordinary
-  task restart and optional session context
-- [Recovery simplification plan](../plans/recovery-simplification/plan.md): shared
-  recovery policy and removal of unnecessary continuation mechanisms
+- [Agent assistance: reasons, goals and principles](architecture/agent-assistance/approach.principles.md),
+  proposed exploration: ordinary agents conduct the work and use independent
+  ramify-agent facilities for modular context, coordination and verification
+- [Agent assistance: initial analysis and proposal](architecture/agent-assistance/analysis-and-proposal.md),
+  evidence, reuse boundaries, coexistence options and candidate context assistance
+- [Astra coordination with optional module focus](architecture/agent-assistance/astra-coordination.proposal.md),
+  concrete starting proposal: Astra coordinates Sol, audits close iterations,
+  module focus follows expected benefit, and sealed files and principles receive explicit treatment
+- [Existing capabilities and their use in agent assistance](architecture/agent-assistance/capability-usage-analysis.md),
+  source inventory: implemented capabilities omitted from the first proposal,
+  retained responsibilities, reusable facilities and initial tradeoffs
+- [Post-iteration assessment with Pi](architecture/agent-assistance/review-and-findings.proposal.md),
+  proposed extension: ramify-agent owns audit, protection checks, Pi review and
+  finding reconciliation; Astra receives compact results and remaining issues
+- [Plan 47: agent assistance and delegated assessment](plans/47-agent-assistance/main-plan.md),
+  sequential implementation through MCP from the start, basic plan registration,
+  Pi assessment, repair follow-up, native coordination skills and a real pilot
+- [Harness recovery principles](harness-recovery.principles.md): KISS first,
+  ordinary task restart, durable work and optional session context
+- [Simplify recovery around ordinary task restart](../plans/recovery-simplification/plan.md),
+  proposed execution input: remove unnecessary recovery mechanisms, share a small
+  recovery module, and preserve ordinary task execution and acceptance
+- [Task restart and unnecessary recovery complexity](analysis/2026-10-18-task-restart-and-recovery-complexity.md),
+  source analysis: the facts needed to resume an unfinished task, nineteen
+  unnecessary restrictions and consolidation opportunities, retained guarantees,
+  and a measured inventory of the recovery surface
+- [Optional Codex and Claude Code engineering sessions](analysis/2026-10-16-codex-claude-engineering.proposal.md),
+  high-level proposal: engineering-only backend selection, harness MCP operations,
+  cucumber-viz reuse and Pi customization tradeoffs
+- [Batch 2: continue unfinished work without retained sessions](../plans/session-independent-recovery/plan.md),
+  proposed execution input for ramify-agent: fresh task reconstruction,
+  continuation after compatible fixes, and unfinished workflow recovery
+- [Slow advance in the session-independent recovery run](analysis/2026-10-15-slow-advance-analysis.md),
+  interim analysis: early engineer partial returns, per-partial cycle overhead
+  and an unplanned concurrent-child recovery commitment, with ranked remedies
+- [Pi context guidance spike](analysis/2026-10-15-pi-context-spike.md),
+  live i06 replay: explicit context estimates reached every request, while
+  phantom-budget reasoning and an incomplete partial handback persisted
+- [Pi persistence instruction spike](analysis/2026-10-15-pi-persistence-spike.md),
+  second i06 replay: stronger continuation wording delivered on all 89 requests,
+  broader recovery work and another partial handback
+- [Pi no-budget instruction spike](analysis/2026-10-15-pi-no-budget-spike.md),
+  third i06 replay: explicit budget prohibition delivered on all 50 requests,
+  followed by another voluntary partial handback
+- [Sol 6.0 high replay](analysis/2026-10-15-pi-sol60-high-spike.md),
+  original prompts without experimental notices: another partial handback,
+  with verified model/effort delivery and comparison across completed spikes
+- [Astra high replay](analysis/2026-10-15-pi-astra-high-spike.md),
+  stopped at the user's request; retained evidence is not a completion result
 - [Recovery simplification implementation](analysis/2026-10-18-recovery-simplification-implementation.md):
   changes, retained responsibilities and verification
-- [Recovery complexity analysis](analysis/2026-10-18-task-restart-and-recovery-complexity.md):
-  the nineteen findings informing the simplification
-
 - [Removing Pi restrictions that violate harness principles](analysis/2026-10-15-removing-restrictions-that-violate-principles.md),
   implemented Batch 1 continuation and correction, with proposed follow-up
   batches, clarified principles and observable acceptance examples
 - [Pi restriction inventory](analysis/2026-10-15-pi-restrictions-audit.md),
   41 restriction families across execution, Pi integration, submissions and
   administration, with source references and active-versus-historical distinctions
+- [Projections extraction postmortem](analysis/2026-10-14-projections-extraction-postmortem.md),
+  completed candidate versus stopped harness runs, exhaustive prompt and view
+  review, observed costs, first-call cache reuse and deferred corrections
+- [Plan 46: extract harness measurement and attribution](plans/46-kpi-extraction/main-plan.md),
+  proposed for ramify-agent execution after the projections extraction is merged:
+  a KPI child owns measurement and attribution rules; execution retains durable
+  writes and projections consumes the provider through explicit contracts
+- [Cucumber changes and partial audit selection](analysis/2026-10-14-cucumber-changes-and-partial-audits.md),
+  analysis of broad Vitest selection from feature, step and helper changes;
+  proposed test-support impact selection with preserved Cucumber acceptance
+- [Plan 45: architect progress checkpoints](plans/45-architect-progress-checkpoints/main-plan.md),
+  proposed in six implementation iterations: repetition triggers architect
+  reconsideration within and across assignments, preserves progress through
+  recovery, and replaces fixed implementation-count ceilings
+- [Architect judgment of progress instead of hard iteration limits](analysis/2026-10-14-architect-owned-progress-analysis-brief.md),
+  analysis brief: remove fixed implementation-count ceilings, let the module
+  architect assess progress, and preserve that authority through recovery
+- [Small prompt delivery corrections after the Plan 42 review](analysis/2026-10-13-plan42-prompt-delivery-corrections.proposal.md),
+  proposals for accurate repair guidance, promised Cucumber discovery facts,
+  command policy for assigning architects and bounded view coverage details
+- [Explicit plan restart after external fixes](analysis/2026-10-13-explicit-plan-restart-after-external-fixes.proposal.md),
+  proposal for inspecting and preparing a restartable successor from retained
+  work, admitting external corrections and continuing through explicit resume
+- [Beads bookkeeping in implementation runs](analysis/2026-10-13-beads-administrative-hold-and-proposal.md),
+  Plan 43 evidence and corrected repository guidance: Beads records only deferred
+  ramify-agent issues; the harness owns plan tracking. Architect operations and
+  repair-export scope remain separate follow-up work
 - [Plan 44: execution continuity](plans/44-execution-continuity/main-plan.md),
   native Pi compaction, progress-sensitive stall recovery and retained pending
   work; [qualification evidence](plans/44-execution-continuity/implementation-results.md)
   distinguishes scripted continuation witnesses from committed audit evidence
-
+- [Execution continuity, context pressure and stalled sessions](analysis/2026-10-13-execution-continuity-and-resource-limits.md),
+  adopted principles: context size serves compaction or session handoff, time
+  limits serve stalled-session recovery, and neither terminates a run;
+  Plan 43 evidence and the required runtime migration
+- [Plan 43: prompt guidance and review evidence](../plans/43-prompt-guidance-and-review-evidence/plan.md),
+  proposed input for ramify-agent execution: accurate provider guidance,
+  batching advice for review reads and direct capability-coordinator review results
+- [Plan 42: descriptive identifiers](../plans/42-descriptive-identifiers/plan.md),
+  proposed input for ramify-agent execution: descriptive semantic IDs, explicit
+  local-key and accepted-ID references, and preservation of legacy run evidence
 - [Plan 41: interrupted-operation recovery and empty mutations](plans/41-interruption-recovery/main-plan.md),
   implemented and qualified: bounded retries, durable
   same-run pause/resume for new runs with admission of external repairs,
   retained accepted work and honest classification when no paths changed;
   [implementation results](plans/41-interruption-recovery/implementation-results.md)
+- [Revision-preview trial after Plan 40](analysis/2026-10-12-revision-preview-plan40-trial.md):
+  four audited provider iterations and accepted handback; Reviews remains partial
+  after provider connection failures. Retained-candidate checks pass 44 focused
+  tests and 11 of 12 focused Cucumber cases; invalid-project repair was unexercised.
 - [Plan 40: implementation through temporarily invalid projects](plans/40-invalid-project-recovery/main-plan.md),
   implemented, qualified and merged: recorded repair authority, architect
   continuation and honest candidate qualification; the checkpoint evaluation
@@ -48,7 +153,8 @@ Design documents for the separate agent harness:
   contradictions to the authority that can revise the choice or delegate its
   correction; separates finding `.16` from Plan 36
 - [Plan 36: straightforward revision-preview corrections](plans/36-revision-preview-corrections/main-plan.md),
-  proposed for harness execution: consistent submission contracts, usable
+  implemented and qualified by a committed full audit: consistent
+  submission contracts, usable
   qualified evidence, role-aware guidance and mutation attribution across
   21 Beads findings; the independent citation-validation fix and Plan 37's
   Cucumber binding and decision-correction work are excluded
@@ -338,8 +444,10 @@ comparison. They are not current and are read only on request; its
   replacement of environment JSON, and existing delivery/authority contracts;
   based on the [candidate inventory](analysis/2026-10-09-common-prompt-block-candidates.md)
 - [Plan 27: extract the harness query and projection module](plans/27-projections-extraction/main-plan.md),
-  proposed ownership refactor executed by ramify-agent itself, with selected
-  reading contracts and acceptance scenarios rather than authored iterations
+  earlier ownership-refactor proposal; the current
+  [dogfooding execution plan](../plans/projections-extraction/plan.md) covers all
+  three query consumers and shared repair-history validation, with a separate
+  [setup and observation note](analysis/2026-10-13-projections-extraction-dogfooding.md)
 - [Declared task blocks](analysis/2026-10-09-declared-task-blocks.md),
   proposed rule that each task declares its prompt blocks and receives only
   those its session does not already hold; evidence from the Plan 25 run
