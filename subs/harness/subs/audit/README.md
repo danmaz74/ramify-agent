@@ -1,7 +1,7 @@
 # audit
 
 Implements the harness's in-process adapter to `ramify-audit`, pinned at
-version 0.12.0. It hides the library, its evidence model, repository lease,
+version 0.12.1. It hides the library, its evidence model, repository lease,
 isolated worktree, publication refs and Git environment from the rest of
 the harness. The harness owns gate policy and durable run state; this child
 reads the project's committed audit definition, asks the installed provider
@@ -95,7 +95,7 @@ the gate and every durable record.
 
 ## Dependency
 
-`ramify-audit` is pinned to the exact version 0.12.0 from the private proxy
+`ramify-audit` is pinned to the exact version 0.12.1 from the private proxy
 registry this package's `.npmrc` names, which also serves the other
 dependencies. It is MIT-licensed. No other module imports it. The existing
 `legacy-peer-deps=true` setting remains necessary for npm 10.9's Vitest peer
@@ -119,6 +119,15 @@ a composed pass with warnings while the original failed checks, counts and
 failure ledger remain intact. The harness follows that composed verdict and
 preserves the provider's warning dispositions with its evidence. Older schemas
 are refused, and the first audit with this release establishes a full baseline.
+
+From 0.12.1 the provider decides reuse before it acquires the repository
+execution lease, so a request an existing record answers returns without
+waiting for another audit of the repository, and without the harness's
+abandoned-workspace recovery, which runs when the lease is acquired. An audit
+that executes holds the lease as before. When it waits, the provider may emit
+`lease.waiting`, `lease.recovered` and `lease.acquired`; the harness does not
+project them into run progress, which shows only the test lock's
+`check.waiting` and `check.lock-acquired`.
 
 ## Tests
 
