@@ -98,7 +98,7 @@ describe('S07: authored local architect inputs', () => {
     const recorded = await inputsFromRun({ role: 'local-architect', runDirectory: directory, invocation: orientationId, builtinDeclarations: piBuiltinDeclarations });
     if (recorded.status !== 'imported' || recorded.inputs.role !== 'local-architect') throw new Error('unreachable');
     const item = recorded.inputs.briefing.item as Record<string, unknown>;
-    const other = await authored('local-architect', orientationId, { workItem: await file({ ...item, id: 'another-item' }) });
+    const other = await authored('local-architect', orientationId, { workItem: await file({ ...item, id: 'work-item:another-item' }) });
     expect(other).toEqual({ status: 'refused', reason: expect.stringContaining('is not the recorded') });
     const invalid = await authored('local-architect', orientationId, { workItem: await file({ id: item.id }) });
     expect(invalid).toEqual({ status: 'refused', reason: expect.stringContaining('not a work item') });
@@ -121,14 +121,14 @@ describe('S07: authored local architect inputs', () => {
     if (accepted.status !== 'imported') throw new Error(accepted.reason);
     if (accepted.inputs.role !== 'local-architect' || accepted.inputs.phase !== 'work-turn') throw new Error('unreachable');
     // An empty selection still cites the work item's own elements.
-    expect(accepted.inputs.package?.elements).toEqual(['fr-001', 'fr-002']);
-    expect(accepted.inputs.package?.text).toContain('fr-001');
+    expect(accepted.inputs.package?.elements).toEqual(['functional-requirement:review-note-request', 'functional-requirement:review-note-acceptance']);
+    expect(accepted.inputs.package?.text).toContain('functional-requirement:review-note-request');
     expect(accepted.inputs.provenance).toMatchObject({ authored: ['selection'] });
   });
 
   test('an outline of another work item is refused', async () => {
     const result = await authored('local-architect', workTurnId, {
-      outline: await file({ schema: 'ramify-agent.work-item-outline/1', workItem: 'another-item', revision: 1, invocation: 'x', ...outline() }),
+      outline: await file({ schema: 'ramify-agent.work-item-outline/2', workItem: 'another-item', revision: 1, invocation: 'x', ...outline() }),
     });
     expect(result).toEqual({ status: 'refused', reason: expect.stringMatching(/--outline .*(is of another-item|not a work-item outline)/u) });
   });
@@ -185,8 +185,8 @@ describe('S07: engineer inputs authored with no run', () => {
   let ramify: FakeRamifyCli;
   const ports = (): AuthoringPorts => ({ ramify, git: { currentHead: async () => 'base' }, configuredAudit: passingAudit() });
   const item = {
-    schema: 'ramify-agent.work-item/1', id: 'state-note-limit', module: notes, origin: { entry: 'review-note' },
-    goal: 'State the note limit the reviewers asked for.', requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
+    schema: 'ramify-agent.work-item/2', id: 'work-item:state-note-limit', module: notes, origin: { entry: 'capability:review-note' },
+    goal: 'State the note limit the reviewers asked for.', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null,
   };
   beforeAll(async () => {
     for (const target of ['project', 'bare'] as const) {
@@ -206,7 +206,7 @@ describe('S07: engineer inputs authored with no run', () => {
       authored: { workItem: await file(item), assignment: await file(assign(notes, { goal: 'State the authored note limit.' }, outline())) },
     }, ports());
     if (result.exitStatus !== 0) throw new Error(result.stderr);
-    expect(result.stderr).toContain('Authored engineer inputs for state-note-limit.i01 with no run');
+    expect(result.stderr).toContain('Authored engineer inputs for work-item:state-note-limit.i01 with no run');
     expect(result.stderr).toContain('Authored: work-item, assignment.');
     expect(ramify.calls.filter(call => call.operation === 'materialize')).toEqual([]);
 
@@ -218,12 +218,12 @@ describe('S07: engineer inputs authored with no run', () => {
     expect(inputs.consultation?.unavailable).toContain('Standalone');
     expect(inputs.base).toBe('base');
     expect(inputs.start).toEqual({ kind: 'fresh' });
-    expect(inputs.work).toEqual({ workItem: 'state-note-limit', iteration: inputs.assignment.id });
-    expect(inputs.assignment).toMatchObject({ workItem: 'state-note-limit', goal: 'State the authored note limit.', outline: { id: 'state-note-limit', revision: 1 } });
+    expect(inputs.work).toEqual({ workItem: 'work-item:state-note-limit', iteration: inputs.assignment.id });
+    expect(inputs.assignment).toMatchObject({ workItem: 'work-item:state-note-limit', goal: 'State the authored note limit.', outline: { id: 'work-item:state-note-limit', revision: 1 } });
     expect(inputs.workingDirectory).toEqual({ project: `${notesDirectory}/src` });
     expect(inputs.provenance).toMatchObject({
       origin: 'authored', authored: ['work-item', 'assignment'], workItem: item,
-      outlines: [expect.objectContaining({ workItem: 'state-note-limit', revision: 1, invocation: 'authored' })],
+      outlines: [expect.objectContaining({ workItem: 'work-item:state-note-limit', revision: 1, invocation: 'authored' })],
     });
 
     const rendered = await runStepCommand({ command: 'render', inputs: out, projectRoot: project });
@@ -237,12 +237,12 @@ describe('S07: engineer inputs authored with no run', () => {
       authored: { workItem: await file(item), assignment: await file(assign(notes, { goal: 'State the second note limit.' }, outline())) },
     }, ports());
     if (result.exitStatus !== 0) throw new Error(result.stderr);
-    expect(result.stderr).toContain('Authored engineer inputs for state-note-limit.i02 with no run');
+    expect(result.stderr).toContain('Authored engineer inputs for work-item:state-note-limit.i02 with no run');
     expect(result.stderr).toContain('work turn assigning iteration 2');
     const inputs = parseStepInputs(result.stdout);
     if (inputs.role !== 'engineer') throw new Error('unreachable');
-    expect(inputs.assignment.id).toBe('state-note-limit.i02');
-    expect(inputs.work).toEqual({ workItem: 'state-note-limit', iteration: 'state-note-limit.i02' });
+    expect(inputs.assignment.id).toBe('work-item:state-note-limit.i02');
+    expect(inputs.work).toEqual({ workItem: 'work-item:state-note-limit', iteration: 'work-item:state-note-limit.i02' });
   });
 
   test('standalone authored feature selection without a run registry is explicitly refused', async () => {
@@ -258,7 +258,7 @@ describe('S07: engineer inputs authored with no run', () => {
   });
 
   test('a recorded outline from --outline is the assignment\'s basis when the envelope carries none', async () => {
-    const recorded = { schema: 'ramify-agent.work-item-outline/1', workItem: item.id, revision: 1, invocation: 'authored', ...outline(), hypothesesSeen: [] };
+    const recorded = { schema: 'ramify-agent.work-item-outline/2', workItem: item.id, revision: 1, invocation: 'authored', ...outline(), hypothesesSeen: [] };
     const result = await runStepCommandWith({
       command: 'inputs', role: 'engineer', fromRun: undefined, invocation: undefined, projectRoot: project,
       authored: { workItem: await file(item), outline: await file(recorded), assignment: await file(assign(notes)) },
@@ -285,10 +285,10 @@ describe('S07: engineer inputs authored with no run', () => {
       command: 'inputs', role: 'engineer', fromRun: undefined, invocation: undefined, projectRoot: project,
       authored: { workItem: await file(workItem), assignment: await file(assignment) },
     }, ports());
-    expect((await author({ ...item, requirementRefs: ['fr-001'] }, assign(notes, {}, outline()))).stderr).toContain('it cites the plan elements fr-001');
+    expect((await author({ ...item, functionalRequirementIds: ['functional-requirement:review-note-request'] }, assign(notes, {}, outline()))).stderr).toContain('it cites the plan elements functional-requirement:review-note-request');
     expect((await author(item, { ...assign(notes, {}, outline()), localDecisions: [{ question: 'q', decision: 'd', rationale: 'r' }] })).stderr)
       .toMatch(/--assignment: (it carries local decisions|the module architect's submission schema refuses it)/u);
-    expect((await author(item, assign(notes, { citedElements: ['fr-001'] }, outline()))).stderr).toContain('--assignment: it cites the elements fr-001');
+    expect((await author(item, assign(notes, { citedElements: ['functional-requirement:review-note-request'] }, outline()))).stderr).toContain('--assignment: it cites the elements functional-requirement:review-note-request');
     const elsewhere = { base: { module: 'collection-review/no-such-module', included: [] }, extra: [], read: [], rationale: 'Elsewhere.' };
     expect((await author(item, assign(notes, { scope: elsewhere }, outline()))).stderr)
       .toMatch(/--assignment: the module architect's rules refuse it: .*no-such-module/u);

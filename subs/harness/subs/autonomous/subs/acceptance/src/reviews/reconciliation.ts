@@ -28,7 +28,7 @@ const text = z.string().min(1);
 const prose = z.string().min(1).max(4000);
 const reference = z.string().min(1).max(500);
 
-/** `wi-001.rc01`: the work item's reconciliation round. */
+/** `work-item:preview-resolver.rc01`: the work item's reconciliation round. */
 export const reconciliationId = (workItem: string, round: number): string => `${workItem}.rc${String(round).padStart(2, '0')}`;
 export const reconciliationIdSchema = z.string().regex(/^.+\.rc\d{2,}$/);
 /** The work item a reconciliation belongs to, from its ID. */

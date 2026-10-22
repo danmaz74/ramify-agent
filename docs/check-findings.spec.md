@@ -11,6 +11,19 @@ scenarios retain their own authority.
 
 ## Specification
 
+### Finding identity
+
+The harness accepts a reporter's `draft:finding:<name>` proposal in its existing
+submission and records the corresponding `finding:<name>` identity. The name is
+unique within the run, including names already used by a different issue. A
+repeat of the same report key returns its accepted identity; a report attached
+by the same trusted issue key keeps that identity. Another issue cannot take
+the name, and a reporter corrects a collision in the same authoring task.
+
+Findings use version 2 events and encoded record paths. Reports, decisions
+and relations keep their technical sequence IDs. A name is a reference, never
+evidence of a repair, waiver, acceptance or authority.
+
 ### A CheckFinding is a risk signal
 
 A CheckFinding signals a risk: that the system will not work correctly, or

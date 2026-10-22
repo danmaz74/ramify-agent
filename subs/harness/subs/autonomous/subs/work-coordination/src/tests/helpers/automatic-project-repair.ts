@@ -5,7 +5,7 @@ import * as projectFacts from '../../project-facts.js';
 import { runLayout } from '../../../../../src/run/records.js';
 import { repairIncidentRecordSchema } from '../../../../../../../src/interfaces/protocol/repairs.js';
 import type { SessionSpec } from '../../../../../../agent/src/interfaces/port.js';
-import { analysis, entry, requestCompletion } from '../../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../../src/tests/helpers/analysis.js';
 import { assign, outline, partialReport, submit, treeInputs, write } from '../../../../../../../src/tests/helpers/iterations.js';
 import { copyFixture } from '../../../../../../../src/tests/helpers/fixture.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit } from '../../../../acceptance/src/tests/helpers/gate-git.js';
@@ -44,7 +44,7 @@ export async function scenario(options: { delegated?: boolean; blocked?: boolean
   });
   const final = !options.unsettledRepair && !options.secondFault && !options.stopDuringRepair && !options.freezeAssignment && !options.blocked && !options.skipRestore && !options.mutateDeclaration && options.delegated !== false;
   const commits = [...(options.freezeAssignment ? [] : [scenariosCommit('review-notes', 'scenarios', 'base')]),
-    ...(final ? [{ commit: 'accepted', changes: [{ status: 'A', path: renamed }, ...(options.rootSibling ? [{ status: 'D', path: legacy }, { status: 'M', path: rootPointer }] : []), ...(options.downtimeEdit ? [{ status: 'A', path: externalPath }] : [])], subject: 'wi-001' }, { commit: null, changes: [], subject: 'final verification' }] : [])];
+    ...(final ? [{ commit: 'accepted', changes: [{ status: 'A', path: renamed }, ...(options.rootSibling ? [{ status: 'D', path: legacy }, { status: 'M', path: rootPointer }] : []), ...(options.downtimeEdit ? [{ status: 'A', path: externalPath }] : [])], subject: 'work-item:review-note' }, { commit: null, changes: [], subject: 'final verification' }] : [])];
   const previews = [
     ...(options.freezeAssignment || options.delegated === false ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
     ...(options.freezeAssignment || options.noFault ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
@@ -65,9 +65,9 @@ export async function scenario(options: { delegated?: boolean; blocked?: boolean
       return boundary.git.changedPaths(root, base);
     },
   };
-  const initial = { ...analysis([entry('review-note', owner)]), ...(options.delegated === false ? {} : {
+  const initial = currentAnalysis({ ...analysis([entry('review-note', owner)]), ...(options.delegated === false ? {} : {
     contingentRepairAssignment: { root: 'collection-review', included: [{ directory: 'subs/workspace', reason: 'Repair source-pointer compatibility after a preparation obstruction', instructions: 'Preserve interfaces and the existing topology.' }], instructions: 'Restore only preparation compatibility; unfinished work returns to the architect.' },
-  }) };
+  }) }, 'document:review-notes-plan');
   const specs: SessionSpec[] = [];
   let localTurns = 0;
   let returnedResource = false;

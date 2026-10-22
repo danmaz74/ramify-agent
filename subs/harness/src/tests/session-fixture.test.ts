@@ -113,8 +113,8 @@ describe('the session fixture over HTTP', () => {
       ['ses-0007', 'engineer', 'live'],
     ]);
     expect(live.engineer).toBe('ses-0007');
-    expect(byRole(sessions, 'engineer')[0]!.reaches).toEqual({ kind: 'work-item', workItem: 'wi-001', capability: 'badge-tone', module: 'collection-review/workspace/shared-ui' });
-    expect(byRole(sessions, 'global-fork')[0]!.reaches).toMatchObject({ kind: 'request', capability: 'badge-tone' });
+    expect(byRole(sessions, 'engineer')[0]!.reaches).toEqual({ kind: 'work-item', workItem: 'work-item:badge-tone', capability: 'capability:badge-tone', module: 'collection-review/workspace/shared-ui' });
+    expect(byRole(sessions, 'global-fork')[0]!.reaches).toMatchObject({ kind: 'request', capability: 'capability:badge-tone' });
     // The project's list: live and suspended first, across the runs.
     const list = await get(protocolPaths.sessions(), sessionListResponseSchema);
     expect(list.sessions.slice(0, 3).map(entry => entry.state)).toEqual(['live', 'suspended', 'suspended']);

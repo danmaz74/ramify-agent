@@ -17,7 +17,7 @@ test('manual invocation and gate adapters detach observations from the manual li
   try {
     const log = await RunLog.open(join(fixture.path, 'events.jsonl'), 'R');
     const policy = defaultRunPolicy({ projectRoot: fixture.path });
-    const run = new ManualRun({ schema: 'ramify-agent.job/3', kind: 'manual', jobId: 'R', planId: 'P',
+    const run = new ManualRun({ schema: 'ramify-agent.job/4', kind: 'manual', jobId: 'R', planId: 'P',
       projectRoot: fixture.path, createdAt: new Date().toISOString(), base: 'B', branch: null, origin: 'step-run', policy },
       fixture.path, log, new WriterOwnership({ settleMs: 1000 }));
     await run.execution.write({ type: 'invocation-started', data: { invocation: 'inv-0001', role: 'engineer', session: 'ses-0001', work: {}, start: 'opened' } },

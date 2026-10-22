@@ -26,6 +26,7 @@ import { capabilityProgressOf } from './progress.js';
 import { capabilityTasksOf } from './capability-tasks.js';
 import type { CapabilityTasksResponse } from '../../../src/interfaces/protocol/capability-tasks.js';
 import { scenarioListOf } from './scenarios.js';
+import { scenarioIdSchema } from '../../scenarios/src/records.js';
 import { decisionRequestsOf, snapshotOf } from './snapshot.js';
 import { currentModuleTree } from './tree.js';
 import { gateOf, workItemOf, workItemsOf } from './work.js';
@@ -189,7 +190,7 @@ export class RunQueries {
       throw new ExecutionPageError('stale-version', 'The capability detail belongs to another run version',
         view.entries.at(-1)?.sequence ?? 0);
     }
-    if (!executionCoreOf(view).nodes.some(node => node.key === `capability:${capability}`)) {
+    if (!executionCoreOf(view).nodes.some(node => node.key === capability)) {
       throw new ProjectionError('not-found', `No capability ${capability} in run ${runId}`);
     }
     return executionCapabilityDetailOf(view, capability);
@@ -202,8 +203,12 @@ export class RunQueries {
       throw new ExecutionPageError('stale-version', 'The scenario detail belongs to another run version',
         view.entries.at(-1)?.sequence ?? 0);
     }
-    if (!executionCoreOf(view).nodes.some(node => node.key === `scenario:${scenario}`)) {
-      throw new ProjectionError('not-found', `No scenario ${scenario} in run ${runId}`);
+    if (!scenarioIdSchema.safeParse(scenario).success) {
+      throw new ProjectionError('invalid-request',
+        `"scenario" requires an accepted scenario:<name> ID; read run ${runId}'s scenarios list for accepted IDs.`);
+    }
+    if (!executionCoreOf(view).nodes.some(node => node.key === scenario)) {
+      throw new ProjectionError('not-found', `No scenario ${scenario} in run ${runId}; read this run's scenarios list for accepted IDs.`);
     }
     return executionScenarioDetailOf(view, scenario);
   }

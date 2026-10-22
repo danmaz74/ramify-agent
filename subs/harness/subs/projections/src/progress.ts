@@ -28,9 +28,9 @@ interface Standing {
   readonly completed: ReadonlyMap<string, string>;
   readonly yielded: ReadonlyMap<string, readonly string[]>;
   readonly resumed: ReadonlySet<string>;
-  /** Verified requirement revisions, `rq-001@2`, with the gate that verified each. */
+  /** Verified requirement revisions, such as `consumer-requirement:preview-limit@2`, with the gate that verified each. */
   readonly verified: ReadonlyMap<string, string>;
-  /** Provider conformance, `ob-ct-001@2`, with its gate. */
+  /** Provider conformance, such as `provider-obligation:preview-limit@2`, with its gate. */
   readonly conformed: ReadonlyMap<string, string>;
   /** Each follow-up work item and the reopening that created it. */
   readonly reopened: ReadonlyMap<string, { readonly follows: string; readonly cause: string; readonly contract: string; readonly revision: number }>;

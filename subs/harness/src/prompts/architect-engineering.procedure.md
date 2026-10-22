@@ -54,7 +54,7 @@ case results and your judgment; feature selection adds no completion obligations
 When exact generated-feature evidence is part of the delegated task, state
 `assignment.featureSelection: { files, reason }`. Name exact project-relative
 current registered `.feature` files and explain their purpose, even when the
-only completion obligation is a delegated outcome such as `cap-001`. Consumer
+only completion obligation is a delegated outcome such as `capability-task:preview-checks`. Consumer
 features may lie beyond the provider's write scope; selecting evidence widens
 no writes and permits no generated-feature edits. A background pointer or a
 filename in prose selects nothing. Scenario obligations continue to select

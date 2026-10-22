@@ -184,8 +184,8 @@ export const restartInspectionSchema = z.object({
   successor: runIdSchema.nullable(), boundary: recoveryInspectionSchema.shape.boundary.nullable(),
   preserved: z.array(z.string()), inapplicable: z.array(z.string()),
   candidate: z.object({ source: z.object({ head: z.string(), tree: z.string() }).strict().nullable(), current: z.object({ head: z.string(), tree: z.string() }).strict().nullable() }).strict(),
-  runtime: z.object({ before: z.string(), current: z.string(), compatible: z.boolean() }).strict().optional(),
   policy: z.object({ before: z.string(), current: z.literal('run-policy/8') }).strict(),
+  runtime: z.object({ before: z.string(), current: z.string(), compatible: z.boolean() }).strict().optional(),
   settlement: z.enum(['confirmed', 'unknown']), effects: z.enum(['reconciled', 'unknown']),
   changes: z.array(z.object({ path: z.string(), before: z.string().nullable(), after: z.string().nullable() }).strict()),
 }).strict();
@@ -617,7 +617,7 @@ export type RunEventPage = z.infer<typeof runEventPageSchema>;
 const moduleProposalView = z.object({ parent: text, directory: text, purpose: text, tags: z.array(z.string()) }).strict();
 
 /** One entry capability and the owner the initial analysis assigned it. */
-export const entryViewSchema = z.object({
+const entryViewBaseSchema = z.object({
   capability: text,
   description: text,
   owner: text,
@@ -625,11 +625,19 @@ export const entryViewSchema = z.object({
   proposed: moduleProposalView.nullable(),
   /** The work item the entry created. */
   workItem: text.nullable(),
+});
+
+export const entryViewSchema = z.union([entryViewBaseSchema.extend({
   /** The elements the entry cites: its requirement, its acceptance and the context its reader needs. */
   requirementRefs: z.array(text),
   acceptanceRefs: z.array(text),
   contextRefs: z.array(text),
-}).strict();
+}).strict(), entryViewBaseSchema.extend({
+  capabilityId: text,
+  functionalRequirementIds: z.array(text),
+  functionalAcceptanceIds: z.array(text),
+  contextIds: z.array(text),
+}).strict()]);
 export type EntryView = z.infer<typeof entryViewSchema>;
 
 export const hypothesisStandingSchema = z.enum(['tentative', 'confirmed', 'superseded']);
@@ -987,6 +995,14 @@ const outsideScopeEvidenceSchema = z.object({
 /** `GET /api/v1/plans/:planId/runs/:runId/work-items/:workItem`: one work item's outlines, iterations, gates and requirements. */
 export const workItemResponseSchema = z.object({
   workItem: workItemSummarySchema,
+  /** Accepted catalog references on the work item, resolved from frozen evidence. */
+  acceptedReferences: z.object({
+    functionalRequirementIds: z.array(text),
+    functionalAcceptanceIds: z.array(text),
+    contextIds: z.array(text),
+    elements: z.array(elementViewSchema),
+    unavailable: z.string().nullable(),
+  }).strict(),
   outlines: z.array(z.object({
     revision: z.int().positive(),
     invocation: text,
@@ -1098,10 +1114,10 @@ export type CapabilityListResponse = z.infer<typeof capabilityListResponseSchema
 
 /**
  * How a comparison identifies one capability across the initial analysis and
- * the run's registry: identical slugs are one capability. There is no fuzzy
- * or semantic matching, and a later policy gets a new version.
+ * the run's registry: exact accepted capability IDs.
+ * There is no fuzzy or semantic matching.
  */
-export const comparisonIdentityPolicySchema = z.literal('exact-capability-slug/1');
+export const comparisonIdentityPolicySchema = z.literal('exact-accepted-capability-id/2');
 export type ComparisonIdentityPolicy = z.infer<typeof comparisonIdentityPolicySchema>;
 
 /**

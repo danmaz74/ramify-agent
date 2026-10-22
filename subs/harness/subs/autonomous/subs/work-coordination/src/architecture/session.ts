@@ -95,6 +95,8 @@ export interface UnresolvedForkBriefing extends Omit<ForkBriefing, 'request'> {
   readonly deviationLimit: number;
   /** Every environment problem already reported in this run, with the operator's note where they resumed it. */
   readonly environmentProblems?: ReadonlyArray<{ readonly problem: EnvironmentProblem; readonly resumed: string | null }> | undefined;
+  /** An accepted proposal lost a concurrent name race at the durable boundary. */
+  readonly nameRejection?: { readonly field: string; readonly message: string } | undefined;
 }
 
 /** The first user message of one fork of an unresolved request. */
@@ -132,6 +134,11 @@ export function unresolvedForkMessage(briefing: UnresolvedForkBriefing): string 
     for (const { problem, resumed } of reported) {
       lines.push(`- \`${problem.id}\`, for ${problem.request} of ${problem.workItem}: ${problem.diagnosis.replace(/\s+/gu, ' ')} ${resumed === null ? 'The operator has not resumed the run for it.' : `The operator resumed the run${resumed.trim() === '' ? '.' : `, noting: ${resumed.replace(/\s+/gu, ' ')}`}`}`);
     }
+  }
+  if (briefing.nameRejection !== undefined) {
+    lines.push('', '## Correct the rejected name in this fork', '',
+      `Field ${briefing.nameRejection.field}: ${briefing.nameRejection.message}`,
+      'Choose a distinct descriptive key for the same subject and submit the corrected answer. No record from the rejected answer was accepted.');
   }
   lines.push(...evidenceSections(briefing));
   lines.push('', 'Investigate and answer: a placement decision, a plan deviation that keeps as much of the plan as the conflict allows, an environment problem for the operator, or that nothing is possible. The parent context does not reassess your answer.');

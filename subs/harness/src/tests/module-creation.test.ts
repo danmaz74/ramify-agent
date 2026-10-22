@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { forkDecision, registryChange, requestPlacement } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { architectureLayout, type PlacementDecision } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
@@ -94,7 +94,7 @@ async function target(answers: Omit<GateGitOptions, 'head'> & { readonly finalHe
 }
 
 async function readResult(root: string, runId: string, number: number): Promise<IterationResult> {
-  return JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', number)), 'utf8')) as IterationResult;
+  return JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', number)), 'utf8')) as IterationResult;
 }
 
 describe('G9: an accepted proposed entry owner reaches implementation', () => {
@@ -106,7 +106,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
     const { root, scripted, final } = await target({ commits: [scenarios, unchanged, unchanged, unchanged], finalHead: materialized }, { miniRunner: false });
     const opened = await openRuns(root, {
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', reviews)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', reviews)]), 'document:review-notes-plan'))],
         'local-architect': [
           // No registry entry proposes this module, so the assignment is
           // refused; the same session corrects it in the same turn.
@@ -137,7 +137,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
     // so the run has one assignment and it is over the module that exists.
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
-    const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('wi-001', 1)), 'utf8')) as {
+    const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('work-item:review-note', 1)), 'utf8')) as {
       scope: { base: { module: string }; bootstrap: unknown[] };
     };
     expect(assignment.scope.base.module).toBe(reviews);
@@ -176,10 +176,11 @@ describe('G10: global placement authorizes a new owner without claiming it exist
       script: byRole({
         // The entry owner exists: what does not exist is the owner the
         // plan architect decides on.
-        'initial-architect': [submit(analysis([entry('review-note', reviews, 'A reviewer can attach one note to a review run.')]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', reviews, 'A reviewer can attach one note to a review run.')]), 'document:review-notes-plan'))],
         'local-architect': [
           submit(requestPlacement({
-            forCapability: 'review-note',
+            requestKey: 'draft:placement-request:review-note',
+            forCapability: 'capability:review-note',
             question: 'Does a reviewer\'s note belong in this module, or in one of its own?',
             requiredBehavior: 'One note per review run, with its own limit and its own test.',
           })),
@@ -190,7 +191,7 @@ describe('G10: global placement authorizes a new owner without claiming it exist
           decision: {
             question: 'Does a reviewer\'s note belong in this module, or in one of its own?',
             outcome: 'create',
-            capability: 'note-store',
+            capability: 'capability:note-store',
             changesExistingSymbols: false,
             owner: notes,
             proposed: proposal,
@@ -200,7 +201,7 @@ describe('G10: global placement authorizes a new owner without claiming it exist
             evidence: { citations: [{ module: reviews }], gaps: [] },
           },
           registry: [registryChange({
-            capability: 'note-store', owner: notes, proposed: proposal,
+            capability: 'capability:note-store', owner: notes, proposed: proposal,
             behavior: 'Holds one reviewer\'s note for one review run.',
           })],
           brief: 'note-store is placed in a new module beneath reviews; nothing implements it yet.',
@@ -227,18 +228,18 @@ describe('G10: global placement authorizes a new owner without claiming it exist
     // The decision authorized the owner before anything was assigned.
     expect(types.indexOf('decision-accepted')).toBeLessThan(types.indexOf('iteration-assigned'));
 
-    const decision = JSON.parse(await readFile(runPath(root, 'review-notes', runId, architectureLayout.decision('gd-001')), 'utf8')) as PlacementDecision;
+    const decision = JSON.parse(await readFile(runPath(root, 'review-notes', runId, architectureLayout.decision('placement-decision:placement-review-note')), 'utf8')) as PlacementDecision;
     expect(decision.outcome).toBe('create');
     expect(decision.owner).toBe(notes);
     expect(decision.proposed).toEqual(proposal);
-    const registered = JSON.parse(await readFile(runPath(root, 'review-notes', runId, analysisLayout.registry('note-store', 1)), 'utf8')) as RegistryEntry;
+    const registered = JSON.parse(await readFile(runPath(root, 'review-notes', runId, analysisLayout.registry('capability:note-store', 1)), 'utf8')) as RegistryEntry;
     expect(registered.origin).toBe('global-decision');
-    expect(registered.decision).toBe('gd-001');
+    expect(registered.decision).toBe('placement-decision:placement-review-note');
     // The decision and the registry carry the same proposal, which is what
     // the assignment's bootstrap authority is read from.
     expect(registered.proposed).toEqual(proposal);
 
-    const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('wi-001', 1)), 'utf8')) as {
+    const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('work-item:review-note', 1)), 'utf8')) as {
       scope: { bootstrap: Array<{ directory: string }> };
     };
     expect(assignment.scope.bootstrap.map(entry => entry.directory)).toEqual([notesDirectory]);
@@ -257,8 +258,8 @@ describe('G10: global placement authorizes a new owner without claiming it exist
         module: notes,
         declaration: `${notesDirectory}/module.ramify`,
         commit: result.commit,
-        iteration: 'wi-001.i01',
-        decision: { id: 'gd-001', revision: 1, hash: expect.any(String) },
+        iteration: 'work-item:review-note.i01',
+        decision: { id: 'placement-decision:placement-review-note', revision: 1, hash: expect.any(String) },
       },
     ]);
     scripted.assertComplete();

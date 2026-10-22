@@ -28,6 +28,9 @@ const handbackChanges = [...providerChanges, ...consumerChanges, ...exposedChang
 
 /** Explicit external answers for this multi-owner workflow, never inferred from live source. */
 export function acceptanceBoundaries(root: string, mode: string, recovery = false) {
+  const scenarioPaths = ['subs/a/src/tests/features/need/capability%3Aricher-a-fact.feature', 'subs/b/src/tests/features/need/capability%3Ab-entry.feature'];
+  const task = 'capability-task:provide-source-fact';
+  const work = 'work-item:richer-a-fact';
   let state: Stage = 'initial';
   let head = initial;
   let branch: string | undefined;
@@ -59,7 +62,7 @@ export function acceptanceBoundaries(root: string, mode: string, recovery = fals
     [`${trees.suspended}..${corrected}`, handbackChanges],
   ]);
   function pending(base: string) {
-    if (head === initial) { expect(base).toBe(initial); return [change('subs/a/src/tests/features/need/richer-a-fact.feature', 'A'), change('subs/b/src/tests/features/need/b-entry.feature', 'A')]; }
+    if (head === initial) { expect(base).toBe(initial); return scenarioPaths.map(path => change(path, 'A')); }
     if (state === 'drift') { expect(base).toBe(corrected); return [change('subs/b/src/fact.ts')]; }
     if (state === 'corrected') { expect(base).toBe(head); return head === corrected ? [] : correctedChanges; }
     if (head === integrated) { expect(base).toBe(integrated); return []; }
@@ -100,9 +103,9 @@ export function acceptanceBoundaries(root: string, mode: string, recovery = fals
       expect(project).toBe(root); expect(message).toContain(`Ramify-Run: ${branch?.slice('ramify-agent-run/'.length)}`);
       if (message.includes('Ramify-Scenarios: materialized')) { expect(head).toBe(initial); head = scenarios; commits.push('scenarios'); return head; }
       const gate = /Ramify-Gate: (ga-\d{4})/u.exec(message)?.[1]; expect(gate).toBeDefined();
-      if (message.startsWith('cap-001.i04:')) { expect(state).toBe('integrated'); expect(head).toBe(scenarios); head = integrated; commits.push('integrated'); gateCommits.set(gate!, head); return head; }
-      if (message.startsWith('cap-001.i05:')) { expect(state).toBe('corrected'); expect(head).toBe(integrated); head = corrected; commits.push('corrected'); gateCommits.set(gate!, head); return head; }
-      expect(message.startsWith('cap-001\n') || message.startsWith('wi-001')).toBe(true); expect(head).toBe(corrected); return null;
+      if (message.startsWith(`${task}.i04:`)) { expect(state).toBe('integrated'); expect(head).toBe(scenarios); head = integrated; commits.push('integrated'); gateCommits.set(gate!, head); return head; }
+      if (message.startsWith(`${task}.i05:`)) { expect(state).toBe('corrected'); expect(head).toBe(integrated); head = corrected; commits.push('corrected'); gateCommits.set(gate!, head); return head; }
+      expect(message.startsWith(`${task}\n`) || message.startsWith(work)).toBe(true); expect(head).toBe(corrected); return null;
     },
   }));
   const suspendedFiles = { ...acceptanceInitialFiles,
@@ -175,8 +178,7 @@ export function acceptanceBoundaries(root: string, mode: string, recovery = fals
       return auditAnswers.run(input);
     },
   }, ['read', 'run']);
-  const fixturePaths = new Set([...Object.keys(acceptanceInitialFiles), ...allChanges.map(entry => entry.path),
-    'subs/a/src/tests/features/need/richer-a-fact.feature', 'subs/b/src/tests/features/need/b-entry.feature']);
+  const fixturePaths = new Set([...Object.keys(acceptanceInitialFiles), ...allChanges.map(entry => entry.path), ...scenarioPaths]);
   const moduleDirectories = new Set(['.', 'subs/a', 'subs/b', 'subs/d']);
   class AcceptanceRamify extends FakeRamifyCli {
     override async run(args: readonly string[], cwd: string, signal?: AbortSignal) {
@@ -227,11 +229,11 @@ export function acceptanceBoundaries(root: string, mode: string, recovery = fals
       }
       expect(candidateCalls.some(call => call.startsWith('diffPatch'))).toBe(true);
       // A resumed consumer is verified through its ordinary iteration gate.
-      const iterationAttempts = mode === 'deferred' || mode === 'restart' ? 3 : 2;
+      const iterationAttempts = mode === 'deferred' || mode === 'reload' || mode === 'restart' ? 3 : 2;
       expect(auditChecks.filter(call => call.startsWith('iteration:'))).toEqual(Array.from({ length: iterationAttempts }, () => ['iteration:tests', 'iteration:type-check', 'iteration:ramify-check']).flat());
       // Readiness answers no commands; completion uses the explicitly stated
       // configured policy response for each bounded attempt.
-      const completionAttempts = mode === 'repair-exhaustion' ? 4 : mode === 'deferred' ? 2 : 1;
+      const completionAttempts = mode === 'repair-exhaustion' ? 4 : mode === 'deferred' || mode === 'reload' ? 2 : 1;
       expect(auditChecks.filter(call => call.startsWith('work-item:'))).toEqual(Array.from({ length: completionAttempts }, () => ['work-item:tests', 'work-item:type-check', 'work-item:ramify-check']).flat());
       expect(audit.requests).toHaveLength(1 + iterationAttempts + completionAttempts);
       for (const call of ramify.calls.filter(call => call.operation === 'run')) {

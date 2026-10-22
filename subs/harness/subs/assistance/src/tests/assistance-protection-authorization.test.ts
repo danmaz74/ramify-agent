@@ -67,7 +67,7 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
         expect(read.text).toContain('feature returns');
         if (options.second) await input.prepared.tools.definitions.find(tool => tool.name === 'snapshot_read')!
           .execute({ path: 'docs/other.spec.md' }, new AbortController().signal);
-        const report = { inspected: options.second ? [contract, 'docs/other.spec.md'] : [contract], missing: [], concerns: options.semantic ? [{ summary: 'Implementation defect', consequence: 'Feature fails', rationale: 'Source defect', uncertainty: 'None', remedy: 'Repair implementation', locations: [{ path: contract, startLine: 1, endLine: 1 }], suggests: null, risk: 'medium', ground: null }] : [], codeAssessment: 'The feature returns 2.',
+        const report = { inspected: options.second ? [contract, 'docs/other.spec.md'] : [contract], missing: [], concerns: options.semantic ? [{ findingKey: 'draft:finding:implementation-defect', summary: 'Implementation defect', consequence: 'Feature fails', rationale: 'Source defect', uncertainty: 'None', remedy: 'Repair implementation', locations: [{ path: contract, startLine: 1, endLine: 1 }], suggests: null, risk: 'medium', ground: null }] : [], codeAssessment: 'The feature returns 2.',
           scopeAssessment: 'The candidate implements the captured plan.', design: { needed: false,
             reason: 'No interface change.', assessment: 'No ownership change.' },
           requirements: [
@@ -85,9 +85,7 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
     currentHead: async () => baseline, isCleanRepository: async () => true,
     assessor: createAssessor({ candidates, operations: async () => ({} as SessionOperations), audit, review,
       reconcile: async input => {
-        const concern = /### `(cf-\d+)`/u.exec(input.message)?.[1];
-        if (!concern) throw new Error('Expected the semantic concern in reconciliation attention');
-        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: concern, rationale: 'Implementation still needs repair.',
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'finding:implementation-defect', rationale: 'Implementation still needs repair.',
           communication: { mode: 'quiet' }, action: { action: 'repair' } }], next: { kind: 'correct', goal: 'Repair behavior.' }, brief: 'Repair remains.' });
         if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
         return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'scripted-reconcile', eventCount: 1 };
@@ -135,7 +133,7 @@ describe('exact protection authorization through an assisted assessment', () => 
     expect(answer).toMatchObject({ actor: { kind: 'user', name: 'Owner' },
       decision: { action: 'answer-user-decision', request: accepted.request, option: 'accept-exact-change' } });
     const answerPath = join(root, 'plans', 'sample', '.harness', 'jobs', job.jobId,
-      'check-findings', initialFinding!.id, 'decisions', `${answer!.id}.json`);
+      'check-findings', encodeURIComponent(initialFinding!.id), 'decisions', `${answer!.id}.json`);
     const answerBytes = await readFile(answerPath);
     expect(JSON.parse(answerBytes.toString())).toMatchObject({ id: answer!.id, checkFinding: initialFinding!.id,
       actor: { kind: 'user', name: 'Owner' }, decision: { request: accepted.request, option: 'accept-exact-change' },

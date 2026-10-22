@@ -16,7 +16,7 @@ import { at, constructedRun, hash, item, registered, reviews, type Line } from '
 describe('the event page', () => {
   test('at most 500 events a page, with the cursor and whether more follow', () => {
     const lines: Line[] = [{ type: 'job-started', data: {} }];
-    for (let index = 0; index < runQueryLimits.events; index += 1) lines.push({ type: 'hypotheses-delivered', data: { workItem: 'wi-001', refs: [] } });
+    for (let index = 0; index < runQueryLimits.events; index += 1) lines.push({ type: 'hypotheses-delivered', data: { workItem: 'work-item:case-001', refs: [] } });
     const view = runView(constructedRun(lines));
 
     const first = runEventPageSchema.parse(eventPage(view, 0));
@@ -95,32 +95,32 @@ describe('the snapshot a person reads', () => {
     const lines: Line[] = [
       { type: 'job-started', data: {} },
       {
-        type: 'analysis-accepted', data: { invocation: 'inv-0001', entries: 2, hypotheses: 0, registry: 2, workItems: 2 },
+        type: 'analysis-accepted', data: { invocation: 'inv-0001', entries: 2, hypotheses: 0, registry: 2, workItems: 2, scenarioIds: [] },
         records: [
-          { path: at('registry', 'a'), body: registered('a') },
-          { path: 'work-items/wi-001/item.json', body: item('wi-001', { entry: 'a' }) },
+          { path: at('registry', 'a'), body: registered('capability:a') },
+          { path: 'work-items/wi-001/item.json', body: item('work-item:case-001', { entry: 'capability:a' }) },
         ],
       },
-      { type: 'dependency-cycle-detected', data: { members: ['a', 'b'], requirements: ['rq-001'], workItems: ['wi-001', 'wi-002'], closedBy: 'wi-001', detection: 1 } },
+      { type: 'dependency-cycle-detected', data: { members: ['a', 'b'], requirements: ['consumer-requirement:case-001'], workItems: ['work-item:case-001', 'work-item:case-002'], closedBy: 'work-item:case-001', detection: 1 } },
       {
         type: 'iteration-closed',
         data: {
-          workItem: 'wi-001', iteration: 'wi-001.i01', outcome: 'accepted', gate: 'ga-0002', commit: 'c0ffee1234567890',
+          workItem: 'work-item:case-001', iteration: 'it-case-001', outcome: 'accepted', gate: 'ga-0002', commit: 'c0ffee1234567890',
           notices: [
-            { kind: 'module-created', module: `${reviews}/notes`, declaration: 'subs/notes/module.ramify', commit: 'c0ffee1234567890', iteration: 'wi-001.i01', decision: null },
-            { kind: 'module-created', module: `${reviews}/drafts`, declaration: 'subs/drafts/module.ramify', commit: 'c0ffee1234567890', iteration: 'wi-001.i01', decision: { id: 'gd-001', revision: 1, hash } },
+            { kind: 'module-created', module: `${reviews}/notes`, declaration: 'subs/notes/module.ramify', commit: 'c0ffee1234567890', iteration: 'it-case-001', decision: null },
+            { kind: 'module-created', module: `${reviews}/drafts`, declaration: 'subs/drafts/module.ramify', commit: 'c0ffee1234567890', iteration: 'it-case-001', decision: { id: 'placement-decision:case-001', revision: 1, hash } },
           ],
         },
       },
-      { type: 'dependency-cycle-detected', data: { members: ['c', 'd'], requirements: ['rq-002'], workItems: ['wi-001'], closedBy: 'wi-001', detection: 1 } },
-      { type: 'work-item-completed', data: { workItem: 'wi-001', gate: 'ga-0003' } },
+      { type: 'dependency-cycle-detected', data: { members: ['c', 'd'], requirements: ['consumer-requirement:case-002'], workItems: ['work-item:case-001'], closedBy: 'work-item:case-001', detection: 1 } },
+      { type: 'work-item-completed', data: { workItem: 'work-item:case-001', gate: 'ga-0003' } },
     ];
     const snapshot = runSnapshotSchema.parse(snapshotOf(runView(constructedRun(lines))));
     expect(snapshot.notices.map(notice => [notice.kind, notice.sequence])).toEqual([
       ['module-created', 4], ['module-created', 4], ['dependency-cycle', 3], ['dependency-cycle', 5],
     ]);
     expect(snapshot.notices[0]!.summary).toContain('No placement decision proposed it.');
-    expect(snapshot.notices[1]!.summary).toContain('Proposed by placement decision gd-001.');
+    expect(snapshot.notices[1]!.summary).toContain('Proposed by placement decision placement-decision:case-001.');
     // Both cycles stay after they were resolved: the work item that closed
     // them completed and neither recurred.
     expect(snapshot.notices.filter(notice => notice.kind === 'dependency-cycle').map(notice => notice.kind === 'dependency-cycle' && [notice.cycle, notice.resolved]))
@@ -130,7 +130,7 @@ describe('the snapshot a person reads', () => {
     // detection stays.
     const recurred = snapshotOf(runView(constructedRun([
       ...lines.slice(0, 3),
-      { type: 'dependency-cycle-detected', data: { members: ['a', 'b'], requirements: ['rq-001'], workItems: ['wi-001'], closedBy: 'wi-001', detection: 2 } },
+      { type: 'dependency-cycle-detected', data: { members: ['a', 'b'], requirements: ['consumer-requirement:case-001'], workItems: ['work-item:case-001'], closedBy: 'work-item:case-001', detection: 2 } },
     ])));
     expect(recurred.notices.map(notice => notice.kind === 'dependency-cycle' && notice.resolved)).toEqual([false, false]);
     expect(recurred.notices[0]!.summary).toContain('not resolved');
@@ -139,10 +139,10 @@ describe('the snapshot a person reads', () => {
   test('a yielded work item is a wait, named with the provider it waits for', () => {
     const snapshot = snapshotOf(runView(constructedRun([
       { type: 'job-started', data: {} },
-      { type: 'work-item-yielded', data: { workItem: 'wi-001', requirements: ['rq-001'], invocation: 'inv-0003' } },
+      { type: 'work-item-yielded', data: { workItem: 'work-item:case-001', requirements: ['consumer-requirement:case-001'], invocation: 'inv-0003' } },
     ])));
-    expect(snapshot.waits).toEqual([{ workItem: 'wi-001', requirements: ['rq-001'], reason: 'wi-001 waits for provider work (rq-001)' }]);
-    expect(snapshot.current).toEqual({ waitingFor: 'wi-001 waits for provider work (rq-001)' });
+    expect(snapshot.waits).toEqual([{ workItem: 'work-item:case-001', requirements: ['consumer-requirement:case-001'], reason: 'work-item:case-001 waits for provider work (consumer-requirement:case-001)' }]);
+    expect(snapshot.current).toEqual({ waitingFor: 'work-item:case-001 waits for provider work (consumer-requirement:case-001)' });
   });
 });
 
@@ -150,7 +150,7 @@ describe('a record of an unsupported version', () => {
   test('is a failure with evidence, never an absent record', () => {
     const run = constructedRun([
       { type: 'job-started', data: {} },
-      { type: 'analysis-accepted', data: {}, records: [{ path: 'work-items/wi-001/item.json', body: { ...item('wi-001', { entry: 'a' }), schema: 'ramify-agent.work-item/2' } }] },
+      { type: 'analysis-accepted', data: {}, records: [{ path: 'work-items/wi-001/item.json', body: { ...item('work-item:case-001', { entry: 'capability:a' }), schema: 'ramify-agent.work-item/9' } }] },
     ]);
     let caught: unknown;
     try {
@@ -161,11 +161,11 @@ describe('a record of an unsupported version', () => {
     expect(caught).toBeInstanceOf(ProjectionError);
     const error = caught as ProjectionError;
     expect(error.code).toBe('unsupported-version');
+    expect(error.message).toContain('ramify-agent.work-item/9');
     expect(error.message).toContain('ramify-agent.work-item/2');
-    expect(error.message).toContain('ramify-agent.work-item/1');
     expect(error.evidence).toEqual([
       'plans/review-notes/.harness/jobs/20260921T080000Z-c0ffee/work-items/wi-001/item.json',
-      'declares ramify-agent.work-item/2',
+      'declares ramify-agent.work-item/9',
       'committed by event 2 (analysis-accepted)',
     ]);
   });

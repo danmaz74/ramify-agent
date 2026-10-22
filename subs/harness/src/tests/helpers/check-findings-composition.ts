@@ -5,7 +5,7 @@ import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import type { RunPolicy } from '../../../subs/autonomous/src/run/records.js';
 import type { RunService } from '../../run/lifecycle.js';
 import { snapshotToolNames } from '../../../subs/reviews/src/snapshot.js';
-import { analysis, entry, requestCompletion } from './analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './analysis.js';
 import type { ScriptedCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import type { GateCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { addModule, assign, completionProposed, outline, submit, write } from './iterations.js';
@@ -17,18 +17,18 @@ import { runEventsOnDisk } from './runs.js';
  * work items, reviewed by code, scope and design readers on every accepted
  * iteration.
  *
- * - wi-001 (the notes module) is clean: one iteration, three clean reviews,
+ * - work-item:review-notes (the notes module) is clean: one iteration, three clean reviews,
  *   and the work item reaches its gate with no reconciliation.
- * - wi-002 (the tags module) has two iterations. The three readers of its
+ * - work-item:catalog-tags (the tags module) has two iterations. The three readers of its
  *   second candidate run concurrently and raise four concerns: a code
- *   defect (cf-0001), a low-risk code simplification in the same file
- *   (cf-0002), a scope concern (cf-0003) and a design concern grounded in a
+ *   defect (finding:case-0001), a low-risk code simplification in the same file
+ *   (finding:case-0002), a scope concern (finding:case-0003) and a design concern grounded in a
  *   principles document that names the same behavior as the defect
- *   (cf-0004). The first reconciliation relates the two reports of one
+ *   (finding:case-0004). The first reconciliation relates the two reports of one
  *   behavior, supersedes the scope judgment, waives the simplification as a
  *   reported material choice and plans a correction. The correction is a
  *   later changed candidate: its acceptance claims the repair, its own code
- *   review raises one more low-risk signal (cf-0005), and the second round
+ *   review raises one more low-risk signal (finding:case-0005), and the second round
  *   fixes the repaired pair and leaves the low signal below its floor.
  *
  * The readers of one candidate overlap; each waits to submit until the one
@@ -94,7 +94,8 @@ export const compositionGates: readonly GateCommit[] = [
 
 type Risk = 'high' | 'medium' | 'low';
 /** One concern about a path of the candidate, grounded in a file the reader read or in nothing. */
-export const concern = (path: string, summary: string, risk: Risk, ground: string | null = null) => ({
+export const concern = (path: string, summary: string, risk: Risk, ground: string | null = null, findingKey = 'draft:finding:case-0001') => ({
+  findingKey,
   summary, consequence: `${summary}, so the behavior differs from what was asked`, rationale: 'read the candidate diff', uncertainty: 'moderate',
   remedy: 'a bounded change in the named file', locations: [{ path, startLine: 1, endLine: 1 }], suggests: null, risk,
   ground: ground === null ? null : { path: ground },
@@ -160,11 +161,11 @@ export const reconcile = (...inputs: unknown[]): ScriptStep[] => inputs.map(inpu
 
 /** The concerns of the fixture, by the CheckFinding each one opens. */
 export const concerns = {
-  defect: concern(tagLimit, 'The tag limit is 50 characters, and the plan asks for 500', 'high'),
-  simplification: concern(tagLimit, 'The limit could take a trimmed text', 'low'),
-  scope: concern(tagLimit, 'The iteration adds a limit the assignment did not name', 'medium', tagsReadme),
-  design: concern(tagLimit, 'The limit contradicts the catalog principle of 500 characters', 'high', principles),
-  constant: concern(tagLimit, 'The limit could be a named constant', 'low'),
+  defect: concern(tagLimit, 'The tag limit is 50 characters, and the plan asks for 500', 'high', null, 'draft:finding:case-0001'),
+  simplification: concern(tagLimit, 'The limit could take a trimmed text', 'low', null, 'draft:finding:case-0002'),
+  scope: concern(tagLimit, 'The iteration adds a limit the assignment did not name', 'medium', tagsReadme, 'draft:finding:case-0003'),
+  design: concern(tagLimit, 'The limit contradicts the catalog principle of 500 characters', 'high', principles, 'draft:finding:case-0004'),
+  constant: concern(tagLimit, 'The limit could be a named constant', 'low', null, 'draft:finding:case-0005'),
 } as const;
 
 /** The composed scenario for `reviewRun`, with the policy it asks for. */
@@ -175,56 +176,56 @@ export function compositionScenario(root: string, policy: Partial<NonNullable<Ru
     policy: { kinds: ['code', 'scope', 'design'], concurrency: 2, attemptMs: 5_000, ...policy },
     engineer: [],
     roles: {
-      'initial-architect': [submit(analysis([entry('review-notes', notes), entry('catalog-tags', tags)]))],
-      'local-architect:wi-001': [
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes), entry('catalog-tags', tags)]), 'document:review-notes-plan'))],
+      'local-architect:work-item:review-notes': [
         submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Add the note store.' }, outline())),
         submit(requestCompletion()),
       ],
-      'engineer:wi-001': [submit(completionProposed('Added the note store.'), write('store.ts', 'export const store = new Map(); // v1\n'))],
-      'local-architect:wi-002': [
+      'engineer:work-item:review-notes': [submit(completionProposed('Added the note store.'), write('store.ts', 'export const store = new Map(); // v1\n'))],
+      'local-architect:work-item:catalog-tags': [
         submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Add the tag store.' }, outline())),
         submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Limit a tag to the plan\'s length.' })),
         submit(requestCompletion()),
         submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Make the tag limit 500 characters, as the plan asks.', kind: 'repair', reviewReason: 'Inspect the changed tag-limit behavior and its principle guidance after the selected repair.' })),
         submit(requestCompletion()),
       ],
-      'engineer:wi-002': [
+      'engineer:work-item:catalog-tags': [
         submit(completionProposed('Added the tag store.'), write('tags.ts', 'export const tags = new Set<string>();\n')),
         submit(completionProposed('Limited a tag.'), write('limit.ts', 'export const tagLimit = (text: string) => text.length <= 50;\n')),
         submit(completionProposed('Corrected the tag limit.'), write('limit.ts', 'export const tagLimit = (text: string) => text.length <= 500;\n')),
       ],
     },
     reviewers: {
-      // wi-001's selection is the principles document; wi-002's adds the tags README.
+      // work-item:review-notes's selection is the principles document; work-item:catalog-tags's adds the tags README.
       'orientation#1': orientation([principles]),
       'orientation#2': orientation([principles, tagsReadme]),
-      // wi-001.i01 and wi-002.i01: clean.
+      // work-item:review-notes.i01 and work-item:catalog-tags.i01: clean.
       'rq-0001': review([store]), 'rq-0002': review([store]), 'rq-0003': review([store]),
       'rq-0004': review([tagStore]), 'rq-0005': review([tagStore]), 'rq-0006': review([tagStore]),
-      // wi-002.i02: three concurrent readers, four concerns, committed in request order.
+      // work-item:catalog-tags.i02: three concurrent readers, four concerns, committed in request order.
       'rq-0007': review([tagLimit], [concerns.defect, concerns.simplification],
         (policy.concurrency ?? 2) > 1 ? [afterStarted(root, 'rq-0008.a01')] : []),
       'rq-0008': review([tagLimit], [concerns.scope], [afterFinished(root, ['rq-0007.a01'])]),
       'rq-0009': review([tagLimit], [concerns.design], [afterFinished(root, ['rq-0008.a01'])]),
-      // wi-002.i03, the correction: one more low-risk signal from its code review.
+      // work-item:catalog-tags.i03, the correction: one more low-risk signal from its code review.
       'rq-0010': review([tagLimit], [concerns.constant]), 'rq-0011': review([tagLimit]), 'rq-0012': review([tagLimit]),
     },
     reconcilers: {
-      'wi-002.rc01': reconcile(submission([
-        disposition('cf-0001', { action: 'repair' }),
-        disposition('cf-0004', { action: 'repair' }),
-        disposition('cf-0003', { action: 'supersede', reassessed: ['cfr-0003'], replacement: 'The assignment cites the plan\'s limit; the limit is in scope.' }),
-        disposition('cf-0002', { action: 'waive', uncertainty: 'Either input serves.' }, {
+      'work-item:catalog-tags.rc01': reconcile(submission([
+        disposition('finding:case-0001', { action: 'repair' }),
+        disposition('finding:case-0004', { action: 'repair' }),
+        disposition('finding:case-0003', { action: 'supersede', reassessed: ['cfr-0003'], replacement: 'The assignment cites the plan\'s limit; the limit is in scope.' }),
+        disposition('finding:case-0002', { action: 'waive', uncertainty: 'Either input serves.' }, {
           communication: { mode: 'report', choice: 'The limit takes the text as given.', uncertainty: 'Either input serves.', reason: 'It departs from the reviewer\'s suggestion.' },
         }),
       ], { kind: 'correct', goal: 'Make the tag limit 500 characters, as the plan and the catalog principle ask.' }, [
-        { from: 'cf-0004', to: 'cf-0001', relation: 'same-issue', shared: 'The tag limit is 500 characters.', evidence: [`${tagLimit}:1`], rationale: 'Both name the 50-character limit of the same function.' },
-        { from: 'cf-0002', to: 'cf-0001', relation: 'related-but-distinct', shared: 'The tag limit function.', evidence: [`${tagLimit}:1`], rationale: 'One is a defect, the other a simplification.' },
+        { from: 'finding:case-0004', to: 'finding:case-0001', relation: 'same-issue', shared: 'The tag limit is 500 characters.', evidence: [`${tagLimit}:1`], rationale: 'Both name the 50-character limit of the same function.' },
+        { from: 'finding:case-0002', to: 'finding:case-0001', relation: 'related-but-distinct', shared: 'The tag limit function.', evidence: [`${tagLimit}:1`], rationale: 'One is a defect, the other a simplification.' },
       ])),
-      'wi-002.rc02': reconcile(submission([
-        disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-        disposition('cf-0004', { action: 'fixed', reassessed: ['cfr-0004'] }),
-        disposition('cf-0005', { action: 'leave' }),
+      'work-item:catalog-tags.rc02': reconcile(submission([
+        disposition('finding:case-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
+        disposition('finding:case-0004', { action: 'fixed', reassessed: ['cfr-0004'] }),
+        disposition('finding:case-0005', { action: 'leave' }),
       ], { kind: 'unresolved' })),
     },
   };

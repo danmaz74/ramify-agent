@@ -22,13 +22,14 @@ test('CA30: provisional snapshot keeps staged, worktree, untracked and deleted b
   await writeFile(join(fixture.root, 'subs/a/src/extra.ts'), 'export const untracked = true;\n');
   await rm(join(fixture.root, 'subs/d/src/consumer.ts'));
   const captured = await captureProvisionalSource({
-    projectRoot: fixture.root, runDirectory: run.path, request: 'need-001', acceptedBase: base,
+    projectRoot: fixture.root, runDirectory: run.path, request: 'capability-request:read-source-fact', acceptedBase: base,
     writerSettledBy: 'inv-0001', changedPaths: await gitService.changedPaths(fixture.root, base),
   });
   const manifest = JSON.parse(await readFile(join(run.path, captured.snapshot), 'utf8')) as {
     files: Array<{ path: string; worktree: string | null; index: string | null; base: string | null }>;
     tree: string; snapshotHash: string;
   };
+  expect(captured.snapshot).toContain('capability-request%3Aread-source-fact');
   expect(captured.tree).toBe(manifest.tree);
   expect(captured.snapshotHash).toBe(manifest.snapshotHash);
   expect(captured.tree).not.toBe(captured.snapshotHash);

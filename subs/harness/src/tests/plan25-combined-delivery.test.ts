@@ -16,7 +16,7 @@ import { HarnessSessionOperations } from '../prompts/session-adapter.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
@@ -61,17 +61,17 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
     commits: [scenariosCommit('review-notes', 'scenarios-00', A), { commit: B, changes }, { commit: null }, { commit: null }],
     previews: Array.from({ length: 5 }, () => ({ repositoryRoot: root, head: B, tree: C })) });
   const roles = declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([entry('note-store', notes)]))],
+    'initial-architect': [submit(currentAnalysis(analysis([entry('note-store', notes)]), 'document:review-notes-plan'))],
     'local-architect': [submit(assign(notes, explicit ? { startingPoints: [assignmentPoint] } : {}, outline())), submit(requestCompletion())],
     engineer: [submit(completionProposed('Store implemented', explicit ? { startingPoints: [resultPoint, { path: 'missing.ts', note: 'Unavailable optional hint' }] } : {}), write(store, files[store]))],
   }));
   const agent = createScriptedAgent(spec => {
-    if (spec.submission.name === intakeToolName) return submit({ goal: 'Introduce note storage while preserving callers.', elements: [{ key: 'compatibility', kind: 'non-functional', document: 'doc-001', text: nfr, conditions: [], uncertainty: '' }], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } });
+    if (spec.submission.name === intakeToolName) return submit({ goal: 'Introduce note storage while preserving callers.', elements: [{ key: 'draft:non-functional-requirement:compatibility', kind: 'non-functional', document: 'document:review-notes-plan', text: nfr, conditions: [], uncertainty: '' }], incorporation: { documents: [{ document: 'document:review-notes-plan', scenarios: true, uncertainty: '' }], missing: [] } });
     if (spec.submission.name === 'submit_work_orientation') return submit({ focus: 'Note storage and callers', currentUnderstanding: 'Inspect existing callers before assigning implementation.', questions: [], ...(explicit ? { startingPoints: [orientationPoint] } : {}) });
-    if (spec.submission.name === 'submit_context_selection') return submit({ selected: [{ id: 'nfr-001', reason: 'Caller compatibility constrains note storage.', conditions: [], uncertainty: '' }] });
+    if (spec.submission.name === 'submit_context_selection') return submit({ selected: [{ id: 'non-functional-requirement:compatibility', reason: 'Caller compatibility constrains note storage.', conditions: [], uncertainty: '' }] });
     if (spec.submission.name === 'submit_orientation') return submit({ read: [readme], summary: 'Keep the store in memory.' });
     if (spec.submission.name === 'submit_review') return submit({ inspected: [store], missing: [], concerns: [] });
-    if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{ nfr: 'nfr-001', result: 'satisfied', inspectedScope: [store, caller], evidence: ['Independent candidate inspection'], uncertainty: '' }] },
+    if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{ nfr: 'non-functional-requirement:compatibility', result: 'satisfied', inspectedScope: [store, caller], evidence: ['Independent candidate inspection'], uncertainty: '' }] },
       { kind: 'tool', tool: 'snapshot_read', input: { path: caller } },
       { kind: 'tool', tool: 'snapshot_diff', input: { path: store } },
       { kind: 'tool', tool: 'snapshot_diff', input: { comparison: 'accepted-boundary' } });
@@ -168,7 +168,7 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
     }
     const origins = nfrPacket.additions.find(item => item.key === pointKey)!.text;
     expect(origins).toContain('"producer":"architect assignment"'); expect(origins).toContain('"producer":"engineer accepted result"');
-    expect(origins).toContain('"workItem":"wi-001"'); expect(origins).toContain('"iteration":"wi-001.i01"'); expect(origins).toContain(`"boundary":"${B}"`);
+    expect(origins).toContain('"workItem":"work-item:note-store"'); expect(origins).toContain('"iteration":"work-item:note-store.i01"'); expect(origins).toContain(`"boundary":"${B}"`);
   } else expect(packets.some(packet => packet.message.includes('Engineer result:'))).toBe(false);
   expect(architect[1]!.message).not.toContain('# Block procedure:local-architect:main');
   expect(architect[1]!.manifest.entries.some(item => item.delivery === 'inherited' && item.block?.key === 'procedure:local-architect:main')).toBe(true);

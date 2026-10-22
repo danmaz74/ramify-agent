@@ -166,8 +166,8 @@ export const runEventSchema = z.discriminatedUnion('type', [
   /**
    * Commits `EntryAssignments`, every `Hypothesis` at revision 1, one
    * `RegistryEntry` per entry capability, one `WorkItem` per entry
-   * capability and one `ScenarioRecord` per scenario, `sc-001` to
-   * `sc-<scenarios>`, every one `pending`. One event holds every record of
+   * capability and one `ScenarioRecord` per scenario, every one `pending`.
+   * Their exact scenario IDs are in `scenarioIds`. One event holds every record of
    * the phase, and the warnings the scenarios' form rules gave.
    */
   event('analysis-accepted', z.object({
@@ -177,6 +177,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     registry: z.int().nonnegative(),
     workItems: z.int().nonnegative(),
     scenarios: z.int().nonnegative(),
+    scenarioIds: z.array(text),
     warnings: z.array(scenarioWarningSchema),
     /** The frozen catalog's elements by kind. */
     catalog: z.object({
@@ -232,7 +233,9 @@ export const runEventSchema = z.discriminatedUnion('type', [
     /** Accepted coordinator close submission for unresolved choices; absent where the round closed without one. */
     actionInvocation: text.optional(),
   }).strict()),
-  event('nonfunctional-deviation-recorded', z.object({ deviation: text, nfr: text, assessment: text, checkFinding: text,
+  /** An exhausted close publishes every unresolved requirement in one finding transition. */
+  event('nonfunctional-deviations-recorded', z.object({ assessment: text, actionInvocation: text,
+    deviations: z.array(z.object({ deviation: text, nfr: text, checkFinding: text }).strict()).min(1),
     checkFindings: checkFindingEventsField,
   }).strict()),
   event('candidate-bound-to-gate', z.object({ candidate: text, assessment: text, gate: text, commit: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/) }).strict()),
@@ -240,10 +243,12 @@ export const runEventSchema = z.discriminatedUnion('type', [
     next: z.enum(['complete', 'correct', 'await-user', 'unresolved']), checkFindings: checkFindingEventsField }).strict()),
   /** Plan 16 coordination records are committed with these events. The
    * original request and each revision remain separate immutable records. */
-  event('capability-requested', z.object({ request: text, parent: text, assignment: text, invocation: text }).strict()),
+  event('capability-requested', z.object({ request: text, parent: text, assignment: text, invocation: text,
+    retiredRequest: text.optional() }).strict()),
   event('capability-qualified', z.object({ request: text, invocation: text,
     outcome: z.enum(['satisfied', 'request-placement', 'unresolved']), evidence: z.array(text) }).strict()),
-  event('capability-delegated', z.object({ task: text, request: text, parent: text, invocation: text, planRevision: z.literal(1) }).strict()),
+  event('capability-delegated', z.object({ task: text, request: text, parent: text, invocation: text, planRevision: z.literal(1),
+    retiredTask: text.optional() }).strict()),
   event('capability-plan-revised', z.object({ task: text, revision: z.int().positive(), basedOn: z.int().positive(), invocation: text }).strict()),
   event('capability-coordinator-resumed', z.object({ task: text, invocation: text, session: sessionIdSchema }).strict()),
   event('capability-exchange-opened', z.object({ task: text, exchange: text, invocation: text }).strict()),
@@ -378,6 +383,12 @@ export const runEventSchema = z.discriminatedUnion('type', [
     request: text,
     invocation: text,
     retry: z.int().positive(),
+  }).strict()),
+  event('fork-name-rejected', z.object({
+    request: text,
+    invocation: text,
+    field: text,
+    message: text,
   }).strict()),
   /**
    * Commits the `PlacementDecision`, the `RegistryEntry` revisions it
@@ -567,6 +578,8 @@ export const runEventSchema = z.discriminatedUnion('type', [
     followUps: z.array(z.object({ workItem: text, follows: text }).strict()),
     /** Iterations closed as `superseded` because they were bound to the previous revision. */
     superseded: z.array(text),
+    /** Accepted identities retired by this same atomic correction and their new replacements. */
+    retired: z.array(text).optional(),
   }).strict()),
   /**
    * An ordinary provider engineer reported that it cannot conform to the
@@ -1001,6 +1014,7 @@ export type RunWrite =
   | 'placement-requested'
   | 'view-refreshed'
   | 'fork-returned-partial'
+  | 'fork-name-rejected'
   | 'decision-accepted'
   | 'brief-appending'
   | 'brief-appended'

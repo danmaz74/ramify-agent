@@ -17,7 +17,7 @@ const snapshot: Observation = { n: 258, at, type: 'mutation', data: {
   callId: null, paths, added: null, deleted: null, observedBy: 'snapshot', toolFailed: false, attributable: false,
 } };
 const invocation = invocationSchema.parse({ schema: 'ramify-agent.invocation/1', id: 'inv-0012', role: 'engineer',
-  work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, attempt: 1,
+  work: { workItem: 'work-item:provider', iteration: 'work-item:provider.i01' }, attempt: 1,
   session: { requested: 'fresh', actual: 'fresh', ref: '' }, prompt: { package: 'engineer', hash, inputsHash: hash },
   scope: { write: null, measurement: null, size: null }, writer: true, base: 'before', startedAt: at,
 });
@@ -39,8 +39,8 @@ test.each(projectionObservations)('candidate differences preserve recorded prove
   await mkdir(dirname(observationsPath), { recursive: true });
   const bytes = `${JSON.stringify(observation)}\n`;
   await writeFile(observationsPath, bytes);
-  const assignment = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/1', id: 'wi-001.i01', workItem: 'wi-001',
-    outline: { id: 'wi-001', revision: 1, hash }, stage: 0, kind: 'ordinary', goal: 'Settle provider work.', approach: 'Implement provider.',
+  const assignment = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/2', id: 'work-item:provider.i01', workItem: 'work-item:provider',
+    outline: { id: 'work-item:provider', revision: 1, hash }, stage: 0, kind: 'ordinary', goal: 'Settle provider work.', approach: 'Implement provider.',
     scope: { revision: 1, base: { module: reviews, included: [] }, extra: [], read: [], bootstrap: [], rationale: 'Provider ownership.',
       resolved: { excluded: [], included: [], roots: [], files: [], view: { status: 'placeholder' },
         ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted', inputId: 'scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] } } },
@@ -51,11 +51,11 @@ test.each(projectionObservations)('candidate differences preserve recorded prove
     outcome: 'accepted', invocations: [invocation.id], gate: 'ga-001', commit: 'accepted', findings: [], changedAssumptions: [], artifacts: [],
   });
   const gate = gateAttemptSchema.parse({ schema: 'ramify-agent.gate-attempt/3', id: 'ga-001', checkpoint: 'iteration',
-    subject: { workItem: 'wi-001', iteration: assignment.id }, proposedBy: invocation.id, repairRound: 0, infrastructureAttempt: 0,
+    subject: { workItem: 'work-item:provider', iteration: assignment.id }, proposedBy: invocation.id, repairRound: 0, infrastructureAttempt: 0,
     head: 'before', commit: 'accepted', audited: 'accepted', evidence: null, guardedChanges: [], rules: [], commands: [], verdict: 'passed', cause: null, next: 'accept',
   });
   const run = constructedRun([
-    { type: 'analysis-accepted', data: {}, records: [{ path: 'work-items/wi-001/item.json', body: item('wi-001', { entry: 'provider' }) }] },
+    { type: 'analysis-accepted', data: {}, records: [{ path: 'work-items/work-item:provider/item.json', body: item('work-item:provider', { entry: 'capability:provider' }) }] },
     { type: 'iteration-assigned', data: {}, records: [{ path: 'assignment.json', body: assignment }] },
     { type: 'invocation-started', data: { invocation: invocation.id, role: 'engineer', session: 'ses-001', work: invocation.work }, records: [{ path: runLayout.invocation(invocation.id), body: invocation }] },
     { type: 'invocation-ended', data: { invocation: invocation.id, ended: 'submitted' }, records: [{ path: runLayout.outcome(invocation.id), body: outcome }] },
@@ -65,7 +65,7 @@ test.each(projectionObservations)('candidate differences preserve recorded prove
   const queries = new RunQueries({ projectRoot: directory, agentName: undefined,
     committed: () => run, committedRuns: () => [run], runVersions: () => [] });
   const metrics = metricsResponseSchema.parse(await queries.metrics(run.record.planId, run.record.jobId));
-  const work = workItemResponseSchema.parse(await queries.workItem(run.record.planId, run.record.jobId, 'wi-001'));
+  const work = workItemResponseSchema.parse(await queries.workItem(run.record.planId, run.record.jobId, 'work-item:provider'));
   const evidence = paths.map(path => ({ path, attributable: observation.data.attributable,
     observations: [{ number: observation.n, callId: observation.data.callId, observedBy: observation.data.observedBy,
       attributable: observation.data.attributable }], uncertainty: null,
@@ -73,7 +73,7 @@ test.each(projectionObservations)('candidate differences preserve recorded prove
   expect(metrics.evaluation.invocations[0]!.outsideScope).toEqual(paths);
   expect(metrics.evaluation.invocations[0]!.outsideScopeEvidence).toEqual(evidence);
   expect(metrics.evaluation.outsideScope).toEqual(evidence.map(({ path, ...proof }) => ({
-    invocation: invocation.id, role: 'engineer', workItem: 'wi-001', iteration: assignment.id, path, evidence: proof,
+    invocation: invocation.id, role: 'engineer', workItem: 'work-item:provider', iteration: assignment.id, path, evidence: proof,
   })));
   expect(work.iterations[0]!.invocations[0]!.outsideScopeEvidence).toEqual(evidence);
   expect(work.iterations[0]!.result).toMatchObject({ outcome: 'accepted', gate: 'ga-001', commit: 'accepted' });

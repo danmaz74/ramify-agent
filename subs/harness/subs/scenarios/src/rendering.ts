@@ -28,15 +28,15 @@ export interface RenderedFeatureFile {
 
 export const pendingTag: string = '@ramify-pending';
 
-/** `@ramify-sc-001` for `sc-001`. */
+/** The feature tag of one accepted scenario. */
 export function identityTagOf(id: string): string {
-  return `@ramify-${id}`;
+  return `@ramify-scenario-${id.slice('scenario:'.length)}`;
 }
 
 /** The identity tag's scenario ID, or `null` for any other tag. */
 export function scenarioIdOfTag(tag: string): string | null {
-  const match = /^@ramify-(sc-\d{3,})$/.exec(tag);
-  return match ? match[1]! : null;
+  const descriptive = /^@ramify-scenario-([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(tag);
+  return descriptive ? `scenario:${descriptive[1]}` : null;
 }
 
 const width = 78;

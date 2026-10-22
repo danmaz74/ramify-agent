@@ -36,17 +36,17 @@ describe('AS08: an integration scenario bound through expose-test', () => {
     const root = await integrationProject(cleanups);
     const { service, runId, git } = await runIntegration(cleanups, root, {
       ...entryTurns,
-      'local-architect:wi-003': [submit(bindAtAncestor), submit(requestCompletion())],
-      'engineer:wi-003': [bindTurn],
-    }, [...entryCommits, bindCommit, unchanged('wi-003'), unchanged(finalSubject)]);
+      'local-architect:work-item:bind-a-written-note-is-shown-with-its-tag': [submit(bindAtAncestor), submit(requestCompletion())],
+      'engineer:work-item:bind-a-written-note-is-shown-with-its-tag': [bindTurn],
+    }, [...entryCommits, bindCommit, unchanged('work-item:bind-a-written-note-is-shown-with-its-tag'), unchanged(finalSubject)]);
 
     const snapshot = onlyRun(service, plan);
     expect(snapshot.failure).toBeNull();
     expect(snapshot.state).toBe('completed');
     expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 3 });
     const log = await runEventsOnDisk(root, plan, runId);
-    expect(log.find(event => event.type === 'obligation-bound' && event.data.id === 'sc-003')).toBeDefined();
-    expect(log.find(event => event.type === 'obligation-reported' && event.data.id === 'sc-003' && event.data.judgment === 'done')).toBeDefined();
+    expect(log.find(event => event.type === 'obligation-bound' && event.data.id === 'scenario:a-written-note-is-shown-with-its-tag')).toBeDefined();
+    expect(log.find(event => event.type === 'obligation-reported' && event.data.id === 'scenario:a-written-note-is-shown-with-its-tag' && event.data.judgment === 'done')).toBeDefined();
     expect(log.at(-1)!.type).toBe('job-completed');
     git.assertAnswered();
 
@@ -55,7 +55,7 @@ describe('AS08: an integration scenario bound through expose-test', () => {
     expect(readFileSync(join(root, ancestorSteps), 'utf8')).toBe(ancestorStepFile);
     expect(readFileSync(join(root, notesModule), 'utf8')).toContain('expose-test reviewNoteSteps from "steps/review-note.steps.ts" to parent');
     expect(readFileSync(join(root, tagsModule), 'utf8')).toContain('expose-test reviewTagsSteps from "steps/review-tags.steps.ts" to parent');
-    expect(readFileSync(join(root, integrationFeature), 'utf8')).toContain('  @ramify-sc-003\n');
+    expect(readFileSync(join(root, integrationFeature), 'utf8')).toContain('  @ramify-scenario-a-written-note-is-shown-with-its-tag\n');
     for (const file of [noteSteps, tagSteps]) expect(readFileSync(join(root, file), 'utf8')).toContain('export const ');
 
     // The complete check a gate runs passes over that tree.

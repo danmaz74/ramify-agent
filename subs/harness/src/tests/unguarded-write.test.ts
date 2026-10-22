@@ -9,7 +9,7 @@ import type { Observation } from '../../subs/task-execution/src/observations.js'
 import type { IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import {
   addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, read, shell, submit, treeInputs,
 } from './helpers/iterations.js';
@@ -67,7 +67,7 @@ describe('X6: an unguarded shell mutation and an outside read make the MVP\'s li
       git: gitService,
       inputs: treeInputs(),
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion()),
           [{ kind: 'await', until: async () => { reachedCorrection(); } }, { kind: 'wait', ms: 60_000 }]],
         engineer: [submit(
@@ -96,7 +96,7 @@ describe('X6: an unguarded shell mutation and an outside read make the MVP\'s li
     expect((await stat(join(root, outsidePath))).isFile()).toBe(true);
     expect(await readFile(join(root, outsidePath), 'utf8')).toBe('export const outside = true;\n');
 
-    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
+    const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1)), 'utf8')) as IterationResult;
     const invocation = result.invocations[0]!;
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome(invocation)), 'utf8')) as InvocationOutcome;
     const observations = await observationsOf(root, runId, invocation);
@@ -160,6 +160,6 @@ describe('X6: an unguarded shell mutation and an outside read make the MVP\'s li
       expect(attempt.rules).toContainEqual(expect.objectContaining({ rule: 'write-scope', outcome: 'failed',
         violations: expect.arrayContaining([expect.objectContaining({ path: outsidePath })]) }));
     }
-    expect(await git(root, 'log', '--all', '--format=%s')).not.toContain('wi-001.i01');
+    expect(await git(root, 'log', '--all', '--format=%s')).not.toContain('work-item:review-note.i01');
   }, 300_000);
 });

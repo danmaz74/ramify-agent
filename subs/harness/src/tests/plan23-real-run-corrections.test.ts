@@ -7,7 +7,7 @@ import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extracti
 import { coordinatorAssessmentToolName } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
 import { copyFixture } from './helpers/fixture.js';
 import { defaultTurn, withDefaultTurns } from './helpers/declarations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { openRunsWithoutProcesses, expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { scriptedGit, scenariosCommit } from './helpers/scripted-git.js';
@@ -247,33 +247,33 @@ test('actual RunService delivers accepted classifications, rejects a bad catalog
   const plan = join(fixture.root, 'plans/revision-diff/plan.md');
   const requirement = 'Preserve the configured timeout.'; const advice = 'Use Redis if practical.';
   await writeFile(plan, `# Request\n\n${requirement}\n${advice}\n\n# Acceptance\n\nThe scenario passes.\n`);
-  let local = 0; let initialPrompt = ''; const initial = analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]);
+  let local = 0; let initialPrompt = ''; const initial = currentAnalysis(analysis([entry('review-summary', 'collection-review/workspace/reviews/core')]), 'document:revision-diff-plan');
   const agent = createScriptedAgent(withDefaultTurns(spec => {
     if (spec.submission.name === intakeToolName) {
       const input = (defaultTurn(spec)![0] as { input: Record<string, unknown> }).input;
       return submit({ ...input, elements: [
-        { key: 'timeout', kind: 'non-functional', document: 'doc-001', text: requirement, conditions: [], uncertainty: '' },
-        { key: 'redis', kind: 'recommendation', document: 'doc-001', text: advice, conditions: [], uncertainty: 'Optional.' },
+        { key: 'draft:non-functional-requirement:timeout', kind: 'non-functional', document: 'document:revision-diff-plan', text: requirement, conditions: [], uncertainty: '' },
+        { key: 'draft:recommendation:redis', kind: 'recommendation', document: 'document:revision-diff-plan', text: advice, conditions: [], uncertainty: 'Optional.' },
       ] });
     }
     if (spec.role === 'initial-architect') {
       initialPrompt = spec.prompt;
-      return [{ kind: 'submit', input: { ...initial, entries: [{ ...initial.entries[0]!, requirementRefs: ['missing-functional'] }] } }, ...submit(initial)];
+      return [{ kind: 'submit', input: { ...initial, entries: [{ ...initial.entries[0]!, functionalRequirementKeys: ['draft:functional-requirement:missing-functional'] }] } }, ...submit(initial)];
     }
     if (spec.submission.name === 'submit_work_item_result') return local++ === 0
-      ? submit(assign('collection-review/workspace/reviews/core', { citedElements: ['fr-001'], obligations: ['sc-001'] }, outline()))
-      : submit({ ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] });
-    if (spec.role === 'engineer') return submit(completionProposed('Declared implementation complete.', { bindings: [{ id: 'sc-001' }] }));
+      ? submit(assign('collection-review/workspace/reviews/core', { citedElements: ['functional-requirement:review-summary-request'], obligations: ['scenario:review-summary-is-used'] }, outline()))
+      : submit({ ...requestCompletion(), reports: [{ id: 'scenario:review-summary-is-used', judgment: 'done', basedOnRevision: 0 }] });
+    if (spec.role === 'engineer') return submit(completionProposed('Declared implementation complete.', { bindings: [{ id: 'scenario:review-summary-is-used' }] }));
     if (spec.submission.name === coordinatorAssessmentToolName) {
       expect(spec.prompt).toContain(requirement); expect(spec.prompt).not.toContain(advice);
       expect(spec.prompt).toContain('\"changedPaths\":[]'); expect(spec.prompt).toContain('\"snapshotScope\":[\".\"]');
-      return submit({ kind: 'assessment', results: [{ nfr: 'nfr-001', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Prepared source inspected.'], uncertainty: '' }] });
+      return submit({ kind: 'assessment', results: [{ nfr: 'non-functional-requirement:timeout', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Prepared source inspected.'], uncertainty: '' }] });
     }
     return [];
   }));
   const scenario = scenariosCommit('revision-diff'); const tree = 'a'.repeat(40);
   const git = scriptedGit(fixture.root, { head: 'unchanged-fixture-revision', checkpoints: [scenario,
-    { subject: 'wi-001.i01', commit: null, changes: [] }, { subject: 'wi-001', commit: null, changes: [] },
+    { subject: 'work-item:review-summary.i01', commit: null, changes: [] }, { subject: 'work-item:review-summary', commit: null, changes: [] },
     { subject: 'final verification of plan "revision-diff"', commit: null, changes: [] }],
     previews: Array.from({ length: 5 }, () => ({ repositoryRoot: fixture.root, head: scenario.commit!, tree })) });
   const candidates = scriptedCandidates(fixture.root, { [scenario.commit!]: { tree, files: {}, base: 'unchanged-fixture-revision', changes: [] }, [tree]: { tree, files: {}, base: scenario.commit!, changes: [],
@@ -285,12 +285,12 @@ test('actual RunService delivers accepted classifications, rejects a bad catalog
   expect(initialPrompt).toContain('Accepted intake classifications and incorporation:');
   expect(initialPrompt).toContain('"kind":"non-functional"'); expect(initialPrompt).toContain('"kind":"recommendation"');
   const initialSession = agent.sessions.find(session => session.spec.role === 'initial-architect')!;
-  expect(JSON.stringify(initialSession.verdicts[0])).toContain('missing-functional');
+  expect(JSON.stringify(initialSession.verdicts[0])).toContain('draft:functional-requirement:missing-functional');
   expect(JSON.stringify(initialSession.verdicts[0])).toContain('false');
   expect(JSON.stringify(initialSession.verdicts.at(-1))).toContain('true');
   const accepted = events.find(event => event.type === 'analysis-accepted')!;
   expect(accepted.data.catalog).toEqual({ context: 0, functional: 2, nonFunctional: 1, fixed: 0, recommendation: 1 });
-  expect(events.filter(event => event.type === 'obligation-reported').map(event => event.data.id)).toContain('sc-001');
+  expect(events.filter(event => event.type === 'obligation-reported').map(event => event.data.id)).toContain('scenario:review-summary-is-used');
   git.assertComplete();
 });
 
@@ -314,9 +314,9 @@ test('reconstructed equipment retains genuine provider findings and continues lo
 
 
 test('pending-tag attribution requires the exact candidate rendering and accepted producer bytes', () => {
-  const bytes = new TextEncoder().encode(JSON.stringify({ schema: 'ramify-agent.engineer-submission/1', ...completionProposed('Bound.', { bindings: [{ id: 'sc-001' }] }) }));
-  const hash = createHash('sha256').update(bytes).digest('hex'); const candidate = '# tracked sc-001\nScenario: one\n';
-  const input = { path: 'src/tests/one.feature', scenario: 'sc-001', invocation: 'inv-accepted', submission: hash, submissionBytes: bytes, candidateBytes: candidate, expectedBytes: candidate };
-  expect(pendingBindingEvidence(input)).toEqual({ path: input.path, scenario: 'sc-001', invocation: 'inv-accepted', submission: hash, sha256: createHash('sha256').update(candidate).digest('hex') });
-  for (const changed of [{ candidateBytes: candidate + 'unexpected patch' }, { expectedBytes: undefined }, { submission: '0'.repeat(64) }, { scenario: 'sc-unbound' }, { submissionBytes: new TextEncoder().encode('{}') }]) expect(pendingBindingEvidence({ ...input, ...changed })).toBeNull();
+  const bytes = new TextEncoder().encode(JSON.stringify({ schema: 'ramify-agent.engineer-submission/2', ...completionProposed('Bound.', { bindings: [{ id: 'scenario:one-is-used' }] }) }));
+  const hash = createHash('sha256').update(bytes).digest('hex'); const candidate = '# tracked scenario:one-is-used\nScenario: one\n';
+  const input = { path: 'src/tests/one.feature', scenario: 'scenario:one-is-used', invocation: 'inv-accepted', submission: hash, submissionBytes: bytes, candidateBytes: candidate, expectedBytes: candidate };
+  expect(pendingBindingEvidence(input)).toEqual({ path: input.path, scenario: 'scenario:one-is-used', invocation: 'inv-accepted', submission: hash, sha256: createHash('sha256').update(candidate).digest('hex') });
+  for (const changed of [{ candidateBytes: candidate + 'unexpected patch' }, { expectedBytes: undefined }, { submission: '0'.repeat(64) }, { scenario: 'scenario:other-is-used' }, { submissionBytes: new TextEncoder().encode('{}') }]) expect(pendingBindingEvidence({ ...input, ...changed })).toBeNull();
 });

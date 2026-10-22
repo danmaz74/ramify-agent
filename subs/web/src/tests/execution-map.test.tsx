@@ -47,6 +47,18 @@ function view(onOpenGate = vi.fn()) {
   return onOpenGate;
 }
 
+test('detail requests use accepted capability and scenario IDs', async () => {
+  const getExecutionCapability = vi.fn(async () => capabilityDetail);
+  const getExecutionScenario = vi.fn(async () => scenarioDetail);
+  const c = { ...client(), getExecutionCapability, getExecutionScenario } as unknown as ProtocolClient;
+  render(<ExecutionMapArea client={c} planId="nested-provider-map" runId="run-scripted-map" version={42} events={[]} onOpenGate={vi.fn()} />);
+  const canvas = await screen.findByLabelText('Zoomable execution canvas');
+  fireEvent.click(within(canvas).getByRole('button', { name: /status-badge, capability/ }));
+  await waitFor(() => expect(getExecutionCapability).toHaveBeenCalledWith('nested-provider-map', 'run-scripted-map', 'capability:status-badge', 42));
+  fireEvent.click(within(canvas).getByRole('button', { name: /Renders the status badge, scenario/ }));
+  await waitFor(() => expect(getExecutionScenario).toHaveBeenCalledWith('nested-provider-map', 'run-scripted-map', 'scenario:sc-status', 42));
+});
+
 test('typed layout keeps one shared provider and finite cycle references, with ordered iterations', () => {
   const result = executionLayout(canvasNodes, canvasLinks, new Set());
   expect(result.placements.filter(p => p.key === 'capability:theme-tokens')).toHaveLength(1);
@@ -250,7 +262,7 @@ test('a long coverage list keeps its count and first facts visible, with every g
 
 test('a work item the run holds for the person\'s decision is marked on its card, in words', async () => {
   render(<ExecutionMapArea client={client()} planId="nested-provider-map" runId="run-scripted-map" version={42} events={[]}
-    onOpenGate={vi.fn()} waitingWorkItems={new Set(['wi-status'])} />);
+    onOpenGate={vi.fn()} waitingWorkItems={new Set(['work-item:wi-status'])} />);
   const canvas = await screen.findByLabelText('Zoomable execution canvas');
   const card = within(canvas).getByRole('button', { name: /^Implement status badge, work-item, waiting for your decision/ });
   expect(card.textContent).toContain('Waiting for your decision');

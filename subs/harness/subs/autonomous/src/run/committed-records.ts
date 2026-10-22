@@ -8,7 +8,7 @@ import { type WorkItem, type WorkItemOutline } from '../../subs/work-coordinatio
 import { type IterationAssignment, type IterationResult } from '../../subs/work-coordination/src/work/iterations.js';
 import { type Invocation, type InvocationOutcome } from '../../../task-execution/src/records.js';
 import { type PlacementDecision, type PlacementRequest } from '../../subs/work-coordination/src/architecture/records.js';
-import { type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../../subs/work-coordination/src/contracts/records.js';
+import { type ConsumerRequirement, type ContractRecord, type ProviderObligation, type ExecutionRetirement } from '../../subs/work-coordination/src/contracts/records.js';
 import { type CapabilityExchange, type CapabilityHandback, type CapabilityPlan, type CapabilityRequest, type CapabilityTask } from '../../subs/work-coordination/src/capability/records.js';
 
 /*
@@ -50,6 +50,7 @@ export interface CommittedRecords {
   readonly obligations: ReadonlyMap<string, ProviderObligation>;
   /** Every consumer requirement at its highest committed revision. */
   readonly requirements: ReadonlyMap<string, ConsumerRequirement>;
+  readonly retirements: ReadonlyMap<string, ExecutionRetirement>;
   readonly capabilityRequests: ReadonlyMap<string, CapabilityRequest>;
   readonly capabilityTasks: ReadonlyMap<string, CapabilityTask>;
   readonly capabilityPlans: ReadonlyMap<string, readonly CapabilityPlan[]>;
@@ -61,7 +62,7 @@ export interface CommittedRecords {
 export function committedRecords(entries: readonly ReplayedLine[]): CommittedRecords {
   const { hypotheses, registry } = planningRecords(entries);
   const { invocations, outcomes } = invocationRecords(entries);
-  const { workItems, outlines, assignments, results, requests, decisions, contracts, obligations, requirements, capabilityRequests, capabilityTasks, capabilityPlans, capabilityExchanges, capabilityHandbacks } = coordinationRecords(entries);
+  const { workItems, outlines, assignments, results, requests, decisions, contracts, obligations, requirements, retirements, capabilityRequests, capabilityTasks, capabilityPlans, capabilityExchanges, capabilityHandbacks } = coordinationRecords(entries);
   return {
     hypotheses,
     registry,
@@ -76,6 +77,7 @@ export function committedRecords(entries: readonly ReplayedLine[]): CommittedRec
     contracts,
     obligations,
     requirements,
+    retirements,
     capabilityRequests,
     capabilityTasks,
     capabilityPlans,

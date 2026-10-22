@@ -1,11 +1,12 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
+import { iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import type { Observation } from '../../subs/task-execution/src/observations.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, shell, submit, treeInputs } from './helpers/iterations.js';
 import { initRepository, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 import { gitService } from '../../subs/evidence/src/git.js';
@@ -63,7 +64,7 @@ describe('a tool that writes after cancellation', () => {
       // half a second.
       stopGraceMs: 30_000,
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [submit(
           // The submission the session would make if it were allowed to
@@ -117,7 +118,7 @@ describe('a tool that writes after cancellation', () => {
     expect(observations.some(line => line.type === 'activity' && line.data.activity.kind === 'tool' && line.data.activity.tool === 'shell')).toBe(true);
 
     // The iteration it was working is not accepted by anything it produced.
-    const result = await exists(runPath(root, 'review-notes', receipt.jobId, 'work-items', 'wi-001', 'iterations', '01', 'result.json'));
+    const result = await exists(runPath(root, 'review-notes', receipt.jobId, iterationLayout.result('work-item:review-note', 1)));
     expect(result).toBe(false);
   }, 300_000);
 });

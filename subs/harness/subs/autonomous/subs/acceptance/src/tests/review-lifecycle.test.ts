@@ -1,5 +1,6 @@
 import { readdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptStep } from '../../../../../agent/src/scripted.js';
 import type { ConfiguredAuditPort } from '../../../../../audit/src/check-execution.js';
@@ -43,12 +44,17 @@ afterEach(async () => {
 /** The only run of the project, whose ID a script step needs before the test has it. */
 let currentRun = '';
 const runIdOf = (): string => currentRun;
+const instabilityFinding = (project: string, path = `${notesDirectory}/src/tests/notes.test.ts`, testId = 'the note limit'): string => {
+  const identity = JSON.stringify({ projectRoot: '.', checkId: 'tests', command: 'vitest', runner: 'vitest', project, path, testId });
+  const observationKey = createHash('sha256').update(identity).digest('hex');
+  return `finding:audit-instability-${createHash('sha256').update(observationKey).digest('hex').slice(0, 16)}`;
+};
 
 const never = (): ScriptStep => ({ kind: 'await', until: () => new Promise(() => undefined) });
 /** A reader's turn that reads the path's patch through its tool, then submits a clean review of it. */
 const clean = (inspected: string): ScriptStep[] => [tool(snapshotToolNames.diff, { path: inspected }), { kind: 'submit', input: { inspected: [inspected], missing: [], concerns: [] } }];
 const concern = (path: string, summary: string): ScriptStep[] => [tool(snapshotToolNames.diff, { path }), { kind: 'submit', input: { inspected: [path], missing: [], concerns: [{
-  summary, consequence: `${summary}, so the behavior differs from the goal`, rationale: 'read the candidate', uncertainty: 'low',
+  findingKey: 'draft:finding:case-0001', summary, consequence: `${summary}, so the behavior differs from the goal`, rationale: 'read the candidate', uncertainty: 'low',
   remedy: 'a bounded change in the named file', locations: [{ path, startLine: 1, endLine: 1 }], suggests: null, risk: 'low', ground: null,
 }] } }];
 
@@ -109,7 +115,7 @@ describe('CF07: a stop owns every live reader, and a late result is fenced', () 
     // The third iteration's writer is live beside both readers: its session
     // has started, not only its invocation. A stop between the two ends the
     // invocation before any session exists, and there is none to stop.
-    await until(async () => (await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'invocation-started' && event.data.work.iteration === 'wi-001.i03')
+    await until(async () => (await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'invocation-started' && event.data.work.iteration === 'work-item:review-notes.i03')
       && run.agent!.sessions.filter(session => session.spec.role === 'engineer').length === 3);
     // Readers may still be writing, so the stop is sent at the version it finds.
     for (;;) {
@@ -204,7 +210,7 @@ describe('CF04: an unscheduled review', () => {
         'rq-0001': [{ kind: 'await', until: () => until(async () => {
           const events = await runEventsOnDisk(root, plan, runIdOf());
           return events.some(event => event.type === 'review-attempt-finished' && event.data.reason === 'queue-overflow')
-            && events.some(event => event.type === 'outline-revised' && event.data.workItem === 'wi-001' && event.data.architectRef !== undefined);
+            && events.some(event => event.type === 'outline-revised' && event.data.workItem === 'work-item:review-notes' && event.data.architectRef !== undefined);
         }) }, ...clean(store)],
         'rq-0002': clean(limit),
       },
@@ -238,7 +244,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     });
     await crashed.opened;
     const before = await settledLog(root, run.runId);
-    expect(before.some(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i01')).toBe(true);
+    expect(before.some(event => event.type === 'iteration-closed' && event.data.iteration === 'work-item:review-notes.i01')).toBe(true);
     expect(eventsOf(before, 'review-request-recorded')).toHaveLength(1);
     await staleCrashLock(root);
 
@@ -249,7 +255,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     expect(eventsOf(after, 'iteration-candidate-prepared')).toEqual(eventsOf(before, 'iteration-candidate-prepared'));
     expect(after.slice(0, before.length)).toEqual(before);
     expect(after.slice(before.length).map(event => event.type)).toEqual(['invocation-ended']);
-    expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'wi-001.i01', outcome: 'accepted' });
+    expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'work-item:review-notes.i01', outcome: 'accepted' });
     expect(eventsOf(after, 'review-request-recorded')).toEqual(eventsOf(before, 'review-request-recorded'));
     expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 1 });
 
@@ -308,7 +314,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     const run = await reviewRun(root, cleanups, {
       engineer: engineers(),
       reviewers: { 'rq-0001': clean(store), 'rq-0002': concern(limit, 'The limit counts UTF-16 units'), 'rq-0003': clean(store) },
-      reconcilers: { 'wi-001.rc01': reconcile(submission([disposition('cf-0001', { action: 'leave' })], { kind: 'unresolved' })) },
+      reconcilers: { 'work-item:review-notes.rc01': reconcile(submission([disposition('finding:case-0001', { action: 'leave' })], { kind: 'unresolved' })) },
     });
     const { service, runId } = run;
     const coverage = service.reviews(plan, runId)!;
@@ -405,16 +411,16 @@ describe('the gate audit and the run mutex', () => {
     const run = await reviewRun(root, cleanups, {
       configuredAudit: warningAudit, engineer: engineers(),
       reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
-      reconcilers: { 'wi-001.rc01': reconcile({ ...submission([
-        disposition('cf-0001', { action: 'waive', uncertainty: 'Existing test instability remains in the audit evidence.' }),
-      ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'added',
+      reconcilers: { 'work-item:review-notes.rc01': reconcile({ ...submission([
+        disposition(instabilityFinding('node'), { action: 'waive', uncertainty: 'Existing test instability remains in the audit evidence.' }),
+      ], { kind: 'complete' }), testOrigins: [{ checkFinding: instabilityFinding('node'), origin: 'added',
         basis: 'A mistaken origin claim.' }] }, { ...submission([
-        disposition('cf-0001', { action: 'waive', uncertainty: 'Existing test instability remains in the audit evidence.' }),
-      ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'existing',
+        disposition(instabilityFinding('node'), { action: 'waive', uncertainty: 'Existing test instability remains in the audit evidence.' }),
+      ], { kind: 'complete' }), testOrigins: [{ checkFinding: instabilityFinding('node'), origin: 'existing',
         basis: 'The exact test is present in the original execution baseline.' }] }) },
     });
     expect(onlyRun(run.service, plan).state, JSON.stringify(eventsOf(run.events, 'job-failed'))).toBe('completed');
-    const finding = run.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: 'cf-0001' });
+    const finding = run.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: instabilityFinding('node') });
     expect(finding?.ok && finding.view.kind === 'detail' ? finding.view.reports.items[0] : null)
       .toMatchObject({ observation: { kind: 'audit-instability', summary: expect.stringContaining('the note limit') }, source: { kind: 'tree', id: 'tree-01' } });
     expect(eventsOf(run.events, 'reconciliation-assessed')).toHaveLength(1);
@@ -442,8 +448,8 @@ describe('the gate audit and the run mutex', () => {
     const run = await reviewRun(root, cleanups, { configuredAudit: warningAudit, engineer: engineers(), previewCount: 5,
       reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
       reconcilers: { 'final-instability-ga-0006': reconcile({ ...submission([
-        disposition('cf-0001', { action: 'waive', uncertainty: 'The original test remains unstable in the retained audit.' }),
-      ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'existing',
+        disposition(instabilityFinding('node'), { action: 'waive', uncertainty: 'The original test remains unstable in the retained audit.' }),
+      ], { kind: 'complete' }), testOrigins: [{ checkFinding: instabilityFinding('node'), origin: 'existing',
         basis: 'The exact test is present in the original execution baseline.' }] }) },
     });
     expect(onlyRun(run.service, plan).state, JSON.stringify(eventsOf(run.events, 'job-failed'))).toBe('completed');
@@ -478,11 +484,11 @@ describe('the gate audit and the run mutex', () => {
       const scenario = { detached: true, configuredAudit: warningAudit, engineer: engineers(), previewCount: 5,
         reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
         reconcilers: { 'final-instability-ga-0006': reconcile({ ...submission([
-          disposition('cf-0001', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
-          disposition('cf-0002', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+          disposition(instabilityFinding('node'), { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+          disposition(instabilityFinding('browser'), { action: 'waive', uncertainty: 'The original test remains unstable.' }),
         ], { kind: 'complete' }), testOrigins: [
-          { checkFinding: 'cf-0001', origin: 'existing' as const, basis: 'This exact test exists in the original execution baseline.' },
-          { checkFinding: 'cf-0002', origin: 'existing' as const, basis: 'This exact test exists in the original execution baseline.' },
+          { checkFinding: instabilityFinding('node'), origin: 'existing' as const, basis: 'This exact test exists in the original execution baseline.' },
+          { checkFinding: instabilityFinding('browser'), origin: 'existing' as const, basis: 'This exact test exists in the original execution baseline.' },
         ] }) },
         serviceReady: (service: import('../../../../src/run/service.js').AutonomousRunService) => {
           if (cut === 'before-ingestion') {
@@ -526,7 +532,7 @@ describe('the gate audit and the run mutex', () => {
       expect(reconciled).toHaveLength(1);
       expect(reconciled[0]!.data.next).toBe('complete');
       expect(reconciled[0]!.data.checkFindings.map(change => change.type === 'check-finding-decided'
-        ? change.data.checkFinding : null)).toEqual(['cf-0001', 'cf-0002']);
+        ? change.data.checkFinding : null)).toEqual([instabilityFinding('node'), instabilityFinding('browser')]);
       expect(eventsOf(events, 'job-completed')[0]!.sequence).toBeGreaterThan(eventsOf(events, 'final-instability-reconciled')[0]!.sequence);
     }, 90_000);
 
@@ -547,12 +553,12 @@ describe('the gate audit and the run mutex', () => {
     const run = await reviewRun(root, cleanups, { detached: true, configuredAudit: warningAudit, engineer: engineers(),
       reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
       reconcilers: { 'final-instability-ga-0006': reconcile(
-        { ...submission([disposition('cf-0001', { action: 'waive', uncertainty: 'The warning is tolerable.' })], { kind: 'complete' }),
-          testOrigins: [{ checkFinding: 'cf-0001', origin: 'added', basis: 'This test was introduced by the plan.' }] },
-        { ...submission([disposition('cf-0001', { action: 'repair' })],
+        { ...submission([disposition(instabilityFinding('node'), { action: 'waive', uncertainty: 'The warning is tolerable.' })], { kind: 'complete' }),
+          testOrigins: [{ checkFinding: instabilityFinding('node'), origin: 'added', basis: 'This test was introduced by the plan.' }] },
+        { ...submission([disposition(instabilityFinding('node'), { action: 'repair' })],
           { kind: 'correct', goal: 'Replace the unstable added test with reliable coverage of the same behavior.' }),
-          testOrigins: [{ checkFinding: 'cf-0001', origin: 'added', basis: 'This test was introduced by the plan.' }] }) },
-      globalFork: [submit({ module: notes, goal: 'Repair the added test while preserving its assertions.',
+          testOrigins: [{ checkFinding: instabilityFinding('node'), origin: 'added', basis: 'This test was introduced by the plan.' }] }) },
+      globalFork: [submit({ workItemKey: 'draft:work-item:repair-added-note-test', module: notes, goal: 'Repair the added test while preserving its assertions.',
         rationale: 'The final audit retained provider instability for a plan-added test.' })],
       afterWrite: async (write, runId) => {
         if (write === 'work-item-started' && (await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'final-correction-planned')) {
@@ -636,15 +642,15 @@ describe('the gate audit and the run mutex', () => {
       reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(testPath), 'rq-0004': clean(testPath) },
       reconcilers: {
         'final-instability-ga-0006': reconcile({ ...submission([
-          disposition('cf-0001', { action: 'repair' }),
+          disposition(instabilityFinding('node', testPath, 'the added note limit'), { action: 'repair' }),
         ], { kind: 'correct', goal: 'Replace the unstable added test with reliable coverage.' }),
-        testOrigins: [{ checkFinding: 'cf-0001', origin: 'added', basis: 'The test was introduced by this plan.' }] }),
+        testOrigins: [{ checkFinding: instabilityFinding('node', testPath, 'the added note limit'), origin: 'added', basis: 'The test was introduced by this plan.' }] }),
         [`final-instability-${replacementGate}`]: [tool(snapshotToolNames.read, { path: testPath }), ...reconcile({ ...submission([
-          disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-        ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'added',
+          disposition(instabilityFinding('node', testPath, 'the added note limit'), { action: 'fixed', reassessed: ['cfr-0001'] }),
+        ], { kind: 'complete' }), testOrigins: [{ checkFinding: instabilityFinding('node', testPath, 'the added note limit'), origin: 'added',
           basis: 'The test was introduced by this plan.', coverageEvidence: 'Snapshot read of the repaired candidate verifies both deterministic note-limit assertions in the replacement test.' }] })],
       },
-      globalFork: [submit({ module: notes, goal: 'Replace the unstable test while retaining coverage.',
+      globalFork: [submit({ workItemKey: 'draft:work-item:replace-unstable-note-test', module: notes, goal: 'Replace the unstable test while retaining coverage.',
         rationale: 'The first final candidate established instability in a test introduced by the plan.' })],
     };
     let run = await reviewRun(root, cleanups, scenario);
@@ -683,7 +689,7 @@ describe('the gate audit and the run mutex', () => {
     expect(second.verdict).toBe('passed');
     expect(first.audited).toBe('revision-03');
     expect(second.audited).toBe('revision-04');
-    const finding = run.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: 'cf-0001' });
+    const finding = run.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: instabilityFinding('node', testPath, 'the added note limit') });
     expect(finding?.ok && finding.view.kind === 'detail' ? finding.view.summary : null)
       .toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
     expect(run.source.calls).toContain(`readBlob revision-04 ${testPath}`);
@@ -722,8 +728,8 @@ describe('the gate audit and the run mutex', () => {
     const run = await reviewRun(root, cleanups, { configuredAudit: warningAudit, engineer: engineers(), previewCount: 3,
       reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
       reconcilers: { 'final-instability-ga-0006': reconcile({ ...submission([
-        disposition('cf-0001', { action: 'leave' }),
-      ], { kind: 'unresolved' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'unknown',
+        disposition(instabilityFinding('node'), { action: 'leave' }),
+      ], { kind: 'unresolved' }), testOrigins: [{ checkFinding: instabilityFinding('node'), origin: 'unknown',
         basis: 'The available original source does not establish this individual test’s origin.' }] }) },
     });
     expect(onlyRun(run.service, plan).state).toBe('failed');

@@ -1,35 +1,34 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { scenarioElementRefSchema, type AcceptedScenarioForm } from './form.js';
+import { descriptiveSlug } from './extraction.js';
 
 /*
- * The scenario record, `ramify-agent.scenario/1`, and the numbering that
- * turns an accepted form into records: entry scenarios `sc-001`, … in
- * submission order, then the integration scenarios. An entry scenario's
+ * The scenario record and accepted descriptive identities. An entry scenario's
  * owner is its entry's; an integration scenario's is the lowest common
  * ancestor of its sub-scenarios' owners. A record is immutable once written,
  * except that a placement revision revises its `file`.
  */
 
-export const scenarioIdSchema = z.string().regex(/^sc-\d{3,}$/, 'A scenario ID, such as "sc-001"');
+export const scenarioIdSchema = z.string().regex(/^scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A scenario ID, such as "scenario:reject-missing-predecessor"');
 export type ScenarioId = z.infer<typeof scenarioIdSchema>;
 
 const lineRangeSchema = z.tuple([z.int().positive(), z.int().positive()]);
 
 export const scenarioRecordSchema = z.object({
-  schema: z.literal('ramify-agent.scenario/1'),
+  schema: z.literal('ramify-agent.scenario/2'),
   id: scenarioIdSchema,
   kind: z.enum(['entry', 'integration']),
   /** The entry capability; `null` for an integration scenario. */
-  entry: z.string().min(1).nullable(),
+  entry: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/).nullable(),
   /** A module's declared-name path. */
   owner: z.string().min(1),
   origin: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('plan'), planScenario: z.string().regex(/^ps-\d{2,}$/), ref: z.object({ document: z.string().regex(/^doc-\d{3,}$/).optional(), lines: lineRangeSchema }).strict() }).strict(),
+    z.object({ kind: z.literal('plan'), planScenario: z.string().regex(/^plan-scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/), ref: z.object({ document: z.string().regex(/^document:[a-z0-9]+(?:-[a-z0-9]+)*$/), lines: lineRangeSchema }).strict() }).strict(),
     z.object({ kind: z.literal('architect'), refs: z.array(scenarioElementRefSchema) }).strict(),
   ]),
-  /** Accepted catalog citations; absent on historical records. */
-  citedElements: z.array(scenarioElementRefSchema).optional(),
+  /** Accepted catalog citations. */
+  citedElements: z.array(scenarioElementRefSchema),
   /** The integration scenario this one is a sub-scenario of. */
   partOf: scenarioIdSchema.nullable(),
   /** An integration scenario's sub-scenarios; empty for an entry scenario. */
@@ -77,11 +76,6 @@ export function scenarioSourceHash(source: readonly string[]): string {
   return `sha256:${createHash('sha256').update(source.join('\n')).digest('hex')}`;
 }
 
-/** `sc-001`, `sc-002`, … for the 1-based position. */
-export function scenarioIdOf(position: number): ScenarioId {
-  return `sc-${String(position).padStart(3, '0')}`;
-}
-
 /** The lowest common ancestor of modules named by their declared-name paths. */
 export function lowestCommonAncestor(modules: readonly string[]): string {
   if (modules.length === 0) throw new Error('The lowest common ancestor of no module is undefined');
@@ -101,7 +95,7 @@ export function featureDirectoryOf(module: ScenarioModule, planId: string): stri
 }
 
 /**
- * Numbers the scenarios of an accepted form and builds their records. Every
+ * Names the scenarios of an accepted form and builds their records. Every
  * owner and ancestor must be among `context.modules`; a missing one is a
  * caller's error and throws.
  */
@@ -119,28 +113,36 @@ export function assignScenarioIds(form: AcceptedScenarioForm, context: ScenarioI
     return owner;
   };
 
+  const preferred = [
+    ...form.scenarios.map(scenario => scenario.key.startsWith('draft:scenario:') ? scenario.key.slice('draft:scenario:'.length) : descriptiveSlug(scenario.name)),
+    ...form.integrations.map(integration => descriptiveSlug(integration.name)),
+  ];
+  const counts = new Map<string, number>();
+  preferred.forEach(name => counts.set(name, (counts.get(name) ?? 0) + 1));
+  const descriptiveId = (name: string, source: string): ScenarioId => `scenario:${name}${counts.get(name)! > 1 ? `-${createHash('sha256').update(source).digest('hex').slice(0, 8)}` : ''}`;
   const idsByKey = new Map<string, ScenarioId>();
-  form.scenarios.forEach((scenario, index) => idsByKey.set(scenario.key, scenarioIdOf(index + 1)));
+  form.scenarios.forEach((scenario, index) => idsByKey.set(scenario.key, descriptiveId(preferred[index]!, `${scenario.origin.kind}:${scenario.key}:${scenario.source.join('\n')}`)));
   const idsByPlanScenario = new Map<string, ScenarioId>();
-  form.integrations.forEach((integration, index) => idsByPlanScenario.set(integration.planScenario, scenarioIdOf(form.scenarios.length + index + 1)));
+  form.integrations.forEach((integration, index) => idsByPlanScenario.set(integration.planScenario, descriptiveId(preferred[form.scenarios.length + index]!, `${integration.planScenario}:${integration.source.join('\n')}`)));
 
   const entryRecords = form.scenarios.map((scenario): ScenarioRecord => {
     const owner = ownerOf(scenario.entry);
     return {
-      schema: 'ramify-agent.scenario/1',
+      schema: 'ramify-agent.scenario/2',
       id: idsByKey.get(scenario.key)!,
       kind: 'entry',
       entry: scenario.entry,
       owner,
       origin: scenario.origin.kind === 'plan'
-        ? { kind: 'plan', planScenario: scenario.origin.planScenario, ref: { ...(scenario.origin.document === undefined ? {} : { document: scenario.origin.document }), lines: [scenario.origin.lines[0], scenario.origin.lines[1]] } }
+        ? { kind: 'plan', planScenario: scenario.origin.planScenario, ref: { document: scenario.origin.document!, lines: [scenario.origin.lines[0], scenario.origin.lines[1]] } }
         : { kind: 'architect', refs: [...scenario.origin.refs] },
+      citedElements: [],
       partOf: scenario.partOf === null ? null : idsByPlanScenario.get(scenario.partOf)!,
       subScenarios: [],
       name: scenario.name,
       source: [...scenario.source],
       hash: scenarioSourceHash(scenario.source),
-      file: `${featureDirectoryOf(moduleOf(owner), context.planId)}/${scenario.entry}.feature`,
+      file: `${featureDirectoryOf(moduleOf(owner), context.planId)}/${encodeURIComponent(scenario.entry).replace(/:/g, '%3A')}.feature`,
     };
   });
 
@@ -148,12 +150,13 @@ export function assignScenarioIds(form: AcceptedScenarioForm, context: ScenarioI
   const integrationRecords = form.integrations.map((integration): ScenarioRecord => {
     const owner = lowestCommonAncestor(integration.subScenarios.map((key) => ownerOf(byKey.get(key)!.entry)));
     return {
-      schema: 'ramify-agent.scenario/1',
+      schema: 'ramify-agent.scenario/2',
       id: idsByPlanScenario.get(integration.planScenario)!,
       kind: 'integration',
       entry: null,
       owner,
-      origin: { kind: 'plan', planScenario: integration.planScenario, ref: { ...(integration.document === undefined ? {} : { document: integration.document }), lines: [integration.lines[0], integration.lines[1]] } },
+      origin: { kind: 'plan', planScenario: integration.planScenario, ref: { document: integration.document!, lines: [integration.lines[0], integration.lines[1]] } },
+      citedElements: [],
       partOf: null,
       subScenarios: integration.subScenarios.map((key) => idsByKey.get(key)!),
       name: integration.name,

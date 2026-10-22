@@ -69,6 +69,7 @@ import { type RecordRef as CommitRecord } from '../../../../../src/jobs/commit.j
 
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../planning/src/evidence.js';
 import { assessmentSchema, type Assessment } from '../../../../nonfunctional/src/interfaces/contracts.js';
+import type { DocumentManifest } from '../../../../plan-evidence/src/interfaces/contracts.js';
 import { coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorInvestigationToolName } from './nonfunctional/submissions.js';
 
 import { documentChanges } from '../../planning/src/documents.js';
@@ -200,6 +201,7 @@ import { capabilityCompletionBlockers, replayCapabilityState } from '../../work-
 
 import { reviewAttemptId, reviewAttemptSchema, reviewLayout, reviewOrientationSchema, type ForkPoint, type ReviewAttempt, type ReviewOrientation, type ReviewRequest, type ReviewResult } from './reviews/records.js';
 import { reviewSubmissionSchema, type OrientationSubmission, type ReviewSubmission } from '../../../../reviews/src/interfaces/submissions.js';
+import { reviewJsonSchema, reviewSubmissionDescription } from '../../../../reviews/src/submission.js';
 import type { CapturedInput } from '../../../../reviews/src/inputs.js';
 import { prepareReview, type PreparedReview } from '../../../../reviews/src/preparation.js';
 import { ReviewQueue } from '../../../../reviews/src/scheduler.js';
@@ -247,10 +249,9 @@ import { readScopeMeasurement, writeScopeMeasurement } from '../../../../kpi/src
 import { takeLineSnapshot } from '../../../../kpi/src/lines.js';
 
 
-import { nextCheckFinding } from './deviations/finding.js';
 import { nonfunctionalDeviationCommands, nonfunctionalDeviationHash, prepareNonfunctionalDeviation } from './deviations/nonfunctional.js';
 import type { StandIn } from '../../work-coordination/src/contracts/parity.js';
-import { contractsLayout, obligationId, type ConsumerRequirement } from '../../work-coordination/src/contracts/records.js';
+import { contractsLayout, type ConsumerRequirement } from '../../work-coordination/src/contracts/records.js';
 import { conformanceKey, verificationKey } from '../../work-coordination/src/contracts/schedule.js';
 import { type EstablishedContract } from '../../work-coordination/src/contracts/submission.js';
 import { remainingInjections } from '../../work-coordination/src/contracts/verification.js';
@@ -266,7 +267,7 @@ import { iterationAssignmentSchema, iterationLayout } from '../../work-coordinat
 import { isContained } from '../../../../../src/guard/resolve-contained-path.js';
 import { scopeConfigurationPaths, captureGuardedFiles, guardedScopeOf, resolveWriteScope } from '../../../../../src/work/scope.js';
 
-import { workLayout, workItemId, workItemSchema, type WorkItem } from '../../work-coordination/src/work/records.js';
+import { workLayout, workItemSchema, type WorkItem } from '../../work-coordination/src/work/records.js';
 import { type ReconciliationBriefing } from '../../work-coordination/src/work/session.js';
 import { gateDiagnostics, type GateAudience } from './checks/diagnostics.js';
 
@@ -428,7 +429,8 @@ export class Acceptance {
     const kind = request.key.kind;
     const attempt = reviewAttemptId(id, state.attempts.length + 1);
     const queuedAt = state.attempts.at(-1)?.finished?.at ?? state.recordedAt;
-    const retryLeft = state.attempts.filter(entry => entry.finished !== null && !entry.finished.settles).length < policy.retries;
+    const retryLeft = state.attempts.filter(entry => entry.finished !== null && !entry.finished.settles
+      && entry.finished.reason !== 'name-conflict').length < policy.retries;
     const requestedStart = requestedStartOf(request);
     const base = { id: attempt, request: id, queuedAt, requestedStart };
     const unavailable = (detail: string) => this.finishReview(request, {
@@ -489,7 +491,15 @@ export class Acceptance {
     const checkFindings = knownFindingSummary({ ...this.observe().findings, findings: new Map([...this.observe().findings.findings].filter(([, entry]) =>
       sameWorkItem(entry.owner, request.workItem) && entry.verification.kind === 'assessment'
       && !entry.reports.some(report => report.observation.kind === 'audit-instability' || report.producer === 'review:test-reliability'))) });
-    const setup = [kind === 'design' ? '' : await this.ports.coordination.checkInputSection(snapshot)].filter(Boolean).join('\n');
+    const auditConfiguration = this.input.record.auditConfiguration;
+    const originalBaseline = auditConfiguration && 'config' in auditConfiguration ? auditConfiguration.config.sourceCommit : null;
+    const lastNameConflict = state.attempts.at(-1)?.finished?.reason === 'name-conflict'
+      ? reviewAttemptSchema.safeParse(this.ports.committedBody(reviewLayout.attempt(state.attempts.at(-1)!.id))) : null;
+    const setup = [kind === 'design' ? '' : await this.ports.coordination.checkInputSection(snapshot),
+      lastNameConflict?.success && lastNameConflict.data.result.result === 'not-verified'
+        ? `The preceding review submission could not be accepted: ${lastNameConflict.data.result.detail}. Correct the affected findingKey in this review.` : '',
+      `Original plan/execution baseline: ${originalBaseline ?? 'unavailable; preserve uncertainty about test origin'}. The iteration diff base is not the origin boundary. Inspect relevant original test source with Git through shell when needed.`,
+      `Retained gate/audit evidence: ${this.path(runLayout.gate(request.gate))}. Read the receipt and its provider evidence references for warning dispositions and current or retained instability; preserve the recorded verdict.`].filter(Boolean).join('\n');
     const planDocument = snapshot.entries.get(planPath(this.input.record.planId))?.kind === 'file' ? planPath(this.input.record.planId) : null;
     let prepared: PreparedReview;
     const preparation = new AbortController();
@@ -581,9 +591,9 @@ export class Acceptance {
       ...(step.fork === undefined ? {} : { fork: step.fork }),
       ...(start.degraded === undefined ? {} : { degraded: start.degraded }),
       toolName: step.submission.toolName,
-      description: step.submission.description,
-      inputSchema: step.submission.inputSchema,
-      submissionSchema: step.submission.submissionSchema,
+      description: reviewSubmissionDescription,
+      inputSchema: reviewJsonSchema,
+      submissionSchema: 'ramify-agent.review-submission/2',
       validate: prepared.validate,
       keep: () => finished('work-closed'),
       scope: { write: null, measurement: null, size: null },
@@ -668,7 +678,7 @@ export class Acceptance {
     const raw = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
     const { schema: _schema, ...body } = raw;
     const parsed = reviewSubmissionSchema.safeParse(body);
-    if (raw.schema !== 'ramify-agent.review-submission/1' || !parsed.success) {
+    if (raw.schema !== 'ramify-agent.review-submission/2' || !parsed.success) {
       await this.ports.fail('recovery-exhausted', `Reviewer ${invocation} has an invalid accepted submission for ${pending.id}`);
       return false;
     }
@@ -1170,7 +1180,7 @@ export class Acceptance {
       role: owner.role,
       task: { kind: 'reconciliation', goal: item.goal, requirements: [JSON.stringify(basis)], modules: [item.module],
         literalSections: [{ key: 'support:work-item-package', text: (await this.ports.coordination.currentSelection(item.id))?.packageText
-          ?? this.ports.coordination.planPackage(await this.ports.coordination.frozenCatalog(), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs]) }] },
+          ?? this.ports.coordination.planPackage(await this.ports.coordination.frozenCatalog(), [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds]) }] },
       work: owner.role === 'capability-architect' ? { capabilityTask: owner.id, request: owner.request } : { workItem: owner.id },
       attempt: basis.round,
       loaded,
@@ -1466,7 +1476,7 @@ export class Acceptance {
       const binding = await this.assessNonfunctional(agent, packages);
       if (binding === null || this.ports.ignoring()) return;
       try {
-        if (!await this.recordNonfunctionalDeviations(binding) || this.ports.ignoring()) return;
+        if (!await this.recordNonfunctionalDeviations(agent, packages, binding) || this.ports.ignoring()) return;
         const failed = await this.finalGate(agent, packages, binding);
         if (failed === undefined || this.ports.ignoring()) return;
         if (!await this.planFinalCorrection(agent, packages, binding, failed)) return;
@@ -1650,6 +1660,7 @@ export class Acceptance {
         prompt: [
           `Final verification ${gate.id} is ${gate.verdict}; a required reliability correction may remain even when the configured audit passed with warnings. The plan remains unfinished; accepted work is retained.`,
           `For this turn, use submit_final_correction to choose the module architect and goal for the next correction; its supplied schema defines this task's answer.`,
+          'Propose workItemKey draft:work-item:<correction-goal-name>. Its accepted name must be unused in this run.',
           'Investigate the actual diagnostics. Explain why the next approach should help; repeated failure requires reconsideration, not abandonment.',
           'An environment or verification issue may need investigation before source changes. Delegate that investigation as the goal where appropriate.',
           `Gate evidence: ${this.path(runLayout.gate(gate.id))}`,
@@ -1660,7 +1671,15 @@ export class Acceptance {
         start: { mode: 'fresh' }, keep: () => finished('work-closed'),
         toolName: 'submit_final_correction', description: 'Choose the responsible module architect and correction goal after failed final verification.',
         inputSchema: z.toJSONSchema(finalCorrectionSchema) as JsonSchema,
-        submissionSchema: 'ramify-agent.final-correction/1', validate: input => validateAgainst(finalCorrectionSchema, input),
+        submissionSchema: 'ramify-agent.final-correction/2',
+        validate: input => {
+          const result = validateAgainst(finalCorrectionSchema, input);
+          if (!result.ok || !('workItemKey' in result.value) || typeof result.value.workItemKey !== 'string') return result;
+          const id = result.value.workItemKey.slice('draft:'.length);
+          return committedRecords(this.observe().history.lines).workItems.some(item => item.id === id)
+            ? { ok: false, errors: [{ path: 'workItemKey', message: `${id} is already an accepted work item in this run`, expected: 'an unused draft:work-item:<correction-goal-name> key' }] }
+            : result;
+        },
         scope: { write: null, measurement: null, size: null }, writer: true,
         equip: session => ({ ...this.nonfunctionalTools(session, []),
           builtinTools: ['read', 'write', 'edit', 'grep', 'find', 'ls'] }),
@@ -1673,11 +1692,11 @@ export class Acceptance {
       accepted = { id: result.id, value: result.value };
     }
     if (this.ports.ignoring()) return false;
-    const records = committedRecords(this.observe().history.lines);
-    const item = workItemSchema.parse({ schema: 'ramify-agent.work-item/1', id: workItemId(records.workItems.length + 1),
+    const item = workItemSchema.parse({ schema: 'ramify-agent.work-item/2',
+      id: accepted.value.workItemKey.slice('draft:'.length),
       module: accepted.value.module, origin: { finalVerification: gate.id },
       goal: [accepted.value.goal, accepted.value.rationale, `Final verification: ${this.path(runLayout.gate(gate.id))}`, ...diagnostics.summary].join('\n\n'),
-      requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
+      functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null,
     });
     await this.ports.write({ type: 'final-correction-planned', data: { gate: gate.id, invocation: accepted.id,
       workItem: item.id, candidate: binding.candidateId, assessment: binding.assessment.id, round: binding.assessment.round } },
@@ -1835,6 +1854,7 @@ export class Acceptance {
   }
 
   private async recordNonfunctionalDeviations(
+    agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>,
     binding: { candidateId: string; assessment: Assessment },
   ): Promise<boolean> {
     const unavailable = async (reason: string, refs: string[] = []): Promise<false> => {
@@ -1880,7 +1900,7 @@ export class Acceptance {
     let action: CoordinatorAction;
     try {
       const envelope = JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
-      if (envelope.schema !== 'ramify-agent.nonfunctional-action/1') throw new Error('wrong close submission schema');
+      if (envelope.schema !== 'ramify-agent.nonfunctional-action/2') throw new Error('wrong close submission schema');
       const { schema: _schema, ...body } = envelope;
       action = coordinatorActionSchema.parse(body);
     } catch (error) {
@@ -1898,65 +1918,132 @@ export class Acceptance {
     if (preview.tree !== binding.assessment.candidate.tree) {
       throw new CandidateReassessmentRequired('The current candidate needs fresh assessment before recording deviations');
     }
-    for (const result of unresolved) {
-      const item = evidence.catalog.elements.find(candidate => candidate.id === result.nfr);
-      const choice = choices.get(result.nfr);
-      if (!item || !choice) return unavailable(`Fixed NFR ${result.nfr} has no accepted source or close choice`);
-      // Continuations after external repairs or architect corrections keep
-      // earlier decisions as history. A new candidate receives its own evidence.
-      const invalidated = new Set([
-        ...this.events('nonfunctional-final-invalidated').map(event => event.data.assessment),
-        ...this.events('final-correction-planned').map(event => event.data.assessment),
-      ]);
-      const history = this.events('nonfunctional-deviation-recorded').filter(event => event.data.nfr === result.nfr);
-      const previous = history.filter(event => event.data.assessment === binding.assessment.id);
-      if (previous.length > 1 || history.some(event => event.data.assessment !== binding.assessment.id
-        && !invalidated.has(event.data.assessment))) {
-        return unavailable(`NFR ${result.nfr} has a conflicting recorded deviation`);
+    return this.recordNamedNonfunctionalDeviations(agent, packages, binding, evidence.catalog, evidence.manifest,
+      action, actionId, unresolved, unavailable);
+  }
+
+  private async recordNamedNonfunctionalDeviations(
+    agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>,
+    binding: { candidateId: string; assessment: Assessment }, catalog: ElementCatalog, manifest: DocumentManifest,
+    original: CoordinatorAction, originalInvocation: string, unresolved: Assessment['results'],
+    unavailable: (reason: string, refs?: string[]) => Promise<false>,
+  ): Promise<boolean> {
+    const assessment = binding.assessment;
+    const recorded = this.events('nonfunctional-deviations-recorded').filter(event => event.data.assessment === assessment.id);
+    if (recorded.length > 1) return unavailable(`Assessment ${assessment.id} has multiple close batches`);
+    if (recorded.length === 1) {
+      const batch = recorded[0]!.data.deviations;
+      if (batch.length !== unresolved.length || new Set(batch.map(entry => entry.nfr)).size !== unresolved.length
+        || unresolved.some(result => !batch.some(entry => entry.nfr === result.nfr))) {
+        return unavailable(`Assessment ${assessment.id} has an incomplete close batch`);
       }
-      if (previous.length === 1) {
-        const event = previous[0]!;
-        const recorded = nonfunctionalDeviationSchema.safeParse(this.ports.committedBody(runLayout.nonfunctionalDeviation(event.data.deviation)));
-        const expected = prepareNonfunctionalDeviation({ id: event.data.deviation, checkFinding: event.data.checkFinding,
-          item, assessment: binding.assessment, result,
-          candidate: binding.assessment.candidate, coordinatorInvocation: binding.assessment.coordinatorInvocation,
-          proposedAlternative: choice.proposedAlternative ?? '', uncertainty: choice.uncertainty });
-        const finding = this.observe().findings.findings.get(event.data.checkFinding);
-        if (!recorded.success || !expected.ok || canonicalJson(recorded.data) !== canonicalJson(expected.record)
-          || finding?.reports[0]?.judgment?.ground?.hash !== nonfunctionalDeviationHash(recorded.data)
-          || finding.reports[0].observation.kind !== 'plan-deviation'
-          || finding.decisions[0]?.decision.action !== 'request-user-decision') {
-          return unavailable(`Previously recorded deviation for ${result.nfr} cannot be verified`);
+      for (const entry of batch) {
+        const record = nonfunctionalDeviationSchema.safeParse(this.ports.committedBody(runLayout.nonfunctionalDeviation(entry.deviation)));
+        const finding = this.observe().findings.findings.get(entry.checkFinding);
+        if (!record.success || record.data.origin.assessment !== assessment.id || record.data.origin.nfr !== entry.nfr
+          || record.data.checkFinding !== entry.checkFinding || finding?.reports[0]?.judgment?.ground?.hash !== nonfunctionalDeviationHash(record.data)
+          || finding.reports[0].observation.kind !== 'plan-deviation' || finding.decisions[0]?.decision.action !== 'request-user-decision') {
+          return unavailable(`Recorded close batch for ${assessment.id} cannot be verified`);
         }
-        continue;
       }
-      const version = this.observe().version;
-      const id = `nfd-${String(this.events('nonfunctional-deviation-recorded').length + 1).padStart(3, '0')}`;
-      const committed = await this.ports.commitFinding( ({ state }) => {
-        if (this.observe().version !== version || this.observe().terminal !== undefined) return { stale: 'The assessed candidate moved before deviation recording' };
-        if (this.events('nonfunctional-deviation-recorded').some(event => event.data.nfr === result.nfr
-          && event.data.assessment === binding.assessment.id)) {
-          return { stale: `NFR ${result.nfr} was already recorded` };
+      return true;
+    }
+    const task = `nfr-close-correction:${assessment.id}`;
+    const prior = this.events('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator' && event.data.work.task === task);
+    let selected = { value: original, invocation: originalInvocation };
+    for (const start of prior) {
+      const end = this.events('invocation-ended').find(event => event.data.invocation === start.data.invocation);
+      if (end?.data.ended !== 'submitted' || end.data.submission === null) continue;
+      const bytes = await readIfExists(this.path(runLayout.submission(start.data.invocation)));
+      const outcome = invocationOutcomeSchema.safeParse(this.ports.committedBody(runLayout.outcome(start.data.invocation)));
+      if (bytes === undefined || sha256(bytes) !== end.data.submission || !outcome.success
+        || outcome.data.disposition !== 'applied' || outcome.data.submission?.hash !== end.data.submission) {
+        return unavailable(`Close correction ${start.data.invocation} cannot be verified`);
+      }
+      const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+      if (schema !== 'ramify-agent.nonfunctional-action/2') return unavailable('Close correction has the wrong schema');
+      selected = { value: coordinatorActionSchema.parse(body), invocation: start.data.invocation };
+    }
+    const loaded = packages.get('nonfunctional-coordinator');
+    if (loaded === undefined) return unavailable('Non-functional coordinator package is unavailable for close correction');
+    while (!this.ports.ignoring()) {
+      if (selected.value.kind !== 'close') return unavailable('Close correction was not a close action');
+      const choices = selected.value.deviations;
+      if (choices.length !== unresolved.length || new Set(choices.map(choice => choice.nfr)).size !== unresolved.length
+        || unresolved.some(result => !choices.some(choice => choice.nfr === result.nfr))) {
+        return unavailable('Close correction does not dispose every unresolved NFR exactly once');
+      }
+      const currentTree = await this.ports.previewCandidateTree();
+      if (currentTree.tree !== assessment.candidate.tree) throw new CandidateReassessmentRequired('The candidate changed before close batch publication');
+      const committed = await this.ports.commitFinding(({ state }) => {
+        if (this.observe().terminal !== undefined) return { stale: 'The run ended before close batch publication' };
+        if (this.events('nonfunctional-deviations-recorded').some(event => event.data.assessment === assessment.id))
+          return { stale: 'The close batch was already recorded' };
+        const otherDeviations = new Set([
+          ...this.events('plan-deviation-recorded').map(event => event.data.deviation),
+          ...this.events('nonfunctional-deviations-recorded').flatMap(event => event.data.deviations.map(entry => entry.deviation)),
+        ]);
+        const entries: Array<{ deviation: string; nfr: string; checkFinding: string }> = [];
+        const records: CommitRecord[] = [];
+        const commands: import('../../../../check-findings/src/interfaces/check-findings.js').CheckFindingCommand[] = [];
+        for (const [index, choice] of choices.entries()) {
+          const id = choice.deviationKey.slice('draft:'.length);
+          const findingId = choice.findingKey.slice('draft:'.length);
+          if (otherDeviations.has(id) || entries.some(entry => entry.deviation === id))
+            return { stale: `deviations.${index}.deviationKey: ${id} is already accepted; propose a distinct name` };
+          if (state.findings.has(findingId) || entries.some(entry => entry.checkFinding === findingId))
+            return { stale: `deviations.${index}.findingKey: ${findingId} is already accepted; propose a distinct name` };
+          const item = catalog.elements.find(item => item.id === choice.nfr);
+          const result = unresolved.find(result => result.nfr === choice.nfr);
+          if (!item || !result) return { stale: `deviations.${index}.nfr: ${choice.nfr} has no assessed source` };
+          const prepared = prepareNonfunctionalDeviation({ id, checkFinding: findingId, item, assessment, result,
+            candidate: assessment.candidate, coordinatorInvocation: assessment.coordinatorInvocation,
+            proposedAlternative: choice.proposedAlternative ?? '', uncertainty: choice.uncertainty });
+          if (!prepared.ok) return { stale: `deviations.${index}: ${prepared.errors.join('; ')}` };
+          const path = runLayout.nonfunctionalDeviation(id);
+          const built = nonfunctionalDeviationCommands(state, prepared.record, manifest, path);
+          if (!built.ok) return { stale: `deviations.${index}: ${built.errors.join('; ')}` };
+          commands.push(...built.commands);
+          records.push({ path, id, revision: 1, body: prepared.record });
+          entries.push({ deviation: id, nfr: choice.nfr, checkFinding: findingId });
         }
-        const prepared = prepareNonfunctionalDeviation({ id, checkFinding: nextCheckFinding(state), item,
-          assessment: binding.assessment, result,
-          candidate: binding.assessment.candidate, coordinatorInvocation: binding.assessment.coordinatorInvocation,
-          proposedAlternative: choice.proposedAlternative ?? '', uncertainty: choice.uncertainty });
-        if (!prepared.ok) throw new Error(prepared.errors.join('; '));
-        const record = prepared.record;
-        const path = runLayout.nonfunctionalDeviation(id);
-        const commands = nonfunctionalDeviationCommands(state, record, evidence.manifest, path);
-        if (!commands.ok) throw new Error(commands.errors.join('; '));
-        return { commands: commands.commands, compose: decided => ({
-          event: { type: 'nonfunctional-deviation-recorded', data: { deviation: id, nfr: result.nfr,
-            assessment: binding.assessment.id, checkFinding: record.checkFinding, checkFindings: [...decided.events] } },
-          records: [{ path, id, revision: 1, body: record }],
+        return { commands, compose: decided => ({
+          event: { type: 'nonfunctional-deviations-recorded', data: { assessment: assessment.id,
+            actionInvocation: selected.invocation, deviations: entries, checkFindings: [...decided.events] } }, records,
         }) };
       }, this.ports.now());
-      if (committed.kind !== 'committed') return unavailable(`Could not record deviation ${id}: ${committed.kind === 'refused' ? committed.refusal.message : 'already replayed'}`);
-      this.ports.notify();
+      if (committed.kind === 'committed') { this.ports.notify(); return true; }
+      if (committed.kind === 'replayed') return unavailable('Close batch replayed without a recorded batch carrier');
+      const reason = committed.refusal.message;
+      if (!/^deviations\.\d+\.(?:deviationKey|findingKey):/u.test(reason)) {
+        return unavailable(`Could not publish complete close batch: ${reason}`);
+      }
+      const result = await this.ports.runInvocation<CoordinatorAction>(agent, {
+        role: 'nonfunctional-coordinator', work: { task }, task: { goal: `Correct close names for assessment ${assessment.id}`,
+          requirements: [this.ports.coordination.planPackage(catalog, unresolved.map(result => result.nfr))],
+          candidate: assessment.candidate.tree, snapshot: assessment.candidate.tree },
+        attempt: this.events('invocation-started').filter(event => event.data.work.task === task).length + 1,
+        loaded, systemPrompt: renderNonfunctionalCoordinatorPrompt(loaded, this.projectRoot, coordinatorActionToolName),
+        prompt: [`The accepted close assessment and judgments stand. Correct the conflicting draft key and submit a complete close action for the same unresolved requirements.`,
+          `Publication refused: ${reason}`, `Previous close submission: ${this.path(runLayout.submission(selected.invocation))}`].join('\n\n'),
+        start: { mode: 'fresh' }, toolName: coordinatorActionToolName,
+        description: 'Correct conflicting close names for the retained non-functional assessment.',
+        inputSchema: coordinatorActionJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-action/2',
+        validate: input => validateCoordinatorAction(input, {
+          decision: { action: 'close', round: assessment.round, outcome: 'exhausted', unresolved: unresolved.map(result => result.nfr) },
+          results: assessment.results, investigatedNfrs: [], moduleNames: [],
+          occupiedDeviationNames: new Set([
+            ...this.events('plan-deviation-recorded').map(event => event.data.deviation),
+              ...this.events('nonfunctional-deviations-recorded').flatMap(event => event.data.deviations.map(entry => entry.deviation)),
+          ]), occupiedFindingNames: new Set(this.observe().findings.findings.keys()),
+        }), keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
+        writer: true, equip: session => this.nonfunctionalTools(session, []),
+      });
+      if (result.ended !== 'submitted' || result.value?.kind !== 'close')
+        return unavailable(`Close correction ended ${result.ended} without a complete close action`);
+      selected = { value: result.value, invocation: result.id };
     }
-    return true;
+    return false;
   }
 
   private async closeNonfunctionalRound(
@@ -2071,8 +2158,16 @@ export class Acceptance {
         { assessment, allowedAction: decision.action, investigationPaths }), this.ports.coordination.planPackage(catalog, unresolved)].join('\n\n'),
       start: { mode: 'fresh' }, toolName: coordinatorActionToolName,
       description: 'Choose a bounded non-functional investigation, repair, or closure.',
-      inputSchema: coordinatorActionJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-action/1',
-      validate: input => validateCoordinatorAction(input, context),
+      inputSchema: coordinatorActionJsonSchema,
+      submissionSchema: 'ramify-agent.nonfunctional-action/2',
+      validate: input => validateCoordinatorAction(input, {
+        ...context,
+        occupiedDeviationNames: new Set([
+          ...this.events('plan-deviation-recorded').map(event => event.data.deviation),
+          ...this.events('nonfunctional-deviations-recorded').flatMap(event => event.data.deviations.map(entry => entry.deviation)),
+        ]),
+        occupiedFindingNames: new Set(this.observe().findings.findings.keys()),
+      }),
       keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
       writer: true, equip: session => this.nonfunctionalTools(session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: sourceInputs.comparisons, scope: undefined })),
     });
@@ -2369,7 +2464,7 @@ export class Acceptance {
     let assessment: Assessment;
     if (nfrIds.length === 0) {
       // An empty fixed catalog still needs explicit candidate-bound coverage.
-      assessment = assessmentSchema.parse({ schema: 'ramify-agent.nonfunctional-assessment/1', id,
+      assessment = assessmentSchema.parse({ schema: 'ramify-agent.nonfunctional-assessment/2', id,
         candidate: prepared.candidate, round, phase, coordinatorInvocation: 'harness:empty-catalog', results: [] });
     } else {
       const loaded = packages.get('nonfunctional-coordinator');
@@ -2592,7 +2687,8 @@ export class Acceptance {
       if (verified.has(verificationKey(evidence.requirement.id, evidence.requirement.revision))) continue;
       const requirement = records.requirements.get(evidence.requirement.id);
       if (requirement === undefined) continue;
-      const contract = [...records.contracts.values()].find(candidate => obligationId(candidate.id) === requirement.obligation);
+      const obligation = records.obligations.get(requirement.obligation);
+      const contract = obligation === undefined ? undefined : records.contracts.get(obligation.contract.id);
       if (contract === undefined) continue;
       const sites: Array<{ path: string; text: string }> = [];
       for (const path of requirement.evidence.fakeInjections) {
@@ -2861,7 +2957,7 @@ export class Acceptance {
     // never plainly: the count is of those still awaiting the person.
     const deviations = [
       ...this.events('plan-deviation-recorded').map(event => event.data.checkFinding),
-      ...this.events('nonfunctional-deviation-recorded').filter(event => event.data.assessment === binding.assessment.id).map(event => event.data.checkFinding),
+      ...this.events('nonfunctional-deviations-recorded').filter(event => event.data.assessment === binding.assessment.id).flatMap(event => event.data.deviations.map(entry => entry.checkFinding)),
     ];
     const findings = this.observe().findings.findings;
     const toReview = deviations.filter(id => findings.get(id)?.pendingUserDecision != null).length;

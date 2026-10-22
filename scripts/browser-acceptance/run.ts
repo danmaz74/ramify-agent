@@ -38,7 +38,7 @@ const durableNodes = durablePages.flatMap(page => page.nodes);
 check('exported run has two roots, one lower provider and verified consumer requirement',
   durableNodes.filter(node => node.kind === 'capability' && node.level === 'entry').length === 2 &&
   durableNodes.some(node => node.key === 'capability:note-limit') &&
-  durableNodes.some(node => node.key === 'requirement:rq-001' && node.kind === 'requirement' && node.state === 'verified'));
+  durableNodes.some(node => node.key === 'consumer-requirement:notes-note-limit' && node.kind === 'requirement' && node.state === 'verified'));
 await build({ configFile: false, root: fixtureRoot, plugins: [react()], resolve: { dedupe: ['react', 'react-dom'] },
   base: './', build: { outDir: buildDir, emptyOutDir: true }, logLevel: 'error' });
 const server = await preview({ configFile: false, root: fixtureRoot, build: { outDir: buildDir },
@@ -260,9 +260,9 @@ try {
   await durablePage.getByRole('button', { name: 'Fit', exact: true }).click();
   await durableCanvas.getByRole('button', { name: /review-note, capability/ }).focus();
   await durablePage.keyboard.press('Enter');
-  await durablePage.getByLabel('Details for review-note').waitFor();
+  await durablePage.getByLabel('Details for capability:review-note').waitFor();
   check('durable capability detail opens at the exported run version',
-    (await durablePage.getByLabel('Details for review-note').innerText()).includes('capability:review-note'));
+    (await durablePage.getByLabel('Details for capability:review-note').innerText()).includes('capability:review-note'));
   await durablePage.screenshot({ path: resolve(artifacts, 'durable-scripted-run-1440x900.png'), fullPage: true });
   check('durable browser page has no exceptions', durableErrors.length === 0);
 } catch (error) {

@@ -9,7 +9,7 @@ import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/check
 import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 
 
-import { analysis, entry } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { assign, completionProposed, read, shell, submit, write } from './helpers/iterations.js';
 import { onlyRun, runEventsOnDisk, runPath } from './helpers/runs.js';
 
@@ -22,7 +22,7 @@ describe('K7: a breaking feature is isolated into iterations that are green at e
   test('the reviewer-identity run stages the break, and every accepted boundary passes the breaking-iteration gate', async () => {
     const root = await target();
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('reviewer-identity', attribution)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-identity', attribution)]), 'document:reviewer-identity-plan'))],
       'local-architect': [
         // Stage 0: compatible preparation, in the one module that defines
         // the representation.
@@ -86,11 +86,11 @@ describe('K7: a breaking feature is isolated into iterations that are green at e
     expect(onlyRun(service, plan).state, JSON.stringify({ tail: (await runEventsOnDisk(root, plan, runId)).slice(-8), gates: (await gates(root, runId)).map(gate => ({ id: gate.id, verdict: gate.verdict, commands: gate.commands.map(command => ({ kind: command.kind, outcome: command.outcome, output: command.output.tail.slice(-1000) })) })) })).toBe('completed');
 
     // Three accepted iterations, each one a breaking iteration.
-    const assignments = await Promise.all([1, 2, 3].map(number => readAssignment(root, runId, 'wi-001', number)));
+    const assignments = await Promise.all([1, 2, 3].map(number => readAssignment(root, runId, 'work-item:reviewer-identity', number)));
     expect(assignments.map(assignment => assignment.kind)).toEqual(['breaking', 'breaking', 'breaking']);
     expect(assignments.map(assignment => assignment.gate.checkpoint)).toEqual(['breaking-iteration', 'breaking-iteration', 'breaking-iteration']);
     expect(assignments.map(assignment => assignment.gate.tests.policy)).toEqual(['all-project', 'all-project', 'all-project']);
-    const results = await Promise.all([1, 2, 3].map(number => readResult(root, runId, 'wi-001', number)));
+    const results = await Promise.all([1, 2, 3].map(number => readResult(root, runId, 'work-item:reviewer-identity', number)));
     expect(results.map(result => result.outcome)).toEqual(['accepted', 'accepted', 'accepted']);
 
     // The first stage is narrow; the two that break are the explicitly broad
@@ -144,7 +144,7 @@ describe('the breaking-iteration boundary is not green by default', () => {
   test('a break that leaves a consumer unadapted fails the whole-project gate, and only the adapted state is accepted', async () => {
     const root = await target();
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('reviewer-identity', attribution)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-identity', attribution)]), 'document:reviewer-identity-plan'))],
       'local-architect': [
         submit(assign(core, {
           kind: 'breaking',
@@ -207,8 +207,8 @@ describe('the breaking-iteration boundary is not green by default', () => {
     expect(breaking[1]!.repairRound).toBe(1);
     expect(breaking[1]!.commit).toBe('revision-02');
     expect(refused.commit).toBe('revision-01');
-    expect((await readResult(root, runId, 'wi-001', 1)).outcome).toBe('accepted');
-    expect((await readResult(root, runId, 'wi-001', 1)).commit).toBe('revision-02');
+    expect((await readResult(root, runId, 'work-item:reviewer-identity', 1)).outcome).toBe('accepted');
+    expect((await readResult(root, runId, 'work-item:reviewer-identity', 1)).commit).toBe('revision-02');
     scripted.assertComplete();
   }, 600_000);
 });
@@ -218,7 +218,7 @@ describe('K6: the gate is not satisfied by weakening what it checks', () => {
     const root = await target();
     const narrow = { base: { module: core, included: [] }, extra: [], read: [], rationale: 'The representation is defined here.' };
     const { service, runId, agent, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('reviewer-identity', attribution)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-identity', attribution)]), 'document:reviewer-identity-plan'))],
       'local-architect': [
         submit(assign(core, {
           kind: 'ordinary',
@@ -293,12 +293,12 @@ describe('K6: the gate is not satisfied by weakening what it checks', () => {
     const refusedWrites = firstEngineer.results.filter(result => result.tool === 'write' && result.isError);
     expect(refusedWrites).toHaveLength(1);
     expect(refusedWrites[0]!.text).toContain('vitest.config.ts');
-    expect((await readResult(root, runId, 'wi-001', 1)).outcome).toBe('unsuitable');
+    expect((await readResult(root, runId, 'work-item:reviewer-identity', 1)).outcome).toBe('unsuitable');
 
     // The architect was told which path, so it could record the revision.
-    const findings = (await readResult(root, runId, 'wi-001', 1)).findings;
+    const findings = (await readResult(root, runId, 'work-item:reviewer-identity', 1)).findings;
     expect(findings.some(finding => finding.includes('vitest.config.ts'))).toBe(true);
-    expect(existsSync(runPath(root, plan, runId, workLayout.outline('wi-001', 2)))).toBe(true);
+    expect(existsSync(runPath(root, plan, runId, workLayout.outline('work-item:reviewer-identity', 2)))).toBe(true);
 
     // The second: the same guarded file changed again, this time named by a
     // recorded revision, and the attempt passes.
@@ -307,16 +307,16 @@ describe('K6: the gate is not satisfied by weakening what it checks', () => {
     expect(authorized.cause).toBeNull();
     expect(authorized.guardedChanges).toHaveLength(1);
     expect(authorized.guardedChanges[0]!.path).toBe('vitest.config.ts');
-    expect(authorized.guardedChanges[0]!.authorizedBy).toMatchObject({ id: 'wi-001', revision: 2 });
-    const second = await readAssignment(root, runId, 'wi-001', 2);
+    expect(authorized.guardedChanges[0]!.authorizedBy).toMatchObject({ id: 'work-item:reviewer-identity', revision: 2 });
+    const second = await readAssignment(root, runId, 'work-item:reviewer-identity', 2);
     expect(second.authorizations).toHaveLength(1);
-    expect(second.authorizations[0]!.by).toMatchObject({ id: 'wi-001', revision: 2 });
+    expect(second.authorizations[0]!.by).toMatchObject({ id: 'work-item:reviewer-identity', revision: 2 });
     // The authorization admits the path to the scope, so the second change
     // was made through the guarded write and nothing was denied.
     expect(second.scope.resolved.files.some(file => file.endsWith('/vitest.config.ts'))).toBe(true);
     const secondEngineer = agent!.sessions.filter(session => session.spec.role === 'engineer')[1]!;
     expect(secondEngineer.denied).toEqual([]);
-    expect((await readResult(root, runId, 'wi-001', 2)).outcome).toBe('accepted');
+    expect((await readResult(root, runId, 'work-item:reviewer-identity', 2)).outcome).toBe('accepted');
     // Only the recorded authorization permits a source commit.
     expect([refused.commit, authorized.commit]).toEqual([null, 'revision-02']);
     scripted.assertComplete();
@@ -325,7 +325,7 @@ describe('K6: the gate is not satisfied by weakening what it checks', () => {
   test('a deleted guarded file is recorded as after: null and does not pass as an absent file', async () => {
     const root = await target();
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('reviewer-identity', attribution)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-identity', attribution)]), 'document:reviewer-identity-plan'))],
       'local-architect': [
         submit(assign(core, {
           goal: 'State the reviewer\'s role in the outcome.',

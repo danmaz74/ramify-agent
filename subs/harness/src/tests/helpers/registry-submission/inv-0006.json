@@ -1,1 +1,300 @@
-{"kind":"assign","outline":{"changes":"Publish one additive reviews.preview mutation using a required chain field parsed by the existing revisionChainSchema. Implement protocol-independent preview judgment in Review Validation, sharing existing rules and reusing Catalog Core's pure resolver through valid declarations. Preserve all existing review operations and report-fact semantics. Add assembled-client acceptance and type tests, local scenario bindings, direct provider purity tests, and accurate module documentation. Coordinate the resolver contract outside Reviews; the separate Catalog Core snapshot entry remains responsible for mutable-report isolation.","decomposition":{"kind":"single-iteration","rationale":"The local provider, adapter and acceptance tests form one additive vertical slice. A missing cross-owner resolver exposure must be requested from concrete calling code and coordinated through capability delegation before this engineer can finish; it is not a separate local contract iteration."},"reuse":[{"capability":"resolve-chain-predecessors","owner":"collection-review/workspace/catalog/core","role":"Existing pure history helper supplies ordered, repeated predecessor-resolution facts; request its narrow production exposure rather than copy its algorithm."},{"capability":"parse-revision-chain-arguments","owner":"collection-review/workspace/contracts","role":"Reuse existing revisionChainSchema and shared RevisionChain, ReviewStatus and Finding vocabulary without changing their contracts."},{"capability":"evaluate-proposed-revision-chain","owner":"collection-review/workspace/reviews/validation","role":"New neutral provider owns proposed-chain judgment and shares the existing review rules; Reviews consumes it directly."}],"breakingChanges":[],"stages":[{"title":"Integrate neutral preview provider, tRPC adapter and acceptance evidence","approach":"non-breaking","dependsOn":[],"note":"The ordinary engineer may implement Reviews and Validation. If the resolver contract remains unavailable, submit capability-needed with the actual Validation calling code and required behavior; do not bypass declarations. Resume integration after coordinated handback. Review the separate snapshot work's direct evidence before final completion."}],"revisionReason":"Initial outline after orientation and selection of the complete requirements package; ownership and dependencies are now explicit in nfr-002 and nfr-009."},"localDecisions":[{"decision":{"question":"Where should proposed-chain judgment live?","outcome":"create","capability":"evaluate-proposed-revision-chain","changesExistingSymbols":false,"owner":"collection-review/workspace/reviews/validation","rationale":"Validation already owns the deterministic finding rules. The requirements explicitly place the new protocol-independent provider there, outside the runtime subtree, with Reviews acting only as its protocol adapter.","constraints":["Reuse Catalog Core's actual resolvePredecessors implementation through valid declarations.","Preserve validateRevisionChain(report) and its reliance on supplied predecessor-resolution facts.","Return a neutral judgment using the existing shared vocabulary; expose the provider to Reviews without protocol or runtime dependencies.","Do not mutate the supplied chain or access catalog records."],"uncertainties":["Provider name, file and exact internal result type remain engineer choices.","A report-shaped internal value is optional; any synthetic identity must remain private."],"evidence":{"citations":[{"module":"collection-review/workspace/reviews/validation","file":"subs/workspace/subs/reviews/subs/validation/src/validate.ts","symbol":"validateRevisionChain","note":"Already owns exact finding messages, revision IDs and missing-before-duplicate ordering."},{"module":"collection-review/workspace/reviews/validation","file":"subs/workspace/subs/reviews/subs/validation/module.ramify","note":"Current report validator is exposed to parent; new provider needs its own parent exposure."}],"gaps":[]}},"registry":[{"capability":"evaluate-proposed-revision-chain","behavior":"Judge only a supplied RevisionChain using shared review rules and Catalog Core predecessor resolution; return passed exactly when findings are empty, without mutating input or accessing records.","owner":"collection-review/workspace/reviews/validation","consumers":[{"capability":"preview-proposed-revision-chain","workItem":"wi-001"}]}]},{"decision":{"question":"Does the existing shared argument vocabulary suffice?","outcome":"reuse","capability":"parse-revision-chain-arguments","changesExistingSymbols":false,"owner":"collection-review/workspace/contracts","rationale":"The received API supplies revisionChainSchema and all necessary vocabulary. Its existing required revision fields and nonempty IDs already reject the malformed cases; only a required object wrapper is needed in Reviews.","constraints":["Use z.object({ chain: revisionChainSchema }) or an equivalent required wrapper without an optional/default chain fallback.","Keep argument rejection separate from findings and preserve the public mutable vocabulary."],"uncertainties":[],"evidence":{"citations":[{"module":"collection-review/workspace/contracts","file":"subs/workspace/subs/contracts/src/interfaces/vocabulary.ts","symbol":"revisionChainSchema","note":"Array of required revision shapes; empty array is valid."},{"module":"collection-review/workspace/reviews","file":"subs/workspace/subs/reviews/src/.ramify/external/subs/workspace/subs/contracts/src/interfaces/vocabulary.ts.md","note":"Received API documents chain schema and shared types."}],"gaps":["The supplied generated API views retain their stated analysis coverage limits."]}},"registry":[{"capability":"parse-revision-chain-arguments","behavior":"Parse proposed revision-chain arguments using the existing shared revision-chain schema and vocabulary.","owner":"collection-review/workspace/contracts","consumers":[{"capability":"preview-proposed-revision-chain","workItem":"wi-001"}]}]},{"decision":{"question":"Can predecessor facts reuse existing behavior rather than a second algorithm?","outcome":"reuse","capability":"resolve-chain-predecessors","changesExistingSymbols":false,"owner":"collection-review/workspace/catalog/core","rationale":"Catalog Core already implements the exact pure chain-local resolution behavior. Ownership is fixed by nfr-002; its current private declaration must be extended by coordinated capability work rather than an unauthorized consumer import.","constraints":["Keep the helper in Catalog Core and preserve ordering and repeated references.","Expose only the resolver and required type companions, never raw records.","Coordinate production exposure and ancestor relays outside this local engineer's write scope.","Review the actual Validation import and declarations after handback."],"uncertainties":["The final narrow exposure and re-exposure declarations must be established by the delegated coordinator; no such contract is currently available to Validation."],"evidence":{"citations":[{"module":"collection-review/workspace/catalog/core","file":"subs/workspace/subs/catalog/subs/core/src/history.ts","symbol":"resolvePredecessors","note":"Pure resolution within supplied IDs, preserving reference order and duplicates."},{"module":"collection-review/workspace/catalog/core","file":"subs/workspace/subs/catalog/subs/core/module.ramify","note":"Helper is currently private."},{"module":"collection-review/workspace/catalog/core","file":"subs/workspace/subs/catalog/subs/core/src/catalog.ts","symbol":"inspect","note":"Existing production caller imports the same history helper."}],"gaps":[]}},"registry":[{"capability":"resolve-chain-predecessors","behavior":"Split supplied-chain predecessor references into ordered resolved and unresolved arrays, retaining repeated references and avoiding record access or input mutation.","owner":"collection-review/workspace/catalog/core","consumers":[{"capability":"evaluate-proposed-revision-chain","workItem":"wi-001"}]}]}],"assignment":{"stage":0,"kind":"ordinary","goal":"Implement the additive Reviews preview vertical slice and bind all nine acceptance scenarios, using a new neutral Validation provider and the real Catalog Core resolver through an authorized contract.","approach":"Add preview to the existing router as a mutation taking only a required chain parsed by revisionChainSchema. Delegate judgment to a new provider owned and exposed by Validation; share existing finding rules without changing validateRevisionChain's interpretation of report facts. Keep names and internal rule-sharing design flexible, including the optional report-shaped approach. The provider must import the real Catalog Core resolver, resolve only supplied-chain references, never read/write records, retain ordering and repeated findings, and return only status and findings through tRPC. The resolver is currently private: when implementing the actual provider call, submit capability-needed describing the missing exposure/relay contract and calling code; do not duplicate resolution, import illegally, or edit external owners. After handback, verify actual imports and all relays. Add direct provider tests retaining the chain array and revision objects to prove nonmutation. Exercise intact, empty, missing, duplicate and repeated-reference results through createTestSystem's assembled typed client with real providers; send deliberately untyped/miscast absent and malformed inputs and assert BAD_REQUEST with no judgment. Add exact client input/output type assertions, preserving run type tests. Bind sc-001 through sc-009 in local tests/steps without editing feature files; avoid duplicate global steps and keep scenario state isolated despite the globally registered World/hooks. Preserve tRPC run, MCP tools, session behavior, observations and all configured checks. Update Reviews and Validation declarations, source descriptions and READMEs for the provider dependency. Coordinate, but do not implement, the separate Catalog Core snapshot requirement outside this scope.","startingPoints":[{"path":"subs/workspace/subs/reviews/src/router.ts","note":"Current run adapter and router factory; add only preview."},{"path":"subs/workspace/subs/reviews/subs/validation/src/validate.ts","note":"Share these rules while retaining report-fact semantics."},{"path":"subs/workspace/subs/catalog/subs/core/src/history.ts","note":"Actual existing resolver; currently private, so request a coordinated contract before consuming it."},{"path":"subs/workspace/subs/reviews/src/tests/router.test.ts","note":"Real assembled typed-client test pattern and stored-review regressions."},{"path":"subs/workspace/subs/reviews/src/tests/typing.test.ts","note":"Existing exact output and required-input compile-time assertions."},{"path":"cucumber.js","note":"Existing local step collection and global support registration; no runner changes are authorized."}],"scope":{"base":{"module":"collection-review/workspace/reviews","included":[{"directory":"subs/workspace/subs/reviews/subs/validation","reason":"The new neutral preview provider and its direct tests belong to Validation, a child of Reviews.","instructions":"Add and expose the neutral preview provider, share existing rules without changing report-based semantics, add direct nonmutation tests, and update documentation. Consume the real Catalog Core resolver only after its valid external contract is established. Keep Validation independent of protocols and the review runtime."}]},"extra":[],"read":["collection-review/workspace/catalog/core","collection-review/workspace/catalog","collection-review/workspace","collection-review/workspace/contracts","collection-review","collection-review/integration-tests"],"rationale":"Reviews owns the adapter and scenario bindings; Validation owns neutral judgment. No UI/runtime subtree change is needed. Catalog resolver exposure and ancestor relays require coordinated work outside this scope, while mutable inspection snapshots remain the separate Catalog Core entry's responsibility."},"citedElements":["ctx-001","fr-001","fr-002","fr-003","fr-004","fr-006","fr-007","fr-008","fr-009","fr-010","fr-011","nfr-001","nfr-002","nfr-003","nfr-004","nfr-005","nfr-006","nfr-007","nfr-008","nfr-009","nfr-010","nfr-011","nfr-012","nfr-013","rec-001","rec-002"],"externalCapabilities":[{"capability":"resolve-chain-predecessors","owner":"collection-review/workspace/catalog/core","role":"request"},{"capability":"parse-revision-chain-arguments","owner":"collection-review/workspace/contracts","role":"use"}],"completionEvidence":"All nine scenarios bound and passing through the assembled typed client with no substituted providers; unit tests cover exact findings, malformed inputs and provider input nonmutation; type assertions retain required input and exact output shapes. Existing stored-review, MCP and observation tests remain passing. Actual imports and valid module relays establish resolver reuse. Documentation matches dependencies. Run and retain type-check, Vitest, Cucumber and structure checks; report any external snapshot evidence separately rather than claim client serialization proves isolation.","authorizations":[],"obligations":["sc-001","sc-002","sc-003","sc-004","sc-005","sc-006","sc-007","sc-008","sc-009"]},"registrations":[],"reports":[]}
+{
+  "kind": "assign",
+  "outline": {
+    "changes": "Publish one additive reviews.preview mutation using a required chain field parsed by the existing revisionChainSchema. Implement protocol-independent preview judgment in Review Validation, sharing existing rules and reusing Catalog Core's pure resolver through valid declarations. Preserve all existing review operations and report-fact semantics. Add assembled-client acceptance and type tests, local scenario bindings, direct provider purity tests, and accurate module documentation. Coordinate the resolver contract outside Reviews; the separate Catalog Core snapshot entry remains responsible for mutable-report isolation.",
+    "decomposition": {
+      "kind": "single-iteration",
+      "rationale": "The local provider, adapter and acceptance tests form one additive vertical slice. A missing cross-owner resolver exposure must be requested from concrete calling code and coordinated through capability delegation before this engineer can finish; it is not a separate local contract iteration."
+    },
+    "reuse": [
+      {
+        "capability": "capability:resolve-chain-predecessors",
+        "owner": "collection-review/workspace/catalog/core",
+        "role": "Existing pure history helper supplies ordered, repeated predecessor-resolution facts; request its narrow production exposure rather than copy its algorithm."
+      },
+      {
+        "capability": "capability:parse-revision-chain-arguments",
+        "owner": "collection-review/workspace/contracts",
+        "role": "Reuse existing revisionChainSchema and shared RevisionChain, ReviewStatus and Finding vocabulary without changing their contracts."
+      },
+      {
+        "capability": "capability:evaluate-proposed-revision-chain",
+        "owner": "collection-review/workspace/reviews/validation",
+        "role": "New neutral provider owns proposed-chain judgment and shares the existing review rules; Reviews consumes it directly."
+      }
+    ],
+    "breakingChanges": [],
+    "stages": [
+      {
+        "title": "Integrate neutral preview provider, tRPC adapter and acceptance evidence",
+        "approach": "non-breaking",
+        "dependsOn": [],
+        "note": "The ordinary engineer may implement Reviews and Validation. If the resolver contract remains unavailable, submit capability-needed with the actual Validation calling code and required behavior; do not bypass declarations. Resume integration after coordinated handback. Review the separate snapshot work's direct evidence before final completion."
+      }
+    ],
+    "revisionReason": "Initial outline after orientation and selection of the complete requirements package; ownership and dependencies are now explicit in non-functional-requirement:review-validation-reuses-catalog-core and non-functional-requirement:protocol-independent-validation."
+  },
+  "localDecisions": [
+    {
+      "decision": {
+        "question": "Where should proposed-chain judgment live?",
+        "outcome": "create",
+        "capability": "capability:evaluate-proposed-revision-chain",
+        "changesExistingSymbols": false,
+        "owner": "collection-review/workspace/reviews/validation",
+        "rationale": "Validation already owns the deterministic finding rules. The requirements explicitly place the new protocol-independent provider there, outside the runtime subtree, with Reviews acting only as its protocol adapter.",
+        "constraints": [
+          "Reuse Catalog Core's actual resolvePredecessors implementation through valid declarations.",
+          "Preserve validateRevisionChain(report) and its reliance on supplied predecessor-resolution facts.",
+          "Return a neutral judgment using the existing shared vocabulary; expose the provider to Reviews without protocol or runtime dependencies.",
+          "Do not mutate the supplied chain or access catalog records."
+        ],
+        "uncertainties": [
+          "Provider name, file and exact internal result type remain engineer choices.",
+          "A report-shaped internal value is optional; any synthetic identity must remain private."
+        ],
+        "evidence": {
+          "citations": [
+            {
+              "module": "collection-review/workspace/reviews/validation",
+              "file": "subs/workspace/subs/reviews/subs/validation/src/validate.ts",
+              "symbol": "validateRevisionChain",
+              "note": "Already owns exact finding messages, revision IDs and missing-before-duplicate ordering."
+            },
+            {
+              "module": "collection-review/workspace/reviews/validation",
+              "file": "subs/workspace/subs/reviews/subs/validation/module.ramify",
+              "note": "Current report validator is exposed to parent; new provider needs its own parent exposure."
+            }
+          ],
+          "gaps": []
+        }
+      },
+      "registry": [
+        {
+          "capability": "capability:evaluate-proposed-revision-chain",
+          "behavior": "Judge only a supplied RevisionChain using shared review rules and Catalog Core predecessor resolution; return passed exactly when findings are empty, without mutating input or accessing records.",
+          "owner": "collection-review/workspace/reviews/validation",
+          "consumers": [
+            {
+              "capability": "capability:preview-proposed-revision-chain",
+              "workItem": "work-item:preview-proposed-revision-chain"
+            }
+          ]
+        }
+      ],
+      "decisionKey": "draft:placement-decision:evaluate-proposed-revision-chain"
+    },
+    {
+      "decision": {
+        "question": "Does the existing shared argument vocabulary suffice?",
+        "outcome": "reuse",
+        "capability": "capability:parse-revision-chain-arguments",
+        "changesExistingSymbols": false,
+        "owner": "collection-review/workspace/contracts",
+        "rationale": "The received API supplies revisionChainSchema and all necessary vocabulary. Its existing required revision fields and nonempty IDs already reject the malformed cases; only a required object wrapper is needed in Reviews.",
+        "constraints": [
+          "Use z.object({ chain: revisionChainSchema }) or an equivalent required wrapper without an optional/default chain fallback.",
+          "Keep argument rejection separate from findings and preserve the public mutable vocabulary."
+        ],
+        "uncertainties": [],
+        "evidence": {
+          "citations": [
+            {
+              "module": "collection-review/workspace/contracts",
+              "file": "subs/workspace/subs/contracts/src/interfaces/vocabulary.ts",
+              "symbol": "revisionChainSchema",
+              "note": "Array of required revision shapes; empty array is valid."
+            },
+            {
+              "module": "collection-review/workspace/reviews",
+              "file": "subs/workspace/subs/reviews/src/.ramify/external/subs/workspace/subs/contracts/src/interfaces/vocabulary.ts.md",
+              "note": "Received API documents chain schema and shared types."
+            }
+          ],
+          "gaps": [
+            "The supplied generated API views retain their stated analysis coverage limits."
+          ]
+        }
+      },
+      "registry": [
+        {
+          "capability": "capability:parse-revision-chain-arguments",
+          "behavior": "Parse proposed revision-chain arguments using the existing shared revision-chain schema and vocabulary.",
+          "owner": "collection-review/workspace/contracts",
+          "consumers": [
+            {
+              "capability": "capability:preview-proposed-revision-chain",
+              "workItem": "work-item:preview-proposed-revision-chain"
+            }
+          ]
+        }
+      ],
+      "decisionKey": "draft:placement-decision:parse-revision-chain-arguments"
+    },
+    {
+      "decision": {
+        "question": "Can predecessor facts reuse existing behavior rather than a second algorithm?",
+        "outcome": "reuse",
+        "capability": "capability:resolve-chain-predecessors",
+        "changesExistingSymbols": false,
+        "owner": "collection-review/workspace/catalog/core",
+        "rationale": "Catalog Core already implements the exact pure chain-local resolution behavior. Ownership is fixed by non-functional-requirement:review-validation-reuses-catalog-core; its current private declaration must be extended by coordinated capability work rather than an unauthorized consumer import.",
+        "constraints": [
+          "Keep the helper in Catalog Core and preserve ordering and repeated references.",
+          "Expose only the resolver and required type companions, never raw records.",
+          "Coordinate production exposure and ancestor relays outside this local engineer's write scope.",
+          "Review the actual Validation import and declarations after handback."
+        ],
+        "uncertainties": [
+          "The final narrow exposure and re-exposure declarations must be established by the delegated coordinator; no such contract is currently available to Validation."
+        ],
+        "evidence": {
+          "citations": [
+            {
+              "module": "collection-review/workspace/catalog/core",
+              "file": "subs/workspace/subs/catalog/subs/core/src/history.ts",
+              "symbol": "resolvePredecessors",
+              "note": "Pure resolution within supplied IDs, preserving reference order and duplicates."
+            },
+            {
+              "module": "collection-review/workspace/catalog/core",
+              "file": "subs/workspace/subs/catalog/subs/core/module.ramify",
+              "note": "Helper is currently private."
+            },
+            {
+              "module": "collection-review/workspace/catalog/core",
+              "file": "subs/workspace/subs/catalog/subs/core/src/catalog.ts",
+              "symbol": "inspect",
+              "note": "Existing production caller imports the same history helper."
+            }
+          ],
+          "gaps": []
+        }
+      },
+      "registry": [
+        {
+          "capability": "capability:resolve-chain-predecessors",
+          "behavior": "Split supplied-chain predecessor references into ordered resolved and unresolved arrays, retaining repeated references and avoiding record access or input mutation.",
+          "owner": "collection-review/workspace/catalog/core",
+          "consumers": [
+            {
+              "capability": "capability:evaluate-proposed-revision-chain",
+              "workItem": "work-item:preview-proposed-revision-chain"
+            }
+          ]
+        }
+      ],
+      "decisionKey": "draft:placement-decision:resolve-chain-predecessors"
+    }
+  ],
+  "assignment": {
+    "stage": 0,
+    "kind": "ordinary",
+    "goal": "Implement the additive Reviews preview vertical slice and bind all nine acceptance scenarios, using a new neutral Validation provider and the real Catalog Core resolver through an authorized contract.",
+    "approach": "Add preview to the existing router as a mutation taking only a required chain parsed by revisionChainSchema. Delegate judgment to a new provider owned and exposed by Validation; share existing finding rules without changing validateRevisionChain's interpretation of report facts. Keep names and internal rule-sharing design flexible, including the optional report-shaped approach. The provider must import the real Catalog Core resolver, resolve only supplied-chain references, never read/write records, retain ordering and repeated findings, and return only status and findings through tRPC. The resolver is currently private: when implementing the actual provider call, submit capability-needed describing the missing exposure/relay contract and calling code; do not duplicate resolution, import illegally, or edit external owners. After handback, verify actual imports and all relays. Add direct provider tests retaining the chain array and revision objects to prove nonmutation. Exercise intact, empty, missing, duplicate and repeated-reference results through createTestSystem's assembled typed client with real providers; send deliberately untyped/miscast absent and malformed inputs and assert BAD_REQUEST with no judgment. Add exact client input/output type assertions, preserving run type tests. Bind scenario:preview-intact through scenario:preview-repeated-rule-findings in local tests/steps without editing feature files; avoid duplicate global steps and keep scenario state isolated despite the globally registered World/hooks. Preserve tRPC run, MCP tools, session behavior, observations and all configured checks. Update Reviews and Validation declarations, source descriptions and READMEs for the provider dependency. Coordinate, but do not implement, the separate Catalog Core snapshot requirement outside this scope.",
+    "startingPoints": [
+      {
+        "path": "subs/workspace/subs/reviews/src/router.ts",
+        "note": "Current run adapter and router factory; add only preview."
+      },
+      {
+        "path": "subs/workspace/subs/reviews/subs/validation/src/validate.ts",
+        "note": "Share these rules while retaining report-fact semantics."
+      },
+      {
+        "path": "subs/workspace/subs/catalog/subs/core/src/history.ts",
+        "note": "Actual existing resolver; currently private, so request a coordinated contract before consuming it."
+      },
+      {
+        "path": "subs/workspace/subs/reviews/src/tests/router.test.ts",
+        "note": "Real assembled typed-client test pattern and stored-review regressions."
+      },
+      {
+        "path": "subs/workspace/subs/reviews/src/tests/typing.test.ts",
+        "note": "Existing exact output and required-input compile-time assertions."
+      },
+      {
+        "path": "cucumber.js",
+        "note": "Existing local step collection and global support registration; no runner changes are authorized."
+      }
+    ],
+    "scope": {
+      "base": {
+        "module": "collection-review/workspace/reviews",
+        "included": [
+          {
+            "directory": "subs/workspace/subs/reviews/subs/validation",
+            "reason": "The new neutral preview provider and its direct tests belong to Validation, a child of Reviews.",
+            "instructions": "Add and expose the neutral preview provider, share existing rules without changing report-based semantics, add direct nonmutation tests, and update documentation. Consume the real Catalog Core resolver only after its valid external contract is established. Keep Validation independent of protocols and the review runtime."
+          }
+        ]
+      },
+      "extra": [],
+      "read": [
+        "collection-review/workspace/catalog/core",
+        "collection-review/workspace/catalog",
+        "collection-review/workspace",
+        "collection-review/workspace/contracts",
+        "collection-review",
+        "collection-review/integration-tests"
+      ],
+      "rationale": "Reviews owns the adapter and scenario bindings; Validation owns neutral judgment. No UI/runtime subtree change is needed. Catalog resolver exposure and ancestor relays require coordinated work outside this scope, while mutable inspection snapshots remain the separate Catalog Core entry's responsibility."
+    },
+    "citedElements": [
+      "context:preview-gap",
+      "functional-requirement:preview-operation",
+      "functional-requirement:preview-rules",
+      "functional-requirement:preview-local-resolution",
+      "functional-requirement:preview-input-validation",
+      "functional-requirement:accept-intact",
+      "functional-requirement:accept-empty",
+      "functional-requirement:accept-missing-predecessor",
+      "functional-requirement:accept-rule-order",
+      "functional-requirement:accept-absent-input",
+      "functional-requirement:accept-stored-reviews",
+      "non-functional-requirement:preview-does-not-read-or-write-records",
+      "non-functional-requirement:review-validation-reuses-catalog-core",
+      "non-functional-requirement:independent-inspection-reports",
+      "non-functional-requirement:preserve-revision-chain-validation",
+      "non-functional-requirement:preserve-resolver-order-and-references",
+      "non-functional-requirement:preserve-protocol-operations",
+      "non-functional-requirement:preview-does-not-mutate-input",
+      "non-functional-requirement:keep-raw-records-private",
+      "non-functional-requirement:protocol-independent-validation",
+      "non-functional-requirement:assembled-client-verification",
+      "non-functional-requirement:retain-project-checks",
+      "non-functional-requirement:review-declarations-and-snapshots",
+      "non-functional-requirement:typed-client-requires-chain",
+      "recommendation:project-navigation-pointers",
+      "recommendation:inspection-shaped-preview-recommendation"
+    ],
+    "externalCapabilities": [
+      {
+        "capability": "capability:resolve-chain-predecessors",
+        "owner": "collection-review/workspace/catalog/core",
+        "role": "request"
+      },
+      {
+        "capability": "capability:parse-revision-chain-arguments",
+        "owner": "collection-review/workspace/contracts",
+        "role": "use"
+      }
+    ],
+    "completionEvidence": "All nine scenarios bound and passing through the assembled typed client with no substituted providers; unit tests cover exact findings, malformed inputs and provider input nonmutation; type assertions retain required input and exact output shapes. Existing stored-review, MCP and observation tests remain passing. Actual imports and valid module relays establish resolver reuse. Documentation matches dependencies. Run and retain type-check, Vitest, Cucumber and structure checks; report any external snapshot evidence separately rather than claim client serialization proves isolation.",
+    "authorizations": [],
+    "obligations": [
+      "scenario:preview-intact",
+      "scenario:preview-empty",
+      "scenario:preview-missing-predecessor",
+      "scenario:preview-rule-order",
+      "scenario:preview-absent-input",
+      "scenario:stored-review-regression",
+      "scenario:preview-malformed-input",
+      "scenario:preview-no-catalog-resolution",
+      "scenario:preview-repeated-rule-findings"
+    ]
+  },
+  "registrations": [],
+  "reports": []
+}

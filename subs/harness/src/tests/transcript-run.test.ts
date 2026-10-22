@@ -1,3 +1,4 @@
+import { currentAnalysis } from './helpers/analysis.js';
 import { readdirSync, readFileSync } from 'node:fs';
 import { mkdir, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -209,12 +210,12 @@ describe('ST07, ST08: the transcripts of a scripted run', () => {
       events.filter(event => event.type === 'invocation-ended' && event.data.submission !== null).length,
     );
     expect(decisions).toEqual(expect.arrayContaining(['post-write-check', 'brief-appended', 'note-appended']));
-    const repairSession = [...sessions.values()].find(session => session.role === 'engineer' && session.work.workItem === 'wi-002');
+    const repairSession = [...sessions.values()].find(session => session.role === 'engineer' && session.work.workItem === 'work-item:provide-note-limit');
     if (!repairSession) throw new Error('Missing provider repair session');
     const repair = transcripts.get(repairSession.id)!;
     const note = repair.findIndex(entry => entry.type === 'harness' && entry.decision.kind === 'note-appended');
     expect(repair[note + 1]).toMatchObject({ type: 'started', invocation: 'inv-0016', start: 'continued' });
-    expect(repair[note]).toMatchObject({ invocation: null, decision: { text: { stored: 'inline', text: 'Continuing iteration wi-002.i01.' } } });
+    expect(repair[note]).toMatchObject({ invocation: null, decision: { text: { stored: 'inline', text: 'Continuing iteration work-item:provide-note-limit.i01.' } } });
 
     // Engineer and local-architect prompts name their module cwd, so two
     // base modules render two prompts for each of those roles. A catalog
@@ -264,7 +265,7 @@ describe('a transcript that cannot be written', () => {
     ], previews: final.previews });
     const { service } = await openRunsWithoutProcesses(fixture.root, git, {
       candidates: final.candidates,
-      script: spec => spec.role === 'initial-architect' ? [{ kind: 'message', text: 'Orienting.' }, { kind: 'submit', input: emptyAnalysis() }] : defaultTurn(spec) ?? [],
+      script: spec => spec.role === 'initial-architect' ? [{ kind: 'message', text: 'Orienting.' }, { kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }] : defaultTurn(spec) ?? [],
       // A directory where the first session's transcript would be: every
       // append to it fails.
       afterWrite: async (write, runId) => {

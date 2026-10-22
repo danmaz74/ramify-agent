@@ -1,4 +1,4 @@
-import { currentLifecycleEvents } from './inputs.js';
+import { acceptedEntryCapability, currentLifecycleEvents } from './inputs.js';
 import type {
   ExecutionCapabilityDetail, ExecutionLink, ExecutionNode, ExecutionScenarioDetail, ExecutionSourceRef,
   ExecutionScenarioResult, ExecutionMapPage,
@@ -31,7 +31,17 @@ export async function executionMapOf(view: RunView, tree: ModuleTree): Promise<E
   return { ...core, moduleMap: executionModuleMapOf(view, tree, core.nodes, captured) };
 }
 
-const key = (kind: ExecutionNode['kind'], id: string): string => `${kind}:${id}`;
+const key = (kind: ExecutionNode['kind'], id: string): string => {
+  // An iteration's accepted ID includes its work-item namespace. The graph
+  // gives the iteration its own kind without nesting two ID namespaces.
+  if (kind === 'iteration') {
+    if (!id.startsWith('work-item:')) throw new Error(`Iteration ${id} has no accepted work-item identity`);
+    return `iteration:${id.slice('work-item:'.length)}`;
+  }
+  if (kind === 'session' || kind === 'gate') return `${kind}:${id}`;
+  if (kind === 'contract' && id.startsWith('provider-obligation:')) return `contract:${id.slice('provider-obligation:'.length)}`;
+  return id;
+};
 const count = (total: number) => ({ state: 'complete' as const, known: total, total });
 /** A role or checkpoint token in title case; a capability keeps its id as its label. */
 const label = (name: string) => name.replace(/(^|[-\s])\S/g, part => part.toUpperCase()).replaceAll('-', ' ');
@@ -43,7 +53,8 @@ function recordSource(view: RunView, schema: string, id: string, kind: Execution
     const records = latest ? [...line.transaction.records].reverse() : line.transaction.records;
     for (const record of records) {
       const body = record.body as { schema?: string; id?: string; capability?: string; workItem?: string };
-      if (body.schema === schema && (body.id ?? body.capability ?? body.workItem) === id) {
+      if (body.schema === schema &&
+          (body.id ?? body.capability ?? body.workItem) === id) {
         return { kind, id, ...publicSequence(view.entries, line.sequence), revision: record.revision > 0 ? record.revision : null };
       }
     }
@@ -66,7 +77,7 @@ function scenarioSources(view: RunView): Map<string, ExecutionSourceRef> {
   const sources = new Map<string, ExecutionSourceRef>();
   for (const line of view.entries) for (const record of line.transaction.records) {
     const body = record.body as { schema?: string; id?: string };
-    if (body.schema === 'ramify-agent.scenario/1' && body.id !== undefined && !sources.has(body.id)) {
+    if (body.schema === 'ramify-agent.scenario/2' && body.id !== undefined && !sources.has(body.id)) {
       sources.set(body.id, { kind: 'tracked-scenario', id: body.id, ...publicSequence(view.entries, line.sequence), revision: null });
     }
   }
@@ -121,16 +132,16 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   const verified = new Set(view.events.filter(event => event.type === 'requirement-verified')
     .map(event => `${event.data.requirement}@${event.data.revision}`));
   const progress = capabilityProgressOf(view).filter(capability => !capability.tentative);
-  const entries = new Map(view.entryAssignments?.entries.map(entry => [entry.capability, entry]) ?? []);
+  const entries = new Map(view.entryAssignments?.entries.map(entry => [acceptedEntryCapability(view.entryAssignments!, entry), entry]) ?? []);
   if (view.entryAssignments === null) gaps.push('Accepted entry assignments are not retained.');
-  for (const entry of entries.values()) if (!view.records.registry.some(registry => registry.capability === entry.capability)) {
-    gaps.push(`Accepted entry ${entry.capability} has no retained capability record.`);
+  for (const capability of entries.keys()) if (!view.records.registry.some(registry => registry.capability === capability)) {
+    gaps.push(`Accepted entry ${capability} has no retained capability record.`);
   }
 
   for (const capability of progress) {
     const registry = view.records.registry.find(entry => entry.capability === capability.capability);
     if (registry === undefined) continue;
-    const source = sourceOf(view, 'ramify-agent.capability/1', registry.capability, 'capability-record');
+    const source = sourceOf(view, 'ramify-agent.capability/2', registry.capability, 'capability-record');
     const member = byEntry.get(registry.capability) ?? [];
     const bucket = { passed: 0, failed: 0, other: 0, noRealRun: 0, unavailable: 0 };
     for (const scenario of member) {
@@ -172,7 +183,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   }
 
   for (const summary of allWorkItemsOf(view)) {
-    const source = sourceOf(view, 'ramify-agent.work-item/1', summary.id, 'work-item');
+    const source = sourceOf(view, 'ramify-agent.work-item/2', summary.id, 'work-item');
     add({ ...base(key('work-item', summary.id), summary.goal, source), kind: 'work-item',
       state: summary.state, module: summary.module, goal: summary.goal,
       modules: summary.module === null ? [] : [{ module: summary.module, role: 'owner', source }],
@@ -265,7 +276,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   // node's current color, never the identity of its provider or old gates.
   const known = () => new Set(nodes.map(node => node.key));
   for (const request of view.records.requests.values()) {
-    const source = sourceOf(view, 'ramify-agent.placement-request/1', request.id, 'placement-request');
+    const source = sourceOf(view, 'ramify-agent.placement-request/2', request.id, 'placement-request');
     add({ ...base(key('placement-request', request.id), request.question, source), kind: 'placement-request',
       state: [...view.records.decisions.values()].some(decision => decision.request === request.id) ? 'decided' : 'open',
       requestedBy: key('work-item', request.workItem),
@@ -274,12 +285,14 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     if (known().has(key('work-item', request.workItem))) relate('requested-by', key('placement-request', request.id), key('work-item', request.workItem), source);
   }
   for (const contract of view.records.contracts.values()) {
-    const source = recordSource(view, 'ramify-agent.contract/2', contract.id, 'contract', true);
+    const source = recordSource(view, 'ramify-agent.contract/3', contract.id, 'contract', true);
     if (source === null) { gaps.push(`Contract ${contract.id} has no retained source.`); continue; }
-    const conformed = view.events.some(event => event.type === 'provider-conformed' &&
-      event.data.obligation === `ob-${contract.id}` && event.data.revision === contract.revision);
+    const obligation = [...view.records.obligations.values()].find(candidate =>
+      candidate.contract.id === contract.id && candidate.revision === contract.revision);
+    const conformed = obligation !== undefined && view.events.some(event => event.type === 'provider-conformed' &&
+      event.data.obligation === obligation.id && event.data.revision === contract.revision);
     const currentRequirements = [...view.records.requirements.values()].filter(requirement =>
-      requirement.obligation === `ob-${contract.id}` && requirement.revision === contract.revision);
+      requirement.obligation === obligation?.id && requirement.revision === contract.revision);
     const allVerified = currentRequirements.length > 0 && currentRequirements.every(requirement => verified.has(`${requirement.id}@${requirement.revision}`));
     const state = contract.mode === 'access-only' || allVerified ? 'conformed' :
       contract.revision > 1 ? 'reopened' : conformed ? 'conformed' : 'working';
@@ -300,11 +313,11 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     }
   }
   for (const requirement of view.records.requirements.values()) {
-    const source = recordSource(view, 'ramify-agent.consumer-requirement/1', requirement.id, 'requirement', true);
+    const source = recordSource(view, 'ramify-agent.consumer-requirement/2', requirement.id, 'requirement', true);
     if (source === null) { gaps.push(`Requirement ${requirement.id} has no retained source.`); continue; }
-    const contractId = requirement.obligation.replace(/^ob-/, '');
-    const contract = view.records.contracts.get(contractId);
     const obligation = view.records.obligations.get(requirement.obligation);
+    const contractId = obligation?.contract.id ?? null;
+    const contract = contractId === null ? undefined : view.records.contracts.get(contractId);
     const provider = obligation === undefined ? null : key('capability', obligation.capability);
     if (contract === undefined || obligation === undefined || provider === null || !known().has(provider)) {
       gaps.push(`Requirement ${requirement.id} has no complete current provider binding.`);
@@ -324,7 +337,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
       oldVerification !== null && oldVerification < requirement.revision ? 'reopened' :
       conformed ? 'provider-conformed' : 'working';
     add({ ...base(key('requirement', requirement.id), requirement.behavior, source), kind: 'requirement',
-      state, consumer: key('capability', requirement.forCapability), contract: key('contract', contractId),
+      state, consumer: key('capability', requirement.forCapability), contract: key('contract', contractId ?? requirement.obligation),
       currentRevision: requirement.revision, verifiedRevision: oldVerification, providerStage,
       provider: provider !== null && known().has(provider) ? provider : null,
       modules: [{ module: requirement.consumer, role: 'consumer', source },
@@ -332,7 +345,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     });
     const verification = [...view.events].reverse().find(event => event.type === 'requirement-verified' &&
       event.data.requirement === requirement.id && event.data.revision === requirement.revision);
-    if (known().has(key('contract', contractId))) relate('verification-of', key('requirement', requirement.id), key('contract', contractId),
+    if (contractId !== null && known().has(key('contract', contractId))) relate('verification-of', key('requirement', requirement.id), key('contract', contractId),
       verification === undefined ? source : eventSource(view, verification.sequence));
     if (provider !== null && known().has(provider)) relate('provider-for', provider, key('requirement', requirement.id), source);
     if (known().has(key('capability', requirement.forCapability)) && provider !== null && known().has(provider)) {
@@ -343,12 +356,12 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     if (registry.decision !== null) {
       const decision = view.records.decisions.get(registry.decision);
       if (decision?.request !== null && decision?.request !== undefined && known().has(key('placement-request', decision.request))) {
-        const source = sourceOf(view, 'ramify-agent.capability/1', registry.capability, 'capability-record');
+        const source = sourceOf(view, 'ramify-agent.capability/2', registry.capability, 'capability-record');
         relate('proposed-by', key('capability', registry.capability), key('placement-request', decision.request), source);
       }
     }
     for (const consumer of registry.consumers) if (known().has(key('capability', consumer.capability))) {
-      const source = sourceOf(view, 'ramify-agent.capability/1', registry.capability, 'capability-record');
+      const source = sourceOf(view, 'ramify-agent.capability/2', registry.capability, 'capability-record');
       const from = key('capability', consumer.capability), to = key('capability', registry.capability);
       if (!links.some(link => link.kind === 'depends-on' && link.from.key === from && link.to.key === to)) relate('depends-on', from, to, source);
     }
@@ -368,7 +381,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     previous.set(assignment.body.workItem, assignment.body.id);
   }
   for (const item of view.records.workItems) if (item.follows !== undefined && known().has(key('work-item', item.follows))) {
-    relate('follows', key('work-item', item.follows), key('work-item', item.id), sourceOf(view, 'ramify-agent.work-item/1', item.id, 'work-item'));
+    relate('follows', key('work-item', item.follows), key('work-item', item.id), sourceOf(view, 'ramify-agent.work-item/2', item.id, 'work-item'));
   }
   for (const session of runSessionViews(view)) {
     if (session.reaches.kind === 'request' && known().has(key('placement-request', session.reaches.request))) {
@@ -453,7 +466,7 @@ function scenarioState(state: ReturnType<typeof scenariosOf>['states'] extends R
 /** Full accepted entry description or registered lower-level behavior, never clipped to a list limit. */
 export function executionCapabilityDetailOf(view: RunView, capability: string): ExecutionCapabilityDetail {
   const runVersion = view.entries.at(-1)?.sequence ?? 0;
-  const entry = view.entryAssignments?.entries.find(candidate => candidate.capability === capability);
+  const entry = view.entryAssignments?.entries.find(candidate => acceptedEntryCapability(view.entryAssignments!, candidate) === capability);
   if (entry !== undefined) {
     const accepted = view.events.find(event => event.type === 'analysis-accepted');
     const source: ExecutionSourceRef = { kind: 'analysis-entry', id: capability, ...(accepted === undefined ? { sequence: null } : publicSequence(view.entries, accepted.sequence)), revision: null };
@@ -462,7 +475,7 @@ export function executionCapabilityDetailOf(view: RunView, capability: string): 
   }
   const registry = view.records.registry.find(candidate => candidate.capability === capability);
   if (registry !== undefined && registry.origin !== 'entry') {
-    const source = recordSource(view, 'ramify-agent.capability/1', capability, 'capability-record', true);
+    const source = recordSource(view, 'ramify-agent.capability/2', capability, 'capability-record', true);
     if (source !== null) return { schema: 'execution-map/1', runVersion, key: key('capability', capability),
       detail: { state: 'available', level: 'lower', description: registry.behavior, source } };
   }

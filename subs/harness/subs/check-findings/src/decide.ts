@@ -6,7 +6,7 @@ import {
   type CheckFindingReportInput, type CheckFindingState,
 } from './interfaces/check-findings.js';
 import {
-  checkFindingId, decisionId, ingestionKey, issueKeyMatches, relationId, reportId, sameObligation, sameOwner,
+  decisionId, ingestionKey, issueKeyMatches, proposedFindingId, relationId, reportId, sameObligation, sameOwner,
   sameSource, scopedIssueKey,
 } from './identity.js';
 import { applyCheckFindingEvent } from './replay.js';
@@ -86,9 +86,15 @@ function decideReport(state: CheckFindingState, report: CheckFindingReportInput)
       return reject('ambiguous-issue-key', `issue key ${report.issueKey} names ${matches.map(entry => entry.id).join(', ')}; a report attaches to exactly one`);
     }
     const [match] = matches;
-    if (match !== undefined) return attach(state, match, next);
+    if (match !== undefined) {
+      if (report.findingKey !== undefined && proposedFindingId(report.findingKey) !== match.id)
+        return reject('finding-name-conflict', `${report.findingKey} names ${proposedFindingId(report.findingKey)}, but issue key ${report.issueKey} belongs to ${match.id}`);
+      return attach(state, match, next);
+    }
   }
-  const id = checkFindingId(state.counters.findings + 1);
+  if (report.findingKey === undefined) return reject('invalid-report', 'a new finding needs a draft:finding:<descriptive-name> key');
+  const id = proposedFindingId(report.findingKey);
+  if (state.findings.has(id)) return reject('finding-name-conflict', `${report.findingKey} conflicts with accepted finding ${id}; propose a distinct name in this submission`);
   return accepted([{ type: 'check-finding-opened', data: { version: checkFindingEventVersion, checkFinding: id, revision: 1, report: next } }], [id]);
 }
 

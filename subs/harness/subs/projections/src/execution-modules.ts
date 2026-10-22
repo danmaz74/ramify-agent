@@ -112,7 +112,7 @@ export function executionModuleMapOf(
   for (const node of nodes) {
     for (const relation of node.modules) {
       add(relation.module, node.key, relation);
-      if (node.kind === 'work-item' && startedWork.has(node.key.slice('work-item:'.length)) ||
+      if (node.kind === 'work-item' && startedWork.has(node.key) ||
           node.kind === 'iteration' && startedIterations.has(node.key.slice('iteration:'.length)) ||
           node.kind === 'session' && (node.role === 'local-architect' || node.role === 'engineer' || node.role === 'contract-engineer')) {
         worked.add(relation.module);

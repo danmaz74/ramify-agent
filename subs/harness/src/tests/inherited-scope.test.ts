@@ -30,8 +30,8 @@ async function fixture() {
   const capture: ScopeCapture = { projectRoot: directory.path, ramify: provider, index: null, revision: 1,
     view: { status: 'placeholder' }, ...body.scope, bootstrap: [] };
   const scope = await resolveWriteScope(capture);
-  const previous = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/1', id: 'wi-001.i01', workItem: 'wi-001',
-    outline: { id: 'outline', revision: 1, hash: 'a'.repeat(64) }, stage: 0, kind: 'ordinary', goal: 'repair', approach: 'repair',
+  const previous = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/2', id: 'work-item:repair.i01', workItem: 'work-item:repair',
+    outline: { id: 'work-item:repair', revision: 1, hash: 'a'.repeat(64) }, stage: 0, kind: 'ordinary', goal: 'repair', approach: 'repair',
     scope, startingPoints: [], externalCapabilities: [], completionEvidence: 'tests', evidenceObligations: [],
     gate: { checkpoint: 'iteration', tests: testPolicyOf('ordinary', scope.base, [], [], scope.resolved.included) }, guarded: [], authorizations: [] });
   provider.failure = new OwnershipUnavailableError({ ...raw, status: 'unavailable', failureStatus: 'invalid', reason: 'invalid configuration', decoded: null });

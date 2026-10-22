@@ -13,7 +13,7 @@ import type {
 
 const counted = (prefix: string) => (count: number): string => `${prefix}-${String(count).padStart(4, '0')}`;
 
-export const checkFindingId = counted('cf');
+export const proposedFindingId = (key: string): string => key.slice('draft:'.length);
 export const reportId = counted('cfr');
 export const decisionId = counted('cfd');
 export const relationId = counted('cfl');
@@ -54,13 +54,13 @@ export function issueKeyMatches(state: CheckFindingState, scoped: string): Check
   return [...state.findings.values()].filter(entry => entry.issueKeys.includes(scoped)).sort(byId);
 }
 
-/** The ID's number, for ordering: `cf-0010` after `cf-0009` whatever the width. */
+/** The sequence number of a technical report, decision or relation ID. */
 export function idNumber(id: string): number {
   return Number(id.slice(id.lastIndexOf('-') + 1));
 }
 
 export function compareIds(a: string, b: string): number {
-  return idNumber(a) - idNumber(b);
+  return a.localeCompare(b);
 }
 
 function byId(a: { readonly id: CheckFindingId }, b: { readonly id: CheckFindingId }): number {

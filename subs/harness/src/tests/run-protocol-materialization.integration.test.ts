@@ -71,8 +71,8 @@ async function everyAnswer(server: RunningServer, runId: string): Promise<Record
     protocolPaths.runAnalysis(plan, runId),
     protocolPaths.runDecisions(plan, runId),
     protocolPaths.runWorkItems(plan, runId),
-    protocolPaths.runWorkItem(plan, runId, 'wi-001'),
-    protocolPaths.runWorkItem(plan, runId, 'wi-002'),
+    protocolPaths.runWorkItem(plan, runId, 'work-item:review-note'),
+    protocolPaths.runWorkItem(plan, runId, 'work-item:note-drafts'),
     protocolPaths.runCapabilities(plan, runId),
     protocolPaths.runMetrics(plan, runId),
   ];
@@ -144,7 +144,7 @@ describe('the module-capability comparison of a completed scripted run, over HTT
     expect(first.tree).toEqual(tree);
     if (tree.status !== 'available') throw new Error('the view was materialized');
     expect(tree.modules.map(entry => entry.module)).toEqual(expect.arrayContaining([notes, drafts]));
-    expect(first.identityPolicy).toBe('exact-capability-slug/1');
+    expect(first.identityPolicy).toBe('exact-accepted-capability-id/2');
     expect(first.runVersion).toBe(onDisk.length);
     // The run's inputs worked from a placeholder view, and the identity says so.
     expect(first.initialView).toEqual({ status: 'placeholder' });
@@ -161,17 +161,17 @@ describe('the module-capability comparison of a completed scripted run, over HTT
       {
         module: notes, proposedAtStart: null,
         rows: [
-          ['review-note', [{ role: 'entry-owner', hypothesis: null }], 1],
-          ['note-search', [{ role: 'suggested-owner', hypothesis: 'note-search' }], null],
+          ['capability:review-note', [{ role: 'entry-owner', hypothesis: null }], 1],
+          ['capability:note-search', [{ role: 'suggested-owner', hypothesis: 'hypothesis:note-search' }], null],
         ],
       },
       {
         // Proposed at start by its entry, it now exists and is declared.
         module: drafts, proposedAtStart: { parent: notes, purpose: 'Keeps a reviewer\'s unsent drafts.', tags: [] },
-        rows: [['note-drafts', [{ role: 'entry-owner', hypothesis: null }], 1]],
+        rows: [['capability:note-drafts', [{ role: 'entry-owner', hypothesis: null }], 1]],
       },
     ]);
-    expect(withRows[0]!.capabilities[0]!.implementedHere!.reason).toMatch(/^wi-001 passed its work-item gate ga-\d{4}$/);
+    expect(withRows[0]!.capabilities[0]!.implementedHere!.reason).toMatch(/^work-item:review-note passed its work-item gate ga-\d{4}$/);
     expect(first.coverage).toEqual({ state: 'complete', capabilities: 3, implemented: 2 });
     // CM09: nothing about activity, commits, changes, lines or deployment.
     expect(JSON.stringify(first)).not.toMatch(/"(activity|commit|changed|lines|deployed)"/i);

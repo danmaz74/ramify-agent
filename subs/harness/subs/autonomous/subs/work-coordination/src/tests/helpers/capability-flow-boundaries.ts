@@ -30,8 +30,8 @@ const changes = {
   unreadable: [{ path: 'subs/a/src', status: 'M' }],
 };
 const features = [
-  { path: 'subs/a/src/tests/features/need/richer-a-fact.feature', status: 'A' },
-  { path: 'subs/b/src/tests/features/need/b-entry.feature', status: 'A' },
+  { path: 'subs/a/src/tests/features/need/capability%3Aricher-a-fact.feature', status: 'A' },
+  { path: 'subs/b/src/tests/features/need/capability%3Ab-entry.feature', status: 'A' },
 ];
 const modules = [
   { id: 'capability-coordination', parent: null, directory: '.' },
@@ -47,9 +47,9 @@ const owners: Readonly<Record<string, string>> = {
   'subs/a/src/tests/steps/future.steps.ts': 'capability-coordination/a',
   'subs/a/src/tests/caller.test.ts': 'capability-coordination/a', 'subs/b/src/tests/fact.test.ts': 'capability-coordination/b',
   'subs/d/src/consumer.ts': 'capability-coordination/d', 'subs/d/src/tests/consumer.test.ts': 'capability-coordination/d',
-  'subs/a/src/tests/features/need/a-reads-b.feature': 'capability-coordination/a',
-  'subs/a/src/tests/features/need/richer-a-fact.feature': 'capability-coordination/a',
-  'subs/b/src/tests/features/need/b-entry.feature': 'capability-coordination/b',
+  'subs/a/src/tests/features/need/capability%3Aa-reads-b.feature': 'capability-coordination/a',
+  'subs/a/src/tests/features/need/capability%3Aricher-a-fact.feature': 'capability-coordination/a',
+  'subs/b/src/tests/features/need/capability%3Ab-entry.feature': 'capability-coordination/b',
 };
 
 /** Version, measure, materialization, ownership, hook and frozen candidate reads are explicitly repeatable.
@@ -59,7 +59,7 @@ const owners: Readonly<Record<string, string>> = {
  * Literal external answers. Only the scenario can advance an edit state; no Git answer is inferred from disk. */
 export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 'a' | 'a+b' = 'a+b') {
   let stage: Stage = 'initial', head = initial, branch: string | undefined, auditRunId: string | undefined;
-  const declaredFeatures = mode === 'existing' ? [{ path: 'subs/a/src/tests/features/need/a-reads-b.feature', status: 'A' }] : entries === 'a' ? features.slice(0, 1) : features;
+  const declaredFeatures = mode === 'existing' ? [{ path: 'subs/a/src/tests/features/need/capability%3Aa-reads-b.feature', status: 'A' }] : entries === 'a' ? features.slice(0, 1) : features;
   const correction = mode === 'correction' || mode === 'local-correction';
   const reworded = '9a'.repeat(20);
   const correctedChanges = [{ path: 'subs/a/src/tests/caller.test.ts', status: 'M' }];
@@ -87,7 +87,7 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
     async createRunBranch(project, runId) { expect(project).toBe(root); expect(branch, 'run branch is created once').toBeUndefined(); if (auditRunId !== undefined) expect(runId).toBe(auditRunId); branch = `ramify-agent-run/${runId}`; mutations.push('branch'); return { branch, created: true }; },
     async commitAccepted(project, message, _signal, paths) {
       expect(project).toBe(root); expect(message).toContain(`Ramify-Run: ${branch?.slice('ramify-agent-run/'.length)}`);
-      if (message.startsWith('Reword sc-001')) { expect(correction).toBe(true); expect(paths).toEqual(features.map(feature => feature.path)); expect(head).toBe(scenarios); head = reworded; mutations.push('reword'); return head; }
+      if (message.startsWith('Reword scenario:richer-a-fact-is-used')) { expect(correction).toBe(true); expect(paths).toEqual(features.map(feature => feature.path)); expect(head).toBe(scenarios); head = reworded; mutations.push('reword'); return head; }
       if (message.includes('Ramify-Scenarios: materialized')) { expect(head).toBe(initial); head = scenarios; mutations.push('scenarios'); return head; }
       const gate = /Ramify-Gate: (ga-\d{4})/u.exec(message)?.[1]; expect(gate).toBe(expectedGates[gateCalls.filter(call => call.startsWith('commit:')).length]);
       expect(gateCalls.at(-1)).toBe(`trailer:${gate}`); expect(completion).toBe(true);

@@ -8,7 +8,7 @@ import { checkCommand, checkCommandEnvironment, type GateAttempt } from '../../s
 import type { PlannedCheck } from '../../subs/autonomous/subs/acceptance/src/checks/verify.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { copyFixture, temporaryDirectory } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, outline, submit, treeInputs } from './helpers/iterations.js';
 import { mockGit } from './helpers/mock-git.js';
 import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
@@ -168,7 +168,7 @@ describe('the declared setup over a run', () => {
         ? { stderr: `${buildError}\n`, outcome: { kind: 'completed', exitCode: 2 } }
         : {},
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [
           submit(completionProposed('Raised the limit to 500.'), edit(source, 'noteLimit = 400', 'noteLimit = \'500\'')),

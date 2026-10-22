@@ -35,7 +35,7 @@ afterEach(async () => {
   } finally { forgetExternalTools(); }
 });
 
-const featureFile = `${notesDirectory}/src/tests/features/${plan}/${plan}.feature`;
+const featureFile = `${notesDirectory}/src/tests/features/${plan}/capability%3Areview-notes.feature`;
 
 describe('the credibility of a ground', () => {
   const provenance = { planId: plan, featureFiles: new Set([featureFile]) };
@@ -148,7 +148,7 @@ describe('a driven review binds risk, ground, credibility and modules', () => {
       concern('The scenario\'s limit is not enforced', 'medium', featureFile, limit),
       concern('The test pins the old limit', 'low', notesTest, limit),
       concern('The limit has no name', 'low', null, 'docs/notes.principles.md'),
-    ];
+    ].map((concern, index) => ({ ...concern, findingKey: `draft:finding:case-000${index + 1}` }));
     const clean = (path: string): ScriptStep[] => [tool(snapshotToolNames.diff, { path }), { kind: 'submit', input: { inspected: [path], missing: [], concerns: [] } }];
     const run = await reviewRun(root, cleanups, {
       commits: scripted,
@@ -168,8 +168,8 @@ describe('a driven review binds risk, ground, credibility and modules', () => {
         ],
         'rq-0003': clean(store),
       },
-      reconcilers: { 'wi-001.rc01': reconcile(submission(
-        [1, 2, 3, 4, 5].map(number => disposition(`cf-000${number}`, { action: 'leave' })), { kind: 'unresolved' },
+      reconcilers: { 'work-item:review-notes.rc01': reconcile(submission(
+        [1, 2, 3, 4, 5].map(number => disposition(`finding:case-000${number}`, { action: 'leave' })), { kind: 'unresolved' },
       )) },
     });
     const { service, runId, events, agent } = run;
@@ -181,8 +181,8 @@ describe('a driven review binds risk, ground, credibility and modules', () => {
 
     const hashed = (text: string) => `sha256:${createHash('sha256').update(text).digest('hex')}`;
     const reports = [1, 2, 3, 4, 5].map(number => {
-      const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: `cf-000${number}` });
-      if (detail === undefined || !detail.ok || detail.view.kind !== 'detail') throw new Error(`no detail of cf-000${number}`);
+      const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: `finding:case-000${number}` });
+      if (detail === undefined || !detail.ok || detail.view.kind !== 'detail') throw new Error(`no detail of finding:case-000${number}`);
       return detail.view.reports.items[0]!;
     });
     expect(reports.map(report => [report.judgment?.risk, report.judgment?.ground, report.credibility, report.modules])).toEqual([
@@ -197,9 +197,9 @@ describe('a driven review binds risk, ground, credibility and modules', () => {
     // The run's lists order by risk, credibility and recency, and narrow to
     // one module: the two medium, human-reviewed concerns go latest first.
     const ordered = service.checkFindings(plan, runId, { kind: 'list', select: 'all', order: 'attention' });
-    expect(ordered).toMatchObject({ ok: true, view: { items: [{ id: 'cf-0001' }, { id: 'cf-0003' }, { id: 'cf-0002' }, { id: 'cf-0004' }, { id: 'cf-0005' }] } });
+    expect(ordered).toMatchObject({ ok: true, view: { items: [{ id: 'finding:case-0001' }, { id: 'finding:case-0003' }, { id: 'finding:case-0002' }, { id: 'finding:case-0004' }, { id: 'finding:case-0005' }] } });
     const inCounting = service.checkFindings(plan, runId, { kind: 'list', select: 'all', module: `${notes}/counting` });
-    expect(inCounting).toMatchObject({ ok: true, view: { total: 1, items: [{ id: 'cf-0001', modules: [notes, `${notes}/counting`] }] } });
+    expect(inCounting).toMatchObject({ ok: true, view: { total: 1, items: [{ id: 'finding:case-0001', modules: [notes, `${notes}/counting`] }] } });
 
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
   }, 120_000);
@@ -223,21 +223,21 @@ describe('the scope question\'s message', () => {
     const source = scriptedCandidates('/project', { c1: { tree: 't1', base: 'c0', changes: [], files: {} } });
     const snapshot = await openCandidateSnapshot(source, '/project', { commit: 'c1', base: 'c0' });
     const catalog = acceptElements(openElementCatalog('a'.repeat(64), documentManifestSchema.parse({
-      schema: 'ramify-agent.document-manifest/1', root: 'doc-001', missing: [], principlesScan: { status: 'empty', unreadable: [] },
-      documents: [{ id: 'doc-001', path: `plans/${plan}/plan.md`, kind: 'plan', sha256: 'a'.repeat(64), bytes: 1, storedAt: 'input/documents/doc-001.bin', revision: { commit: null, dirty: null } }],
-    })), [{ key: 'serve', kind: 'functional', document: 'doc-001', text: 'Serve it over tRPC and MCP.', conditions: [], uncertainty: '' }]);
+      schema: 'ramify-agent.document-manifest/2', root: 'document:case-001', missing: [], principlesScan: { status: 'empty', unreadable: [] },
+      documents: [{ id: 'document:case-001', path: `plans/${plan}/plan.md`, kind: 'plan', sha256: 'a'.repeat(64), bytes: 1, storedAt: 'input/documents/document:case-001.bin', revision: { commit: null, dirty: null } }],
+    })), [{ key: 'draft:functional-requirement:serve', kind: 'functional', document: 'document:case-001', text: 'Serve it over tRPC and MCP.', conditions: [], uncertainty: '' }]);
     if (!catalog.ok) throw new Error(catalog.errors.join('\n'));
-    const rendered = createPackage({ catalog: catalog.catalog, elements: ['fr-001'], deviations: ['pd-001'],
-      planDeviations: [{ id: 'pd-001', amends: ['fr-001'], authority: 'The plan architect, for wi-001.', text: 'What the run does instead: tRPC only.' }] });
+    const rendered = createPackage({ catalog: catalog.catalog, elements: ['functional-requirement:serve'], deviations: ['plan-deviation:case-001'],
+      planDeviations: [{ id: 'plan-deviation:case-001', amends: ['functional-requirement:serve'], authority: 'The plan architect, for wi-001.', text: 'What the run does instead: tRPC only.' }] });
     if ('unavailable' in rendered) throw new Error('fixture did not render');
     const request = (kind: 'code' | 'scope'): ReviewRequest => ({
       schema: 'ramify-agent.review-request/1', id: 'rq-0002', key: { iteration: 'wi-001.i01', candidate: 'c1', kind, policy: 'review-policy/1' },
       workItem: 'wi-001', assignment: 'a.json', base: 'c0', gate: 'ga-0001', tree: 't1', guidance: [], forkPoint: { kind: 'none' },
-      source: { elements: ['fr-001'], deviations: ['pd-001'], hash: rendered.hash },
+      source: { elements: ['functional-requirement:serve'], deviations: ['plan-deviation:case-001'], hash: rendered.hash },
     });
     const scope = reviewMessage({ request: request('scope'), snapshot, assignment: null, checkFindings: [], planDocument: null, package: rendered.text });
     expect(scope).toContain(`## What the plan asks of it\n\nThe elements the assignment cites, whole. ${deviationNotice} Where a deviation amends an element, judge the candidate against the element as the deviation amends it, and raise no concern for what the deviation leaves out.\n\n${rendered.text.trimEnd()}\n`);
-    expect(scope).toContain('### pd-001 amends fr-001');
+    expect(scope).toContain('### plan-deviation:case-001 amends functional-requirement:serve');
     expect(scope).not.toContain('## Plan deviations in force');
     const code = reviewMessage({ request: request('code'), snapshot, assignment: null, checkFindings: [], package: rendered.text });
     expect(code).toContain(`## What the plan asks of it\n\nThe elements the assignment cites, whole, as its engineer received them.\n\n${rendered.text.trimEnd()}\n`);

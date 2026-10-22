@@ -5,14 +5,14 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../../../../agent/src/scripted.js';
 import { declaringScenarios } from '../../../../../../src/tests/helpers/declarations.js';
-import { analysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { recoveryBoundaries } from '../../../../../../src/tests/helpers/recovery-boundaries.js';
 import { assign, edit, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { freeze, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 
 import { placementDecisionFixture as decision, forkDecision } from './helpers/placement.js';
-import type { CapabilityRequest, CapabilityTask } from '../capability/records.js';
+import { capabilityLayout, type CapabilityRequest, type CapabilityTask } from '../capability/records.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { type Invocation, type InvocationOutcome } from '../../../../../task-execution/src/records.js';
 import { z } from 'zod';
@@ -52,9 +52,9 @@ function script(starts: string[], capabilityPrompts: string[] = [], qualificatio
   let qualificationTurns = 0;
   return spec => {
     starts.push(`${spec.role}:${spec.submission.name}:${spec.session.mode}`);
-    if (spec.role === 'initial-architect') return submit(analysis([
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([
       entry('richer-a-fact', a), entry('b-entry', b),
-    ]));
+    ]), 'document:need-plan'));
     if (spec.submission.name === 'submit_work_item_result') {
       localTurns += 1;
       if (localTurns > 1) throw new Error('B module architect was dispatched while X owns the stack');
@@ -62,16 +62,17 @@ function script(starts: string[], capabilityPrompts: string[] = [], qualificatio
     }
     if (spec.submission.name === 'submit_capability_qualification') {
       qualificationTurns += 1;
-      const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1);
+      const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1);
       if (!ids) throw new Error('Qualification prompt lost its request or invocation');
       if (qualificationTurns === 1) return submit({ kind: qualification === 'placement' ? 'request-placement' : 'unresolved',
+        ...(qualification === 'placement' ? { placementRequestKey: 'draft:placement-request:source-owner' } : { unresolvedRequestKey: 'draft:unresolved-request:source-owner' }),
         request: ids[1], invocation: ids[2], problem: 'B ownership needs a global decision',
         evidence: ['B owns the source fact; A owns calling code'] });
-      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:source-fact', provider: b,
         placementReason: 'B owns the fact and A owns integration', constraints: ['D still uses the old text'], requirementRefs: [] });
     }
     if (spec.role === 'global-fork') return submit(forkDecision({
-      decision: decision({ question: 'Does B own the richer fact?', outcome: 'reuse', capability: 'b-entry',
+      decision: decision({ question: 'Does B own the richer fact?', outcome: 'reuse', capability: 'capability:b-entry',
         owner: b, rationale: 'B owns the fact source and exposes its current API.',
         evidence: { citations: [{ module: b }], gaps: [] } }),
       brief: 'B owns the source fact. A integrates its calling code.',
@@ -81,17 +82,18 @@ function script(starts: string[], capabilityPrompts: string[] = [], qualificatio
       write('extra.ts', "export const sourceHint = 'B';\n"),
       edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('this test still fails')"),
       ...submit({ kind: 'capability-needed', summary: 'A has a provisional caller and a failing example', request: {
+        requestKey: 'draft:capability-request:source-fact',
         need: 'Read B fact with its source for A',
         usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Render the richer result', prospective: false }],
         constraints: ['D must retain the old text result'], knownInterface: { kind: 'none-known' },
-        examples: [{ title: 'A shows source', code: "expect(renderA(readFactWithSource())).toBe('Fresh fact: old from B')", designation: 'pseudocode' }],
+        examples: [{ key: 'draft:capability-example:source-shown', title: 'A shows source', code: "expect(renderA(readFactWithSource())).toBe('Fresh fact: old from B')", designation: 'pseudocode' }],
         suggestedProvider: { module: b, reason: 'B owns fact data' },
       } }),
     ];
     if (spec.role === 'capability-architect') {
       capabilityPrompts.push(spec.prompt);
       capabilityTurns += 1;
-      const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1);
+      const ids = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1);
       if (!ids) throw new Error('Capability prompt lost its task basis');
       const basis = { task: ids[1], planRevision: Number(ids[2]), invocation: ids[3] };
       if (capabilityTurns <= budgetReturns) return [
@@ -174,23 +176,23 @@ test('CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and kee
   }
   expect(continuedPacket.message).toContain('Complete current body is in support:work-item-package.');
   expect(initialPacket.message).toContain('# Plan context package');
-  expect(initialPacket.message).toContain('"originalExamples": [\n    "need-001.ex01"');
+  expect(initialPacket.message).toContain('"originalExamples": [\n    "capability-example:source-shown"');
   expect(capabilityStarts[1]?.type === 'invocation-started' ? capabilityStarts[1].data.session : null)
     .toBe(capabilityStarts[0]?.type === 'invocation-started' ? capabilityStarts[0].data.session : null);
   expect(starts.filter(start => start.startsWith('local-architect:submit_work_item_result'))).toHaveLength(1);
-  expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002')).toHaveLength(0);
+  expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
   expect(events.filter(event => event.type === 'contract-requested')).toHaveLength(0);
   const capabilitySession = capabilityStarts[0]?.type === 'invocation-started' ? capabilityStarts[0].data.session : null;
   expect(events.filter(event => event.type === 'session-finished' && event.data.session === capabilitySession)).toHaveLength(0);
-  const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/requests/need-001.json'), 'utf8')) as CapabilityRequest;
-  const task = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/cap-001/task.json'), 'utf8')) as CapabilityTask;
+  const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, capabilityLayout.request('capability-request:source-fact')), 'utf8')) as CapabilityRequest;
+  const task = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, capabilityLayout.task('capability-task:source-fact')), 'utf8')) as CapabilityTask;
   expect(request.source.acceptedBase).not.toBe(base);
   expect(await boundaryAnswers.options.git.currentHead(fixture.root)).toBe(request.source.acceptedBase);
-  expect(request.original.examples[0]?.id).toBe('need-001.ex01');
+  expect(request.original.examples[0]?.id).toBe('capability-example:source-shown');
   expect(request.source.delta.map(delta => delta.path)).toEqual([
     'subs/a/src/caller.ts', 'subs/a/src/extra.ts', 'subs/a/src/tests/caller.test.ts',
   ]);
-  expect(task.deferredWorkItems).toContain('wi-002');
+  expect(task.deferredWorkItems).toContain('work-item:b-entry');
   expect(await readFile(join(fixture.root, 'subs/a/src/extra.ts'), 'utf8')).toContain('sourceHint');
   expect(opened.service.getRun('need', receipt.jobId)?.state).toBe('running');
   let stopped = false;
@@ -253,7 +255,7 @@ test('an unsafe scratch override refuses capability source capture until the sam
   expect(outcome.rejectedSubmissions).toBe(1);
   expect(await readFile(runPath(fixture.root, 'need', receipt.jobId,
     runLayout.observations(engineer.data.invocation)), 'utf8')).toContain('!tmp/');
-  const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/requests/need-001.json'), 'utf8')) as CapabilityRequest;
+  const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, capabilityLayout.request('capability-request:source-fact')), 'utf8')) as CapabilityRequest;
   expect(await boundaryAnswers.options.git.currentHead(fixture.root)).toBe(request.source.acceptedBase);
   expect(await readFile(join(fixture.root, 'subs/a/src/tmp/draft.txt'), 'utf8')).toBe('provisional scratch\n');
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -339,7 +341,7 @@ for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port
       if (spec.role !== 'capability-architect') return typeof ordinary === 'function' ? ordinary(spec) : ordinary;
       architectTurns += 1;
       if (architectTurns > 1) return [{ kind: 'wait', ms: 60_000 }];
-      const [, task, revision, invocation] = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+      const [, task, revision, invocation] = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
       const basis = { task, planRevision: Number(revision), invocation };
       const incomplete = { ...basis, kind: 'assign', owner: b };
       const corrected = { ...basis, kind: 'partial', progress: 'Inspected the request', unfinished: ['Assign B'] };
@@ -361,7 +363,7 @@ for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun('need'));
     await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event =>
-      event.type === 'capability-coordinator-resumed' && event.data.task === 'cap-001'), 30_000);
+      event.type === 'capability-coordinator-resumed' && event.data.task === 'capability-task:source-fact'), 30_000);
     const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
     const start = events.find(event => event.type === 'invocation-started' && event.data.role === 'capability-architect');
     if (start?.type !== 'invocation-started') throw new Error('Capability architect invocation did not start');
@@ -399,7 +401,7 @@ for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port
     expect(events.filter(event => event.type === 'job-failed')).toEqual([]);
     expect(events.filter(event => event.type === 'capability-assigned')).toHaveLength(0);
     expect(events.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
-    expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002')).toHaveLength(0);
+    expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
     const job = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.record), 'utf8')) as {
       policy: { limits: { rejectedSubmissionsPerTurn: number } } };
     expect(job.policy.limits.rejectedSubmissionsPerTurn).toBe(2);
@@ -441,7 +443,8 @@ test('CA33: production composition captures policy/8 and delegates without contr
   };
   expect(job.policy.version).toBe('run-policy/8');
   expect(job.prompts['capability-architect']).toBeDefined();
-  expect(job.prompts['contract-engineer']).toBeUndefined();
+  expect(job.prompts['contract-engineer']).toBeDefined();
+  expect(events.filter(event => event.type === 'invocation-started' && event.data.role === 'contract-engineer')).toHaveLength(0);
   await opened.service.close();
 }, 30_000);
 
@@ -460,7 +463,7 @@ test('an unresolved qualification returns through the global architect and the s
   await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event =>
     event.type === 'capability-delegated' || event.type === 'job-failed'));
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
-  expect(events.filter(event => event.type === 'job-failed')).toHaveLength(0);
+  expect(events.filter(event => event.type === 'job-failed'), JSON.stringify(events.slice(-12))).toHaveLength(0);
   expect(events.filter(event => event.type === 'unresolved-requested')).toHaveLength(1);
   expect(events.filter(event => event.type === 'decision-accepted')).toHaveLength(1);
   expect(starts.filter(start => start.startsWith('local-architect:submit_capability_qualification'))).toEqual([
@@ -490,10 +493,10 @@ test('CA02: local architect finds an existing API and the same engineer verifies
 
   let engineerTurns = 0;
   const scripted: Script = spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('a-reads-b', a)]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('a-reads-b', a)]), 'document:need-plan'));
     if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, {}, outline()));
     if (spec.submission.name === 'submit_capability_qualification') {
-      const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+      const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
       return submit({ kind: 'satisfy-with-existing', request: ids[1], invocation: ids[2],
         api: { owner: b, path: 'subs/b/src/fact.ts', symbol: 'readFact' },
         guidance: 'Call readFact and retain its old text behavior', evidence: ['subs/b/src/fact.ts exports readFact'] });
@@ -501,10 +504,11 @@ test('CA02: local architect finds an existing API and the same engineer verifies
     if (spec.role === 'engineer') {
       engineerTurns += 1;
       return engineerTurns === 1 ? submit({ kind: 'capability-needed', summary: 'A needs the B text', request: {
+        requestKey: 'draft:capability-request:source-fact',
         need: 'Read the B old fact in A',
         usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Show the old fact', prospective: false }],
         constraints: [], knownInterface: { kind: 'none-known' },
-        examples: [{ title: 'A shows old fact', code: "expect(renderA(readFact())).toBe('Fact: old')", designation: 'pseudocode' }],
+        examples: [{ key: 'draft:capability-example:source-shown', title: 'A shows old fact', code: "expect(renderA(readFact())).toBe('Fact: old')", designation: 'pseudocode' }],
       } }) : submit({ kind: 'completion-proposed', summary: 'The existing B API meets the need', findings: [] });
     }
     if (spec.role === 'capability-architect') throw new Error('Existing behavior must not start a new task');
@@ -545,18 +549,19 @@ test('CA02: local architect finds an existing API and the same engineer verifies
  */
 function delegatingScript(qualifications: Array<{ mode: string; prompt: string }> = []): Script {
   return spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('a-reads-b', a), entry('b-entry', b)]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('a-reads-b', a), entry('b-entry', b)]), 'document:need-plan'));
     if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, {}, outline()));
     if (spec.submission.name === 'submit_capability_qualification') {
       qualifications.push({ mode: spec.session.mode, prompt: spec.prompt });
-      const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+      const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
+      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:source-fact', provider: b,
         placementReason: 'B owns the fact', constraints: [], requirementRefs: [] });
     }
     if (spec.role === 'engineer') return submit({ kind: 'capability-needed', summary: 'A needs source', request: {
+      requestKey: 'draft:capability-request:source-fact',
       need: 'B fact for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Display source', prospective: false }],
       constraints: [], knownInterface: { kind: 'none-known' },
-      examples: [{ title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
+      examples: [{ key: 'draft:capability-example:source-shown', title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
     } });
     if (spec.role === 'capability-architect') return [{ kind: 'wait', ms: 60_000 }];
     return [];
@@ -586,7 +591,7 @@ test('a restart with an unqualified pending request qualifies it fresh and recor
     afterWrite: async (write: string, runId: string) => {
       if (write !== 'invocation-started' || frozen) return;
       const started = (await runEventsOnDisk(fixture.root, 'need', runId)).at(-1);
-      if (started?.type === 'invocation-started' && started.data.role === 'local-architect' && started.data.work.request === 'need-001') {
+      if (started?.type === 'invocation-started' && started.data.role === 'local-architect' && started.data.work.request === 'capability-request:source-fact') {
         frozen = true; await freeze();
       }
     } };
@@ -609,7 +614,7 @@ test('a restart with an unqualified pending request qualifies it fresh and recor
   expect(after.filter(event => event.type === 'job-failed'), JSON.stringify({ tail: after.slice(-12), failedOutcomes })).toHaveLength(0);
   expect(after.filter(event => event.type === 'capability-delegated')).toHaveLength(1);
   const starts = after.filter((event): event is Extract<typeof event, { type: 'invocation-started' }> =>
-    event.type === 'invocation-started' && event.data.role === 'local-architect' && event.data.work.request === 'need-001');
+    event.type === 'invocation-started' && event.data.role === 'local-architect' && event.data.work.request === 'capability-request:source-fact');
   expect(starts).toHaveLength(2);
   const [interrupted, recovered] = starts;
   // The crashed qualification continued the architect's session and was closed by the restart.
@@ -629,8 +634,8 @@ test('a restart with an unqualified pending request qualifies it fresh and recor
   expect(recoveredOutcome.ended).toBe('submitted');
   expect(recoveredOutcome.session?.mode).toBe('fresh');
   // Its fresh turn receives the work-item package, including elements beyond its engineer assignment subset.
-  expect(qualifications).toEqual([{ mode: 'fresh', prompt: expect.stringContaining('The plan asks for a-reads-b-request.') }]);
-  expect(qualifications[0]!.prompt).toContain('The plan asks for a-reads-b-acceptance.');
+  expect(qualifications).toEqual([{ mode: 'fresh', prompt: expect.stringContaining('The plan asks for draft:functional-requirement:a-reads-b-request.') }]);
+  expect(qualifications[0]!.prompt).toContain('The plan asks for draft:functional-requirement:a-reads-b-acceptance.');
   expect(qualifications[0]!.prompt).not.toContain('# Captured plan package');
   expect(qualifications[0]!.prompt).toContain('`subs/a/src/tests/`');
   await stopWaitingRun(second.service, receipt.jobId);
@@ -651,7 +656,7 @@ test('a restart finds the orientation whose event it had not recorded by its ope
       const ended = events.at(-1);
       if (ended?.type !== 'invocation-ended' || events.some(event => event.type === 'work-orientation-recorded')) return;
       if (events.some(event => event.type === 'invocation-started' && event.data.invocation === ended.data.invocation &&
-        event.data.role === 'local-architect' && event.data.work.workItem === 'wi-001')) { frozen = true; await freeze(); }
+        event.data.role === 'local-architect' && event.data.work.workItem === 'work-item:a-reads-b')) { frozen = true; await freeze(); }
     } };
   const first = await openCapabilityRuns(fixture.root, options);
   const receipt = await first.service.execute(startRun('need'));
@@ -682,7 +687,7 @@ test('a restart finds the orientation whose event it had not recorded by its ope
   expect(after.filter(event => event.type === 'job-failed'), JSON.stringify({ tail: after.slice(-12), failedOutcomes })).toHaveLength(0);
   // The ended orientation is the one recorded; no second orientation was asked for.
   const recorded = after.filter((event): event is Extract<typeof event, { type: 'work-orientation-recorded' }> =>
-    event.type === 'work-orientation-recorded' && event.data.workItem === 'wi-001');
+    event.type === 'work-orientation-recorded' && event.data.workItem === 'work-item:a-reads-b');
   expect(recorded).toHaveLength(1);
   expect(recorded[0]!.data.invocation).toBe(orientationEnd.data.invocation);
   expect(second.agent!.sessions.filter(session => session.spec.submission.name === 'submit_work_orientation')).toHaveLength(0);
@@ -690,7 +695,7 @@ test('a restart finds the orientation whose event it had not recorded by its ope
   const packet = await readFile(runPath(fixture.root, 'need', receipt.jobId, recorded[0]!.data.packet!), 'utf8');
   expect(packet).toContain(changedPurpose);
   expect(packet).not.toContain(originalPurpose);
-  expect(after.filter(event => event.type === 'context-selection-recorded' && event.data.workItem === 'wi-001')).toHaveLength(1);
+  expect(after.filter(event => event.type === 'context-selection-recorded' && event.data.workItem === 'work-item:a-reads-b')).toHaveLength(1);
   expect(after.filter(event => event.type === 'capability-delegated')).toHaveLength(1);
   await stopWaitingRun(second.service, receipt.jobId);
 }, 60_000);
@@ -707,7 +712,7 @@ test('a restart recognizes exhausted orientation attempts and proceeds fresh wit
     if (write !== 'invocation-ended' || frozen) return;
     const events = await runEventsOnDisk(fixture.root, 'need', runId);
     const attempts = events.filter(event => event.type === 'invocation-ended' && events.some(start =>
-      start.type === 'invocation-started' && start.data.invocation === event.data.invocation && start.data.role === 'local-architect' && start.data.work.workItem === 'wi-001'));
+      start.type === 'invocation-started' && start.data.invocation === event.data.invocation && start.data.role === 'local-architect' && start.data.work.workItem === 'work-item:a-reads-b'));
     if (attempts.length === testPolicy(fixture.root).limits.forkRetriesPerRequest + 1) { frozen = true; await freeze(); }
   } };
   const firstAgent = agentForRun(); const first = await openCapabilityRuns(fixture.root, { ...options, agent: firstAgent });
@@ -722,7 +727,7 @@ test('a restart recognizes exhausted orientation attempts and proceeds fresh wit
   expect(after.filter(event => event.type === 'job-failed')).toEqual([]);
   expect(secondAgent.sessions.filter(session => session.spec.submission.name === 'submit_work_orientation')).toEqual([]);
   const selector = secondAgent.sessions.find(session => session.spec.role === 'context-selector')!;
-  expect(selector.start.mode).toBe('fresh'); expect(selector.spec.prompt).toContain('The plan asks for a-reads-b-request.');
+  expect(selector.start.mode).toBe('fresh'); expect(selector.spec.prompt).toContain('The plan asks for draft:functional-requirement:a-reads-b-request.');
   const selection = after.find(event => event.type === 'context-selection-recorded')!;
   const record = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, selection.data.selection), 'utf8'));
   expect(record).toMatchObject({ orientationInvocation: last.data.invocation, orientationPoint: null, degraded: true });

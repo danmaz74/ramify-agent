@@ -83,6 +83,8 @@ export class SubmissionJudge<T> {
   private attemptCount = 0;
   private rejectionCount = 0;
   private accepted = false;
+  /** Validation and acceptance share one invocation authority even when tool calls overlap. */
+  private tail: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: SubmissionJudgeOptions<T>) {}
 
@@ -125,6 +127,15 @@ export class SubmissionJudge<T> {
 
   /** Judges one input that reached the harness. Nothing changes unless it is accepted. */
   async judge(input: unknown, callId = ''): Promise<SubmissionVerdict> {
+    const previous = this.tail;
+    let release!: () => void;
+    this.tail = new Promise<void>(resolve => { release = resolve; });
+    await previous;
+    try { return await this.judgeOne(input, callId); }
+    finally { release(); }
+  }
+
+  private async judgeOne(input: unknown, callId: string): Promise<SubmissionVerdict> {
     const closedText = this.options.closed?.();
     if (closedText !== undefined) return { accepted: false, final: true, errors: [closedText] };
     if (this.accepted) return { accepted: false, final: true, errors: ['This invocation has already submitted a result.'] };

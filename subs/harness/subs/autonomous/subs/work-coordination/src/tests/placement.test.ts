@@ -6,7 +6,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type ScriptedAgent } from '../../../../../agent/src/scripted.js';
 import type { ArchitectIndex } from '../../../../../evidence/src/views.js';
 import { analysisLayout, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
-import { architectureLayout, type PlacementDecision, type PlacementRequest } from '../architecture/records.js';
+import { architectureLayout, globalDecisionId, placementRequestSchema, type PlacementDecision, type PlacementRequest } from '../architecture/records.js';
+import { acceptDecision } from '../architecture/accept.js';
 import type { RunInputs } from '../../../../src/run/inputs.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { type InvocationOutcome } from '../../../../../task-execution/src/records.js';
@@ -14,9 +15,9 @@ import type { RunEvent, RunEventOf } from '../../../../src/run/log.js';
 import { reduceSessions } from '../../../../src/run/sessions.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { declaringScenarios } from '../../../../../../src/tests/helpers/declarations.js';
-import { analysis, entry, hypothesis, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, hypothesis, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { byRole, readDeclaredTree, submit, treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
-import { forkDecision, forkPartial, registryChange, requestPlacement } from './helpers/placement.js';
+import { decision as placementDecisionFixture, forkDecision, forkPartial, registryChange, requestPlacement } from './helpers/placement.js';
 import {
   installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun,
 } from '../../../../../../src/tests/helpers/runs.js';
@@ -46,7 +47,39 @@ afterEach(async () => {
 
 const core = 'collection-review/workspace/catalog/core';
 const panel = 'collection-review/workspace/catalog/ui';
-const unchangedPlacementCheckpoints = [scenariosCommit('revision-diff'), 'wi-001', 'wi-002', 'final verification of plan "revision-diff"'] as const;
+const unchangedPlacementCheckpoints = [scenariosCommit('revision-diff'), 'work-item:compare-revisions', 'work-item:compare-panel', 'final verification of plan "revision-diff"'] as const;
+
+test('descriptive placement IDs preserve their work and capability origin through accepted records', () => {
+  const request = 'placement-request:resolve-review-predecessors';
+  const id = globalDecisionId(request);
+  const accepted = acceptDecision({ id, authority: 'global', request, workItem: 'work-item:add-revision-preview',
+    invocation: 'inv-0001', body: placementDecisionFixture({ capability: 'capability:resolve-review-predecessors' }),
+    registry: [registryChange({ capability: 'capability:resolve-review-predecessors', owner: core })],
+    view: { status: 'placeholder' }, brief: 'Core resolves review predecessors.',
+    committed: { registry: new Map(), hypotheses: new Map() },
+  });
+  expect(request).toMatch(/^placement-request:/);
+  expect(accepted.decision).toMatchObject({ schema: 'ramify-agent.placement-decision/2', id,
+    capability: 'capability:resolve-review-predecessors', request });
+  expect(accepted.registry[0]).toMatchObject({ schema: 'ramify-agent.capability/2', capability: 'capability:resolve-review-predecessors' });
+  expect(accepted.records[0]?.path).toContain('placement-decision%3A');
+  expect(id).toBe('placement-decision:placement-resolve-review-predecessors');
+  expect(globalDecisionId('unresolved-request:resolve-review-predecessors'))
+    .toBe('placement-decision:unresolved-resolve-review-predecessors');
+  expect(() => globalDecisionId('capability-request:resolve-review-predecessors')).toThrow();
+});
+
+test('a capability task is an exact placement subject and obsolete records are refused', () => {
+  const task = 'capability-task:provide-review-source';
+  const id = 'placement-request:review-source';
+  const request = { schema: 'ramify-agent.placement-request/2', id, workItem: 'work-item:review-source',
+    requester: panel, forCapability: task, question: 'Where does source reading belong?',
+    requiredBehavior: 'Provide source reading', findings: [], candidates: [], unresolved: [],
+    hypotheses: [], localDecisions: [] };
+  expect(placementRequestSchema.safeParse(request).success).toBe(true);
+  expect(placementRequestSchema.safeParse({ ...request, forCapability: 'consumer-requirement:foreign' }).success).toBe(false);
+  expect(placementRequestSchema.safeParse({ ...request, schema: 'ramify-agent.placement-request/1', id: 'placement-request:compare-revisions' }).success).toBe(false);
+});
 
 /** A copy of the fixture project, made a git repository with the runner readiness looks for. */
 async function target(): Promise<string> {
@@ -58,7 +91,7 @@ async function target(): Promise<string> {
 
 /** The analysis the placement tests start from: two entries and one forecast. */
 function analysed() {
-  return analysis(
+  return currentAnalysis(analysis(
     [entry('compare-revisions', core, 'Compares two revisions of one record, field by field.'),
       entry('compare-panel', panel, 'Shows the comparison of two revisions on the record card.')],
     [hypothesis('field-diff', {
@@ -66,7 +99,7 @@ function analysed() {
       involvedModules: [core, panel], anticipatedConsumers: [panel],
       rationale: 'Comparing two field maps may be one capability both surfaces use.',
     })],
-  );
+  ), 'document:revision-diff-plan');
 }
 
 /** The decision the first fork makes: the capability is created in the catalog core. */
@@ -75,7 +108,7 @@ function firstDecision(brief: string) {
     decision: {
       question: 'Where does comparing two revisions field by field belong?',
       outcome: 'create',
-      capability: 'field-diff',
+      capability: 'capability:field-diff',
       changesExistingSymbols: false,
       owner: core,
       rationale: 'The core already holds the revision chain, and both surfaces read it from there.',
@@ -84,11 +117,11 @@ function firstDecision(brief: string) {
       evidence: { citations: [{ module: core }], gaps: ['no dependency facts are published for this fixture'] },
     },
     registry: [registryChange({
-      capability: 'field-diff', owner: core,
+      capability: 'capability:field-diff', owner: core,
       behavior: 'Compares two revisions of one record and names the fields that differ.',
     })],
     hypothesisRevisions: [{
-      hypothesis: 'field-diff', standing: 'confirmed',
+      hypothesis: 'hypothesis:field-diff', standing: 'confirmed',
       reason: 'The core owns the revision chain, which is what the comparison reads.',
     }],
     brief,
@@ -101,18 +134,18 @@ function secondDecision() {
     decision: {
       question: 'Does the panel need its own comparison?',
       outcome: 'reuse',
-      capability: 'field-diff',
+      capability: 'capability:field-diff',
       changesExistingSymbols: false,
       owner: core,
-      rationale: 'The brief of gd-001 already placed it in the core, and the panel is the consumer it anticipated.',
+      rationale: 'The brief of placement-decision:placement-compare-revisions already placed it in the core, and the panel is the consumer it anticipated.',
       constraints: [],
       uncertainties: [],
       evidence: { citations: [{ module: core }], gaps: [] },
     },
     registry: [registryChange({
-      capability: 'field-diff', owner: core,
+      capability: 'capability:field-diff', owner: core,
       behavior: 'Compares two revisions of one record and names the fields that differ.',
-      consumers: [{ capability: 'compare-panel', workItem: 'wi-002' }],
+      consumers: [{ capability: 'capability:compare-panel', workItem: 'work-item:compare-panel' }],
     })],
     brief: 'The panel consumes field-diff from the catalog core; nothing new was placed.',
   });
@@ -134,17 +167,17 @@ describe('G2, G3: two sequential placement forks, and the brief between them', (
       'initial-architect': [submit(analysed())],
       'local-architect': [
         submit(requestPlacement({
-          forCapability: 'compare-revisions',
+          forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions',
           question: 'Does comparing two revisions belong here, or to the panel that shows it?',
           findings: [{ text: 'The core holds the revision chain.', citations: [{ module: core }] }],
           candidates: [{ owner: core, note: 'It already holds the chain.' }],
-          hypotheses: [{ hypothesis: 'field-diff', stance: 'supports', evidence: 'The chain is here and nowhere else.' }],
+          hypotheses: [{ hypothesis: 'hypothesis:field-diff', stance: 'supports', evidence: 'The chain is here and nowhere else.' }],
         })),
         submit(requestCompletion()),
         submit(requestPlacement({
-          forCapability: 'compare-panel',
+          forCapability: 'capability:compare-panel', requestKey: 'draft:placement-request:compare-panel',
           question: 'Does the panel need its own comparison of two revisions?',
-          candidates: [{ capability: 'field-diff', owner: core, note: 'The brief says the core owns it.' }],
+          candidates: [{ capability: 'capability:field-diff', owner: core, note: 'The brief says the core owns it.' }],
         })),
         submit(requestCompletion()),
       ],
@@ -200,39 +233,39 @@ describe('G2, G3: two sequential placement forks, and the brief between them', (
     expect(forks[1]!.inherited.join('\n')).toContain(brief);
     // The brief carries the decision's own references, and the fork's text
     // unchanged.
-    expect(forks[1]!.inherited.join('\n')).toContain('Decision gd-001 (request pr-001)');
-    const sources = await Promise.all(['pr-001', 'pr-002'].map(id => readJson<PlacementRequest>(runPath(project, 'revision-diff', runId, architectureLayout.request(id)))));
-    expect(sources.map(request => request.globalSource!.appended)).toEqual([[], ['gd-001']]);
+    expect(forks[1]!.inherited.join('\n')).toContain('Decision placement-decision:placement-compare-revisions (request placement-request:compare-revisions)');
+    const sources = await Promise.all(['placement-request:compare-revisions', 'placement-request:compare-panel'].map(id => readJson<PlacementRequest>(runPath(project, 'revision-diff', runId, architectureLayout.request(id)))));
+    expect(sources.map(request => request.globalSource!.appended)).toEqual([[], ['placement-decision:placement-compare-revisions']]);
     expect(sources.map(request => request.globalSource!.pending)).toEqual([[], []]);
     // The second decision was accepted later, so it belongs to neither captured inherited prefix.
-    expect(forks.every(fork => !fork.inherited.join('\n').includes('Decision gd-002 (request pr-002)'))).toBe(true);
+    expect(forks.every(fork => !fork.inherited.join('\n').includes('Decision placement-decision:placement-compare-panel (request placement-request:compare-panel)'))).toBe(true);
 
     // G2: the second decision reuses the registered entry rather than
     // naming a new slug.
-    const first = await readJson<PlacementDecision>(runPath(project, 'revision-diff', runId, architectureLayout.decision('gd-001')));
-    const second = await readJson<PlacementDecision>(runPath(project, 'revision-diff', runId, architectureLayout.decision('gd-002')));
+    const first = await readJson<PlacementDecision>(runPath(project, 'revision-diff', runId, architectureLayout.decision('placement-decision:placement-compare-revisions')));
+    const second = await readJson<PlacementDecision>(runPath(project, 'revision-diff', runId, architectureLayout.decision('placement-decision:placement-compare-panel')));
     expect(first.outcome).toBe('create');
     expect(first.authority).toBe('global');
-    expect(first.request).toBe('pr-001');
+    expect(first.request).toBe('placement-request:compare-revisions');
     expect(second.outcome).toBe('reuse');
-    expect(second.capability).toBe('field-diff');
-    expect(second.registry.map(ref => `${ref.id}@${ref.revision}`)).toEqual(['field-diff@2']);
+    expect(second.capability).toBe('capability:field-diff');
+    expect(second.registry.map(ref => `${ref.id}@${ref.revision}`)).toEqual(['capability:field-diff@2']);
     expect(second.proposed).toBeUndefined();
 
     // Three capabilities: the two entries and the one the first fork
     // created. The second fork registered no new slug.
-    const registry = await readJson<RegistryEntry>(runPath(project, 'revision-diff', runId, analysisLayout.registry('field-diff', 2)));
+    const registry = await readJson<RegistryEntry>(runPath(project, 'revision-diff', runId, analysisLayout.registry('capability:field-diff', 2)));
     expect(registry.owner).toBe(core);
     expect(registry.origin).toBe('global-decision');
-    expect(registry.decision).toBe('gd-002');
-    expect(registry.consumers).toEqual([{ capability: 'compare-panel', workItem: 'wi-002' }]);
+    expect(registry.decision).toBe('placement-decision:placement-compare-panel');
+    expect(registry.consumers).toEqual([{ capability: 'capability:compare-panel', workItem: 'work-item:compare-panel' }]);
 
     // The hypothesis was revised by the decision, and revision 1 stands.
-    const revised = await readJson<Hypothesis>(runPath(project, 'revision-diff', runId, analysisLayout.hypothesis('field-diff', 2)));
+    const revised = await readJson<Hypothesis>(runPath(project, 'revision-diff', runId, analysisLayout.hypothesis('hypothesis:field-diff', 2)));
     expect(revised.standing).toBe('confirmed');
-    expect(revised.confirmedBy).toBe('gd-001');
-    expect(revised.cause).toEqual({ decision: 'gd-001', reason: 'The core owns the revision chain, which is what the comparison reads.' });
-    const original = await readJson<Hypothesis>(runPath(project, 'revision-diff', runId, analysisLayout.hypothesis('field-diff', 1)));
+    expect(revised.confirmedBy).toBe('placement-decision:placement-compare-revisions');
+    expect(revised.cause).toEqual({ decision: 'placement-decision:placement-compare-revisions', reason: 'The core owns the revision chain, which is what the comparison reads.' });
+    const original = await readJson<Hypothesis>(runPath(project, 'revision-diff', runId, analysisLayout.hypothesis('hypothesis:field-diff', 1)));
     expect(original.standing).toBe('tentative');
 
     // G2: no baseline is retained. Each request recorded the identity of the
@@ -247,23 +280,23 @@ describe('G2, G3: two sequential placement forks, and the brief between them', (
     // anything further.
     const delivered = types(events).indexOf('decision-delivered');
     expect(types(events).slice(delivered).includes('outline-revised')).toBe(true);
-    const request = await readJson<PlacementRequest>(runPath(project, 'revision-diff', runId, architectureLayout.request('pr-001')));
-    expect(request.workItem).toBe('wi-001');
+    const request = await readJson<PlacementRequest>(runPath(project, 'revision-diff', runId, architectureLayout.request('placement-request:compare-revisions')));
+    expect(request.workItem).toBe('work-item:compare-revisions');
     expect(request.requester).toBe(core);
     expect(request.hypotheses[0]).toMatchObject({ stance: 'supports' });
-    expect(request.hypotheses[0]!.ref).toMatchObject({ id: 'field-diff', revision: 1 });
+    expect(request.hypotheses[0]!.ref).toMatchObject({ id: 'hypothesis:field-diff', revision: 1 });
 
-    // EP08: gd-001 places field-diff in wi-001's own module, and selects nothing again; gd-002 adds the
-    // core to wi-002, whose selection is made again from its architect's point and supersedes the first.
+    // EP08: placement-decision:placement-compare-revisions places field-diff in work-item:compare-revisions's own module, and selects nothing again; placement-decision:placement-compare-panel adds the
+    // core to work-item:compare-panel, whose selection is made again from its architect's point and supersedes the first.
     const selections = events.flatMap(event => (event.type === 'context-selection-recorded' ? [event.data] : []));
     expect(selections.map(selection => [selection.workItem, selection.supersedes ?? null])).toEqual([
-      ['wi-001', null], ['wi-002', null], ['wi-002', selections[1]!.selection],
+      ['work-item:compare-revisions', null], ['work-item:compare-panel', null], ['work-item:compare-panel', selections[1]!.selection],
     ]);
     expect(selections[2]!.selection).not.toBe(selections[1]!.selection);
     expect(types(events).indexOf('context-selection-recorded', types(events).lastIndexOf('decision-accepted'))).toBeGreaterThan(types(events).lastIndexOf('decision-accepted'));
     const selectors = agent.sessions.filter(session => session.spec.role === 'context-selector');
     expect(selectors).toHaveLength(3);
-    expect(selectors[2]!.spec.prompt).toContain('Placement decision `gd-002` placed `field-diff`');
+    expect(selectors[2]!.spec.prompt).toContain('Placement decision `placement-decision:placement-compare-panel` placed `capability:field-diff`');
   }, 120_000);
 });
 
@@ -273,7 +306,7 @@ describe('X1c: a fork that returns partial findings and no decision', () => {
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
       'local-architect': [
-        submit(requestPlacement({ forCapability: 'compare-revisions' })),
+        submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions' })),
         submit(requestCompletion()),
         submit(requestCompletion()),
       ],
@@ -305,7 +338,7 @@ describe('X1c: a fork that returns partial findings and no decision', () => {
 
     // The unresolved outcome reached the module architect that asked.
     const architects = agent.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_item_result');
-    expect(architects[1]!.spec.prompt).toContain('pr-001');
+    expect(architects[1]!.spec.prompt).toContain('placement-request:compare-revisions');
     expect(architects[1]!.spec.prompt).toContain('was not resolved');
     expect(architects[1]!.spec.prompt).toContain('two modules could own it');
     expect(architects[1]!.spec.prompt).toContain('the view publishes no dependency facts');
@@ -325,7 +358,7 @@ describe('a view identity that changes under an investigation', () => {
     };
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
-      'local-architect': [submit(requestPlacement({ forCapability: 'compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
+      'local-architect': [submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
       'global-fork': [submit(firstDecision('field-diff belongs to the catalog core.'))],
     })));
     const opened = await openRuns(project, {
@@ -356,7 +389,7 @@ describe('a view identity that changes under an investigation', () => {
     expect(events.filter(event => event.type === 'decision-accepted')).toHaveLength(1);
     expect(events.filter(event => event.type === 'brief-appended')).toHaveLength(1);
 
-    const decision = await readJson<PlacementDecision>(runPath(project, 'revision-diff', runId, architectureLayout.decision('gd-001')));
+    const decision = await readJson<PlacementDecision>(runPath(project, 'revision-diff', runId, architectureLayout.decision('placement-decision:placement-compare-revisions')));
     expect(decision.evidence.view).toEqual({
       status: 'materialized',
       revision: 'rev/1:declared:2',
@@ -377,7 +410,7 @@ describe('the invocation of a fork', () => {
     const project = await target();
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
-      'local-architect': [submit(requestPlacement({ forCapability: 'compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
+      'local-architect': [submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
       'global-fork': [submit(firstDecision('field-diff belongs to the catalog core.'))],
     })));
     const opened = await openRuns(project, { agent, inputs: treeInputs(), unchangedCheckpoints: unchangedPlacementCheckpoints });
@@ -404,7 +437,7 @@ describe('the invocation of a fork', () => {
     // The append names the point the parent's history reached, which is
     // what the next fork would fork from.
     const appended = events.find(event => event.type === 'brief-appended');
-    expect(appended!.data).toMatchObject({ decision: 'gd-001', generation: 1, outcome: 'appended' });
+    expect(appended!.data).toMatchObject({ decision: 'placement-decision:placement-compare-revisions', generation: 1, outcome: 'appended' });
     expect((appended!.data as { session: string }).session).not.toBe('');
   }, 120_000);
 });
@@ -414,7 +447,7 @@ describe('a start the executor could not honor', () => {
     const project = await target();
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
-      'local-architect': [submit(requestPlacement({ forCapability: 'compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
+      'local-architect': [submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
       'global-fork': [submit(firstDecision('field-diff belongs to the catalog core.'))],
     })));
     // The executor forgets the architect context and the module architect's
@@ -447,7 +480,7 @@ describe('a start the executor could not honor', () => {
     expect(degraded.map(event => event.data.degraded?.requested)).toEqual(['fork', 'continue']);
     expect(agent.sessions.filter(session => session.spec.role === 'global-fork')).toHaveLength(1);
     expect(agent.sessions.find(session => session.spec.role === 'global-fork')!.start.mode).toBe('fresh');
-    const request = await readJson<PlacementRequest>(runPath(project, 'revision-diff', receipt.jobId, architectureLayout.request('pr-001')));
+    const request = await readJson<PlacementRequest>(runPath(project, 'revision-diff', receipt.jobId, architectureLayout.request('placement-request:compare-revisions')));
     expect(request.globalSource?.ref).not.toBeNull();
     expect(events.filter(event => event.type === 'session-opened' && event.data.role === 'initial-architect')).toHaveLength(1);
   }, 120_000);
@@ -460,9 +493,9 @@ describe('a parent context that can no longer be read', () => {
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
       'local-architect': [
-        submit(requestPlacement({ forCapability: 'compare-revisions' })),
+        submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions' })),
         submit(requestCompletion()),
-        submit(requestPlacement({ forCapability: 'compare-panel' })),
+        submit(requestPlacement({ forCapability: 'capability:compare-panel', requestKey: 'draft:placement-request:compare-panel' })),
         submit(requestCompletion()),
       ],
       'global-fork': [submit(firstDecision(brief)), submit(secondDecision())],
@@ -492,7 +525,7 @@ describe('a parent context that can no longer be read', () => {
     const events = await runEventsOnDisk(project, 'revision-diff', runId);
     expect(events.filter(event => event.type === 'global-context-rebuilt')).toEqual([]);
     const missing = events.filter(event => event.type === 'brief-not-appended');
-    expect(missing.map(event => event.data.decision)).toEqual(['gd-001', 'gd-002']);
+    expect(missing.map(event => event.data.decision)).toEqual(['placement-decision:placement-compare-revisions', 'placement-decision:placement-compare-panel']);
     expect(missing.every(event => event.data.generation === 1)).toBe(true);
     expect(events.filter(event => event.type === 'brief-appended')).toEqual([]);
 
@@ -501,20 +534,20 @@ describe('a parent context that can no longer be read', () => {
 
     // The next fork was started fresh and oriented from the records, which
     // is where the first decision's brief is read from. Rebuilding cleared
-    // the pending list: nothing appended gd-001 afterwards.
+    // the pending list: nothing appended placement-decision:placement-compare-revisions afterwards.
     const forks = agent.sessions.filter(session => session.spec.role === 'global-fork');
     expect(forks).toHaveLength(2);
     expect(forks[1]!.start.mode).toBe('fresh');
     expect(forks[1]!.inherited).toEqual([]);
     expect(forks[1]!.spec.prompt).not.toContain('rebuilt from');
     expect(forks[1]!.spec.prompt).toContain('The core already holds the revision chain');
-    const source = (await readJson<PlacementRequest>(runPath(project, 'revision-diff', runId, architectureLayout.request('pr-002')))).globalSource!;
-    expect(source).toMatchObject({ generation: 1, ref: null, appended: [], pending: ['gd-001'] });
+    const source = (await readJson<PlacementRequest>(runPath(project, 'revision-diff', runId, architectureLayout.request('placement-request:compare-panel')))).globalSource!;
+    expect(source).toMatchObject({ generation: 1, ref: null, appended: [], pending: ['placement-decision:placement-compare-revisions'] });
     const startedFresh = events.find(event => event.type === 'session-opened' && event.data.role === 'global-fork' && event.data.fork === undefined);
     expect(startedFresh?.type).toBe('session-opened');
     if (startedFresh?.type !== 'session-opened') throw new Error('Expected fresh global session');
     expect(startedFresh.data.replaces).toBeUndefined();
-    expect(forks[1]!.spec.prompt).toContain('`field-diff` → `collection-review/workspace/catalog/core`');
+    expect(forks[1]!.spec.prompt).toContain('`capability:field-diff` → `collection-review/workspace/catalog/core`');
 
     // The invocation of that fork records what was requested and what was
     // actual, which is how a fork that became a fresh session is visible.
@@ -548,13 +581,13 @@ describe('a fork whose submissions are invalid', () => {
     const project = await target();
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
-      'local-architect': [submit(requestPlacement({ forCapability: 'compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
+      'local-architect': [submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
       'global-fork': [[
         // The rule this iteration's guard names: an owner the refreshed
         // view does not have, with nothing proposing it.
         { kind: 'submit', input: forkDecision({
           decision: {
-            question: 'Where does it belong?', outcome: 'create', capability: 'field-diff',
+            question: 'Where does it belong?', outcome: 'create', capability: 'capability:field-diff',
             changesExistingSymbols: false, owner: 'collection-review/workspace/nowhere',
             rationale: 'r', constraints: [], uncertainties: [], evidence: { citations: [], gaps: [] },
           },
@@ -597,7 +630,7 @@ describe('a fork whose submissions are invalid', () => {
     const broken = { kind: 'decision', decision: { question: 'where?' } };
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
-      'local-architect': [submit(requestPlacement({ forCapability: 'compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
+      'local-architect': [submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
       'global-fork': [[
         { kind: 'submit', input: broken },
         { kind: 'submit', input: broken },
@@ -642,8 +675,8 @@ describe('a decision that replaces an earlier one', () => {
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
       'local-architect': [
-        submit(requestPlacement({ forCapability: 'compare-revisions' })),
-        submit(requestPlacement({ forCapability: 'compare-revisions', question: 'Is the core still the right owner now that only the panel reads it?' })),
+        submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions' })),
+        submit(requestPlacement({ forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions-recheck', question: 'Is the core still the right owner now that only the panel reads it?' })),
         submit(requestCompletion()),
         submit(requestCompletion()),
       ],
@@ -653,20 +686,20 @@ describe('a decision that replaces an earlier one', () => {
           decision: {
             question: 'Is the core still the right owner now that only the panel reads it?',
             outcome: 'extract',
-            capability: 'field-diff',
+            capability: 'capability:field-diff',
             changesExistingSymbols: true,
             owner: panel,
             rationale: 'The only reader is the panel, and the comparison has no other consumer.',
             constraints: [],
             uncertainties: [],
             evidence: { citations: [{ module: panel }], gaps: [] },
-            revises: { decision: 'gd-001', affected: [{ workItem: 'wi-002', consequence }] },
+            revises: { decision: 'placement-decision:placement-compare-revisions', affected: [{ workItem: 'work-item:compare-panel', consequence }] },
           },
           registry: [registryChange({
-            capability: 'field-diff', owner: panel,
+            capability: 'capability:field-diff', owner: panel,
             behavior: 'Compares two revisions of one record and names the fields that differ.',
           })],
-          brief: 'field-diff moves from the catalog core to the panel; gd-001 is replaced.',
+          brief: 'field-diff moves from the catalog core to the panel; placement-decision:placement-compare-revisions is replaced.',
         })),
       ],
     })));
@@ -677,21 +710,21 @@ describe('a decision that replaces an earlier one', () => {
     const runId = receipt.jobId;
     expect(onlyRun(opened.service, 'revision-diff').state).toBe('completed');
 
-    const second = await readJson<PlacementDecision>(runPath(project, 'revision-diff', runId, architectureLayout.decision('gd-002')));
-    expect(second.revises).toEqual({ decision: 'gd-001', affected: [{ workItem: 'wi-002', consequence }] });
+    const second = await readJson<PlacementDecision>(runPath(project, 'revision-diff', runId, architectureLayout.decision('placement-decision:placement-compare-revisions-recheck')));
+    expect(second.revises).toEqual({ decision: 'placement-decision:placement-compare-revisions', affected: [{ workItem: 'work-item:compare-panel', consequence }] });
     // The registry records where the capability was, which is what makes
     // the move visible rather than silent.
-    const moved = await readJson<RegistryEntry>(runPath(project, 'revision-diff', runId, analysisLayout.registry('field-diff', 2)));
+    const moved = await readJson<RegistryEntry>(runPath(project, 'revision-diff', runId, analysisLayout.registry('capability:field-diff', 2)));
     expect(moved.owner).toBe(panel);
     expect(moved.previousOwner).toBe(core);
 
     // The consequence reached the work item it names, at its own turn.
     const architects = agent.sessions.filter(session => session.spec.role === 'local-architect');
     const affected = architects.at(-1)!;
-    expect(affected.spec.prompt).toContain('Perform assignment for {"workItem":"wi-002"}');
+    expect(affected.spec.prompt).toContain('Perform assignment for {"workItem":"work-item:compare-panel"}');
     const received = [...affected.inherited, affected.spec.prompt].join('\n');
-    expect(received).toContain('gd-002');
+    expect(received).toContain('placement-decision:placement-compare-revisions-recheck');
     expect(received).toContain(consequence);
-    expect(received).toContain('It replaces `gd-001`.');
+    expect(received).toContain('It replaces `placement-decision:placement-compare-revisions`.');
   }, 120_000);
 });

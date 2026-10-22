@@ -17,7 +17,7 @@ import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { constructedRun, constructedRecord, runId, hash } from './helpers/constructed.js';
 import { fixturePlan, fixtureRequest, fixtureTask } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { recordHash } from '../jobs/committed-reader.js';
-import { iterationAssignmentSchema, iterationResultSchema } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { iterationAssignmentSchema, iterationLayout, iterationResultSchema } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 
 import { capabilityProjectionLines as lines, capabilityContractRun } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability-projection.js';
 
@@ -39,32 +39,32 @@ function queriesOf(run: CommittedRun) {
 test('CA23: capability event references identify requests, tasks and assignments', async () => {
   const run = constructedRun([
     ...lines(),
-    { type: 'capability-assigned', data: { task: 'cap-001', assignment: 'cap-001.i01', sequence: 1, invocation: 'inv-0002' } },
+    { type: 'capability-assigned', data: { task: 'capability-task:provide-fact', assignment: 'capability-task:provide-fact.i01', sequence: 1, invocation: 'inv-0002' } },
   ]);
   const refs = (await queriesOf(run).events('review-notes', runId, 0)).events.flatMap(event => event.refs);
   expect(refs).toEqual(expect.arrayContaining([
-    { kind: 'capability-request', id: 'need-001' },
-    { kind: 'capability-task', id: 'cap-001' },
-    { kind: 'capability-assignment', id: 'cap-001.i01' },
+    { kind: 'capability-request', id: 'capability-request:format-fact' },
+    { kind: 'capability-task', id: 'capability-task:provide-fact' },
+    { kind: 'capability-assignment', id: 'capability-task:provide-fact.i01' },
   ]));
 });
 
 test('CA23 CA34: request, design, consultation and failed verification remain distinct from registry capability', async () => {
   const run = constructedRun(lines());
   const answer = capabilityTasksResponseSchema.parse(await capabilityTasks(run));
-  expect(answer).toMatchObject({ version: 6, stack: ['wi-001', 'cap-001'],
-    requests: [{ id: 'need-001', outcome: 'delegated', task: 'cap-001' }],
-    tasks: [{ id: 'cap-001', status: 'coordinating', active: true, provider: 'b',
+  expect(answer).toMatchObject({ version: 6, stack: ['work-item:format-fact', 'capability-task:provide-fact'],
+    requests: [{ id: 'capability-request:format-fact', outcome: 'delegated', task: 'capability-task:provide-fact' }],
+    tasks: [{ id: 'capability-task:provide-fact', status: 'coordinating', active: true, provider: 'b',
       source: { delta: [{ path: 'subs/a/src/caller.ts' }] },
-      plan: { revision: 1, useCases: [{ id: 'need-001.ex01', expectedBehavior: 'A formats the fact', derivedFrom: ['need-001.ex01'] }] },
-      obligations: [{ id: 'cap-001', kind: 'outcome', status: 'pending', report: null }],
+      plan: { revision: 1, useCases: [{ id: 'capability-example:format-result', expectedBehavior: 'A formats the fact', derivedFrom: ['capability-example:format-result'] }] },
+      obligations: [{ id: 'capability-task:provide-fact', kind: 'outcome', status: 'pending', report: null }],
       consultations: [{ answer: 'Show B source metadata' }],
       verification: { status: 'failed', gates: ['ga-0001'], findings: ['ga-0001: failed; check-failed'] }, handback: null,
-      deferredWorkItems: ['wi-002'] }] });
+      deferredWorkItems: ['work-item:provide-fact'] }] });
   expect(answer.tasks[0]?.id).not.toBe('format-b-fact');
-  expect(answer.tasks[0]?.deferredWorkItems).toEqual(['wi-002']);
+  expect(answer.tasks[0]?.deferredWorkItems).toEqual(['work-item:provide-fact']);
   // The examples are the request's context; no case carries a coverage state.
-  expect(answer.tasks[0]?.original.examples.map(example => example.id)).toEqual(['need-001.ex01']);
+  expect(answer.tasks[0]?.original.examples.map(example => example.id)).toEqual(['capability-example:format-result']);
   expect(answer.tasks[0]?.plan.useCases.every(useCase => !('coverage' in useCase))).toBe(true);
 });
 
@@ -88,7 +88,7 @@ test('CA23: projection reconstructs the same task after the durable ledger is re
   const after = capabilityTasksResponseSchema.parse(await capabilityTasks({ record: constructedRecord(), directory: root,
     entries: reopened.ledger.replay() }));
   expect(after).toEqual(before);
-  expect(after.tasks).toMatchObject([{ id: 'cap-001', status: 'coordinating', active: true }]);
+  expect(after.tasks).toMatchObject([{ id: 'capability-task:provide-fact', status: 'coordinating', active: true }]);
 });
 
 test('CA23: nested dependency and settled partial blocker stay visible in the task projection', async () => {
@@ -96,7 +96,7 @@ test('CA23: nested dependency and settled partial blocker stay visible in the ta
   const task = fixtureTask(request);
   const plan = fixturePlan(request, task);
   const planRef = { id: task.id, revision: 1, hash: recordHash(plan) };
-  const assignment = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/1', id: 'cap-001.i01', workItem: 'wi-001',
+  const assignment = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/2', id: 'capability-task:provide-fact.i01', workItem: 'work-item:format-fact',
     outline: planRef, coordination: { kind: 'capability-task', id: task.id, sequence: 1, plan: planRef, startingTree: 'a'.repeat(64), startingPaths: [] },
     stage: 0, kind: 'ordinary', goal: 'Implement B source', approach: 'Extend B',
     scope: { revision: 0, base: { module: 'b', included: [] }, extra: [], read: [], bootstrap: [],
@@ -107,31 +107,31 @@ test('CA23: nested dependency and settled partial blocker stay visible in the ta
   const partialResult = iterationResultSchema.parse({ schema: 'ramify-agent.iteration-result/1', iteration: assignment.id,
     coordination: assignment.coordination, outcome: 'partial', invocations: ['inv-0003'], gate: null, commit: null,
     findings: ['unfinished: Root-owned stale assertion'], changedAssumptions: [], artifacts: [] });
-  const childRequest = { ...request, id: 'need-002', parent: { kind: 'capability-task' as const, id: task.id },
+  const childRequest = { ...request, id: 'capability-request:nested-fact', parent: { kind: 'capability-task' as const, id: task.id },
     assignment: assignment.id, invocation: 'inv-0003', original: { ...request.original,
-      examples: request.original.examples.map(example => ({ ...example, id: 'need-002.ex01' })) } };
-  const child = { ...fixtureTask(childRequest), id: 'cap-002', request: childRequest.id,
+      examples: request.original.examples.map(example => ({ ...example, id: 'capability-example:nested-result' })) } };
+  const child = { ...fixtureTask(childRequest), id: 'capability-task:provide-nested-fact', request: childRequest.id,
     parent: childRequest.parent, originatingAssignment: assignment.id };
   const childPlan = fixturePlan(childRequest, child);
   const run = constructedRun([...lines().slice(0, 2),
     { type: 'capability-assigned', data: { task: task.id, assignment: assignment.id, sequence: 1,
-      invocation: 'inv-0002' }, records: [{ path: 'work-items/cap-001/iterations/01/assignment.json', body: assignment }] },
+      invocation: 'inv-0002' }, records: [{ path: iterationLayout.assignment(task.id, 1), body: assignment }] },
     { type: 'capability-requested', data: { request: childRequest.id, parent: task.id,
-      assignment: assignment.id, invocation: 'inv-0003' }, records: [{ path: 'requests/need-002.json', body: childRequest }] },
+      assignment: assignment.id, invocation: 'inv-0003' }, records: [{ path: capabilityLayout.request(childRequest.id), body: childRequest }] },
     { type: 'capability-delegated', data: { task: child.id, request: childRequest.id, parent: task.id,
-      invocation: 'inv-0004', planRevision: 1 }, records: [{ path: 'tasks/cap-002.json', body: child },
-        { path: 'plans/cap-002/1.json', body: childPlan }] },
+      invocation: 'inv-0004', planRevision: 1 }, records: [{ path: capabilityLayout.task(child.id), body: child },
+        { path: capabilityLayout.plan(child.id, 1), body: childPlan }] },
   ]);
   const answer = capabilityTasksResponseSchema.parse(await capabilityTasks(run));
-  expect(answer.stack).toEqual(['wi-001', 'cap-001', 'cap-002']);
-  expect(answer.tasks).toMatchObject([{ id: 'cap-001', status: 'awaiting-dependency', active: false,
-    activeChild: 'cap-002', assignments: [{ id: 'cap-001.i01', status: 'active' }] },
-  { id: 'cap-002', status: 'coordinating', active: true, parent: { kind: 'capability-task', id: 'cap-001' } }]);
+  expect(answer.stack).toEqual(['work-item:format-fact', 'capability-task:provide-fact', 'capability-task:provide-nested-fact']);
+  expect(answer.tasks).toMatchObject([{ id: 'capability-task:provide-fact', status: 'awaiting-dependency', active: false,
+    activeChild: 'capability-task:provide-nested-fact', assignments: [{ id: 'capability-task:provide-fact.i01', status: 'active' }] },
+  { id: 'capability-task:provide-nested-fact', status: 'coordinating', active: true, parent: { kind: 'capability-task', id: 'capability-task:provide-fact' } }]);
   const partial = capabilityTasksResponseSchema.parse(await capabilityTasks(constructedRun([
     ...lines().slice(0, 2),
     { type: 'capability-assigned', data: { task: task.id, assignment: assignment.id, sequence: 1,
-      invocation: 'inv-0002' }, records: [{ path: 'work-items/cap-001/iterations/01/assignment.json', body: assignment }] },
-    { type: 'iteration-closed', data: {}, records: [{ path: 'work-items/cap-001/iterations/01/result.json', body: partialResult }] },
+      invocation: 'inv-0002' }, records: [{ path: iterationLayout.assignment(task.id, 1), body: assignment }] },
+    { type: 'iteration-closed', data: {}, records: [{ path: iterationLayout.result(task.id, 1), body: partialResult }] },
     { type: 'capability-assignment-settled', data: { task: task.id, assignment: assignment.id, outcome: 'partial' } },
   ])));
   expect(partial.tasks[0]?.assignments).toMatchObject([{
@@ -143,7 +143,7 @@ test('CA23 CA34 PB3-D08: committed handback closes only the task, shows the arch
   const request = fixtureRequest();
   const task = fixtureTask(request);
   const plan = fixturePlan(request, task);
-  const handback = { schema: 'ramify-agent.capability-handback/1', task: task.id, request: request.id,
+  const handback = { schema: 'ramify-agent.capability-handback/2', task: task.id, request: request.id,
     plan: { id: task.id, revision: 1, hash }, sourceRevision: 'source-1', returnedTree: hash,
     deltaFromSuspension: ['subs/b/src/fact.ts'], summary: 'B fact reader is available to A',
     interfaces: [{ path: 'subs/b/src/fact.ts', symbols: ['readFact'], use: 'A formats B fact' }],
@@ -153,17 +153,17 @@ test('CA23 CA34 PB3-D08: committed handback closes only the task, shows the arch
       where: 'subs/b/src/fact.ts readFact', by: 'inv-0002', submission: hash } },
     { type: 'capability-verification-started', data: { task: task.id, invocation: 'inv-0002' } },
     { type: 'capability-handed-back', data: { task: task.id, handback: task.id, invocation: 'inv-0002' },
-      records: [{ path: 'capabilities/cap-001/handback.json', body: handback }] },
+      records: [{ path: capabilityLayout.handback(task.id), body: handback }] },
   ]);
   const answer = capabilityTasksResponseSchema.parse(await capabilityTasks(run));
-  expect(answer.stack).toEqual(['wi-001']);
-  expect(answer.tasks).toMatchObject([{ id: 'cap-001', status: 'handed-back', active: false,
-    deferredWorkItems: ['wi-002'], verification: { status: 'passed' },
-    obligations: [{ id: 'cap-001', kind: 'outcome', status: 'done',
+  expect(answer.stack).toEqual(['work-item:format-fact']);
+  expect(answer.tasks).toMatchObject([{ id: 'capability-task:provide-fact', status: 'handed-back', active: false,
+    deferredWorkItems: ['work-item:provide-fact'], verification: { status: 'passed' },
+    obligations: [{ id: 'capability-task:provide-fact', kind: 'outcome', status: 'done',
       report: { judgment: 'done', revision: 1, where: 'subs/b/src/fact.ts readFact', invocation: 'inv-0002' } }],
     handback: { summary: 'B fact reader is available to A', checks: [{ id: 'ga-001', revision: 1 }] } }]);
   expect(answer.tasks[0]?.handback).not.toHaveProperty('coverage');
-  expect(answer.requests).toMatchObject([{ task: 'cap-001', outcome: 'delegated' }]);
+  expect(answer.requests).toMatchObject([{ task: 'capability-task:provide-fact', outcome: 'delegated' }]);
 });
 
 test('CA24: a registry/contract run without capability requests answers an empty task view and keeps its contract records', async () => {
@@ -178,7 +178,7 @@ test('CA23: a failed run keeps its unfinished request and explains the absence o
     message: 'Suspended source changed before delegation', evidence: ['subs/a/src/caller.ts'] } }]);
   const answer = capabilityTasksResponseSchema.parse(await capabilityTasks(run));
   expect(answer).toMatchObject({ terminal: { state: 'failed', reason: 'inputs-changed' },
-    requests: [{ outcome: 'pending', task: null }], tasks: [], stack: ['wi-001'] });
+    requests: [{ outcome: 'pending', task: null }], tasks: [], stack: ['work-item:format-fact'] });
 });
 
 test('CA23 CA24: HTTP serves only the requested committed version and reports unsupported task records', async () => {
@@ -199,9 +199,9 @@ test('CA23 CA24: HTTP serves only the requested committed version and reports un
   expect(errorResponseSchema.parse((await get(protocolPaths.runCapabilityTasks('review-notes', runId, 5))).body).error)
     .toMatchObject({ code: 'stale-version', currentVersion: 6 });
   expect((await get(`/api/v1/plans/review-notes/runs/${runId}/capability-tasks`)).status).toBe(400);
-  run = constructedRun([{ type: 'capability-requested', data: { request: 'need-001', parent: 'wi-001',
-    assignment: 'wi-001.i01', invocation: 'inv-0001' }, records: [{ path: 'requests/need-001.json', body: {
-    ...fixtureRequest(), schema: 'ramify-agent.capability-request/2',
+  run = constructedRun([{ type: 'capability-requested', data: { request: 'capability-request:format-fact', parent: 'work-item:format-fact',
+    assignment: 'work-item:format-fact.i01', invocation: 'inv-0001' }, records: [{ path: capabilityLayout.request('capability-request:format-fact'), body: {
+    ...fixtureRequest(), schema: 'ramify-agent.capability-request/999',
   } }] }], constructedRecord(), root);
   expect(errorResponseSchema.parse((await get(protocolPaths.runCapabilityTasks('review-notes', runId, 1))).body).error.code)
     .toBe('unsupported-version');

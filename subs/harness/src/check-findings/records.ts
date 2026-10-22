@@ -40,15 +40,15 @@ export type CheckFindingCause = z.infer<typeof checkFindingCauseSchema>;
 
 /** Where each CheckFinding record is materialized, under the run directory. */
 export const checkFindingLayout = {
-  report: (checkFinding: string, report: string) => `check-findings/${checkFinding}/reports/${report}.json`,
-  decision: (checkFinding: string, decision: string) => `check-findings/${checkFinding}/decisions/${decision}.json`,
+  report: (checkFinding: string, report: string) => `check-findings/${encodeURIComponent(checkFinding)}/reports/${report}.json`,
+  decision: (checkFinding: string, decision: string) => `check-findings/${encodeURIComponent(checkFinding)}/decisions/${decision}.json`,
   relation: (relation: string) => `check-findings/relations/${relation}.json`,
 } as const;
 
 export const checkFindingRecordVersions = {
-  report: 'ramify-agent.check-finding-report/1',
-  decision: 'ramify-agent.check-finding-decision/1',
-  relation: 'ramify-agent.check-finding-relation/1',
+  report: 'ramify-agent.check-finding-report/2',
+  decision: 'ramify-agent.check-finding-decision/2',
+  relation: 'ramify-agent.check-finding-relation/2',
 } as const;
 
 /** A report as its record file holds it: the report with its CheckFinding and the revision it moved it to. */

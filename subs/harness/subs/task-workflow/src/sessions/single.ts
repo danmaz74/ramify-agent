@@ -37,7 +37,7 @@ import { committedBody } from '../steps/runner.js';
 import { finished } from '../../../task-execution/src/results.js';
 import { engineerWorkingDirectory } from '../../../autonomous/subs/work-coordination/src/work/engineer-directory.js';
 import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../../../autonomous/subs/work-coordination/src/work/scratch.js';
-import { capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineerWithOwnership, type EngineerSubmission } from '../../../autonomous/subs/work-coordination/src/work/engineer.js';
+import { engineerJsonSchema, engineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineerWithOwnership, type EngineerSubmission } from '../../../autonomous/subs/work-coordination/src/work/engineer.js';
 import { committedRecords } from '../../../autonomous/src/run/committed-records.js';
 import type { IterationAssignment } from '../../../autonomous/subs/work-coordination/src/work/iterations.js';
 import { auditPreparationPaths, scopeConfigurationPaths, captureGuardedFiles, deniedFiles, guardedScopeOf, resolveWriteScope, scopePaths, testPolicyOf } from '../../../../src/work/scope.js';
@@ -367,9 +367,9 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
 
   // The prompt is the goal; what the person did not give reads "not stated".
   const assignment: IterationAssignment = {
-    schema: 'ramify-agent.iteration-assignment/1',
+    schema: 'ramify-agent.iteration-assignment/2',
     id,
-    workItem: id,
+    workItem: `work-item:manual-${id}`,
     outline: { id: 'none', revision: 0, hash: sha256('') },
     stage: 0,
     kind: 'ordinary',
@@ -445,12 +445,12 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     start: { mode: 'fresh' },
     toolName: engineerToolName,
     description: engineerSubmissionDescription,
-    inputSchema: capabilityEngineerJsonSchema,
-    submissionSchema: 'ramify-agent.engineer-submission/1',
+    inputSchema: engineerJsonSchema,
+    submissionSchema: 'ramify-agent.engineer-submission/2',
     // A claimed completion is checked afresh over the write scope before it
     // is judged: the hook checks saw only the mutations they covered.
     beforeSubmission: async (input, signal) => { await tools.findingsAtCompletion(input, signal); },
-    validate: input => capabilityEngineerSubmissionSchema.safeParse(input).success
+    validate: input => engineerSubmissionSchema.safeParse(input).success
       ? validateEngineerWithOwnership(input, {
         capabilityWorkflow: true, kind: 'ordinary', obligation: null, openFindings: tools.openFindings(), submissions: tools.submissions,
       }, paths => ramify.queryOwnershipAnswer(projectRoot, paths),

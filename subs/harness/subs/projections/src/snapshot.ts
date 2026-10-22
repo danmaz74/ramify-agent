@@ -124,7 +124,7 @@ function recordedDeviations(entries: readonly CommittedLine[]): Array<{ readonly
   return entries.flatMap<{ readonly checkFinding: string; readonly workItem: string | null; readonly held: boolean }>(entry => {
     const event = entry.transaction.event;
     return event.type === 'plan-deviation-recorded' ? [{ checkFinding: event.data.checkFinding, workItem: event.data.workItem, held: event.data.held }]
-      : event.type === 'nonfunctional-deviation-recorded' ? [{ checkFinding: event.data.checkFinding, workItem: null, held: false }] : [];
+      : event.type === 'nonfunctional-deviations-recorded' ? event.data.deviations.map(deviation => ({ checkFinding: deviation.checkFinding, workItem: null, held: false })) : [];
   });
 }
 

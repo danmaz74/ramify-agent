@@ -126,7 +126,7 @@ export async function authorEngineerInputs(options: {
   const parsedItem = workItemSchema.safeParse(rawItem);
   if (!parsedItem.success) return refused(`--work-item: not a work item: ${zodIssues(parsedItem.error.issues)}`);
   const item = parsedItem.data;
-  const elements = [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs];
+  const elements = [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds];
   if (elements.length > 0) {
     return refused(`--work-item: it cites the plan elements ${elements.join(', ')}; their catalog is a run's accepted analysis, and without a run there is none to cite them from`);
   }
@@ -197,7 +197,7 @@ export async function authorEngineerInputs(options: {
   const scope = judged.prepared.scope;
   if (submission.outline !== undefined) {
     outlines.push(workItemOutlineSchema.parse({
-      schema: 'ramify-agent.work-item-outline/1', workItem: item.id, revision: outlines.length + 1,
+      schema: 'ramify-agent.work-item-outline/2', workItem: item.id, revision: outlines.length + 1,
       invocation: authoredOutlineInvocation, ...submission.outline, hypothesesSeen: [],
     } satisfies WorkItemOutline));
   }

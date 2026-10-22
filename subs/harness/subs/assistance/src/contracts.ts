@@ -3,6 +3,7 @@ import { jobIdSchema, planIdSchema } from '../../../src/interfaces/protocol/ids.
 import { commandIdSchema } from '../../../src/interfaces/protocol/jobs.js';
 import { jobSchemaVersion } from '../../../src/jobs/records.js';
 import type { CheckFindingCommand, CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
+import type { SubmissionValidation } from '../../task-execution/src/submissions.js';
 
 export const assistedProtectionSchema = z.object({
   baselineCommit: z.string().regex(/^[a-f0-9]{40}$|^[a-f0-9]{64}$/).nullable(),
@@ -125,6 +126,8 @@ export interface AssessorContext {
   assessments(): readonly AssistedAssessment[];
   findingState(): CheckFindingState;
   recordFindings(commands: readonly CheckFindingCommand[], key?: string): Promise<void>;
+  /** One serialized acceptance of a descriptive review and all its findings. A refusal goes back to the same review tool. */
+  acceptReview(stage: unknown, proposalHash: string, commands: readonly CheckFindingCommand[]): Promise<SubmissionValidation<void>>;
 }
 export type Assessor = (context: AssessorContext) => Promise<AssistedOutcome>;
 

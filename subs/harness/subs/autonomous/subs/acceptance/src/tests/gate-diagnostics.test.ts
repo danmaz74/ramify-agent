@@ -14,7 +14,7 @@ import type { PlannedCheck } from '../checks/verify.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { iterationLayout, type IterationResult } from '../../../work-coordination/src/work/iterations.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
 import { createMappedCheckExecution, type DirectCheckStep } from '../../../../../../src/tests/helpers/direct-check-execution.js';
@@ -346,7 +346,7 @@ describe('a module violation at the iteration gate, over a run', () => {
         ? { stdout: checkReport([notVisible(source, 13)]), outcome: { kind: 'completed', exitCode: 1 } }
         : {},
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [
           submit(assign(notes, {}, outline())),
           submit(requestCompletion()),
@@ -361,18 +361,18 @@ describe('a module violation at the iteration gate, over a run', () => {
     const receipt = await opened.service.execute(startRun('review-notes'));
     await opened.service.settled('review-notes', receipt.jobId);
     const runId = receipt.jobId;
-    expect(onlyRun(opened.service, 'review-notes').state).toBe('completed');
+    expect(onlyRun(opened.service, 'review-notes').state, JSON.stringify(onlyRun(opened.service, 'review-notes').failure)).toBe('completed');
 
     // The failed attempt is retained, and the same engineer repairs it.
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const ids = [...new Set(events.filter(event => event.type === 'gate-attempted').map(event => (event.data as { gate: string }).gate))];
     const attempts = await Promise.all(ids.map(async id =>
       JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.gate(id)), 'utf8')) as GateAttempt));
-    const failed = attempts.find(gate => gate.subject.iteration === 'wi-001.i01')!;
+    const failed = attempts.find(gate => gate.subject.iteration === 'work-item:review-note.i01')!;
     expect([failed.cause, failed.next]).toEqual(['check-failed', 'repair']);
 
     const result = JSON.parse(await readFile(
-      runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
+      runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1)), 'utf8')) as IterationResult;
     expect(result.invocations).toHaveLength(2);
     const engineers = opened.agent!.sessions.filter(session => session.spec.submission.name === engineerToolName);
     // The configured Ramify check's own report reaches the same engineer, as

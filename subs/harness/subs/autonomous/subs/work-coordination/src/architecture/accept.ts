@@ -48,18 +48,19 @@ export interface DecisionContext {
 }
 
 export function acceptDecision(context: DecisionContext): AcceptedDecision {
+  const capabilityId = (name: string): string => name;
   const registry = context.registry.map(change => {
-    const current = context.committed.registry.get(change.capability);
+    const current = context.committed.registry.get(capabilityId(change.capability));
     return registryEntrySchema.parse({
-      schema: 'ramify-agent.capability/1',
-      capability: change.capability,
+      schema: 'ramify-agent.capability/2',
+      capability: capabilityId(change.capability),
       revision: (current?.revision ?? 0) + 1,
       behavior: change.behavior,
       owner: change.owner,
       ...(change.proposed === undefined ? {} : { proposed: change.proposed }),
       origin: context.authority === 'global' ? 'global-decision' : 'local-decision',
       decision: context.id,
-      consumers: change.consumers.map(consumer => ({ ...consumer })),
+      consumers: change.consumers.map(consumer => ({ ...consumer, capability: capabilityId(consumer.capability) })),
       // Set by the harness, never by a submission: it is what the registry
       // already held, and a decision that moves a capability says so here.
       ...(current !== undefined && current.owner !== change.owner ? { previousOwner: current.owner } : {}),
@@ -91,7 +92,7 @@ export function acceptDecision(context: DecisionContext): AcceptedDecision {
   });
 
   const decision = placementDecisionSchema.parse({
-    schema: 'ramify-agent.placement-decision/1',
+    schema: 'ramify-agent.placement-decision/2',
     id: context.id,
     authority: context.authority,
     request: context.request,
@@ -99,7 +100,7 @@ export function acceptDecision(context: DecisionContext): AcceptedDecision {
     invocation: context.invocation,
     question: context.body.question,
     outcome: context.body.outcome,
-    capability: context.body.capability,
+    capability: capabilityId(context.body.capability),
     changesExistingSymbols: context.body.changesExistingSymbols,
     owner: context.body.owner,
     ...(context.body.proposed === undefined ? {} : { proposed: context.body.proposed }),

@@ -63,8 +63,7 @@ test.each(['iteration', 'work-item'] as const)('%s check recovery preserves its 
   const accepted = service.events(plan, receipt.jobId)!.filter(event => event.type === 'invocation-ended').filter(event => event.data.ended === 'submitted');
   expect(accepted.length).toBeGreaterThan(0);
   const resume = (current: typeof inspection, group: number) => service.execute({ commandId: `restore-${checkpoint}-${group}`, expectedVersion: 0, type: 'resume-recovery', payload: {
-    planId: plan, jobId: receipt.jobId, occurrenceId: current.occurrenceId, expectedRevision: current.revision,
-    repair: { areas: ['environment'], explanation: 'Restored the configured check executable' },
+    planId: plan, jobId: receipt.jobId,
   } });
   await resume(inspection, 1);
   if (groups === 2) {

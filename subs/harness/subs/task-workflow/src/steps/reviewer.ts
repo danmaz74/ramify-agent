@@ -68,7 +68,7 @@ export function constructReviewStep(value: unknown, environment: StepEnvironment
   });
   const limits = invocationLimits(inputs.limits, { absoluteMs: inputs.bounds.absoluteMs });
   const tools = [...snapshotToolDeclarations(), candidateShellDeclaration];
-  const submission = { toolName: reviewToolName, description: reviewSubmissionDescription, inputSchema: reviewJsonSchema, submissionSchema: 'ramify-agent.review-submission/1' };
+  const submission = { toolName: reviewToolName, description: reviewSubmissionDescription, inputSchema: reviewJsonSchema, submissionSchema: 'ramify-agent.review-submission/2' };
   const task = {
     kind, goal: `Review ${request.key.candidate}`, requirements: [JSON.stringify(request)],
     omit: [...(briefing.package === undefined ? [] : [briefing.package]), briefing.diffPayload],

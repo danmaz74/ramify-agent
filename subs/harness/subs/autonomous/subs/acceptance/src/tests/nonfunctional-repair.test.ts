@@ -7,7 +7,7 @@ import { coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorIn
 import { intakeToolName, principleToolName } from '../../../planning/src/extraction.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { withDefaultTurns } from '../../../../../../src/tests/helpers/declarations.js';
-import { analysis } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis } from '../../../../../../src/tests/helpers/analysis.js';
 import { submit, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun, until } from '../../../../../../src/tests/helpers/runs.js';
 import { runLayout } from '../../../../src/run/records.js';
@@ -71,33 +71,40 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
   const assessmentWait = quiet(); const investigationWait = quiet();
   const agent = createScriptedAgent(withDefaultTurns(spec => {
     const steps = (() => {
-    if (spec.submission.name === intakeToolName) return submit({ goal: 'Keep an audit record of reviews.', elements: [
-      { key: 'audit', kind: 'non-functional', document: 'doc-001', text: obligation, conditions: [], uncertainty: '' },
-      { key: 'catalog-audit', kind: 'non-functional', document: 'doc-001', text: otherObligation, conditions: [], uncertainty: '' },
-      { key: 'compact', kind: 'recommendation', document: 'doc-001', text: advice, conditions: [], uncertainty: '' },
-    ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } });
-    if (spec.submission.name === principleToolName) return submit({ elements: [
-      { key: 'author', kind: 'fixed', document: 'doc-002', text: fixed, conditions: [{ text: 'for every audit record', source: 'stated' }], uncertainty: '' },
-    ] });
-    if (spec.role === 'initial-architect') return submit(analysis([]));
+    if (spec.submission.name === intakeToolName) {
+      const document = 'document:review-notes-plan';
+      return submit({ goal: 'Keep an audit record of reviews.', elements: [
+        { key: 'draft:non-functional-requirement:case-001', kind: 'non-functional', document, text: obligation, conditions: [], uncertainty: '' },
+        { key: 'draft:non-functional-requirement:case-002', kind: 'non-functional', document, text: otherObligation, conditions: [], uncertainty: '' },
+        { key: 'draft:recommendation:case-001', kind: 'recommendation', document, text: advice, conditions: [], uncertainty: '' },
+      ], incorporation: { documents: [{ document, scenarios: true, uncertainty: '' }], missing: [] } });
+    }
+    if (spec.submission.name === principleToolName) {
+      const document = [...spec.prompt.matchAll(/document:[a-z0-9-]+/gu)][0]?.[0];
+      if (!document) throw new Error('Missing captured principles document');
+      return submit({ elements: [
+        { key: 'draft:fixed-requirement:case-001', kind: 'fixed', document, text: fixed, conditions: [{ text: 'for every audit record', source: 'stated' }], uncertainty: '' },
+      ] });
+    }
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([]), 'document:review-notes-plan'));
     if (spec.submission.name === coordinatorAssessmentToolName) {
       assessments += 1;
-      return submit({ kind: 'assessment', results: [{ nfr: 'nfr-001',
+      return submit({ kind: 'assessment', results: [{ nfr: 'non-functional-requirement:case-001',
         result: assessments === 1 ? 'undetermined' : 'satisfied',
         inspectedScope: ['subs/workspace/subs/reviews/subs/core/src', 'subs/workspace/subs/catalog/src'],
         evidence: [assessments === 1 ? 'Intermediate trace unavailable' : 'Audit record source present'],
         uncertainty: assessments === 1 ? 'Need an intermediate trace' : '' },
-      { nfr: 'nfr-002', result: assessments === 1 ? 'not-satisfied' : 'satisfied',
+      { nfr: 'non-functional-requirement:case-002', result: assessments === 1 ? 'not-satisfied' : 'satisfied',
         inspectedScope: ['subs/workspace/subs/catalog/src'], evidence: ['Catalog source inspected'], uncertainty: '' },
-      ...(assessments === 1 ? [{ nfr: 'fix-001', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'],
+      ...(assessments === 1 ? [{ nfr: 'fixed-requirement:case-001', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'],
         evidence: ['Author is recorded'], uncertainty: '' }] : [])] });
     }
     if (spec.submission.name === coordinatorActionToolName) return ++actions === 1
-      ? submit({ kind: 'investigate', nfrs: ['nfr-001'], question: 'Inspect the intermediate audit trace', scope: ['.git', 'plans/review-notes/.harness', '/external/evidence'] })
-      : submit({ kind: 'repair', nfrs: ['nfr-001'], startingModule: firstModule,
+      ? submit({ kind: 'investigate', nfrs: ['non-functional-requirement:case-001'], question: 'Inspect the intermediate audit trace', scope: ['.git', 'plans/review-notes/.harness', '/external/evidence'] })
+      : submit({ kind: 'repair', nfrs: ['non-functional-requirement:case-001'], startingModule: firstModule,
         task: 'Add a cross-module audit record implementation', evidence: ['Intermediate trace inspected'], uncertainty: '' });
     if (spec.submission.name === coordinatorInvestigationToolName) return submit({ kind: 'investigation-result',
-      summary: 'Intermediate trace is absent', findings: [{ nfr: 'nfr-001', inspectedScope: ['src/'],
+      summary: 'Intermediate trace is absent', findings: [{ nfr: 'non-functional-requirement:case-001', inspectedScope: ['src/'],
         evidence: ['No trace writer found'], uncertainty: 'The trace was not observed' }] });
     if (spec.submission.name === nonfunctionalRepairToolName) {
       boundaryAnswers.repair();
@@ -183,24 +190,24 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
     .toMatchObject({ isError: false, text: expect.stringContaining('prerequisite ancestry and captured run plan hash inspected') });
   const coordinator = agent.sessions.filter(session => session.spec.submission.name === coordinatorAssessmentToolName);
   expect(coordinator).toHaveLength(2);
-  expect(coordinator[0]!.spec.prompt).toMatch(/^Elements: nfr-001, nfr-002, fix-001$/mu);
+  expect(coordinator[0]!.spec.prompt).toMatch(/^Elements: non-functional-requirement:case-001, non-functional-requirement:case-002, fixed-requirement:case-001$/mu);
   expect(coordinator[0]!.spec.prompt).toContain(`> ${fixed}`);
   expect(coordinator[0]!.spec.prompt).toContain('- stated: for every audit record');
-  expect(coordinator[1]!.spec.prompt).toMatch(/^Elements: nfr-001, nfr-002$/mu);
+  expect(coordinator[1]!.spec.prompt).toMatch(/^Elements: non-functional-requirement:case-001, non-functional-requirement:case-002$/mu);
   expect(coordinator[1]!.spec.prompt).not.toContain(`> ${fixed}`);
   expect(coordinator[1]!.spec.prompt).toContain('Do not restart the complete catalog by default.');
   expect(coordinator[1]!.spec.prompt).toContain('Author is recorded');
   for (const session of coordinator) {
     for (const text of [obligation, otherObligation]) expect(session.spec.prompt).toContain(`> ${text}`);
-    expect(session.spec.prompt).not.toContain('rec-001');
+    expect(session.spec.prompt).not.toContain('recommendation:case-001');
     expect(session.spec.prompt).not.toContain(advice);
     expect(session.spec.prompt).toContain('\"name\":\"run-start\"');
     expect(session.spec.prompt).toContain('\"name\":\"accepted-boundary\"');
     expect(session.spec.prompt).toContain('An empty diff establishes no historical preservation.');
   }
   const investigator = agent.sessions.find(session => session.spec.submission.name === coordinatorInvestigationToolName)!;
-  expect(investigator.spec.prompt).toMatch(/^Elements: nfr-001$/mu);
-  expect(investigator.spec.prompt).toContain(`### nfr-001: non-functional requirement of the plan from plans/review-notes/plan.md\n\n> ${obligation}`);
+  expect(investigator.spec.prompt).toMatch(/^Elements: non-functional-requirement:case-001$/mu);
+  expect(investigator.spec.prompt).toContain(`### non-functional-requirement:case-001: non-functional requirement of the plan from plans/review-notes/plan.md\n\n> ${obligation}`);
   expect(investigator.spec.prompt).not.toContain(otherObligation);
   expect(investigator.spec.prompt).not.toContain(fixed);
   expect(events.find(event => event.type === 'analysis-accepted')?.data).toMatchObject({
@@ -209,9 +216,9 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
   expect(assessmentsOnDisk).toHaveLength(2);
   const focusedAssessment = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId,
     runLayout.assessment(assessmentsOnDisk[1]!.data.assessment)), 'utf8'));
-  expect(focusedAssessment.followUp).toEqual({ assessment: assessmentsOnDisk[0]!.data.assessment, reviewed: ['nfr-001', 'nfr-002'] });
-  expect(focusedAssessment.results).toContainEqual(expect.objectContaining({ nfr: 'fix-001', result: 'satisfied', evidence: ['Author is recorded'] }));
-  expect(events.filter(event => event.type === 'nonfunctional-investigated')).toMatchObject([{ data: { nfrs: ['nfr-001'] } }]);
+  expect(focusedAssessment.followUp).toEqual({ assessment: assessmentsOnDisk[0]!.data.assessment, reviewed: ['non-functional-requirement:case-001', 'non-functional-requirement:case-002'] });
+  expect(focusedAssessment.results).toContainEqual(expect.objectContaining({ nfr: 'fixed-requirement:case-001', result: 'satisfied', evidence: ['Author is recorded'] }));
+  expect(events.filter(event => event.type === 'nonfunctional-investigated')).toMatchObject([{ data: { nfrs: ['non-functional-requirement:case-001'] } }]);
   expect(events.filter(event => event.type === 'nonfunctional-repair-assigned')).toHaveLength(1);
   const assigned = events.find(event => event.type === 'nonfunctional-repair-assigned')!;
   const recordedAssignment = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId,
@@ -229,7 +236,7 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
   expect(events.filter(event => event.type === 'nonfunctional-round-closed')).toMatchObject([{ data: { outcome: 'satisfied' } }]);
   const repair = agent.sessions.find(session => session.spec.role === 'nonfunctional-repair-engineer');
   expect(repair?.spec.scope.workingDirectory).toBe(firstSrc);
-  expect(repair?.spec.prompt).toMatch(/^Elements: nfr-001$/mu);
+  expect(repair?.spec.prompt).toMatch(/^Elements: non-functional-requirement:case-001$/mu);
   // The repair engineer receives the changed-path section the coordinator received for the same candidate.
   expect(repair?.spec.prompt).toContain('"changedPaths":[');
   expect(repair?.spec.prompt).toContain('"snapshotScope":["."]');
@@ -278,6 +285,6 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
   const finalAssessment = await readFile(runPath(fixture.root, 'review-notes', receipt.jobId,
     runLayout.assessment('nfa-002')), 'utf8').then(JSON.parse);
   expect(finalAssessment.results.map((item: { nfr: string; result: string }) => [item.nfr, item.result])).toEqual([
-    ['nfr-001', 'satisfied'], ['nfr-002', 'satisfied'], ['fix-001', 'satisfied'],
+    ['non-functional-requirement:case-001', 'satisfied'], ['non-functional-requirement:case-002', 'satisfied'], ['fixed-requirement:case-001', 'satisfied'],
   ]);
 }, 60_000);

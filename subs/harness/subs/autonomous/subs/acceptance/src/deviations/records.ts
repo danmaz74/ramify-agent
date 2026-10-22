@@ -27,15 +27,6 @@ import { globalForkSourceSchema } from '../../../../../task-execution/src/record
 
 const text = z.string().min(1);
 
-/** `ur-003`, the count of committed unresolved requests. */
-export const unresolvedRequestId = (count: number): string => `ur-${String(count).padStart(3, '0')}`;
-
-/** `pd-003`, the count of committed plan deviations. */
-export const planDeviationId = (count: number): string => `pd-${String(count).padStart(3, '0')}`;
-
-/** `ep-003`, the count of committed environment problems. */
-export const environmentProblemId = (count: number): string => `ep-${String(count).padStart(3, '0')}`;
-
 /** The most characters of an environment problem's diagnosis and suggestion. */
 export const environmentLimits = { diagnosis: 2000, suggestion: 1000 } as const;
 
@@ -47,7 +38,7 @@ export const defaultMaxPlanDeviations = 5;
  * elements of the work item's package it amends; the harness records their
  * text. A deviation keeps as much of each element as the conflict allows.
  */
-export const deviationBodySchema = z.object({
+const deviationFields = {
   /** The requirements and recommendations this deviation departs from, by element ID; never context. */
   amends: z.array(elementIdSchema).min(1).max(20),
   /** What the run does instead: the part of each requirement it keeps, and the replacement for the part it cannot. */
@@ -66,12 +57,15 @@ export const deviationBodySchema = z.object({
    * renders the tracked feature file from it.
    */
   scenarios: z.array(z.object({ scenario: scenarioIdSchema, source: z.array(z.string()).min(1) }).strict()).default([]),
+};
+export const deviationBodySchema = z.object({ ...deviationFields,
+  deviationKey: z.string().regex(/^draft:plan-deviation:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+  findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
 }).strict();
 export type DeviationBody = z.infer<typeof deviationBodySchema>;
 
 /** A module architect's `unresolved` answer, as the harness records it before forking the plan architect. */
-export const unresolvedRequestSchema = z.object({
-  schema: z.literal('ramify-agent.unresolved-request/1'),
+const unresolvedRequestFields = {
   id: text,
   workItem: text,
   requester: text,
@@ -81,6 +75,9 @@ export const unresolvedRequestSchema = z.object({
   evidence: z.array(text),
   /** The oriented global point at request time, including accepted brief identities. */
   globalSource: globalForkSourceSchema.optional(),
+};
+export const unresolvedRequestSchema = z.object({ schema: z.literal('ramify-agent.unresolved-request/2'), ...unresolvedRequestFields,
+  id: z.string().regex(/^unresolved-request:[a-z0-9]+(?:-[a-z0-9]+)*$/),
 }).strict();
 export type UnresolvedRequest = z.infer<typeof unresolvedRequestSchema>;
 
@@ -97,8 +94,7 @@ export const rewordedScenarioSchema = z.object({
 }).strict();
 export type RewordedScenario = z.infer<typeof rewordedScenarioSchema>;
 
-export const planDeviationSchema = z.object({
-  schema: z.literal('ramify-agent.plan-deviation/1'),
+const planDeviationFields = {
   id: text,
   /** The unresolved request it answers. */
   request: text,
@@ -125,6 +121,10 @@ export const planDeviationSchema = z.object({
    * run recorded more deviations than its policy lets it continue past.
    */
   held: z.boolean(),
+};
+export const planDeviationSchema = z.object({ schema: z.literal('ramify-agent.plan-deviation/2'), ...planDeviationFields,
+  id: z.string().regex(/^plan-deviation:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  checkFinding: z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
 }).strict();
 export type PlanDeviation = z.infer<typeof planDeviationSchema>;
 
@@ -133,11 +133,15 @@ export type PlanDeviation = z.infer<typeof planDeviationSchema>;
  * wrong with how the gate or the harness runs, with its evidence, and what
  * the operator could do about it. Both are bounded.
  */
-export const environmentBodySchema = z.object({
+const environmentFields = {
   /** What is wrong, with evidence: the failing command and the missing prerequisite. */
   diagnosis: text.max(environmentLimits.diagnosis),
   /** What the operator could change, such as a build step declared in `ramify-agent.json`. */
   suggestion: text.max(environmentLimits.suggestion),
+};
+export const environmentBodySchema = z.object({ ...environmentFields,
+  problemKey: z.string().regex(/^draft:environment-problem:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/).describe('A local key such as draft:environment-problem:missing-provider-tool; accepted environment-problem:missing-provider-tool is invalid here.'),
+  findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
 }).strict();
 export type EnvironmentBody = z.infer<typeof environmentBodySchema>;
 
@@ -146,8 +150,7 @@ export type EnvironmentBody = z.infer<typeof environmentBodySchema>;
  * until the operator answers its CheckFinding: resuming returns the work
  * item to its module architect with the diagnosis; ending fails the run.
  */
-export const environmentProblemSchema = z.object({
-  schema: z.literal('ramify-agent.environment-problem/1'),
+const environmentProblemFields = {
   id: text,
   /** The unresolved request it answers. */
   request: text,
@@ -159,20 +162,25 @@ export const environmentProblemSchema = z.object({
   suggestion: text,
   /** The CheckFinding that asks the operator to resume the run or end it. */
   checkFinding: text,
+};
+export const environmentProblemSchema = z.object({ schema: z.literal('ramify-agent.environment-problem/2'), ...environmentProblemFields,
+  id: z.string().regex(/^environment-problem:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+  checkFinding: z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
 }).strict();
 export type EnvironmentProblem = z.infer<typeof environmentProblemSchema>;
 
 /** Where the records are materialized, relative to the run's directory. */
 export const deviationLayout = {
-  request: (id: string): string => join('requests', `${id}.json`),
-  deviation: (id: string): string => join('deviations', `${id}.json`),
-  environment: (id: string): string => join('environment', `${id}.json`),
+  request: (id: string): string => join('requests', `${encodeURIComponent(id).replace(/:/g, '%3A')}.json`),
+  deviation: (id: string): string => join('deviations', `${encodeURIComponent(id).replace(/:/g, '%3A')}.json`),
+  environment: (id: string): string => join('environment', `${encodeURIComponent(id).replace(/:/g, '%3A')}.json`),
 } as const;
 
 export const deviationSchemas = {
-  unresolvedRequest: { schema: 'ramify-agent.unresolved-request/1', body: unresolvedRequestSchema },
-  planDeviation: { schema: 'ramify-agent.plan-deviation/1', body: planDeviationSchema },
-  environmentProblem: { schema: 'ramify-agent.environment-problem/1', body: environmentProblemSchema },
+  unresolvedRequest: { schema: 'ramify-agent.unresolved-request/2', body: unresolvedRequestSchema },
+  planDeviation: { schema: 'ramify-agent.plan-deviation/2', body: planDeviationSchema },
+  environmentProblem: { schema: 'ramify-agent.environment-problem/2', body: environmentProblemSchema },
 } as const;
 
 /**

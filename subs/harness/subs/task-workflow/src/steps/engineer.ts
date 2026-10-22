@@ -12,7 +12,7 @@ import type { HarnessTaskBrief } from '../../../task-execution/src/session-opera
 import { composeTaskBrief, type KnownProjectFacts } from '../task-brief.js';
 import { shellToolDeclaration } from '../../../../src/tools/shell.js';
 import {
-  capabilityEngineerJsonSchema, engineerJsonSchema, engineerSubmissionDescription, engineerToolName, focusedCommandPendingNote, iterationMessage,
+  engineerJsonSchema, engineerSubmissionDescription, engineerToolName, focusedCommandPendingNote, iterationMessage,
   type EngineerEvidence, type IterationApiViews,
 } from '../../../autonomous/subs/work-coordination/src/work/engineer.js';
 import { engineerBuiltinTools } from '../../../autonomous/subs/work-coordination/src/work/engineer-equipment.js';
@@ -76,7 +76,7 @@ export interface ConstructedEngineerStep {
     readonly toolName: string;
     readonly description: string;
     readonly inputSchema: JsonSchema;
-    readonly submissionSchema: 'ramify-agent.engineer-submission/1';
+    readonly submissionSchema: 'ramify-agent.engineer-submission/2';
   };
   /** The evidence the validator judges against that the inputs determine; the session's own findings are added while it runs. */
   readonly validator: Required<Pick<EngineerEvidence, 'capabilityWorkflow' | 'obligation' | 'kind' | 'assigned'>> & { readonly consumer: string };
@@ -179,8 +179,8 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
   const submission = {
     toolName: engineerToolName,
     description: engineerSubmissionDescription,
-    inputSchema: capability ? capabilityEngineerJsonSchema : engineerJsonSchema,
-    submissionSchema: 'ramify-agent.engineer-submission/1' as const,
+    inputSchema: engineerJsonSchema,
+    submissionSchema: 'ramify-agent.engineer-submission/2' as const,
   };
   const task = {
     kind,
@@ -235,7 +235,8 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
       workingDirectory,
       scopeRevision: assignment.scope.revision,
       commandTimeoutMs: bounds.commandTimeoutMs,
-      submissions: { legalOutcomes: capability ? ['completion-proposed', 'partial', 'unsuitable', 'capability-needed'] : ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'],
+      submissions: { legalOutcomes: capability ? ['completion-proposed', 'partial', 'unsuitable', 'capability-needed', 'contract-needed']
+        : ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'],
         completionOutcome: 'completion-proposed' },
       focusedCommands: focused.command.kind === 'available' ? [{ shellCommand: focused.command.shellCommand, selection: focused.command.selection,
         environment: focused.command.environment, sourceFiles: focused.sourceFiles }] : [],

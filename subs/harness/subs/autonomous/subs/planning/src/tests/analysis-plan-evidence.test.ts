@@ -8,7 +8,7 @@ import { documentManifestSchema } from '../../../../../plan-evidence/src/interfa
 import { elementCatalogSchema, openElementCatalog, serializeElementCatalog } from '../../../../../plan-evidence/src/interfaces/catalog.js';
 import { RunQueries } from '../../../../../projections/src/queries.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
-import { validateInitialAnalysis } from '../submission.js';
+import { validateDescriptiveInitialAnalysis } from '../descriptive.js';
 import { acceptIntake, checkMessage, intakeMessage, intakeToolName, type CheckState, type IntakeSubmission } from '../extraction.js';
 import { readCapturedDocuments } from '../documents.js';
 import { runRecordSchema } from '../../../../src/run/records.js';
@@ -16,7 +16,7 @@ import { extractDocumentScenarios } from '../../../../../scenarios/src/extractio
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { emptyAnalysis, installTestRunner, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
 import { unchangedGit } from '../../../../../../src/tests/helpers/unchanged-run.js';
-import { analysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
 
 const planId = 'review-notes';
 const hash = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex');
@@ -40,9 +40,9 @@ function frozenPlan(spec: SessionSpec): string {
  */
 function intakeOf(spec: SessionSpec): IntakeSubmission {
   const capturedRoot = frozenPlan(spec);
-  expect(spec.prompt).toContain('Read each captured plan document in full:\n\n- doc-001 (plan): plans/review-notes/plan.md; in the plan block of this message, verbatim as captured, so no file read is needed\n');
+  expect(spec.prompt).toContain('Read each captured plan document in full:\n\n- document:review-notes-plan (plan): plans/review-notes/plan.md; in the plan block of this message, verbatim as captured, so no file read is needed\n');
   expect(spec.prompt).toContain('<plan>\n# Evidence plan\n');
-  expect(spec.prompt).toMatch(/\n- doc-\d+ \(plan\): plans\/review-notes\/constraints\.md; captured file \//u);
+  expect(spec.prompt).toMatch(/\n- document:[a-z0-9-]+ \(plan\): plans\/review-notes\/constraints\.md; captured file \//u);
   expect(spec.prompt).not.toContain(`captured file ${capturedRoot}`);
   return intake(capturedRoot);
 }
@@ -57,8 +57,8 @@ function intake(capturedRoot: string): IntakeSubmission {
   return {
     goal: 'The service keeps its timeout.',
     elements: [
-      { key: 'redis', kind: 'recommendation', document: companion.id, text: 'Use Redis if practical.', conditions: [], uncertainty: 'Tentative suggestion.' },
-      { key: 'timeout', kind: 'non-functional', document: companion.id, text: 'The service must preserve its 30 second timeout.',
+      { key: 'draft:recommendation:redis', kind: 'recommendation', document: companion.id, text: 'Use Redis if practical.', conditions: [], uncertainty: 'Tentative suggestion.' },
+      { key: 'draft:non-functional-requirement:timeout', kind: 'non-functional', document: companion.id, text: 'The service must preserve its 30 second timeout.',
         conditions: [{ text: 'The service', source: 'stated' }, { text: 'for the service', source: 'inferred' }], uncertainty: '' },
     ],
     incorporation: { documents: [
@@ -98,7 +98,7 @@ test('accepts the intake\'s elements and incorporation once, and projects them b
   expect(serializeElementCatalog(catalog)).toBe(catalogFile);
   const incorporationFile = await readFile(runPath(fixture.root, planId, receipt.jobId, accepted.data.evidence.incorporation.path), 'utf8');
   expect(hash(incorporationFile)).toBe(accepted.data.evidence.incorporation.hash);
-  expect(JSON.parse(incorporationFile)).toMatchObject({ schema: 'ramify-agent.document-incorporation/2' });
+  expect(JSON.parse(incorporationFile)).toMatchObject({ schema: 'ramify-agent.document-incorporation/3' });
 
   const projection = await new RunQueries(createQuerySource(service)).analysis(planId, receipt.jobId);
   expect(projection.analysis.status).toBe('accepted');
@@ -109,7 +109,7 @@ test('accepts the intake\'s elements and incorporation once, and projects them b
   expect(evidence.catalogHash).toBe(accepted.data.evidence.catalog.hash);
   // Package order: the plan's non-functional requirements before recommendations.
   expect(evidence.elements.map(item => [item.id, item.kind, item.path])).toEqual([
-    ['nfr-001', 'non-functional', `plans/${planId}/constraints.md`], ['rec-001', 'recommendation', `plans/${planId}/constraints.md`],
+    ['non-functional-requirement:timeout', 'non-functional', `plans/${planId}/constraints.md`], ['recommendation:redis', 'recommendation', `plans/${planId}/constraints.md`],
   ]);
   expect(evidence.elements[0]).toMatchObject({ text: 'The service must preserve its 30 second timeout.', locator: null,
     conditions: [{ text: 'The service', source: 'stated' }, { text: 'for the service', source: 'inferred' }] });
@@ -128,7 +128,7 @@ test('accepts the intake\'s elements and incorporation once, and projects them b
   const fixed = acceptIntake(open, captured.manifest, { ...valid, elements: [{ ...valid.elements[1]!, kind: 'fixed' }] });
   expect(fixed.ok).toBe(false);
   if (!fixed.ok) expect(fixed.errors.map(item => item.path)).toEqual(['elements.0.kind']);
-  const architect = validateInitialAnalysis({ ...emptyAnalysis(), elements: [{ ...valid.elements[1]! }] }, { index: null, catalog: open, documents: captured, planScenarios: [] });
+  const architect = validateDescriptiveInitialAnalysis({ ...emptyAnalysis(), elements: [{ ...valid.elements[1]! }] }, { index: null, catalog: open, documents: captured, planScenarios: [] });
   expect(architect.ok).toBe(false);
   if (!architect.ok) expect(architect.errors.map(item => item.path)).toContain('elements.0.kind');
   if (process.env.CATALOG_REVIEW_EXPORT) await writeFile(process.env.CATALOG_REVIEW_EXPORT, JSON.stringify(projection));
@@ -141,46 +141,47 @@ test('incorporation selects a companion scenario while a linked example stays ou
   const companion = '# Companion\n```gherkin\nScenario: A response is timely\n  When a request arrives\n  Then it completes within 30 seconds\n```\n';
   const example = '# Example\n```gherkin\nScenario: An example only\n  When a sample arrives\n  Then the sample is shown\n```\n';
   const texts = [source, companion, example];
-  const documents = texts.map((text, index) => ({ id: `doc-${String(index + 1).padStart(3, '0')}`,
+  const documents = texts.map((text, index) => ({ id: `document:example-${['plan', 'companion', 'example'][index]}`,
     path: `plans/example/${['plan', 'companion', 'example'][index]}.md`, kind: 'plan' as const,
-    sha256: hash(text), bytes: Buffer.byteLength(text), storedAt: `input/documents/doc-${String(index + 1).padStart(3, '0')}.bin`,
+    sha256: hash(text), bytes: Buffer.byteLength(text), storedAt: `input/documents/example-${['plan', 'companion', 'example'][index]}.bin`,
     revision: { commit: null, dirty: null } }));
   const start = Buffer.from(source).indexOf('[Guide](required.md)');
-  const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/1', root: 'doc-001', documents,
-    missing: [{ from: 'doc-001', target: 'plans/example/required.md', source: { start, end: start + Buffer.byteLength('[Guide](required.md)') },
+  const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/2', root: 'document:example-plan', documents,
+    missing: [{ from: 'document:example-plan', target: 'plans/example/required.md', source: { start, end: start + Buffer.byteLength('[Guide](required.md)') },
       reason: 'File absent', judgment: 'unjudged' }], principlesScan: { status: 'empty', unreadable: [] } });
   const bytes = new Map(documents.map((document, index) => [document.id, Buffer.from(texts[index]!) ]));
-  const extracted = extractDocumentScenarios([{ id: 'doc-002', text: companion }]).scenarios[0]!;
+  const extracted = extractDocumentScenarios([{ id: 'document:example-companion', text: companion }]).scenarios[0]!;
   const incorporation: IntakeSubmission['incorporation'] = { documents: [
-    { document: 'doc-001', scenarios: false, uncertainty: '' },
-    { document: 'doc-002', scenarios: true, uncertainty: '' },
-    { document: 'doc-003', scenarios: false, uncertainty: 'Example only.' },
-  ], missing: [{ from: 'doc-001', target: 'plans/example/required.md', source: manifest.missing[0]!.source,
+    { document: 'document:example-plan', scenarios: false, uncertainty: '' },
+    { document: 'document:example-companion', scenarios: true, uncertainty: '' },
+    { document: 'document:example-example', scenarios: false, uncertainty: 'Example only.' },
+  ], missing: [{ from: 'document:example-plan', target: 'plans/example/required.md', source: manifest.missing[0]!.source,
     judgment: 'unclear', reason: 'The surrounding text does not establish force.' }] };
   const open = openElementCatalog(hash('manifest'), manifest);
   const intake = (value: IntakeSubmission['incorporation']) => acceptIntake(open, manifest, { goal: 'Requests complete promptly.', elements: [], incorporation: value });
   const accepted = intake(incorporation);
   if (!accepted.ok) throw new Error(JSON.stringify(accepted.errors));
-  expect(accepted.incorporation).toEqual({ schema: 'ramify-agent.document-incorporation/2', ...incorporation });
+  expect(accepted.incorporation).toEqual({ schema: 'ramify-agent.document-incorporation/3', ...incorporation });
 
   const submission = {
     elements: [
-      { key: 'timely-request', kind: 'functional', document: 'doc-001', text: 'A request completes promptly.', conditions: [], uncertainty: '' },
-      { key: 'timely-accepted', kind: 'functional', document: 'doc-002', text: 'A request completes within 30 seconds.', conditions: [], uncertainty: '' },
+      { key: 'draft:functional-requirement:timely-request', kind: 'functional' as const, document: 'document:example-plan', text: 'A request completes promptly.', conditions: [], uncertainty: '' },
+      { key: 'draft:functional-requirement:timely-accepted', kind: 'functional' as const, document: 'document:example-companion', text: 'A request completes within 30 seconds.', conditions: [], uncertainty: '' },
     ],
     entries: [{ capability: 'timely-response', description: 'A request completes promptly.', owner: 'example',
-      requirementRefs: ['timely-request'], acceptanceRefs: ['timely-accepted'], contextRefs: [], citations: [] }],
-    hypotheses: [], coverageLimits: [], scenarios: [{ key: 'timely', entry: 'timely-response', origin: { kind: 'plan', planScenario: 'ps-01' },
-      refs: ['timely-accepted'], gherkin: extracted.source.join('\n') }], integrationScenarios: [] };
+      requirementRefs: ['draft:functional-requirement:timely-request'], acceptanceRefs: ['draft:functional-requirement:timely-accepted'], contextRefs: [], citations: [] }],
+    hypotheses: [], coverageLimits: [], scenarios: [{ key: 'timely', entry: 'timely-response', origin: { kind: 'plan' as const, planScenario: 'plan-scenario:a-response-is-timely' },
+      refs: ['draft:functional-requirement:timely-accepted'], gherkin: extracted.source.join('\n') }], integrationScenarios: [] };
   const evidence = (value: typeof accepted.incorporation) => ({ index: null, catalog: accepted.catalog, incorporation: value, documents: { manifest, bytes }, planScenarios: [] });
-  expect(validateInitialAnalysis(submission, evidence(accepted.incorporation)).ok).toBe(true);
+  const authored = currentAnalysis(submission, 'document:example-plan');
+  expect(validateDescriptiveInitialAnalysis(authored, evidence(accepted.incorporation)).ok).toBe(true);
   // The example's scenario becomes binding only by incorporation, and then the submission lacks it.
-  const withExample = { ...accepted.incorporation, documents: accepted.incorporation.documents.map(item => item.document === 'doc-003' ? { ...item, scenarios: true } : item) };
-  expect(validateInitialAnalysis(submission, evidence(withExample))).toMatchObject({ ok: false,
+  const withExample = { ...accepted.incorporation, documents: accepted.incorporation.documents.map(item => item.document === 'document:example-example' ? { ...item, scenarios: true } : item) };
+  expect(validateDescriptiveInitialAnalysis(authored, evidence(withExample))).toMatchObject({ ok: false,
     errors: [expect.objectContaining({ path: 'scenarios', expected: expect.stringContaining('rule 3') })] });
-  const { elements: _elements, ...withoutElements } = submission;
+  const { elements: _elements, ...withoutElements } = authored;
   void _elements;
-  expect(validateInitialAnalysis(withoutElements, evidence(accepted.incorporation))).toMatchObject({ ok: false,
+  expect(validateDescriptiveInitialAnalysis(withoutElements, evidence(accepted.incorporation))).toMatchObject({ ok: false,
     errors: expect.arrayContaining([expect.objectContaining({ path: 'elements' })]) });
 
   expect(intake({ ...incorporation, documents: incorporation.documents.slice(0, 2) })).toMatchObject({ ok: false,
@@ -193,26 +194,26 @@ test('incorporation selects a companion scenario while a linked example stays ou
 
 test('the check of the root plan reads it in the plan block; any other document is read at its captured file', () => {
   const texts = ['# Root\n[Companion](companion.md)\n', '# Companion\n\nKeep it short.\n'];
-  const documents = texts.map((text, index) => ({ id: `doc-00${index + 1}`, path: `plans/example/${['plan', 'companion'][index]}.md`, kind: 'plan' as const,
-    sha256: hash(text), bytes: Buffer.byteLength(text), storedAt: index === 0 ? 'input/plan.md' : `input/documents/doc-00${index + 1}.bin`,
+  const documents = texts.map((text, index) => ({ id: `document:example-${['plan', 'companion'][index]}`, path: `plans/example/${['plan', 'companion'][index]}.md`, kind: 'plan' as const,
+    sha256: hash(text), bytes: Buffer.byteLength(text), storedAt: index === 0 ? 'input/plan.md' : `input/documents/example-${['plan', 'companion'][index]}.bin`,
     revision: { commit: null, dirty: null } }));
-  const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/1', root: 'doc-001', documents, missing: [],
+  const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/2', root: 'document:example-plan', documents, missing: [],
     principlesScan: { status: 'empty', unreadable: [] } });
   const inputs = { planId: 'example', manifest, bytes: new Map(documents.map((document, index) => [document.id, Buffer.from(texts[index]!)])), runDirectory: '/p/plans/example/.harness/jobs/run-1' };
   const state = { catalog: openElementCatalog(hash('manifest'), manifest), analysis: { entries: [], scenarios: [] } } as unknown as CheckState;
-  const root = checkMessage(inputs, 'doc-001', state);
-  expect(root).toContain('Read the document in full:\n\n- doc-001 (plan): plans/example/plan.md; in the plan block of this message, verbatim as captured, so no file read is needed\n');
+  const root = checkMessage(inputs, 'document:example-plan', state);
+  expect(root).toContain('Read the document in full:\n\n- document:example-plan (plan): plans/example/plan.md; in the plan block of this message, verbatim as captured, so no file read is needed\n');
   expect(root).not.toContain('captured file');
-  expect(checkMessage(inputs, 'doc-002', state)).toContain('Read the document in full:\n\n- doc-002 (plan): plans/example/companion.md; captured file /p/plans/example/.harness/jobs/run-1/input/documents/doc-002.bin');
+  expect(checkMessage(inputs, 'document:example-companion', state)).toContain('Read the document in full:\n\n- document:example-companion (plan): plans/example/companion.md; captured file /p/plans/example/.harness/jobs/run-1/input/documents/example-companion.bin');
   // An intake of a plan without companions names no captured file at all.
   const alone = intakeMessage({ ...inputs, manifest: documentManifestSchema.parse({ ...manifest, documents: [documents[0]] }) });
-  expect(alone).toContain('- doc-001 (plan): plans/example/plan.md; in the plan block of this message');
+  expect(alone).toContain('- document:example-plan (plan): plans/example/plan.md; in the plan block of this message');
   expect(alone).not.toContain('captured file');
 });
 
 test('recorded fresh checker receives the six retained scenario keys with incorporated origins and captured intervals', async () => {
   const text = await readFile('subs/harness/fixtures/collection-review/plans/revision-preview/plan.md', 'utf8');
-  const origins = extractDocumentScenarios([{ id: 'doc-001', text }]).scenarios;
+  const origins = extractDocumentScenarios([{ id: 'document:review-notes-plan', text }]).scenarios;
   const fixture = await copyFixture();
   cleanups.push(fixture.remove);
   await installTestRunner(fixture.root);
@@ -223,20 +224,20 @@ test('recorded fresh checker receives the six retained scenario keys with incorp
     gherkin: origin.source.join('\n'), refs: [...preview.acceptanceRefs],
   })));
   const { service, agent } = await openRuns(fixture.root, {
-    script: spec => spec.role === 'initial-architect' ? [{ kind: 'submit', input: submitted }] : [],
+    script: spec => spec.role === 'initial-architect' ? [{ kind: 'submit', input: currentAnalysis(submitted, 'document:review-notes-plan') }] : [],
     git: unchangedGit(fixture.root, []),
   });
   cleanups.push(() => service.close());
   const receipt = await service.execute(startRun(planId, 'scripted', undefined, true));
   await until(() => service.getRun(planId, receipt.jobId)?.phase === 'awaiting-review');
-  const checker = agent!.sessions.find(session => session.spec.submission.name === 'submit_catalog_check' && session.spec.prompt.includes('# Check the reading of doc-001'))!;
+  const checker = agent!.sessions.find(session => session.spec.submission.name === 'submit_catalog_check' && session.spec.prompt.includes('# Check the reading of document:review-notes-plan'))!;
   expect(checker.start.mode).toBe('fresh');
   expect(checker.inherited).toEqual([]);
   expect(checker.spec.prompt).not.toContain('# Block environment:views');
   expect(checker.spec.prompt).toContain(`<plan>\n${text}`);
   for (const [index, origin] of origins.entries()) {
     expect(checker.spec.prompt).toContain(`Registered plan origin ${origin.id}: ${origin.name}`);
-    expect(checker.spec.prompt).toContain(`lines ${origin.lines[0]}–${origin.lines[1]}; architect scenario keys: retained-preview-${index + 1} (plan origin)`);
+    expect(checker.spec.prompt).toContain(`lines ${origin.lines[0]}–${origin.lines[1]}; architect scenario keys: draft:scenario:retained-preview-${index + 1} (plan origin)`);
   }
   const initial = agent!.sessions.find(session => session.spec.role === 'initial-architect')!;
   expect(initial.spec.prompt).toContain('Read the plan in the message below, in full, and every accompanying plan');

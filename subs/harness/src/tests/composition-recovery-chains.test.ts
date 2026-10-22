@@ -21,7 +21,7 @@ afterEach(() => {
  * together they are the whole table.
  */
 
-const scenarios: readonly string[] = ['placement', 'revision', 'cycle'];
+const scenarios: readonly string[] = ['placement', 'name-rejection', 'revision', 'cycle'];
 
 describe('the composed recovery table: placement, contract revision and a cycle', () => {
   for (const boundary of ['context-package-append-requested', 'decision-accepted', 'brief-appending'] as const) {

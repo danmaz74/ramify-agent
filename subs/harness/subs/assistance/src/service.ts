@@ -153,7 +153,8 @@ export class AssistanceService {
   async planStart(input: PlanStartRequest): Promise<PlanStartResponse> {
     const request = planStartSchema.parse(input);
     return this.write(async () => {
-      const command = { commandId: request.commandId, expectedVersion: 0, type: 'plan-start', planId: request.planId, execution: 'assisted', protection: request.protection };
+      const command = { commandId: request.commandId, expectedVersion: 0, type: 'plan-start', planId: request.planId,
+        execution: 'assisted', protection: request.protection };
       const admitted = this.commands.admit(command);
       if (admitted.kind === 'repeat') {
         const original = [...this.stores.values()].find(store => store.job.jobId === admitted.receipt.jobId);
@@ -259,7 +260,7 @@ export class AssistanceService {
     });
   }
 
-  /** Shared admission and assessor composition for legacy and recorded iterations. Caller holds the writer. */
+  /** Shared admission and assessor composition for assisted iterations. Caller holds the writer. */
   private async admitAssessment(request: AssessmentRequest, command: { commandId: string; expectedVersion: number; [key: string]: unknown },
     metadata: Pick<AssistedAssessment['request'], 'iterationId' | 'focusModule' | 'additionalContext'> = {}): Promise<AssessmentAdmission> {
     const store = this.requireStore(request.planId, request.jobId);
@@ -333,6 +334,7 @@ export class AssistanceService {
         assessments: () => store.assessments(),
         findingState: () => this.findingState(store),
         recordFindings: (commands, key) => this.recordFindings(store, id, commands, key),
+        acceptReview: (stage, proposalHash, commands) => this.acceptReview(store, id, stage, proposalHash, commands),
       };
       const outcome = assessor ? assistedOutcomeSchema.parse(await assessor(context)) : {
         gate: 'incomplete' as const, summary: 'Assessment pipeline is unavailable', repairs: [], decisions: [], gaps: ['Required audit and review stages are unavailable'], evidence: [],
@@ -358,7 +360,7 @@ export class AssistanceService {
 
   private findingState(store: AssistedStore): CheckFindingState {
     const events = store.ledger.replay().flatMap(line => line.transaction.event.type === 'coordinator-decision-recorded' || line.transaction.event.type === 'findings-recorded' || line.transaction.event.type === 'finding-answer-recorded' || line.transaction.event.type === 'protection-accepted'
-      ? line.transaction.event.checkFindings : []);
+      ? line.transaction.event.checkFindings : line.transaction.event.type === 'assessment-transition' ? line.transaction.event.checkFindings ?? [] : []);
     const replayed = replayCheckFindingEvents(events);
     if (!replayed.ok) throw new Error(`Assisted findings do not replay: ${replayed.rejection.message}`);
     return replayed.state;
@@ -388,6 +390,45 @@ export class AssistanceService {
       if (decided.kind === 'refused') throw new Error(decided.refusal.message, { cause: decided.refusal });
       if (decided.kind === 'replayed') return;
       await store.ledger.append(decided.transaction);
+    });
+  }
+
+  private async acceptReview(store: AssistedStore, id: string, stage: unknown, proposalHash: string,
+    commands: readonly CheckFindingCommand[]): Promise<import('../../task-execution/src/submissions.js').SubmissionValidation<void>> {
+    return this.write(async () => {
+      const assessment = store.assessment(id);
+      if (!assessment || assessment.status !== 'running') return { ok: false, errors: [{ path: '(root)', message: `Assessment ${id} is not running` }] };
+      const prior = assessment.stages.find(entry => entry.name === 'review-accepted');
+      if (prior) {
+        const acceptedHash = (prior.evidence as { proposalHash?: unknown } | null)?.proposalHash;
+        return acceptedHash === proposalHash
+          ? { ok: true, value: undefined }
+          : { ok: false, errors: [{ path: 'concerns', message: 'This assessment already accepted a different review submission' }] };
+      }
+      if (typeof stage !== 'object' || stage === null || !('proposalHash' in stage) || stage.proposalHash !== proposalHash) {
+        throw new TypeError('Accepted review stage and submission hash disagree');
+      }
+      const next: AssistedAssessment = { ...assessment, revision: assessment.revision + 1,
+        stages: [...assessment.stages, { name: 'review-accepted', evidence: stage, completedAt: this.now().toISOString() }] };
+      const decided = decideFindingTransaction<AssistedEvent, { readonly type: 'assessment-transition'; readonly data: {
+        readonly assessment: AssistedAssessment;
+        readonly checkFindings: readonly import('../../check-findings/src/interfaces/check-findings.js').CheckFindingEvent[];
+      } }>(this.findingState(store), () => ({ commands, compose: result => ({ event: {
+        type: 'assessment-transition', data: { assessment: next, checkFindings: result.events },
+      } }) }), input => ({ type: 'assessment-transition', assessment: input.data.assessment,
+        checkFindings: [...input.data.checkFindings] }));
+      if (decided.kind === 'refused') {
+        const command = decided.refusal.reason === 'check-finding' ? decided.refusal.command : null;
+        return { ok: false, errors: [{
+          path: command === null ? 'concerns' : `concerns.${command}${decided.refusal.reason === 'check-finding'
+            && decided.refusal.rejection.code === 'finding-name-conflict' ? '.findingKey' : ''}`,
+          message: decided.refusal.message,
+          expected: 'an unoccupied draft:finding:<descriptive-name> in this assisted job',
+        }] };
+      }
+      await store.record(decided.kind === 'transaction' ? decided.transaction.event
+        : { type: 'assessment-transition', assessment: next }, next);
+      return { ok: true, value: undefined };
     });
   }
 
@@ -445,7 +486,9 @@ export class AssistanceService {
       // Reproject only these retained briefs. Later candidates cannot erase a
       // failed required check or introduce new issues into this historical result.
       const selectedAway = (text: string) => {
-        const prefix = text.slice(0, text.indexOf(':'));
+        const boundary = text.indexOf(': ');
+        if (boundary < 0) return false;
+        const prefix = text.slice(0, boundary);
         const ids = prefix.split(', ');
         return ids.length > 0 && ids.every(id => {
           const entry = state.findings.get(id);
@@ -679,7 +722,7 @@ export class AssistanceService {
       } }) }), carrier => ({ type: 'protection-accepted', ...carrier.data, checkFindings: [...carrier.data.checkFindings] }));
       if (decided.kind !== 'transaction') throw new CommandRejection('conflict', decided.kind === 'refused' ? decided.refusal.message : 'Choice was already recorded');
       if (decided.transaction.event.type !== 'protection-accepted') throw new Error('Protection choice produced another event');
-      const priorEvents = store.ledger.replay().flatMap(line => 'checkFindings' in line.transaction.event ? line.transaction.event.checkFindings : []);
+      const priorEvents = store.ledger.replay().flatMap(line => 'checkFindings' in line.transaction.event ? line.transaction.event.checkFindings ?? [] : []);
       const prospective = replayCheckFindingEvents([...priorEvents, ...decided.transaction.event.checkFindings]);
       if (!prospective.ok) throw new Error(prospective.rejection.message);
       const finalization = finalizeApproval({ assessment, job: store.job, assessments: store.assessments(), state: prospective.state, commandId: request.commandId, finalizedAt: accepted.receipt.acceptedAt,

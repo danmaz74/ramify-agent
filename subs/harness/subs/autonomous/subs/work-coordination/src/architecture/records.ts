@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { citationSchema, modulePathSchema, viewIdentitySchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import { moduleProposalSchema } from '../../../planning/src/records.js';
 import { globalForkSourceSchema, recordRefSchema } from '../../../../../task-execution/src/records.js';
-import { slugSchema } from '../../../planning/src/records.js';
 
 /*
  * The records of capability identity and placement: the request a module
@@ -21,15 +20,18 @@ import { slugSchema } from '../../../planning/src/records.js';
  */
 
 const text = z.string().min(1);
+const capabilityName = z.union([z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const placementSubject = z.union([capabilityName, z.string().regex(/^capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const requestIdSchema = z.string().regex(/^placement-request:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const decisionIdSchema = z.string().regex(/^placement-decision:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
-/** `pr-003`, the count of committed placement requests. */
-export const requestId = (count: number): string => `pr-${String(count).padStart(3, '0')}`;
-
-/** `gd-003` for request `pr-003`: one decision per request, derived from it. */
-export const globalDecisionId = (request: string): string => `gd-${request.replace(/^pr-/, '')}`;
-
-/** `ld-wi-001-02`, from the work item and the count of its committed local decisions. */
-export const localDecisionId = (workItem: string, count: number): string => `ld-${workItem}-${String(count).padStart(2, '0')}`;
+/** A global decision derives a family-distinct name from its accepted request. */
+export const globalDecisionId = (request: string): string => {
+  const placement = requestIdSchema.safeParse(request);
+  if (placement.success) return `placement-decision:placement-${placement.data.slice('placement-request:'.length)}`;
+  const unresolved = z.string().regex(/^unresolved-request:[a-z0-9]+(?:-[a-z0-9]+)*$/).parse(request);
+  return `placement-decision:unresolved-${unresolved.slice('unresolved-request:'.length)}`;
+};
 
 /** What the retired `extend` value is answered with, in the terms the role submits. */
 export const extensionIsANewCapability = 'An existing capability is never revised to cover more. Register the extended behavior as a new capability named for itself, with outcome "create" and the existing module as its owner, and set "changesExistingSymbols" to true where implementing it changes symbols that already have consumers';
@@ -58,17 +60,17 @@ export const hypothesisStanceSchema = z.enum(['supports', 'contradicts', 'depart
 export type HypothesisStance = z.infer<typeof hypothesisStanceSchema>;
 
 export const placementRequestSchema = z.object({
-  schema: z.literal('ramify-agent.placement-request/1'),
-  id: text,
+  schema: z.literal('ramify-agent.placement-request/2'),
+  id: requestIdSchema,
   workItem: text,
   requester: modulePathSchema,
   /** The consumer capability being implemented, which this request is made for. */
-  forCapability: slugSchema,
+  forCapability: placementSubject,
   question: text,
   requiredBehavior: text,
   findings: z.array(z.object({ text, citations: z.array(citationSchema) }).strict()),
   candidates: z.array(z.object({
-    capability: slugSchema.optional(),
+    capability: capabilityName.optional(),
     owner: modulePathSchema.optional(),
     note: text,
   }).strict()),
@@ -83,8 +85,8 @@ export const placementRequestSchema = z.object({
 export type PlacementRequest = z.infer<typeof placementRequestSchema>;
 
 export const placementDecisionSchema = z.object({
-  schema: z.literal('ramify-agent.placement-decision/1'),
-  id: text,
+  schema: z.literal('ramify-agent.placement-decision/2'),
+  id: decisionIdSchema,
   authority: decisionAuthoritySchema,
   /** Null for a local decision: no request was made of the plan architect. */
   request: z.string().nullable(),
@@ -92,7 +94,7 @@ export const placementDecisionSchema = z.object({
   invocation: text,
   question: text,
   outcome: placementOutcomeSchema,
-  capability: slugSchema,
+  capability: capabilityName,
   /**
    * Whether implementing this capability changes symbols that already have
    * consumers. It is what break analysis reads, and what gives a contract
@@ -132,12 +134,12 @@ export type PlacementDecision = z.infer<typeof placementDecisionSchema>;
 
 /** Where the architecture's records are materialized, relative to the run's directory. */
 export const architectureLayout = {
-  request: (id: string): string => join('requests', `${id}.json`),
-  decision: (id: string): string => join('decisions', `${id}.json`),
+  request: (id: string): string => join('requests', `${encodeURIComponent(id)}.json`),
+  decision: (id: string): string => join('decisions', `${encodeURIComponent(id)}.json`),
 } as const;
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const architectureSchemas = {
-  request: { schema: 'ramify-agent.placement-request/1', body: placementRequestSchema },
-  decision: { schema: 'ramify-agent.placement-decision/1', body: placementDecisionSchema },
+  request: { schema: 'ramify-agent.placement-request/2', body: placementRequestSchema },
+  decision: { schema: 'ramify-agent.placement-decision/2', body: placementDecisionSchema },
 } as const;

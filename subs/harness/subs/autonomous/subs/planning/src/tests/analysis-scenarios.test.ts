@@ -10,7 +10,8 @@ import type { ArchitectIndex } from '../../../../../evidence/src/views.js';
 import { extractPlanScenarios } from '../../../../../scenarios/src/extraction.js';
 import { scenarioSourceHash, type ScenarioRecord } from '../../../../../scenarios/src/records.js';
 import { acceptAnalysis } from '../accept.js';
-import { acceptArchitectElements, validateInitialAnalysis, type InitialAnalysisSubmission } from '../submission.js';
+import { acceptArchitectElements, type AnalysisRecordInputs } from '../submission.js';
+import { validateDescriptiveInitialAnalysis } from '../descriptive.js';
 import { documentManifestSchema } from '../../../../../plan-evidence/src/interfaces/contracts.js';
 import { openElementCatalog } from '../../../../../plan-evidence/src/interfaces/catalog.js';
 import { runLayout, runRecordSchema } from '../../../../src/run/records.js';
@@ -18,9 +19,11 @@ import { type InvocationOutcome } from '../../../../../task-execution/src/record
 import { runSnapshot } from '../../../../src/run/snapshot.js';
 import { constructedRecord } from '../../../../../../src/tests/helpers/constructed.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { analysis, architectScenario, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, architectScenario, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, shapeOnlyInputs, startRun } from '../../../../../../src/tests/helpers/runs.js';
 import { architectIndex, moduleEntry } from '../../../../../../src/tests/helpers/views.js';
+const extractScenarioFixture = (text: string) => extractPlanScenarios(text, 'document:fixture-plan');
+
 
 /*
  * The acceptance scenarios of the initial analysis, `initial-architect/2`:
@@ -42,8 +45,8 @@ afterEach(async () => {
 /** The catalog before the architect's elements, over one captured plan. */
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const catalog = openElementCatalog(hash('manifest'), documentManifestSchema.parse({
-  schema: 'ramify-agent.document-manifest/1', root: 'doc-001',
-  documents: [{ id: 'doc-001', path: 'plans/p/plan.md', kind: 'plan', sha256: hash('plan'), bytes: 4, storedAt: 'input/plan.md', revision: { commit: null, dirty: null } }],
+  schema: 'ramify-agent.document-manifest/2', root: 'document:fixture-plan',
+  documents: [{ id: 'document:fixture-plan', path: 'plans/p/plan.md', kind: 'plan', sha256: hash('plan'), bytes: 4, storedAt: 'input/plan.md', revision: { commit: null, dirty: null } }],
   missing: [], principlesScan: { status: 'empty', unreadable: [] },
 }));
 
@@ -86,12 +89,12 @@ async function planWithScenarios(root: string): Promise<string> {
 }
 
 /**
- * The analysis of that plan: ps-01 is the note entry's own plan scenario,
- * and ps-02 an integration scenario decomposed into one sub-scenario per
+ * The analysis of that plan: plan-scenario:a-reviewer-attaches-a-note is the note entry's own plan scenario,
+ * and plan-scenario:the-panel-shows-an-attached-note an integration scenario decomposed into one sub-scenario per
  * entry, the panel's bridged with a Given.
  */
-function scenarioAnalysis(plan: string): InitialAnalysisSubmission {
-  const [attach, panel] = extractPlanScenarios(plan).scenarios;
+function scenarioAnalysis(plan: string): AnalysisRecordInputs {
+  const [attach, panel] = extractScenarioFixture(plan).scenarios;
   const note = entry('reviewer-note', reviews, 'A reviewer can attach one note to a completed review run.');
   const inPanel = entry('note-in-panel', sharedUi, 'The review panel shows the note under the findings.');
   return analysis([note, inPanel], [], [], [
@@ -120,7 +123,8 @@ function scenarioAnalysis(plan: string): InitialAnalysisSubmission {
 /** The scripted fake: the default catalog extraction, the analysis, then a module architect that asks for completion. */
 function script(initial: unknown) {
   return (spec: SessionSpec) => spec.role === 'catalog-extractor' ? []
-    : [{ kind: 'submit' as const, input: spec.role === 'initial-architect' ? initial : requestCompletion() }];
+    : [{ kind: 'submit' as const, input: spec.role === 'initial-architect'
+      ? currentAnalysis(initial as AnalysisRecordInputs, 'document:review-notes-plan') : requestCompletion() }];
 }
 
 async function target(): Promise<string> {
@@ -136,18 +140,18 @@ describe('plan capture', () => {
     const plan = await planWithScenarios(project);
     const { service, agent } = await openRuns(project, {
       script: script(scenarioAnalysis(plan)),
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'wi-002', 'wi-003', 'final verification of plan "review-notes"'],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'work-item:note-in-panel', 'work-item:bind-the-panel-shows-an-attached-note', 'final verification of plan "review-notes"'],
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', receipt.jobId);
-    expect(onlyRun(service, 'review-notes').state).toBe('completed');
+    expect(onlyRun(service, 'review-notes').state, JSON.stringify(onlyRun(service, 'review-notes'))).toBe('completed');
 
     const record = runRecordSchema.parse(JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, runLayout.record), 'utf8')));
-    expect(record.planScenarios).toEqual(extractPlanScenarios(plan));
+    expect(record.planScenarios).toEqual(extractPlanScenarios(plan, 'document:review-notes-plan'));
     expect(record.planScenarios.scenarios.map(scenario => [scenario.id, scenario.name])).toEqual([
-      ['ps-01', 'A reviewer attaches a note'],
-      ['ps-02', 'The panel shows an attached note'],
+      ['plan-scenario:a-reviewer-attaches-a-note', 'A reviewer attaches a note'],
+      ['plan-scenario:the-panel-shows-an-attached-note', 'The panel shows an attached note'],
     ]);
     expect(record.planScenarios.limitations).toHaveLength(1);
     const [limitation] = record.planScenarios.limitations;
@@ -157,8 +161,8 @@ describe('plan capture', () => {
     const [attach, panel] = record.planScenarios.scenarios;
     // The intake incorporated the root plan's scenarios, so they are the plan's, not candidates.
     expect(prompt).toContain('# The plan\'s scenarios');
-    expect(prompt).toContain(`## ps-01: A reviewer attaches a note\n\nLines ${attach!.lines[0]}–${attach!.lines[1]} of doc-001.`);
-    expect(prompt).toContain(`## ps-02: The panel shows an attached note\n\nLines ${panel!.lines[0]}–${panel!.lines[1]} of doc-001.`);
+    expect(prompt).toContain(`## plan-scenario:a-reviewer-attaches-a-note: A reviewer attaches a note\n\nLines ${attach!.lines[0]}–${attach!.lines[1]} of document:review-notes-plan.`);
+    expect(prompt).toContain(`## plan-scenario:the-panel-shows-an-attached-note: The panel shows an attached note\n\nLines ${panel!.lines[0]}–${panel!.lines[1]} of document:review-notes-plan.`);
     expect(prompt).toContain('Complete scenario body, including examples, is in the captured plan block above');
     expect(prompt).toContain('include every applicable Feature/Rule Background condition');
     expect(prompt.split('When the reviewer attaches the note \"Looks right\"')).toHaveLength(2);
@@ -171,17 +175,17 @@ describe('plan capture', () => {
     const project = await target();
     const { service, agent } = await openRuns(project, {
       script: script(analysis([entry('reviewer-note', reviews)])),
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"'],
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', receipt.jobId);
 
     const record = runRecordSchema.parse(JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, runLayout.record), 'utf8')));
-    expect(record.planScenarios).toEqual({ scenarios: [], limitations: [] });
+    expect(record.planScenarios).toEqual({ schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: [], limitations: [] });
     const prompt = agent!.sessions.find(session => session.spec.role === 'initial-architect')!.spec.prompt;
     expect(prompt).toContain('The plan has no `gherkin` block, so it states no scenario: write every entry\'s scenarios yourself.');
-    expect(prompt).not.toContain('## ps-01');
+    expect(prompt).not.toContain('## plan-scenario:a-reviewer-attaches-a-note');
   }, 180_000);
 });
 
@@ -191,33 +195,33 @@ describe('acceptance', () => {
     const plan = await planWithScenarios(project);
     const { service } = await openRuns(project, {
       script: script(scenarioAnalysis(plan)),
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'wi-002', 'wi-003', 'final verification of plan "review-notes"'],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'work-item:note-in-panel', 'work-item:bind-the-panel-shows-an-attached-note', 'final verification of plan "review-notes"'],
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', receipt.jobId);
     const runId = receipt.jobId;
 
-    const [attach, panel] = extractPlanScenarios(plan).scenarios;
+    const [attach, panel] = extractScenarioFixture(plan).scenarios;
     const read = async (id: string) => JSON.parse(await readFile(runPath(project, 'review-notes', runId, runLayout.scenario(id)), 'utf8')) as ScenarioRecord;
-    const records = await Promise.all(['sc-001', 'sc-002', 'sc-003', 'sc-004'].map(read));
+    const records = await Promise.all(['scenario:attach-note', 'scenario:attach-for-panel', 'scenario:panel-shows-note', 'scenario:the-panel-shows-an-attached-note'].map(read));
     const features = 'src/tests/features/review-notes';
 
     // Entry scenarios in submission order, then the integration scenario.
     expect(records.map(record => [record.id, record.kind, record.entry, record.owner, record.partOf, record.subScenarios, record.file])).toEqual([
-      ['sc-001', 'entry', 'reviewer-note', reviews, null, [], `subs/workspace/subs/reviews/${features}/reviewer-note.feature`],
-      ['sc-002', 'entry', 'reviewer-note', reviews, 'sc-004', [], `subs/workspace/subs/reviews/${features}/reviewer-note.feature`],
-      ['sc-003', 'entry', 'note-in-panel', sharedUi, 'sc-004', [], `subs/workspace/subs/shared-ui/${features}/note-in-panel.feature`],
+      ['scenario:attach-note', 'entry', 'capability:reviewer-note', reviews, null, [], `subs/workspace/subs/reviews/${features}/capability%3Areviewer-note.feature`],
+      ['scenario:attach-for-panel', 'entry', 'capability:reviewer-note', reviews, 'scenario:the-panel-shows-an-attached-note', [], `subs/workspace/subs/reviews/${features}/capability%3Areviewer-note.feature`],
+      ['scenario:panel-shows-note', 'entry', 'capability:note-in-panel', sharedUi, 'scenario:the-panel-shows-an-attached-note', [], `subs/workspace/subs/shared-ui/${features}/capability%3Anote-in-panel.feature`],
       // The lowest common ancestor of the sub-scenarios' owners.
-      ['sc-004', 'integration', null, 'collection-review/workspace', null, ['sc-002', 'sc-003'], `subs/workspace/${features}/integration.feature`],
+      ['scenario:the-panel-shows-an-attached-note', 'integration', null, 'collection-review/workspace', null, ['scenario:attach-for-panel', 'scenario:panel-shows-note'], `subs/workspace/${features}/integration.feature`],
     ]);
     // A plan scenario keeps the plan's lines and text, background folded in.
-    expect(records[0]!.origin).toEqual({ kind: 'plan', planScenario: 'ps-01', ref: { document: 'doc-001', lines: attach!.lines } });
+    expect(records[0]!.origin).toEqual({ kind: 'plan', planScenario: 'plan-scenario:a-reviewer-attaches-a-note', ref: { document: 'document:review-notes-plan', lines: attach!.lines } });
     expect(records[0]!.source).toEqual(attach!.source);
-    expect(records[3]!.origin).toEqual({ kind: 'plan', planScenario: 'ps-02', ref: { document: 'doc-001', lines: panel!.lines } });
+    expect(records[3]!.origin).toEqual({ kind: 'plan', planScenario: 'plan-scenario:the-panel-shows-an-attached-note', ref: { document: 'document:review-notes-plan', lines: panel!.lines } });
     expect(records[3]!.source).toEqual(panel!.source);
-    // The architect's keys became element IDs: the second entry's acceptance element is fr-004.
-    expect(records[2]!.origin).toEqual({ kind: 'architect', refs: ['fr-004'] });
+    // The architect's keys became element IDs: the second entry's acceptance element is functional-requirement:note-in-panel-acceptance.
+    expect(records[2]!.origin).toEqual({ kind: 'architect', refs: ['functional-requirement:note-in-panel-acceptance'] });
     expect(records[2]!.name).toBe('The panel shows the attached note');
     for (const record of records) expect(record.hash).toBe(scenarioSourceHash(record.source));
 
@@ -226,8 +230,8 @@ describe('acceptance', () => {
       .map(line => JSON.parse(line) as { event: { type: string; data: Record<string, unknown> }; records: Array<{ path: string; id: string }> });
     const accepted = lines.find(line => line.event.type === 'analysis-accepted')!;
     expect(accepted.event.data).toMatchObject({ entries: 2, workItems: 2, scenarios: 4, warnings: [] });
-    expect(accepted.records.filter(entry => entry.path.startsWith('scenarios/')).map(entry => entry.id)).toEqual(['sc-001', 'sc-002', 'sc-003', 'sc-004']);
-    expect(accepted.records.map(entry => entry.path)).toEqual(expect.arrayContaining([runLayout.entries, 'work-items/wi-001/item.json']));
+    expect(accepted.records.filter(entry => entry.path.startsWith('scenarios/')).map(entry => entry.id)).toEqual(['scenario:attach-note', 'scenario:attach-for-panel', 'scenario:panel-shows-note', 'scenario:the-panel-shows-an-attached-note']);
+    expect(accepted.records.map(entry => entry.path)).toEqual(expect.arrayContaining([runLayout.entries, 'work-items/work-item%3Areviewer-note/item.json']));
 
     // Every record was committed pending. Each work item's completion request
     // then reported its entry's scenarios done; the done report of the last
@@ -243,15 +247,15 @@ describe('acceptance', () => {
       point: { session: global.data.session, invocation: global.data.invocation }, ref: outcome.session!.ref };
     const started = events.filter(event => event.type === 'work-item-started').map(event => event.data);
     expect(started).toEqual([
-      { workItem: 'wi-001', module: reviews, origin: 'entry', globalTarget },
-      { workItem: 'wi-002', module: sharedUi, origin: 'entry', globalTarget },
-      { workItem: 'wi-003', module: 'collection-review/workspace', origin: 'integration', scenario: 'sc-004', globalTarget },
+      { workItem: 'work-item:reviewer-note', module: reviews, origin: 'entry', globalTarget },
+      { workItem: 'work-item:note-in-panel', module: sharedUi, origin: 'entry', globalTarget },
+      { workItem: 'work-item:bind-the-panel-shows-an-attached-note', module: 'collection-review/workspace', origin: 'integration', scenario: 'scenario:the-panel-shows-an-attached-note', globalTarget },
     ]);
     // The submission is recorded under the analysis's version.
     // inv-0001 is the intake; the architect's is the second invocation.
     expect(outcome.ended).toBe('submitted');
     const submission = JSON.parse(await readFile(runPath(project, 'review-notes', runId, runLayout.submission('inv-0002')), 'utf8')) as { schema: string };
-    expect(submission.schema).toBe('ramify-agent.initial-analysis/3');
+    expect(submission.schema).toBe('ramify-agent.initial-analysis/4');
   }, 180_000);
 
   test('with an architect view: a module\'s own directory and testing area, and every warning, by scenario ID', async () => {
@@ -265,7 +269,7 @@ describe('acceptance', () => {
       moduleEntry('collection-review/integration-tests', 'subs/integration-tests', 'collection-review', { tags: ['testing', 'dispatch'] }),
     ], new Map([[reviews, [{ module: reviews, name: 'attachReviewNote', file: 'subs/workspace/subs/reviews/src/notes.ts' }]]]));
     const plan = await planWithScenarios(project);
-    const [, panel] = extractPlanScenarios(plan).scenarios;
+    const [, panel] = extractScenarioFixture(plan).scenarios;
     const note = entry('reviewer-note', reviews);
     const checks = entry('note-checks', `${reviews}/checks`);
     const step = (text: string) => `Scenario: ${text}\n  When the reviewer attaches the note "Checked"\n  Then the review run shows the note "Checked"`;
@@ -285,14 +289,14 @@ describe('acceptance', () => {
         gherkin: 'Scenario: Nothing of the panel\n  Given a reviewer\n  Then nothing happens',
       },
     ], [{ planScenario: panel!.id, subScenarios: ['panel-all', 'panel-unrelated'] }]);
-    // ps-01 is the plan's too, and appears as an origin once.
-    const [attach] = extractPlanScenarios(plan).scenarios;
+    // The attached scenario also comes from the plan and appears as an origin once.
+    const [attach] = extractScenarioFixture(plan).scenarios;
     submitted.scenarios.push({ key: 'plan-attach', entry: 'reviewer-note', origin: { kind: 'plan', planScenario: attach!.id }, gherkin: attach!.source.join('\n') });
 
     const { service } = await openRuns(project, {
       inputs: { ...shapeOnlyInputs, index: async () => index },
       script: script(submitted),
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'wi-002', 'wi-003', 'final verification of plan "review-notes"'],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'work-item:note-checks', 'work-item:bind-the-panel-shows-an-attached-note', 'final verification of plan "review-notes"'],
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
@@ -303,17 +307,17 @@ describe('acceptance', () => {
     if (accepted.type !== 'analysis-accepted') throw new Error('unreachable');
     expect(accepted.data.scenarios).toBe(7);
     expect(accepted.data.warnings.map(warning => [warning.kind, warning.scenarios])).toEqual([
-      ['names-view-symbol', ['sc-001']],
-      ['names-view-file', ['sc-001']],
-      ['sub-scenario-shares-no-step', ['sc-005']],
-      ['duplicate-architect-steps', ['sc-002', 'sc-003']],
+      ['names-view-symbol', ['scenario:attach-note']],
+      ['names-view-file', ['scenario:attach-note']],
+      ['sub-scenario-shares-no-step', ['scenario:panel-unrelated']],
+      ['duplicate-architect-steps', ['scenario:attach-again', 'scenario:attach-twice']],
     ]);
 
     // A testing module's features sit in its own src/, and the integration
     // scenario of two sub-scenarios of one owner is that owner's.
     const read = async (id: string) => JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, runLayout.scenario(id)), 'utf8')) as ScenarioRecord;
-    expect((await read('sc-004')).file).toBe('subs/workspace/subs/reviews/subs/checks/src/features/review-notes/note-checks.feature');
-    const integration = await read('sc-007');
+    expect((await read('scenario:panel-all')).file).toBe('subs/workspace/subs/reviews/subs/checks/src/features/review-notes/capability%3Anote-checks.feature');
+    const integration = await read('scenario:the-panel-shows-an-attached-note');
     expect([integration.kind, integration.owner, integration.file]).toEqual(['integration', `${reviews}/checks`, 'subs/workspace/subs/reviews/subs/checks/src/features/review-notes/integration.feature']);
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
   }, 180_000);
@@ -321,30 +325,30 @@ describe('acceptance', () => {
   test('without a view, a proposed owner is placed where its proposal puts it', () => {
     const proposed = entry('note-archive', 'collection-review/archive', 'Keeps notes.', { parent: 'collection-review', directory: 'subs/archive/', purpose: 'Keeps notes.', tags: ['testing'] });
     const submitted = analysis([proposed, entry('reviewer-note', reviews)]);
-    expect(validateInitialAnalysis(submitted, { index: null, catalog, planScenarios: [] }).ok).toBe(true);
+    expect(validateDescriptiveInitialAnalysis(currentAnalysis(submitted, 'document:fixture-plan'), { index: null, catalog, planScenarios: [] }).ok).toBe(true);
     const resolved = acceptArchitectElements(catalog, submitted);
     const accepted = acceptAnalysis(resolved.analysis, { invocation: 'inv-0002', view: { status: 'placeholder' }, planId: 'p', planScenarios: [], index: null, catalog: resolved.catalog });
     expect(accepted.scenarios.map(record => [record.id, record.owner, record.file])).toEqual([
-      ['sc-001', 'collection-review/archive', 'subs/archive/src/features/p/note-archive.feature'],
-      ['sc-002', reviews, 'subs/workspace/subs/reviews/src/tests/features/p/reviewer-note.feature'],
+      ['scenario:a-person-uses-note-archive', 'collection-review/archive', 'subs/archive/src/features/p/capability%3Anote-archive.feature'],
+      ['scenario:a-person-uses-reviewer-note', reviews, 'subs/workspace/subs/reviews/src/tests/features/p/capability%3Areviewer-note.feature'],
     ]);
     expect(accepted.warnings).toEqual([]);
   });
 });
 
 describe('the form rules, through the real validation path', () => {
-  const planScenarios = extractPlanScenarios(['# A plan', '', '## Request', '', 'Do the thing.', '', '## Acceptance', '', 'It is done.', '', '## Scenarios', '', '```gherkin', 'Scenario: It works', '  When it is used', '  Then it works', '```'].join('\n')).scenarios;
+  const planScenarios = extractScenarioFixture(['# A plan', '', '## Request', '', 'Do the thing.', '', '## Acceptance', '', 'It is done.', '', '## Scenarios', '', '```gherkin', 'Scenario: It works', '  When it is used', '  Then it works', '```'].join('\n')).scenarios;
   const one = entry('reviewer-note', reviews);
-  const own = { key: 'plan-one', entry: 'reviewer-note', origin: { kind: 'plan' as const, planScenario: 'ps-01' }, gherkin: 'Scenario: It works\n  When it is used\n  Then it works' };
+  const own = { key: 'plan-one', entry: 'reviewer-note', origin: { kind: 'plan' as const, planScenario: 'plan-scenario:it-works' }, gherkin: 'Scenario: It works\n  When it is used\n  Then it works' };
   const valid = analysis([one], [], [], [own, architectScenario(one)]);
-  const rejected = (submission: InitialAnalysisSubmission) => {
-    const result = validateInitialAnalysis(submission, { index: null, catalog, planScenarios });
+  const rejected = (submission: AnalysisRecordInputs) => {
+    const result = validateDescriptiveInitialAnalysis(currentAnalysis(submission, 'document:fixture-plan'), { index: null, catalog, planScenarios });
     if (result.ok) throw new Error('the submission was accepted');
     return result.errors;
   };
 
   test('the valid analysis is accepted', () => {
-    expect(validateInitialAnalysis(valid, { index: null, catalog, planScenarios }).ok).toBe(true);
+    expect(validateDescriptiveInitialAnalysis(currentAnalysis(valid, 'document:fixture-plan'), { index: null, catalog, planScenarios }).ok).toBe(true);
   });
 
   test('rule 1: a gherkin value that is not one untagged scenario with a step', () => {
@@ -357,11 +361,11 @@ describe('the form rules, through the real validation path', () => {
 
   test('rule 2: a scenario naming no entry of the submission', () => {
     const errors = rejected({ ...valid, scenarios: [own, { ...architectScenario(one), entry: 'elsewhere' }] });
-    expect([errors[0]!.path, errors[0]!.message]).toEqual(['scenarios.1.entry', expect.stringMatching(/^Scenario form rule 2 /)]);
+    expect([errors[0]!.path, errors[0]!.message]).toEqual(['scenarios.1.entryCapabilityKey', expect.stringMatching(/^Scenario form rule 2 /)]);
   });
 
   test('rule 3: a plan scenario that is missing, or restated otherwise', () => {
-    expect(rejected({ ...valid, scenarios: [architectScenario(one)] })[0]!.message).toMatch(/^Scenario form rule 3 .*ps-01/);
+    expect(rejected({ ...valid, scenarios: [architectScenario(one)] })[0]!.message).toMatch(/^Scenario form rule 3 .*plan-scenario:it-works/);
     const paraphrased = rejected({ ...valid, scenarios: [{ ...own, gherkin: 'Scenario: It works\n  When it is used\n  Then it works well' }, architectScenario(one)] });
     expect([paraphrased[0]!.path, paraphrased[0]!.message]).toEqual(['scenarios.0.gherkin', expect.stringMatching(/^Scenario form rule 3 .*as the plan states it/)]);
   });
@@ -374,37 +378,33 @@ describe('the form rules, through the real validation path', () => {
 
   test('rule 5: an integration step no sub-scenario picks', () => {
     const two = entry('note-in-panel', sharedUi);
-    const sub = { key: 'use-it', entry: 'note-in-panel', origin: { kind: 'architect' as const }, partOf: 'ps-01', refs: [...two.acceptanceRefs], gherkin: 'Scenario: Used\n  When it is used\n  Then it is used' };
-    const errors = rejected(analysis([one, two], [], [], [architectScenario(one), sub], [{ planScenario: 'ps-01', subScenarios: ['use-it'] }]));
-    expect([errors[0]!.path, errors[0]!.message]).toEqual(['integrationScenarios.0.subScenarios', expect.stringMatching(/^Scenario form rule 5 .*"Then it works"/)]);
+    const sub = { key: 'use-it', entry: 'note-in-panel', origin: { kind: 'architect' as const }, partOf: 'plan-scenario:it-works', refs: [...two.acceptanceRefs], gherkin: 'Scenario: Used\n  When it is used\n  Then it is used' };
+    const errors = rejected(analysis([one, two], [], [], [architectScenario(one), sub], [{ planScenario: 'plan-scenario:it-works', subScenarios: ['use-it'] }]));
+    expect([errors[0]!.path, errors[0]!.message]).toEqual(['integrationScenarios.0.subScenarioKeys', expect.stringMatching(/^Scenario form rule 5 .*"Then it works"/)]);
   });
 
   test('rule 6: an acceptance element no scenario cites', () => {
     const errors = rejected({ ...valid, scenarios: [own, { ...architectScenario(one), refs: [] }] });
-    expect([errors[0]!.path, errors[0]!.message]).toEqual(['entries.0.acceptanceRefs.0', expect.stringMatching(/^Scenario form rule 6 /)]);
+    expect([errors[0]!.path, errors[0]!.message]).toEqual(['entries.0.functionalAcceptanceKeys.0', expect.stringMatching(/^Scenario form rule 6 /)]);
   });
 
   test('the form rules follow every other rule: an analysis with other errors answers those alone', () => {
     const errors = rejected({ ...valid, entries: [{ ...one, requirementRefs: ['nowhere'] }], scenarios: [] });
-    expect(errors.map(error => error.path)).toEqual(['entries.0.requirementRefs.0']);
+    expect(errors.map(error => error.path)).toEqual(['entries.0.functionalRequirementKeys.0']);
   });
 
   test('an architect scenario\'s refs name functional elements of the submission', () => {
     const errors = rejected({ ...valid, scenarios: [own, { ...architectScenario(one), refs: [...one.acceptanceRefs, 'nowhere'] }] });
-    expect(errors.map(error => error.path)).toEqual(['scenarios.1.refs.1']);
+    expect(errors.map(error => error.path)).toEqual(['scenarios.1.functionalAcceptanceKeys.1']);
   });
 
   test('the capability slug "integration" is reserved for the integration scenarios\' file', () => {
     const reserved = entry('integration', reviews);
     const errors = rejected(analysis([reserved]));
-    expect(errors.map(error => error.path)).toEqual(['entries.0.capability']);
+    expect(errors.map(error => error.path)).toEqual(['entries.0.capabilityKey']);
     expect(errors[0]!.message).toContain('integration.feature');
   });
 
-  test('an initial-architect/1 analysis, without scenarios, is not accepted', () => {
-    const errors = rejected({ entries: [], hypotheses: [], coverageLimits: [] } as unknown as InitialAnalysisSubmission);
-    expect(errors.map(error => error.path).sort()).toEqual(['elements', 'integrationScenarios', 'scenarios']);
-  });
 });
 
 describe('a form rule broken in a run', () => {
@@ -413,9 +413,9 @@ describe('a form rule broken in a run', () => {
     const noScenario = analysis([entry('reviewer-note', reviews)], [], [], []);
     const { service, agent } = await openRuns(project, {
       script: (spec: SessionSpec) => spec.role === 'catalog-extractor' ? [] : spec.role === 'initial-architect'
-        ? [...Array.from({ length: 4 }, () => ({ kind: 'submit' as const, input: noScenario })), { kind: 'submit' as const, input: analysis([entry('reviewer-note', reviews)]) }]
+        ? [...Array.from({ length: 4 }, () => ({ kind: 'submit' as const, input: currentAnalysis(noScenario, 'document:review-notes-plan') })), { kind: 'submit' as const, input: currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan') }]
         : [{ kind: 'submit' as const, input: requestCompletion() }],
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"'],
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
@@ -443,7 +443,8 @@ describe('the snapshot\'s scenario counts', () => {
     const at = '2026-09-23T08:00:00.000Z';
     let sequence = 0;
     const line = (type: string, data: unknown) => ({ sequence: ++sequence, jobId: constructedRecord().jobId, at, type, data });
-    const accepted = line('analysis-accepted', { invocation: 'inv-0001', entries: 1, hypotheses: 0, registry: 1, workItems: 1, scenarios: 3, warnings: [] });
+    const accepted = line('analysis-accepted', { invocation: 'inv-0001', entries: 1, hypotheses: 0, registry: 1, workItems: 1, scenarios: 3,
+      scenarioIds: ['scenario:note-attached', 'scenario:note-shown', 'scenario:note-archived'], warnings: [] });
     const record = constructedRecord();
     type Events = Parameters<typeof runSnapshot>[1];
     expect(runSnapshot(record, [] as unknown as Events).counts.scenarios).toEqual({ pending: 0, bound: 0, done: 0 });
@@ -451,9 +452,9 @@ describe('the snapshot\'s scenario counts', () => {
     // A module engineer's binding and an architect's report move states; a gate result moves none.
     const moved = [
       accepted,
-      line('obligation-bound', { id: 'sc-001', fakes: [], by: 'inv-0003', submission: 'a'.repeat(64) }),
-      line('obligation-bound', { id: 'sc-002', fakes: ['createLimitFake'], by: 'inv-0003', submission: 'a'.repeat(64) }),
-      line('obligation-reported', { id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0004', submission: 'b'.repeat(64) }),
+      line('obligation-bound', { id: 'scenario:note-attached', fakes: [], by: 'inv-0003', submission: 'a'.repeat(64) }),
+      line('obligation-bound', { id: 'scenario:note-shown', fakes: ['createLimitFake'], by: 'inv-0003', submission: 'a'.repeat(64) }),
+      line('obligation-reported', { id: 'scenario:note-attached', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0004', submission: 'b'.repeat(64) }),
     ];
     expect(runSnapshot(record, moved as unknown as Events).counts.scenarios).toEqual({ pending: 1, bound: 1, done: 1 });
   });

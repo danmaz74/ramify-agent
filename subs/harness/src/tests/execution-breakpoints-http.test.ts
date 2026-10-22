@@ -9,7 +9,7 @@ import {
 } from '../interfaces/protocol/runs.js';
 import { runSnapshot } from '../../subs/autonomous/src/run/snapshot.js';
 import { constructedRecord } from './helpers/constructed.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { installTestRunner, startRun, stopRun, until } from './helpers/runs.js';
@@ -33,8 +33,8 @@ async function host({ before, toEnd = false }: { before?: (handle: Handle) => Pr
   await installTestRunner(fixture.root);
   let release: () => void = () => {};
   const held = new Promise<void>(done => { release = done; });
-  const opened = await openUnchangedRuns(fixture.root, { inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit(plan), ...toEnd ? ['wi-001.i01', 'wi-001', `final verification of plan "${plan}"`] : []],
-    script: byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
+  const opened = await openUnchangedRuns(fixture.root, { inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit(plan), ...toEnd ? ['work-item:review-note.i01', 'work-item:review-note', `final verification of plan "${plan}"`] : []],
+    script: byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(module, {}, outline())), submit(toEnd ? requestCompletion() : assign(module))],
       engineer: [[{ kind: 'await', until: () => held }, { kind: 'message', text: 'I understand the normal task.' }, { kind: 'end', message: 'I understand the normal task.' }], submit(completionProposed())] }) });
   cleanups.push(() => opened.service.close());

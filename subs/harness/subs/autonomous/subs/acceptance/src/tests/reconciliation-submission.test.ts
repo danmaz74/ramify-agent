@@ -23,8 +23,8 @@ function context(extra: Partial<ReconciliationContext> = {}): ReconciliationCont
     id: 'wi-001.rc02',
     workItem: 'wi-001',
     module: 'app/notes',
-    attention: new Map([['cf-0001', entry('high')], ['cf-0002', entry('low')]]),
-    held: new Map([['cf-0001', 1], ['cf-0002', 1], ['cf-0003', 2]]),
+    attention: new Map([['finding:case-0001', entry('high')], ['finding:case-0002', entry('low')]]),
+    held: new Map([['finding:case-0001', 1], ['finding:case-0002', 1], ['finding:case-0003', 2]]),
     actor: { kind: 'agent', role: 'local-architect', invocation: 'inv-0009' },
     source: { kind: 'tree', id: 'tree-04' },
     evidence: () => [{ kind: 'reconciliation-submission', ref: 'invocations/inv-0009/submission.json', hash: null }],
@@ -97,17 +97,17 @@ describe('validating a submission', () => {
   test('a valid submission binds actor, source, authority, revisions and the repair intent, relations first, and leaves no command for a signal left open', async () => {
     const ctx = context();
     const result = await validateReconciliation(submission([
-      disposition('cf-0001', { action: 'repair' }, { risk: 'high' }),
-      disposition('cf-0002', { action: 'leave' }),
+      disposition('finding:case-0001', { action: 'repair' }, { risk: 'high' }),
+      disposition('finding:case-0002', { action: 'leave' }),
     ], { kind: 'correct', goal: 'Correct it.' }, [
-      { from: 'cf-0003', to: 'cf-0001', relation: 'same-issue', shared: 'one behavior', evidence: ['src/a.ts:1'], rationale: 'the same default' },
+      { from: 'finding:case-0003', to: 'finding:case-0001', relation: 'same-issue', shared: 'one behavior', evidence: ['src/a.ts:1'], rationale: 'the same default' },
     ]), ctx);
     expect(messages(result)).toEqual([]);
     if (!result.ok) return;
     expect(result.value.commands).toEqual([
-      expect.objectContaining({ type: 'relate', relation: expect.objectContaining({ from: { checkFinding: 'cf-0003', revision: 2 }, to: { checkFinding: 'cf-0001', revision: 1 } }) }),
+      expect.objectContaining({ type: 'relate', relation: expect.objectContaining({ from: { checkFinding: 'finding:case-0003', revision: 2 }, to: { checkFinding: 'finding:case-0001', revision: 1 } }) }),
       {
-        type: 'dispose', checkFinding: 'cf-0001', expectedRevision: 1,
+        type: 'dispose', checkFinding: 'finding:case-0001', expectedRevision: 1,
         decision: {
           actor: ctx.actor, source: ctx.source, evidence: [...ctx.evidence(result.value.submission)], rationale: 'assessed', communication: { mode: 'quiet' },
           risk: 'high', decision: { action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc02' } },
@@ -118,48 +118,48 @@ describe('validating a submission', () => {
   });
 
   test('a correction at low risk and an explicit leave are allowed; a waiver outside the module is refused', async () => {
-    const ctx = context({ attention: new Map([['cf-0001', entry('high', { modules: ['app/cart'] })], ['cf-0002', entry('low')], ['cf-0004', entry('medium')]]) });
+    const ctx = context({ attention: new Map([['finding:case-0001', entry('high', { modules: ['app/cart'] })], ['finding:case-0002', entry('low')], ['finding:case-0004', entry('medium')]]) });
     const result = await validateReconciliation(submission([
-      disposition('cf-0001', { action: 'waive', uncertainty: 'none' }),
-      disposition('cf-0002', { action: 'repair' }),
-      disposition('cf-0004', { action: 'leave' }),
+      disposition('finding:case-0001', { action: 'waive', uncertainty: 'none' }),
+      disposition('finding:case-0002', { action: 'repair' }),
+      disposition('finding:case-0004', { action: 'leave' }),
     ], { kind: 'correct', goal: 'x' }), ctx);
     expect(messages(result)).toEqual([
-      'dispositions.0.action: insufficient-authority: cf-0001 concerns app/cart, and this architect may waive only within app/notes',
+      'dispositions.0.action: insufficient-authority: finding:case-0001 concerns app/cart, and this architect may waive only within app/notes',
     ]);
     expect(ctx.decided).toEqual([]);
   });
 
   test('a corrected low risk still allows repair in a later round', async () => {
     const result = await validateReconciliation(submission([
-      disposition('cf-0001', { action: 'repair' }, { risk: 'low' }),
-      disposition('cf-0002', { action: 'leave' }),
+      disposition('finding:case-0001', { action: 'repair' }, { risk: 'low' }),
+      disposition('finding:case-0002', { action: 'leave' }),
     ], { kind: 'correct', goal: 'x' }), context());
     expect(messages(result)).toEqual([]);
   });
 
   test('every signal needs one disposition, one waiting for someone else none, and the next action must follow', async () => {
-    const ctx = context({ attention: new Map([['cf-0001', entry('high')], ['cf-0002', entry('low')], ['cf-0005', entry('high', { awaiting: 'user-decision' })]]) });
+    const ctx = context({ attention: new Map([['finding:case-0001', entry('high')], ['finding:case-0002', entry('low')], ['finding:case-0005', entry('high', { awaiting: 'user-decision' })]]) });
     const result = await validateReconciliation(submission([
-      disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-      disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-      disposition('cf-0005', { action: 'waive', uncertainty: 'none' }),
-      disposition('cf-0009', { action: 'supersede', reassessed: ['cfr-0009'], replacement: 'r' }),
-    ], { kind: 'complete' }, [{ from: 'cf-0001', to: 'cf-0042', relation: 'distinct', shared: 's', evidence: ['e'], rationale: 'r' }]), ctx);
+      disposition('finding:case-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
+      disposition('finding:case-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
+      disposition('finding:case-0005', { action: 'waive', uncertainty: 'none' }),
+      disposition('finding:case-0009', { action: 'supersede', reassessed: ['cfr-0009'], replacement: 'r' }),
+    ], { kind: 'complete' }, [{ from: 'finding:case-0001', to: 'finding:case-0042', relation: 'distinct', shared: 's', evidence: ['e'], rationale: 'r' }]), ctx);
     expect(messages(result)).toEqual([
-      'relations.0.to: cf-0042 is not a CheckFinding of wi-001',
-      'dispositions.1.checkFinding: cf-0001 already has the disposition at dispositions.0',
-      'dispositions.2.checkFinding: cf-0005 waits for a user\'s answer; it is not this assessment\'s to decide',
-      'dispositions.3.checkFinding: cf-0009 is not in this reconciliation\'s attention set',
-      'dispositions: cf-0002 is in the attention set and has no disposition',
+      'relations.0.to: finding:case-0042 is not a CheckFinding of wi-001',
+      'dispositions.1.checkFinding: finding:case-0001 already has the disposition at dispositions.0',
+      'dispositions.2.checkFinding: finding:case-0005 waits for a user\'s answer; it is not this assessment\'s to decide',
+      'dispositions.3.checkFinding: finding:case-0009 is not in this reconciliation\'s attention set',
+      'dispositions: finding:case-0002 is in the attention set and has no disposition',
     ]);
   });
 
   test('a user decision cites the exact text of a document the harness can read, and its revision is the harness\'s', async () => {
     const options = [{ id: 'a', summary: 'a', consequence: 'a' }, { id: 'b', summary: 'b', consequence: 'b' }];
     const ask = (document: string, text: string) => submission([
-      disposition('cf-0001', { action: 'request-user-decision', conflicts: [{ document, text }], options }),
-      disposition('cf-0002', { action: 'leave' }),
+      disposition('finding:case-0001', { action: 'request-user-decision', conflicts: [{ document, text }], options }),
+      disposition('finding:case-0002', { action: 'leave' }),
     ], { kind: 'await-user' });
     expect(messages(await validateReconciliation(ask('fr-002', 'A note belongs to one run.'), context()))).toEqual([
       `dispositions.0.action.conflicts.0.text: The text is not in "fr-002" as it stands at sha256:${'c'.repeat(64)}; cite the conflicting text exactly`,
@@ -172,17 +172,17 @@ describe('validating a submission', () => {
       expect(refused.ok ? [] : refused.errors.map(error => error.expected)).toEqual(['an element ID or a path of the source']);
     }
     const accepted = await validateReconciliation(ask('fr-002', 'exactly one review run'), context());
-    expect(accepted.ok && accepted.value.conflicts).toEqual([{ checkFinding: 'cf-0001', conflicts: [{ text: 'exactly one review run', document: 'fr-002', revision: `sha256:${'c'.repeat(64)}` }] }]);
+    expect(accepted.ok && accepted.value.conflicts).toEqual([{ checkFinding: 'finding:case-0001', conflicts: [{ text: 'exactly one review run', document: 'fr-002', revision: `sha256:${'c'.repeat(64)}` }] }]);
     const sourced = await validateReconciliation(ask('docs/notes.md', 'Notes are kept per run.'), context());
-    expect(sourced.ok && sourced.value.conflicts).toEqual([{ checkFinding: 'cf-0001', conflicts: [{ text: 'Notes are kept per run.', document: 'docs/notes.md', revision: 'tree-04' }] }]);
+    expect(sourced.ok && sourced.value.conflicts).toEqual([{ checkFinding: 'finding:case-0001', conflicts: [{ text: 'Notes are kept per run.', document: 'docs/notes.md', revision: 'tree-04' }] }]);
   });
 
   test('a refusal of the child is returned at the disposition it names', async () => {
     const result = await validateReconciliation(submission([
-      disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-      disposition('cf-0002', { action: 'supersede', reassessed: ['cfr-0002'], replacement: 'r' }),
-    ], { kind: 'complete' }), context({ decide: () => ({ code: 'factual-obligation', message: 'cf-0002 is verified by a check', index: 1 }) }));
-    expect(messages(result)).toEqual(['dispositions.1: The CheckFinding rules refuse it (factual-obligation): cf-0002 is verified by a check']);
+      disposition('finding:case-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
+      disposition('finding:case-0002', { action: 'supersede', reassessed: ['cfr-0002'], replacement: 'r' }),
+    ], { kind: 'complete' }), context({ decide: () => ({ code: 'factual-obligation', message: 'finding:case-0002 is verified by a check', index: 1 }) }));
+    expect(messages(result)).toEqual(['dispositions.1: The CheckFinding rules refuse it (factual-obligation): finding:case-0002 is verified by a check']);
   });
 });
 
@@ -190,14 +190,14 @@ describe('the basis', () => {
   const captured = {
     source: { commit: 'revision-03', tree: 'tree-03' },
     requests: [{ request: 'rq-0001', attempt: 'rq-0001.a01', result: 'complete' as const }],
-    checkFindings: [{ checkFinding: 'cf-0001', revision: 1 }],
+    checkFindings: [{ checkFinding: 'finding:case-0001', revision: 1 }],
   };
-  const current = { source: captured.source, requests: captured.requests, unsettled: [] as string[], revisions: new Map([['cf-0001', 1]]) };
+  const current = { source: captured.source, requests: captured.requests, unsettled: [] as string[], revisions: new Map([['finding:case-0001', 1]]) };
 
   test('holds while the source, the settled requests and every captured revision hold', () => {
     expect(basisChange(captured, current)).toBeNull();
     // A new CheckFinding is the caller's to weigh, not a changed basis.
-    expect(basisChange(captured, { ...current, revisions: new Map([['cf-0001', 1], ['cf-0002', 1]]) })).toBeNull();
+    expect(basisChange(captured, { ...current, revisions: new Map([['finding:case-0001', 1], ['finding:case-0002', 1]]) })).toBeNull();
   });
 
   test('names what changed: the source, an unsettled or another request, or a revision', () => {
@@ -205,6 +205,6 @@ describe('the basis', () => {
     expect(basisChange(captured, { ...current, unsettled: ['rq-0002'] })).toBe('rq-0002 is not settled');
     expect(basisChange(captured, { ...current, requests: [...captured.requests, { request: 'rq-0002', attempt: 'rq-0002.a01', result: 'complete' }] }))
       .toBe('the work item\'s settled review requests changed: rq-0002:rq-0002.a01:complete');
-    expect(basisChange(captured, { ...current, revisions: new Map([['cf-0001', 2]]) })).toBe('cf-0001 is at revision 2, not 1');
+    expect(basisChange(captured, { ...current, revisions: new Map([['finding:case-0001', 2]]) })).toBe('finding:case-0001 is at revision 2, not 1');
   });
 });

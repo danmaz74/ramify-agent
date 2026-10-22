@@ -22,7 +22,7 @@ import {
   consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, type Seam,
 } from '../../subs/work-coordination/src/tests/helpers/contracts.js';
 import { architectureLayout } from '../../subs/work-coordination/src/architecture/records.js';
-import { analysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
+import { analysis as baseAnalysis, currentAnalysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
 import { placementDecisionFixture as decisionBody, forkDecision, requestPlacement } from '../../subs/work-coordination/src/tests/helpers/placement.js';
 import { createScriptedAgent, type Script } from '../../../agent/src/scripted.js';
 import { scriptedCandidates } from '../../subs/acceptance/src/tests/helpers/candidates.js';
@@ -59,6 +59,7 @@ vi.mock('node:child_process', async original =>
  */
 
 const cleanups: Array<() => Promise<void>> = [];
+const analysis = (...args: Parameters<typeof baseAnalysis>) => currentAnalysis(baseAnalysis(...args), 'document:review-notes-plan');
 afterEach(async () => {
   const errors: unknown[] = [];
   try {
@@ -237,6 +238,7 @@ async function reached(root: string, runId: string, events: string, write: RunWr
     case 'placement-requested': return types.includes('placement-requested');
     case 'view-refreshed': return types.includes('view-refreshed');
     case 'fork-returned-partial': return types.includes('fork-returned-partial');
+    case 'fork-name-rejected': return types.includes('fork-name-rejected');
     // The decision is committed and its brief is not appended yet.
     case 'decision-accepted': return types.includes('decision-accepted');
     // The brief reached the parent and its completion is not in the log yet.
@@ -327,9 +329,9 @@ const placementCapability = 'reviewer-note';
 function placementPlan(brief = 'The capability stays where the registry places it.') {
   return {
     'initial-architect': [submitStep(analysis([entry(placementCapability, 'collection-review/workspace/reviews')]))],
-    'local-architect': [submitStep(requestPlacement({ forCapability: placementCapability })), submitStep(requestCompletion())],
+    'local-architect': [submitStep(requestPlacement({ forCapability: `capability:${placementCapability}` })), submitStep(requestCompletion())],
     'global-fork': [submitStep(forkDecision({
-      decision: decisionBody({ capability: placementCapability, owner: 'collection-review/workspace/reviews' }),
+      decision: decisionBody({ capability: `capability:${placementCapability}`, owner: 'collection-review/workspace/reviews' }),
       brief,
     }))],
   };
@@ -422,9 +424,9 @@ describe('the recovery table', () => {
     const resumed = await openRuns(root, { git: gitOf(root),
       script: spec => spec.submission.name === intakeToolName
         ? [{ kind: 'submit', input: { goal: 'Keep reviewer notes on a review run.', elements: [
-          { key: 'bounded', kind: 'non-functional', document: 'doc-001', text: 'Reviewer notes stay bounded.', conditions: [], uncertainty: '' },
-        ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } } }]
-        : spec.role === 'catalog-extractor' ? [] : [{ kind: 'submit', input: emptyAnalysis() }] });
+          { key: 'draft:non-functional-requirement:bounded', kind: 'non-functional', document: 'document:review-notes-plan', text: 'Reviewer notes stay bounded.', conditions: [], uncertainty: '' },
+        ], incorporation: { documents: [{ document: 'document:review-notes-plan', scenarios: true, uncertainty: '' }], missing: [] } } }]
+        : spec.role === 'catalog-extractor' ? [] : [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }] });
     cleanups.push(() => resumed.service.close());
     expect((await runEventsOnDisk(root, 'review-notes', runId)).map(event => event.type)).not.toContain('job-interrupted');
     const next = await resumed.service.execute(startRun('review-notes'));
@@ -444,7 +446,7 @@ describe('the recovery table', () => {
     const { recovery } = await reopen(root);
     expect(recovery.rematerialized.some(entry => entry.startsWith(`review-notes/${runId}`))).toBe(true);
     const entries = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.entries), 'utf8')) as { schema: string; entries: unknown[] };
-    expect(entries.schema).toBe('ramify-agent.entry-assignments/1');
+    expect(entries.schema).toBe('ramify-agent.entry-assignments/2');
     expect(entries.entries).toEqual([]);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'analysis-accepted')).toHaveLength(1);
@@ -467,15 +469,15 @@ describe('the recovery table', () => {
     const root = await target([materialize], [], materialized);
     const agent = recoveryAgent(byRole(placementPlan()));
     const { runId } = await crashAfter(root, 'placement-requested', false, undefined, undefined, agent);
-    await rm(runPath(root, 'review-notes', runId, architectureLayout.request('pr-001')));
+    await rm(runPath(root, 'review-notes', runId, architectureLayout.request('placement-request:send-email')));
 
     const sessionsBefore = agent.sessions.length;
     const { recovery } = await reopen(root);
     expect(agent.sessions).toHaveLength(sessionsBefore);
     // The record file is re-materialized from the line that committed it.
     expect(recovery.rematerialized.some(entry => entry.startsWith(`review-notes/${runId}`))).toBe(true);
-    const request = JSON.parse(await readFile(runPath(root, 'review-notes', runId, architectureLayout.request('pr-001')), 'utf8')) as { id: string; forCapability: string };
-    expect(request).toMatchObject({ id: 'pr-001', forCapability: placementCapability });
+    const request = JSON.parse(await readFile(runPath(root, 'review-notes', runId, architectureLayout.request('placement-request:send-email')), 'utf8')) as { id: string; forCapability: string };
+    expect(request).toMatchObject({ id: 'placement-request:send-email', forCapability: `capability:${placementCapability}` });
 
     const types = (await runEventsOnDisk(root, 'review-notes', runId)).map(event => event.type);
     expect(types.filter(type => type === 'placement-requested')).toHaveLength(1);
@@ -523,7 +525,7 @@ describe('the recovery table', () => {
     const brief = 'The note stays with the reviews module, which already holds a review run.';
     const agent = recoveryAgent(byRole(placementPlan(brief)));
     const { runId } = await crashAfter(root, 'decision-accepted', false, undefined, undefined, agent);
-    await rm(runPath(root, 'review-notes', runId, architectureLayout.decision('gd-001')));
+    await rm(runPath(root, 'review-notes', runId, architectureLayout.decision('placement-decision:placement-send-email')));
 
     const before = await runEventsOnDisk(root, 'review-notes', runId);
     expect(before.map(event => event.type)).not.toContain('brief-appended');
@@ -531,13 +533,13 @@ describe('the recovery table', () => {
     const { recovery } = await reopen(root, agent);
     // The decision's own file is re-materialized, and the effect its intent
     // named is performed under the decision's identifier.
-    const committed = JSON.parse(await readFile(runPath(root, 'review-notes', runId, architectureLayout.decision('gd-001')), 'utf8')) as { id: string; brief: string };
-    expect(committed).toMatchObject({ id: 'gd-001', brief });
+    const committed = JSON.parse(await readFile(runPath(root, 'review-notes', runId, architectureLayout.decision('placement-decision:placement-send-email')), 'utf8')) as { id: string; brief: string };
+    expect(committed).toMatchObject({ id: 'placement-decision:placement-send-email', brief });
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const appended = events.filter(event => event.type === 'brief-appended');
     expect(appended).toHaveLength(1);
-    expect(appended[0]!.data).toMatchObject({ decision: 'gd-001', outcome: 'appended', generation: 1 });
+    expect(appended[0]!.data).toMatchObject({ decision: 'placement-decision:placement-send-email', outcome: 'appended', generation: 1 });
     expect(events.filter(event => event.type === 'decision-accepted')).toHaveLength(1);
     // The delivery follows the append, and the run is then interrupted.
     expect(events.filter(event => event.type === 'decision-delivered')).toHaveLength(1);
@@ -560,7 +562,7 @@ describe('the recovery table', () => {
     const appended = events.filter(event => event.type === 'brief-appended');
     expect(appended).toHaveLength(1);
     // The repeat was answered by the key, not by a second brief.
-    expect(appended[0]!.data).toMatchObject({ decision: 'gd-001', outcome: 'already-present' });
+    expect(appended[0]!.data).toMatchObject({ decision: 'placement-decision:placement-send-email', outcome: 'already-present' });
     expect(events.filter(event => event.type === 'decision-delivered')).toHaveLength(1);
   }, 180_000);
 
@@ -577,7 +579,7 @@ describe('the recovery table', () => {
     expect(events.filter(event => event.type === 'brief-appended')).toHaveLength(1);
     const delivered = events.filter(event => event.type === 'decision-delivered');
     expect(delivered).toHaveLength(1);
-    expect(delivered[0]!.data).toEqual({ decision: 'gd-001', workItem: 'wi-001' });
+    expect(delivered[0]!.data).toEqual({ decision: 'placement-decision:placement-send-email', workItem: 'work-item:reviewer-note' });
     // Recovery called no agent: the module architect's next turn belongs to a
     // run that is started again.
     expect(agent.sessions.filter(session => session.spec.submission.name === 'submit_work_item_result')).toHaveLength(1);
@@ -691,7 +693,7 @@ describe('the recovery table', () => {
     const { service } = await openRuns(root, {
       git, candidates: scriptedCandidates(root, { [base]: { tree, base, files: {}, changes: [] } }),
 
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
+      script: [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }],
     });
     const receipt = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', receipt.jobId);
@@ -722,14 +724,14 @@ describe('the recovery table', () => {
     const root = await target([materialize], [], materialized);
     const { runId } = await crashAfter(root, 'hypotheses-delivered', false, oneWorkItem());
     // The work item's file is removed, as a crash between the line and its file leaves it.
-    await rm(runPath(root, 'review-notes', runId, workLayout.item('wi-001')));
-    await rm(runPath(root, 'review-notes', runId, analysisLayout.hypothesis('note-storage', 1)));
+    await rm(runPath(root, 'review-notes', runId, workLayout.item('work-item:reviewer-note')));
+    await rm(runPath(root, 'review-notes', runId, analysisLayout.hypothesis('hypothesis:note-storage', 1)));
 
     const { recovery } = await reopen(root);
     expect(recovery.rematerialized.some(item => item.startsWith(`review-notes/${runId}`))).toBe(true);
-    const item = JSON.parse(await readFile(runPath(root, 'review-notes', runId, workLayout.item('wi-001')), 'utf8')) as { schema: string; origin: unknown };
-    expect(item).toMatchObject({ schema: 'ramify-agent.work-item/1', origin: { entry: 'reviewer-note' } });
-    const hypothesis = JSON.parse(await readFile(runPath(root, 'review-notes', runId, analysisLayout.hypothesis('note-storage', 1)), 'utf8')) as { revision: number };
+    const item = JSON.parse(await readFile(runPath(root, 'review-notes', runId, workLayout.item('work-item:reviewer-note')), 'utf8')) as { schema: string; origin: unknown };
+    expect(item).toMatchObject({ schema: 'ramify-agent.work-item/2', origin: { entry: 'capability:reviewer-note' } });
+    const hypothesis = JSON.parse(await readFile(runPath(root, 'review-notes', runId, analysisLayout.hypothesis('hypothesis:note-storage', 1)), 'utf8')) as { revision: number };
     expect(hypothesis.revision).toBe(1);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'hypotheses-delivered')).toHaveLength(1);
@@ -738,15 +740,15 @@ describe('the recovery table', () => {
   test('a crash after outline-revised re-materializes the outline and writes no second revision', async () => {
     const root = await target([materialize], [], materialized);
     const { runId } = await crashAfter(root, 'outline-revised', false, oneWorkItem());
-    await rm(runPath(root, 'review-notes', runId, workLayout.outline('wi-001', 1)));
+    await rm(runPath(root, 'review-notes', runId, workLayout.outline('work-item:reviewer-note', 1)));
 
     const { recovery } = await reopen(root);
     expect(recovery.rematerialized.some(item => item.startsWith(`review-notes/${runId}`))).toBe(true);
-    const outline = JSON.parse(await readFile(runPath(root, 'review-notes', runId, workLayout.outline('wi-001', 1)), 'utf8')) as { revision: number; decomposition: { kind: string } };
+    const outline = JSON.parse(await readFile(runPath(root, 'review-notes', runId, workLayout.outline('work-item:reviewer-note', 1)), 'utf8')) as { revision: number; decomposition: { kind: string } };
     expect(outline).toMatchObject({ revision: 1, decomposition: { kind: 'single-iteration' } });
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'outline-revised')).toHaveLength(1);
-    expect(existsSync(runPath(root, 'review-notes', runId, workLayout.outline('wi-001', 2)))).toBe(false);
+    expect(existsSync(runPath(root, 'review-notes', runId, workLayout.outline('work-item:reviewer-note', 2)))).toBe(false);
   }, 180_000);
 
   test('PB3-C04 PB3-C05: a crash after obligation-reported keeps the report once, with its invocation and submission, and gates nothing', async () => {
@@ -761,7 +763,7 @@ describe('the recovery table', () => {
     // The accepted completion request's report stands once, as it was made:
     // recovery reports nothing again and starts no writer, outline or gate.
     expect(events.filter(event => event.type === 'obligation-reported').map(event => event.data)).toEqual([{
-      id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1,
+      id: 'scenario:reviewer-note-is-used', judgment: 'done', basedOnRevision: 0, revision: 1,
       by: (architect.data as { invocation: string }).invocation, submission: (accepted.data as { submission: string }).submission,
     }]);
     expect(events.filter(event => event.type === 'invocation-ended')).toHaveLength(before.filter(event => event.type === 'invocation-ended').length);
@@ -856,7 +858,7 @@ describe('the boundaries of an iteration', () => {
   test('a crash after iteration-assigned rewrites the assignment from the log and assigns nothing twice', async () => {
     const root = await iterationTarget();
     const { runId } = await crashAfter(root, 'iteration-assigned', false, oneIteration(), treeInputs());
-    const assignment = runPath(root, 'review-notes', runId, iterationLayout.assignment('wi-001', 1));
+    const assignment = runPath(root, 'review-notes', runId, iterationLayout.assignment('work-item:review-note', 1));
     await rm(assignment, { force: true });
 
     const { service, recovery, agent } = await reopen(root);
@@ -864,7 +866,7 @@ describe('the boundaries of an iteration', () => {
     expect(recovery.interrupted).toEqual([]);
     // The record the log committed is written again, byte for byte.
     expect(existsSync(assignment)).toBe(true);
-    expect(JSON.parse(await readFile(assignment, 'utf8')) as { id: string }).toMatchObject({ id: 'wi-001.i01' });
+    expect(JSON.parse(await readFile(assignment, 'utf8')) as { id: string }).toMatchObject({ id: 'work-item:review-note.i01' });
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
     expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
@@ -887,7 +889,7 @@ describe('the boundaries of an iteration', () => {
       engineer: [[{ kind: 'submit', input: completionProposed('Nothing to do.') }]],
     });
     const { runId } = await crashAfter(root, 'iteration-assigned', false, script, treeInputs());
-    const path = runPath(root, 'review-notes', runId, iterationLayout.assignment('wi-001', 1));
+    const path = runPath(root, 'review-notes', runId, iterationLayout.assignment('work-item:review-note', 1));
     const before = await readFile(path, 'utf8');
     await rm(path, { force: true });
 
@@ -903,7 +905,7 @@ describe('the boundaries of an iteration', () => {
     expect(assignment.gate.checkpoint).toBe('breaking-iteration');
     expect(assignment.scope.base).toEqual({ modules: [notes], rationale: 'The limit and its reader change together.' });
     expect(assignment.guarded.map(file => file.path)).toContain('vitest.config.ts');
-    expect(assignment.authorizations).toEqual([{ path: 'vitest.config.ts', rationale: 'The suite moves.', by: expect.objectContaining({ id: 'wi-001', revision: 1 }) }]);
+    expect(assignment.authorizations).toEqual([{ path: 'vitest.config.ts', rationale: 'The suite moves.', by: expect.objectContaining({ id: 'work-item:review-note', revision: 1 }) }]);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
     expect(events.some(event => event.type === 'gate-attempted')).toBe(false);
@@ -989,7 +991,7 @@ describe('the boundaries of an iteration', () => {
       source(1),
     );
     const { runId } = await crashAfter(root, 'iteration-closed', false, oneIteration(), treeInputs());
-    const result = runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1));
+    const result = runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1));
     const before = await readFile(result, 'utf8');
     await rm(result, { force: true });
 
@@ -1024,7 +1026,7 @@ describe('the boundaries of an iteration', () => {
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     // The first work item stays closed, and the second stays open.
     const completed = events.filter(event => event.type === 'work-item-completed');
-    expect(completed.map(event => (event.data as { workItem: string }).workItem)).toEqual(['wi-001']);
+    expect(completed.map(event => (event.data as { workItem: string }).workItem)).toEqual(['work-item:review-note']);
     expect(events.filter(event => event.type === 'work-item-started')).toHaveLength(2);
     expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
     expect(onlyRun(first.service, 'review-notes').state).toBe('running');
@@ -1094,14 +1096,14 @@ describe('the boundaries of a delegation', () => {
             {
               question: 'Where does the note limit belong?',
               outcome: 'reuse',
-              capability: 'note-limit',
+              capability: 'capability:note-limit',
               owner: provider,
               rationale: 'The limit is a capability of its own in a subtree this architect may place work in.',
             },
-            [registryChange({ capability: 'note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
+            [registryChange({ capability: 'capability:note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
           )],
         }),
-        submitStep({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'Waiting for the real limit.' }),
+        submitStep({ kind: 'yield-for-providers', requirements: ['consumer-requirement:notes-note-limit'], summary: 'Waiting for the real limit.' }),
       ],
       engineer: [submitStep(contractNeeded(seam))],
       'contract-engineer': [[...contractWrites(seam), { kind: 'submit', input: established(seam) }]],
@@ -1111,7 +1113,7 @@ describe('the boundaries of a delegation', () => {
   test('a crash after contract-requested leaves the assignment, and no registration and no second sub-session', async () => {
     const root = await delegationTarget();
     const { runId } = await crashAfter(root, 'contract-requested', false, oneDelegation(), treeInputs());
-    const assignment = runPath(root, 'review-notes', runId, iterationLayout.assignment('wi-001', 2));
+    const assignment = runPath(root, 'review-notes', runId, iterationLayout.assignment('work-item:review-notes', 2));
     await rm(assignment, { force: true });
 
     const { service, recovery, agent } = await reopen(root);
@@ -1120,7 +1122,7 @@ describe('the boundaries of a delegation', () => {
     // The assignment the log committed is written again, byte for byte.
     expect(existsSync(assignment)).toBe(true);
     expect(JSON.parse(await readFile(assignment, 'utf8')) as { id: string; kind: string; requestedBy?: string })
-      .toMatchObject({ id: 'wi-001.i02', kind: 'contract', requestedBy: 'wi-001.i01' });
+      .toMatchObject({ id: 'work-item:review-notes.i02', kind: 'contract', requestedBy: 'work-item:review-notes.i01' });
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'contract-requested')).toHaveLength(1);
     expect(events.map(event => event.type)).not.toContain('contract-registered');
@@ -1130,10 +1132,10 @@ describe('the boundaries of a delegation', () => {
   test('a restart after contract-registered recovers one obligation and one requirement, and the caller reads the outcome from them', async () => {
     const root = await delegationTarget([contractCommit(1, seam)], source(1));
     const { runId } = await crashAfter(root, 'contract-registered', false, oneDelegation(), treeInputs());
-    const contract = runPath(root, 'review-notes', runId, contractsLayout.contract('ct-001', 1));
-    const obligation = runPath(root, 'review-notes', runId, contractsLayout.obligation('ob-ct-001', 1));
-    const requirement = runPath(root, 'review-notes', runId, contractsLayout.requirement('rq-001', 1));
-    const providerItem = runPath(root, 'review-notes', runId, workLayout.item('wi-002'));
+    const contract = runPath(root, 'review-notes', runId, contractsLayout.contract('contract:note-limit', 1));
+    const obligation = runPath(root, 'review-notes', runId, contractsLayout.obligation('provider-obligation:note-limit', 1));
+    const requirement = runPath(root, 'review-notes', runId, contractsLayout.requirement('consumer-requirement:notes-note-limit', 1));
+    const providerItem = runPath(root, 'review-notes', runId, workLayout.item('work-item:provide-note-limit'));
     for (const path of [contract, obligation, requirement, providerItem]) await rm(path, { force: true });
 
     const { service, recovery, agent } = await reopen(root);
@@ -1143,11 +1145,11 @@ describe('the boundaries of a delegation', () => {
     // that committed it, and there is exactly one of each.
     for (const path of [contract, obligation, requirement, providerItem]) expect(existsSync(path)).toBe(true);
     expect(JSON.parse(await readFile(obligation, 'utf8')) as { id: string; revision: number })
-      .toMatchObject({ id: 'ob-ct-001', revision: 1 });
+      .toMatchObject({ id: 'provider-obligation:note-limit', revision: 1 });
     expect(JSON.parse(await readFile(requirement, 'utf8')) as { id: string; workItem: string })
-      .toMatchObject({ id: 'rq-001', workItem: 'wi-001' });
+      .toMatchObject({ id: 'consumer-requirement:notes-note-limit', workItem: 'work-item:review-notes' });
     expect(JSON.parse(await readFile(providerItem, 'utf8')) as { id: string; startedFor: string })
-      .toMatchObject({ id: 'wi-002', startedFor: 'wi-001' });
+      .toMatchObject({ id: 'work-item:provide-note-limit', startedFor: 'work-item:review-notes' });
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'contract-registered')).toHaveLength(1);
@@ -1156,7 +1158,7 @@ describe('the boundaries of a delegation', () => {
     // learns about the outcome it learns from the committed registration,
     // not from a reply of a session it never held.
     const closings = events.filter(event => event.type === 'iteration-closed');
-    expect(closings.map(event => event.data.iteration)).toEqual(['wi-001.i01']);
+    expect(closings.map(event => event.data.iteration)).toEqual(['work-item:review-notes.i01']);
     expect(closings[0]!.data.outcome).toBe('partial');
     const requested = events.findIndex(event => event.type === 'contract-requested');
     const registeredAt = events.findIndex(event => event.type === 'contract-registered');
@@ -1168,6 +1170,12 @@ describe('the boundaries of a delegation', () => {
 
   /** The revised agreement: the same seam at a length the provider can keep. */
   const relaxed: Seam = { ...seam, limit: 300, behavior: 'A note of at most 300 characters is within the limit.' };
+  const revisedAgreement = () => {
+    const { contractKey: _contractKey, providerObligationKey: _providerObligationKey,
+      consumerRequirementKey: _consumerRequirementKey, ...body } = established(relaxed);
+    return { ...body, contractId: 'contract:note-limit', providerObligationId: 'provider-obligation:note-limit',
+      consumerRequirementId: 'consumer-requirement:notes-note-limit' };
+  };
 
   /**
    * One delegation whose provider reports it cannot conform, and the
@@ -1176,36 +1184,36 @@ describe('the boundaries of a delegation', () => {
   function oneRevision(): OpenRunsOptions['script'] {
     return byWork({
       'initial-architect': [submitStep(analysis([entry('review-notes', consumer)]))],
-      'local-architect:wi-001': [
+      'local-architect:work-item:review-notes': [
         submitStep({
           ...assign(consumer, {}, outline()),
           localDecisions: [localDecision(
             {
               question: 'Where does the note limit belong?',
               outcome: 'reuse',
-              capability: 'note-limit',
+              capability: 'capability:note-limit',
               owner: provider,
               rationale: 'The limit is a capability of its own in a subtree this architect may place work in.',
             },
-            [registryChange({ capability: 'note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
+            [registryChange({ capability: 'capability:note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
           )],
         }),
-        submitStep({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'Waiting for the real limit.' }),
+        submitStep({ kind: 'yield-for-providers', requirements: ['consumer-requirement:notes-note-limit'], summary: 'Waiting for the real limit.' }),
         submitStep(assign(consumer, {
           kind: 'contract',
-          revisesContract: 'ct-001',
-          goal: 'Revise ct-001 to the length the provider can keep.',
+          revisesContract: 'contract:note-limit',
+          goal: 'Revise contract:note-limit to the length the provider can keep.',
           approach: 'The provider cannot index 500 characters; agree the length it can.',
           completionEvidence: 'The revised suite passes against the fake.',
         })),
       ],
-      'engineer:wi-001': [submitStep(contractNeeded(seam))],
-      'contract-engineer:wi-001': [
+      'engineer:work-item:review-notes': [submitStep(contractNeeded(seam))],
+      'contract-engineer:work-item:review-notes': [
         [...contractWrites(seam), { kind: 'submit', input: established(seam) }],
-        [...contractWrites(relaxed), { kind: 'submit', input: established(relaxed) }],
+        [...contractWrites(relaxed), { kind: 'submit', input: revisedAgreement() }],
       ],
-      'local-architect:wi-002': [submitStep(assign(provider, {}, outline({ changes: 'Implement the agreed limit.' })))],
-      'engineer:wi-002': [submitStep({
+      'local-architect:work-item:provide-note-limit': [submitStep(assign(provider, {}, outline({ changes: 'Implement the agreed limit.' })))],
+      'engineer:work-item:provide-note-limit': [submitStep({
         kind: 'unsuitable',
         reason: 'provider-cannot-conform',
         detail: 'The agreed suite requires a length the store cannot index.',
@@ -1225,9 +1233,9 @@ describe('the boundaries of a delegation', () => {
     // no agent and revises nothing.
     const reports = events.filter(event => event.type === 'revision-needed');
     expect(reports).toHaveLength(1);
-    expect(reports[0]!.data).toMatchObject({ iteration: 'wi-002.i01', consumerWorkItem: 'wi-001' });
+    expect(reports[0]!.data).toMatchObject({ iteration: 'work-item:provide-note-limit.i01', consumerWorkItem: 'work-item:review-notes' });
     expect(events.map(event => event.type)).not.toContain('evidence-reopened');
-    expect(existsSync(runPath(root, 'review-notes', runId, contractsLayout.contract('ct-001', 2)))).toBe(false);
+    expect(existsSync(runPath(root, 'review-notes', runId, contractsLayout.contract('contract:note-limit', 2)))).toBe(false);
     expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 300_000);
 
@@ -1236,9 +1244,9 @@ describe('the boundaries of a delegation', () => {
     const root = await delegationTarget([contractCommit(1, seam), contractCommit(2, relaxed)], source(2));
     const { runId } = await crashAfter(root, 'evidence-reopened', false, oneRevision(), treeInputs());
     const reopenedRecords = [
-      contractsLayout.contract('ct-001', 2),
-      contractsLayout.obligation('ob-ct-001', 2),
-      contractsLayout.requirement('rq-001', 2),
+      contractsLayout.contract('contract:note-limit', 2),
+      contractsLayout.obligation('provider-obligation:note-limit', 2),
+      contractsLayout.requirement('consumer-requirement:notes-note-limit', 2),
     ].map(path => runPath(root, 'review-notes', runId, path));
     // A crash may leave a committed record already absent; either way the
     // restart must materialize every record named by the durable line.
@@ -1249,9 +1257,9 @@ describe('the boundaries of a delegation', () => {
     // Every record of the reopening is materialized again from the line
     // that committed it, and the revision in force before it is still there.
     for (const path of reopenedRecords) expect(existsSync(path)).toBe(true);
-    expect(existsSync(runPath(root, 'review-notes', runId, contractsLayout.contract('ct-001', 1)))).toBe(true);
+    expect(existsSync(runPath(root, 'review-notes', runId, contractsLayout.contract('contract:note-limit', 1)))).toBe(true);
     expect(JSON.parse(await readFile(reopenedRecords[1]!, 'utf8')) as { id: string; revision: number })
-      .toMatchObject({ id: 'ob-ct-001', revision: 2 });
+      .toMatchObject({ id: 'provider-obligation:note-limit', revision: 2 });
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const reopenings = events.filter(event => event.type === 'evidence-reopened');
@@ -1259,9 +1267,9 @@ describe('the boundaries of a delegation', () => {
     // Both items were unfinished, so the reopening reused them and created
     // no follow-up. Replay restores the same bindings and the same work
     // item identifiers, and no second reopening is appended.
-    expect(reopenings[0]!.data).toMatchObject({ contract: 'ct-001', revision: 2, followUps: [], superseded: [] });
+    expect(reopenings[0]!.data).toMatchObject({ contract: 'contract:note-limit', revision: 2, followUps: [], superseded: [] });
     expect((reopenings[0]!.data as { bindings: Array<{ subject: { id: string }; workItem: string }> }).bindings
-      .map(binding => [binding.subject.id, binding.workItem])).toEqual([['ob-ct-001', 'wi-002'], ['rq-001', 'wi-001']]);
+      .map(binding => [binding.subject.id, binding.workItem])).toEqual([['provider-obligation:note-limit', 'work-item:provide-note-limit'], ['consumer-requirement:notes-note-limit', 'work-item:review-notes']]);
     expect(events.filter(event => event.type === 'work-item-started')).toHaveLength(2);
     expect(onlyRun(service, 'review-notes').counts.openRequirements).toBe(1);
     expect(onlyRun(service, 'review-notes').state).toBe('running');
@@ -1277,14 +1285,14 @@ describe('the boundaries of a delegation', () => {
     expect(events.filter(event => event.type === 'work-item-yielded')).toHaveLength(1);
     expect(events.map(event => event.type)).not.toContain('work-item-resumed');
     // The provider work item exists and has not been started.
-    expect(existsSync(runPath(root, 'review-notes', runId, workLayout.item('wi-002')))).toBe(true);
-    expect(events.filter(event => event.type === 'work-item-started').map(event => event.data.workItem)).toEqual(['wi-001']);
+    expect(existsSync(runPath(root, 'review-notes', runId, workLayout.item('work-item:provide-note-limit')))).toBe(true);
+    expect(events.filter(event => event.type === 'work-item-started').map(event => event.data.workItem)).toEqual(['work-item:review-notes']);
     expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
 });
 
-test('historical capability verification events remain readable without completion evidence', () => {
-  const historical = { sequence: 1, jobId: '20261019T000000Z-abcdef', at: '2026-10-19T00:00:00.000Z', type: 'capability-verification-started', data: { task: 'cap-001', invocation: 'inv-001', gate: 'gate-001' } };
-  expect(runEventSchema.parse(historical)).toEqual(historical);
-  expect(runEventSchema.safeParse({ ...historical, data: { ...historical.data, completion: {} } }).success).toBe(false);
+test('capability verification events retain their exact accepted task without completion evidence', () => {
+  const event = { sequence: 1, jobId: '20261019T000000Z-abcdef', at: '2026-10-19T00:00:00.000Z', type: 'capability-verification-started', data: { task: 'capability-task:review-note', invocation: 'inv-001', gate: 'gate-001' } };
+  expect(runEventSchema.parse(event)).toEqual(event);
+  expect(runEventSchema.safeParse({ ...event, data: { ...event.data, completion: {} } }).success).toBe(false);
 });

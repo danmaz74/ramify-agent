@@ -7,7 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../../agent/src/scripted.js';
 import type { AgentPort, AgentSession, SessionOutcome } from '../../../agent/src/interfaces/port.js';
 import { runCommand, type CommandRunner } from '../../../evidence/src/run-command.js';
-import { analysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
 import { commandResult } from '../../../../src/tests/helpers/command-result.js';
 import { copyFixture } from '../../../../src/tests/helpers/fixture.js';
 import { assign, byRole, outline, partialReport, shell, submit, treeInputs } from '../../../../src/tests/helpers/iterations.js';
@@ -66,7 +66,7 @@ describe('the bounds on one invocation', () => {
       { kind: 'message' as const, text: `still working, step ${index}` },
       { kind: 'wait' as const, ms: 50 },
     ]).flat();
-    const { root, runId, service } = await run(byRole({ 'initial-architect': [[...talking, ...submit(analysis([]))]] }), { invocationIdleMs: 2_000, invocationAbsoluteMs: 600 }, ['final verification of plan \"review-notes\"']);
+    const { root, runId, service } = await run(byRole({ 'initial-architect': [[...talking, ...submit(currentAnalysis(analysis([]), 'document:review-notes-plan'))]] }), { invocationIdleMs: 2_000, invocationAbsoluteMs: 600 }, ['final verification of plan \"review-notes\"']);
     expect(onlyRun(service, plan).state).toBe('completed');
     const ended = await outcome(root, runId, 'inv-0002');
     expect(ended.ended).toBe('submitted');
@@ -75,7 +75,7 @@ describe('the bounds on one invocation', () => {
 
   test('an invocation that ends within its bounds is not interrupted', async () => {
     const { root, runId, service } = await run(
-      byRole({ 'initial-architect': [submit(analysis([]))] }),
+      byRole({ 'initial-architect': [submit(currentAnalysis(analysis([]), 'document:review-notes-plan'))] }),
       { invocationIdleMs: 5_000, invocationAbsoluteMs: 10_000 },
       ['final verification of plan "review-notes"'],
     );
@@ -88,7 +88,7 @@ describe('an implementation that cannot start a session', () => {
   test('is an adapter fault: the invocation ends failed with that interruption, and the run fails agent-failed', async () => {
     // Also found by the composition suite: the harness's defense against a
     // the preserving operation that throws, which the port's rules forbid, had no test.
-    const scripted = createScriptedAgent([{ kind: 'submit', input: analysis([]) }]);
+    const scripted = createScriptedAgent([{ kind: 'submit', input: currentAnalysis(analysis([]), 'document:review-notes-plan') }]);
     const broken: AgentPort = {
       name: scripted.name,
       support: scripted.support,
@@ -113,9 +113,9 @@ describe('the bounds on the whole run', () => {
     // The analysis's three invocations (intake, plan architect, checker)
     // reach the bound; the module architect's would pass it.
     const { root, runId, service } = await run(byRole({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(requestCompletion())],
-    }), { maxInvocationsPerRun: 3 }, [scenariosCommit(plan), 'wi-001', `final verification of plan \"${plan}\"`]);
+    }), { maxInvocationsPerRun: 3 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan \"${plan}\"`]);
     const snapshot = onlyRun(service, plan);
     expect(snapshot.state).toBe('completed');
     const events = await runEventsOnDisk(root, plan, runId);
@@ -130,7 +130,7 @@ describe('the bounds on the whole run', () => {
     await installTestRunner(fixture.root);
       let current = new Date('2026-09-22T12:00:00.000Z');
     const scripted = createScriptedAgent(declaringScenarios(byRole({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(requestCompletion())],
     })));
     const timed: AgentPort = {
@@ -145,7 +145,7 @@ describe('the bounds on the whole run', () => {
     };
     const opened = await openRuns(fixture.root, {
       agent: timed,
-      unchangedCheckpoints: [scenariosCommit(plan), 'wi-001', `final verification of plan \"${plan}\"`],
+      unchangedCheckpoints: [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan \"${plan}\"`],
       now: () => current,
       policy: projectRoot => {
         const policy = testPolicy(projectRoot);
@@ -257,10 +257,10 @@ describe('the idle bound while a command runs', () => {
       return commandResult(request, { stdout: 'built\n', elapsedMs: 2_000 });
     };
     const { root, runId, service } = await run(byRole({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
       engineer: [submit(partialReport(['the build'], ['the rest']), shell('npm run build', { timeoutMs: 10_000 }))],
-    }), { invocationIdleMs: 1_000 }, [scenariosCommit(plan), 'wi-001', `final verification of plan "${plan}"`], slowShell);
+    }), { invocationIdleMs: 1_000 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`], slowShell);
 
     expect(onlyRun(service, plan).state).toBe('completed');
     const events = await runEventsOnDisk(root, plan, runId);
@@ -278,7 +278,7 @@ describe('an engineer that ends without a result', () => {
   test('an ordinary no-result return closes its iteration partial and informs its local architect', async () => {
     const prompts: string[] = [];
     const script = byRole({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
       // The session goes silent and the idle bound ends it.
       engineer: [[{ kind: 'end' }]],
@@ -286,7 +286,7 @@ describe('an engineer that ends without a result', () => {
     const { root, runId, service } = await run(spec => {
       if (spec.role === 'local-architect') prompts.push(spec.prompt);
       return typeof script === 'function' ? script(spec) : script;
-    }, { invocationIdleMs: 300 }, [scenariosCommit(plan), 'wi-001', `final verification of plan "${plan}"`]);
+    }, { invocationIdleMs: 300 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`]);
 
     expect(onlyRun(service, plan).state).toBe('completed');
     const events = await runEventsOnDisk(root, plan, runId);
@@ -295,27 +295,27 @@ describe('an engineer that ends without a result', () => {
       .find(data => data.role === 'engineer')!;
     expect(await outcome(root, runId, engineer.invocation)).toMatchObject({ ended: 'ended' });
     expect(events.filter(event => event.type === 'iteration-closed').map(event => event.data))
-      .toEqual([expect.objectContaining({ iteration: 'wi-001.i01', outcome: 'partial', commit: null })]);
+      .toEqual([expect.objectContaining({ iteration: 'work-item:reviewer-note.i01', outcome: 'partial', commit: null })]);
 
     // The architect's next turn names the failure, the bound and the invocation.
     expect(prompts).toHaveLength(2);
-    expect(prompts[1]).toContain('`wi-001.i01` ended `partial`, with nothing committed.');
+    expect(prompts[1]).toContain('`work-item:reviewer-note.i01` ended `partial`, with nothing committed.');
     expect(prompts[1]).toContain(
-      `the module engineer of wi-001.i01 ended without a result (ended; invocation ${engineer.invocation})`,
+      `the module engineer of work-item:reviewer-note.i01 ended without a result (ended; invocation ${engineer.invocation})`,
     );
   }, 120_000);
 
   test('another assignment remains available after the captured iteration count', async () => {
     const architectPrompts: string[] = [];
     const scripted = byRole({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(assign(reviews)), submit(assign(reviews)), submit(requestCompletion())],
       engineer: [[{ kind: 'fail', error: 'the provider refused the request' }], [{ kind: 'fail', error: 'the provider refused the request' }], [{ kind: 'fail', error: 'the provider refused the request' }]],
     });
     const { root, runId, service } = await run(spec => {
       if (spec.role === 'local-architect') architectPrompts.push(spec.prompt);
       return typeof scripted === 'function' ? scripted(spec) : scripted;
-    }, { maxIterationsPerWorkItem: 2 }, [scenariosCommit(plan), 'wi-001', `final verification of plan "${plan}"`]);
+    }, { maxIterationsPerWorkItem: 2 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`]);
 
     const snapshot = onlyRun(service, plan);
     expect(snapshot.state).toBe('completed');

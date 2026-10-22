@@ -122,7 +122,6 @@ export class ManualRun {
   invocationBase = '';
   /** The limits the next invocation's step inputs carry, which replace the recorded policy's for it. */
   invocationLimits: RunPolicy['limits'] | undefined;
-  effectivePolicy: RunPolicy | undefined;
   /** The commit-and-audit effect of a `step gate` in progress, as a run holds its gate's. */
   gating: Promise<unknown> | undefined;
 
@@ -162,14 +161,6 @@ export class ManualRun {
       deliverConsultation: (id, result) => run.mutex.run(async () => structuredClone(await recordConsultationDelivery(consultationJournal(), id, result))),
       ignoring: () => false, base: () => run.invocationBase, refusal: () => null, refused: async () => undefined,
       taskBrief: async () => { throw new Error("A manual run's invocation brings its own task brief"); },
-      adoptContinuity: async (occurrenceId, authorityCurrent) => {
-        if (run.policy.continuity) return;
-        const defaults = defaultRunPolicy({ projectRoot: run.record.projectRoot });
-        const original = run.policy;
-        const effective: RunPolicy = { ...original, version: 'run-policy/8', continuity: defaults.continuity, context: defaults.context, recovery: defaults.recovery };
-        await run.execution.write({ type: 'continuity-policy-adopted', data: { from: original.version, to: 'run-policy/8', occurrenceId, policy: effective } }, [], undefined, authorityCurrent);
-        run.effectivePolicy = effective;
-      },
     };
 
   }
@@ -181,7 +172,7 @@ export class ManualRun {
   get base(): string { return this.record.base; }
   get originalPolicy(): RunPolicy { return this.record.policy; }
   get policy(): RunPolicy {
-    const policy = this.effectivePolicy ?? this.record.policy;
+    const policy = this.record.policy;
     return this.invocationLimits === undefined ? policy : { ...policy, limits: this.invocationLimits };
   }
 
@@ -290,7 +281,6 @@ export async function openManualRun(options: OpenManualRunOptions): Promise<Open
     groups: options.groups ?? nodeProcessGroups,
   });
   const run = new ManualRun(record, directory, log, writer);
-  run.effectivePolicy = log.all('continuity-policy-adopted').at(-1)?.data.policy;
   return { status: 'opened', run, created };
 }
 

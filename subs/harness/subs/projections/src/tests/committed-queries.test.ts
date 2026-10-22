@@ -52,7 +52,8 @@ test('real query entry points repeatedly read scripted committed inputs without 
       expect((await sessions.updates(planId, jobId, 1, [])).version).toBe(1);
       await expect(sessions.updates(planId, jobId, 2, [])).rejects.toMatchObject({ code: 'invalid-request' });
       await expect(query.capabilityTasks(planId, jobId, 0)).rejects.toMatchObject({ code: 'stale-version', currentVersion: 1 });
-      await expect(query.workItem(planId, jobId, 'missing')).rejects.toMatchObject({ code: 'not-found' });
+      await expect(query.workItem(planId, jobId, 'work-item:missing')).rejects.toMatchObject({ code: 'not-found' });
+      await expect(query.workItem(planId, jobId, 'missing')).rejects.toMatchObject({ code: 'invalid-request' });
       expect(await currentModuleTree(made.path)).toMatchObject({ status: 'unavailable' });
     }
     expect(await bytes(made.path)).toEqual(before);
@@ -67,7 +68,7 @@ test('unsupported committed versions and malformed records preserve refusal evid
     const run = committedRun(made.path);
     const event = runEventSchema.parse({ sequence: 2, jobId: run.record.jobId, at: run.record.createdAt,
       type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' } });
-    for (const body of [{ schema: 'ramify-agent.hypothesis/999' }, { schema: 'ramify-agent.hypothesis/1' }]) {
+    for (const body of [{ schema: 'ramify-agent.hypothesis/999' }, { schema: 'ramify-agent.hypothesis/2' }]) {
       const retained = { ...run, entries: [...run.entries, { sequence: 2, at: event.at, transaction: { event,
         records: [{ path: 'hypotheses/hyp-001.json', id: 'hyp-001', revision: 1, body }] } }] };
       const before = JSON.stringify(retained);

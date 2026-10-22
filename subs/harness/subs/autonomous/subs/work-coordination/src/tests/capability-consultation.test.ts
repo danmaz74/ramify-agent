@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { Script, ScriptedAgent } from '../../../../../agent/src/scripted.js';
-import { analysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { assign, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { HarnessSessionOperations } from '../../../../../../src/prompts/session-adapter.js';
@@ -40,14 +40,14 @@ test.each([false, true])('CA04 CA06 CA16: original A request consultation preser
   const architectPrompts: string[] = [];
   let architectTurns = 0; let agent!: ScriptedAgent;
   const script: Script = spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', a)]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('richer-a-fact', a)]), 'document:need-plan'));
     if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, {}, outline()));
     if (spec.submission.name === 'submit_capability_qualification') {
       // Full immutable request is delivered once, including example code and identity.
       expect(spec.prompt.match(/expect\(renderA\(\)\)\.toContain/g)).toHaveLength(1);
-      expect(spec.prompt).toContain('need-001.ex01');
-      const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+      expect(spec.prompt).toContain('capability-example:source-shown');
+      const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
+      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:source-fact', provider: b,
         placementReason: 'B owns the fact', constraints: [], requirementRefs: [] });
     }
     if (spec.submission.name === 'answer_capability_consultation') {
@@ -61,22 +61,22 @@ test.each([false, true])('CA04 CA06 CA16: original A request consultation preser
       return submit({ answer: 'A needs the B source beside the value', objections: [] },
         write('caller.ts', 'export const disallowed = true;\n'));
     }
-    if (spec.role === 'engineer') return submit({ kind: 'capability-needed', summary: 'A needs B source', request: {
+    if (spec.role === 'engineer') return submit({ kind: 'capability-needed', summary: 'A needs B source', request: { requestKey: 'draft:capability-request:source-fact',
       need: 'B fact with source for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Display source', prospective: false }],
       constraints: [], knownInterface: { kind: 'none-known' },
-      examples: [{ title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
+      examples: [{ key: 'draft:capability-example:source-shown', title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
     } });
     if (spec.role === 'capability-architect') {
       architectTurns += 1;
       architectPrompts.push(spec.prompt.slice(spec.prompt.lastIndexOf('Briefing revision:')));
-      const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+      const ids = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
       const basis = { task: ids[1], planRevision: Number(ids[2]), invocation: ids[3] };
       if (architectTurns === 1) {
         if (lostParent) expect(agent.loseSession(JSON.parse(agent.sessions.find(session => session.spec.submission.name === 'submit_iteration_result')!.ref))).toBe(true);
-        return submit({ ...basis, kind: 'consult-consumer',
+        return submit({ ...basis, kind: 'consult-consumer', exchangeKey: 'draft:capability-exchange:source-consumer',
           question: 'What does the calling code require?', sections: ['need'], references: ['subs/a/src/caller.ts'] });
       }
-      if (architectTurns === 2 && !lostParent) return submit({ ...basis, kind: 'consult-consumer',
+      if (architectTurns === 2 && !lostParent) return submit({ ...basis, kind: 'consult-consumer', exchangeKey: 'draft:capability-exchange:source-consumer-followup',
         question: 'Second independent consumer question', sections: ['need'], references: ['subs/a/src/caller.ts'] });
       if (architectTurns === (lostParent ? 2 : 3)) return submit({ ...basis, kind: 'partial', progress: 'Consumer answered',
         unfinished: ['Implementation and acceptance remain'] });
@@ -94,13 +94,13 @@ test.each([false, true])('CA04 CA06 CA16: original A request consultation preser
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
   expect(events.filter(event => event.type === 'job-failed')).toHaveLength(0);
   const first = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
-    'capabilities/cap-001/exchanges/cap-001-ex01.1.json'), 'utf8')) as { answer: unknown; question: string };
+    'capabilities/capability-task%3Asource-fact/exchanges/capability-exchange%3Asource-consumer.1.json'), 'utf8')) as { answer: unknown; question: string };
   await until(async () => {
-    try { await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/cap-001/exchanges/cap-001-ex01.2.json')); return true; }
+    try { await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/capability-task%3Asource-fact/exchanges/capability-exchange%3Asource-consumer.2.json')); return true; }
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false; throw error; }
   });
   const second = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
-    'capabilities/cap-001/exchanges/cap-001-ex01.2.json'), 'utf8')) as { answer: { text: string } };
+    'capabilities/capability-task%3Asource-fact/exchanges/capability-exchange%3Asource-consumer.2.json'), 'utf8')) as { answer: { text: string } };
   expect(first.answer).toBeNull();
   expect(first.question).toBe('What does the calling code require?');
   expect(second.answer.text).toContain('B source');
@@ -126,7 +126,7 @@ test.each([false, true])('CA04 CA06 CA16: original A request consultation preser
     expect(prompt).toContain('brief:support:capability-request: original delivery revision');
   }
   if (!lostParent) {
-    const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/requests/need-001.json'), 'utf8'));
+    const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/requests/capability-request%3Asource-fact.json'), 'utf8'));
     const source = readSessionPointReference(request.continuation.point)!;
     const answers = agent.sessions.filter(session => session.spec.submission.name === 'answer_capability_consultation');
     expect(answers).toHaveLength(2);
@@ -134,7 +134,7 @@ test.each([false, true])('CA04 CA06 CA16: original A request consultation preser
     expect(answers[1]!.inherited.join('\n')).not.toContain('What does the calling code require?');
     expect(answers[1]!.inherited.join('\n')).not.toContain('A needs the B source beside the value');
     const records = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
-    for (const invocation of records.filter(event => event.type === 'invocation-started' && event.data.role === 'engineer' && event.data.work.capabilityTask === 'cap-001')) {
+    for (const invocation of records.filter(event => event.type === 'invocation-started' && event.data.role === 'engineer' && event.data.work.capabilityTask === 'capability-task:source-fact')) {
       if (invocation.type !== 'invocation-started') throw new Error('Missing consultation');
       const record = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.invocation(invocation.data.invocation)), 'utf8'));
       expect(record.session.from).toBe(request.continuation.point);

@@ -2,7 +2,7 @@ import type { Hypothesis } from '../../autonomous/subs/planning/src/records.js';
 import { runQueryLimits, type AnalysisResponse, type DecisionView, type HypothesisView } from '../../../src/interfaces/protocol/runs.js';
 import { runLayout } from '../../autonomous/src/run/records.js';
 import { capabilityOf } from '../../autonomous/subs/work-coordination/src/work/frontier.js';
-import { publicSequence, readRunFile, type RunView } from './inputs.js';
+import { acceptedEntryCapability, publicSequence, readRunFile, type RunView } from './inputs.js';
 import { analysisScenariosOf } from './scenarios.js';
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../autonomous/subs/planning/src/evidence.js';
 import { elementKinds } from '../../plan-evidence/src/interfaces/catalog.js';
@@ -34,16 +34,15 @@ export async function analysisOf(view: RunView): Promise<AnalysisResponse> {
     if (capability !== null && !workItemOf.has(capability)) workItemOf.set(capability, item.id);
   }
   const entries = assignments.entries.map(entry => ({
-    capability: entry.capability,
+    capability: acceptedEntryCapability(assignments, entry),
     description: entry.description,
     owner: entry.owner,
     proposed: entry.proposed === undefined
       ? null
       : { parent: entry.proposed.parent, directory: entry.proposed.directory, purpose: entry.proposed.purpose, tags: [...entry.proposed.tags] },
-    workItem: workItemOf.get(entry.capability) ?? null,
-    requirementRefs: [...entry.requirementRefs],
-    acceptanceRefs: [...entry.acceptanceRefs],
-    contextRefs: [...entry.contextRefs],
+    workItem: workItemOf.get(acceptedEntryCapability(assignments, entry)) ?? null,
+    capabilityId: entry.capabilityId, functionalRequirementIds: [...entry.functionalRequirementIds],
+    functionalAcceptanceIds: [...entry.functionalAcceptanceIds], contextIds: [...entry.contextIds],
   }));
 
   const hypotheses = hypothesesOf(view);
@@ -141,7 +140,7 @@ export function decisionsOf(view: RunView): DecisionView[] {
   const committed = new Map<string, { sequence: number; at: string; sourceRun?: string }>();
   for (const line of view.entries) {
     for (const record of line.transaction.records) {
-      if ((record.body as { schema?: unknown } | null)?.schema === 'ramify-agent.placement-decision/1') {
+      if ((record.body as { schema?: unknown } | null)?.schema === 'ramify-agent.placement-decision/2') {
         committed.set((record.body as { id: string }).id, { ...publicSequence(view.entries, line.sequence), at: line.at });
       }
     }

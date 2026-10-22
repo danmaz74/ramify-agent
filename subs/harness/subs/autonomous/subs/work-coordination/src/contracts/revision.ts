@@ -2,7 +2,7 @@ import type { DurableRecordRef as RecordRef } from '../../../../../task-executio
 import type { RecordRef as CommitRecord } from '../../../../../../src/jobs/commit.js';
 import { refOf } from '../../../../../../src/jobs/committed-reader.js';
 import { iterationLayout, iterationResultSchema, type IterationAssignment, type IterationResult } from '../work/iterations.js';
-import { workItemId, workItemSchema, workLayout, type WorkItem, type WorkItemId } from '../work/records.js';
+import { workItemSchema, workLayout, type WorkItem, type WorkItemId } from '../work/records.js';
 import { bindingKey } from './schedule.js';
 import type { ConsumerRequirement, ProviderObligation } from './records.js';
 
@@ -71,7 +71,6 @@ export function reopenEvidence(request: ReopenRequest): Reopening {
   const followUps: WorkItem[] = [];
   const records: CommitRecord[] = [];
   const reused = new Set<WorkItemId>();
-  let created = 0;
 
   const bind = (
     subject: RecordRef,
@@ -88,19 +87,17 @@ export function reopenEvidence(request: ReopenRequest): Reopening {
       bindings.push({ subject, workItem: priorItem.id });
       return;
     }
-    created += 1;
     const item = workItemSchema.parse({
-      schema: 'ramify-agent.work-item/1',
-      id: workItemId(request.workItemCount + created),
+      schema: 'ramify-agent.work-item/2',
+      id: `work-item:reconcile-${subject.id.replace(':', '-')}-revision-${subject.revision}`,
       module,
       origin,
       ...(priorItem === undefined ? {} : { follows: priorItem.id }),
       goal,
       // The follow-up carries the prior item's elements, so the work it
       // continues is stated where the plan states it.
-      requirementRefs: priorItem === undefined ? [] : priorItem.requirementRefs,
-      acceptanceRefs: priorItem === undefined ? [] : priorItem.acceptanceRefs,
-      contextRefs: priorItem === undefined ? [] : priorItem.contextRefs,
+      functionalRequirementIds: priorItem?.functionalRequirementIds ?? [],
+      functionalAcceptanceIds: priorItem?.functionalAcceptanceIds ?? [], contextIds: priorItem?.contextIds ?? [],
       startedFor: request.requestedBy,
     } satisfies WorkItem);
     followUps.push(item);
@@ -161,7 +158,7 @@ export function bindingsOf(bindings: readonly SchedulingBinding[]): Map<string, 
   return new Map(bindings.map(binding => [bindingKey(binding.subject.id, binding.subject.revision), binding.workItem]));
 }
 
-/** The iteration number of `wi-001.i02`, which its result file is written at. */
+/** The iteration number of an accepted work-item assignment, which its result file is written at. */
 function numberOf(iteration: string): number {
   const tail = iteration.split('.i').at(-1);
   const parsed = Number(tail);

@@ -1,3 +1,4 @@
+import { currentAnalysis } from './helpers/analysis.js';
 import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import type { GitCheckpoint } from './helpers/scripted-git.js';
@@ -27,6 +28,7 @@ import { acquireProjectLock } from '../store/lock.js';
 import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
+import { constructedRecord } from './helpers/constructed.js';
 
 /*
  * The run protocol over HTTP, read by a plain Node client: `fetch` and the
@@ -97,8 +99,8 @@ async function everyAnswer(server: RunningServer, runId: string): Promise<Record
     protocolPaths.runAnalysis(plan, runId),
     protocolPaths.runDecisions(plan, runId),
     protocolPaths.runWorkItems(plan, runId),
-    protocolPaths.runWorkItem(plan, runId, 'wi-001'),
-    protocolPaths.runWorkItem(plan, runId, 'wi-002'),
+    protocolPaths.runWorkItem(plan, runId, 'work-item:review-note'),
+    protocolPaths.runWorkItem(plan, runId, 'work-item:note-drafts'),
     protocolPaths.runCapabilities(plan, runId),
     protocolPaths.runMetrics(plan, runId),
   ];
@@ -221,36 +223,47 @@ describe('every query of a completed run, over HTTP', () => {
     expect(analysis.plan.markdown).toBe(await readFile(join(target.root, 'plans', plan, 'plan.md'), 'utf8'));
     if (analysis.analysis.status !== 'accepted') throw new Error('the analysis was accepted');
     expect(analysis.analysis.entries.map(entry => [entry.capability, entry.owner, entry.workItem])).toEqual([
-      ['review-note', notes, 'wi-001'],
-      ['note-drafts', drafts, 'wi-002'],
+      ['capability:review-note', notes, 'work-item:review-note'],
+      ['capability:note-drafts', drafts, 'work-item:note-drafts'],
     ]);
     expect(analysis.analysis.entries[1]!.proposed).toMatchObject({ parent: notes, directory: draftsDirectory });
     // The hypothesis is a forecast, shown with its standing and revision
     // beside what revision 1 forecast.
     expect(analysis.analysis.hypotheses).toEqual([expect.objectContaining({
-      id: 'note-search', revision: 1, standing: 'tentative', initial: { change: 'create', suggestedOwner: notes, rationale: 'Notes may need to be searched later.' }, decisions: [],
+      id: 'hypothesis:note-search', revision: 1, standing: 'tentative', initial: { change: 'create', suggestedOwner: notes, rationale: 'Notes may need to be searched later.' }, decisions: [],
     })]);
 
     // The decision list: each scope and each outline, from the records that hold them.
     const decisions = decisionListResponseSchema.parse((await get(server, protocolPaths.runDecisions(plan, runId))).body);
     expect(decisions.decisions.filter(decision => decision.kind === 'scope').map(decision => decision.kind === 'scope' && [decision.iteration, decision.modules])).toEqual([
-      ['wi-001.i01', [notes]],
-      ['wi-001.i02', ['collection-review/workspace/reviews']],
-      ['wi-002.i01', [drafts]],
+      ['work-item:review-note.i01', [notes]],
+      ['work-item:review-note.i02', ['collection-review/workspace/reviews']],
+      ['work-item:note-drafts.i01', [drafts]],
     ]);
     // Each outline revision is a plan decision: the one the assignment came
     // with, and the one the completion request committed.
     expect(decisions.decisions.filter(decision => decision.kind === 'plan-revision').map(decision => decision.kind === 'plan-revision' && [decision.workItem, decision.outlineRevision]))
-      .toEqual([['wi-001', 1], ['wi-001', 2], ['wi-002', 1], ['wi-002', 2]]);
+      .toEqual([['work-item:review-note', 1], ['work-item:review-note', 2], ['work-item:note-drafts', 1], ['work-item:note-drafts', 2]]);
     expect(decisions.total).toBe(decisions.decisions.length);
 
     const items = workItemListResponseSchema.parse((await get(server, protocolPaths.runWorkItems(plan, runId))).body);
     expect(items.workItems.map(item => [item.id, item.state, item.capability])).toEqual([
-      ['wi-001', 'completed', 'review-note'],
-      ['wi-002', 'completed', 'note-drafts'],
+      ['work-item:review-note', 'completed', 'capability:review-note'],
+      ['work-item:note-drafts', 'completed', 'capability:note-drafts'],
     ]);
-    const detail = workItemResponseSchema.parse((await get(server, protocolPaths.runWorkItem(plan, runId, 'wi-001'))).body);
+    const detail = workItemResponseSchema.parse((await get(server, protocolPaths.runWorkItem(plan, runId, 'work-item:review-note'))).body);
     expect(detail.iterations).toHaveLength(2);
+    for (const id of ['wi-001', 'scenario:review-note']) {
+      const invalid = await get(server, protocolPaths.runWorkItem(plan, runId, id));
+      expect(invalid.status).toBe(400);
+      expect(errorResponseSchema.parse(invalid.body).error).toMatchObject({
+        code: 'invalid-request', message: expect.stringContaining('work-item:<name>'),
+      });
+      expect(errorResponseSchema.parse(invalid.body).error.message).toContain('work-items list');
+    }
+    const unknownItem = await get(server, protocolPaths.runWorkItem(plan, runId, 'work-item:unknown'));
+    expect(unknownItem.status).toBe(404);
+    expect(errorResponseSchema.parse(unknownItem.body).error.code).toBe('not-found');
     expect(detail.iterations[0]!.result?.outcome).toBe('partial');
     expect(detail.iterations[1]!.result?.outcome).toBe('accepted');
     const engineer = detail.iterations[0]!.invocations.find(invocation => invocation.role === 'engineer')!;
@@ -258,9 +271,9 @@ describe('every query of a completed run, over HTTP', () => {
 
     const capabilities = capabilityListResponseSchema.parse((await get(server, protocolPaths.runCapabilities(plan, runId))).body);
     expect(capabilities.capabilities.map(capability => [capability.capability, capability.state, capability.tentative])).toEqual([
-      ['review-note', 'completed', false],
-      ['note-drafts', 'completed', false],
-      ['note-search', 'todo', true],
+      ['capability:review-note', 'completed', false],
+      ['capability:note-drafts', 'completed', false],
+      ['capability:note-search', 'todo', true],
     ]);
 
     // The final gate asked the committed audit in full and plans no command
@@ -313,7 +326,7 @@ describe('commands over HTTP', () => {
   test('an identical retry returns its receipt; a conflicting reuse and a stale version are refused', async () => {
     const root = await commandTarget();
     const server = await serve(root, {
-      agent: createScriptedAgent(declaringScenarios([{ kind: 'submit', input: emptyAnalysis() }])),
+      agent: createScriptedAgent(declaringScenarios([{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }])),
       runs: { inputs: treeInputs(), policy: projectRoot => testPolicy(projectRoot), stopGraceMs: 500, warn: () => undefined },
     }, ['final verification of plan "review-notes"']);
     cleanups.push(() => server.close());
@@ -354,7 +367,7 @@ describe('commands over HTTP', () => {
     const root = await commandTarget();
     const server = await serve(
       root,
-      { agent: createScriptedAgent(declaringScenarios([{ kind: 'submit', input: emptyAnalysis() }])) },
+      { agent: createScriptedAgent(declaringScenarios([{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }])) },
       ['final verification of plan "review-notes"'],
     );
     cleanups.push(() => server.close());
@@ -385,7 +398,7 @@ describe('commands over HTTP', () => {
     const atBoundary = new Promise<void>(resolve => { reached = resolve; });
     const paused = new Promise<void>(resolve => { resume = resolve; });
     const opened = await openRuns(root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
+      script: [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }],
       afterWrite: async write => {
         if (write !== 'invocation-started') return;
         reached();
@@ -476,7 +489,7 @@ describe('commands over HTTP', () => {
     const paused = new Promise<void>(resolve => { resume = resolve; });
     const inputs = treeInputs();
     const opened = await openRuns(root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
+      script: [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }],
       inputs: {
         ...inputs,
         capture: async (...args) => {
@@ -512,7 +525,7 @@ describe('commands over HTTP', () => {
     const atBoundary = new Promise<void>(resolve => { reached = resolve; });
     const paused = new Promise<void>(resolve => { resume = resolve; });
     const opened = await openRuns(root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
+      script: [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }],
       afterWrite: async write => {
         if (write !== 'invocation-started') return;
         reached();

@@ -2,7 +2,6 @@ import type { JobState } from '../../../../src/interfaces/protocol/jobs.js';
 import type { BreakpointSelector, Role, RunFailureReason, RunPhase, RunReview } from '../../../../src/interfaces/protocol/runs.js';
 import type { RunEvent } from './log.js';
 import type { RunRecord } from './records.js';
-import { scenarioIdOf } from '../../../scenarios/src/records.js';
 import {
   applyScenarioEvent, countScenarioStates, initialScenarioStates, scenarioEventTypes,
   type ScenarioEvent, type ScenarioState, type ScenarioStates,
@@ -142,8 +141,7 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
         break;
       case 'analysis-accepted':
         workItems = event.data.workItems;
-        // Numbered sc-001 to sc-<count>, every one pending.
-        scenarios = initialScenarioStates(Array.from({ length: event.data.scenarios ?? 0 }, (_, index) => scenarioIdOf(index + 1)));
+        scenarios = initialScenarioStates(event.data.scenarioIds);
         phase = 'readiness';
         break;
       case 'review-requested':
@@ -237,7 +235,8 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
         // An accepted binding or report moves one scenario; one naming
         // another kind of obligation moves none.
         if ((scenarioEventTypes as readonly string[]).includes(event.type)) {
-          scenarios = applyScenarioEvent(scenarios, event as unknown as ScenarioEvent);
+          const scenarioEvent = event as unknown as ScenarioEvent;
+          scenarios = applyScenarioEvent(scenarios, scenarioEvent);
         }
         break;
     }

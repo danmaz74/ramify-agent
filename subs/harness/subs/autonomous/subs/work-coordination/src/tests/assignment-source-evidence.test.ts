@@ -7,15 +7,15 @@ import { validateLocalArchitect } from '../work/submission.js';
 import { assign, outline } from '../../../../../../src/tests/helpers/iterations.js';
 
 const assignment = {
-  id: 'wi-001.i01', goal: 'Implement the endpoint', approach: 'Change the handler.', completionEvidence: 'Tests pass',
+  id: 'work-item:review-endpoint.i01', goal: 'Implement the endpoint', approach: 'Change the handler.', completionEvidence: 'Tests pass',
   scope: { base: { module: 'app/reviews', included: [] }, bootstrap: [],
     resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/subs/reviews'], files: [] }, extra: [] },
   gate: { checkpoint: 'iteration', tests: { policy: 'owned-by-scope', exactOwners: ['app/reviews'], subtrees: [], extraSuites: [] } },
   externalCapabilities: [],
 } as unknown as IterationAssignment;
-const packageText = '# Plan context package\n\nCatalog: abc\nElements: fr-001, nfr-001\nDeviations: none\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/sample/plan.md\n\n> Keep fast\n';
+const packageText = '# Plan context package\n\nCatalog: abc\nElements: functional-requirement:review-endpoint, non-functional-requirement:fast-review\nDeviations: none\n\n## Functional requirements\n\n### functional-requirement:review-endpoint: functional requirement from plans/sample/plan.md\n\n> Keep fast\n';
 const body = (citedElements: unknown) => ({ ...assign('app/reviews').assignment, citedElements }) as ReturnType<typeof assign>['assignment'];
-const evidence = { index: null, registry: new Map(), outline: null, package: new Set(['fr-001', 'fr-002', 'nfr-001']) };
+const evidence = { index: null, registry: new Map(), outline: null, package: new Set(['functional-requirement:review-endpoint', 'functional-requirement:review-retry', 'non-functional-requirement:fast-review']) };
 
 describe('assignment element citations', () => {
   test('an assignment cites an explicit array of elements; the removed fields are refused', () => {
@@ -32,13 +32,13 @@ describe('assignment element citations', () => {
 
   test('only IDs of the work-item package, each once, with the path of each offender', () => {
     expect(assignmentErrors(body([]), evidence)).toEqual([]);
-    expect(assignmentErrors(body(['fr-001', 'nfr-001']), evidence)).toEqual([]);
-    const errors = assignmentErrors(body(['fr-001', 'Request', 'nfr-009', 'fr-001']), evidence);
+    expect(assignmentErrors(body(['functional-requirement:review-endpoint', 'non-functional-requirement:fast-review']), evidence)).toEqual([]);
+    const errors = assignmentErrors(body(['functional-requirement:review-endpoint', 'Request', 'non-functional-requirement:outside-catalog', 'functional-requirement:review-endpoint']), evidence);
     expect(errors.map(error => error.path)).toEqual(['assignment.citedElements.1', 'assignment.citedElements.2', 'assignment.citedElements.3']);
     expect(errors[0]).toMatchObject({ message: '"Request" is not an allowed plan-catalog element for this assignment; capability examples and use cases are separate request context', expected: 'an allowed plan-catalog element ID' });
-    expect(errors[2]).toMatchObject({ message: '"fr-001" is cited more than once' });
+    expect(errors[2]).toMatchObject({ message: '"functional-requirement:review-endpoint" is cited more than once' });
     // A run without a catalog has no package to judge against.
-    expect(assignmentErrors(body(['nfr-009']), { ...evidence, package: undefined })).toEqual([]);
+    expect(assignmentErrors(body(['non-functional-requirement:outside-catalog']), { ...evidence, package: undefined })).toEqual([]);
   });
 
   test('PB3-S08: captured included project reason, instructions, owner and project instructions reach engineer briefs', () => {

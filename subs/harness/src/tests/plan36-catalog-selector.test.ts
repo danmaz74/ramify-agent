@@ -21,21 +21,21 @@ const rootText = '# Root plan\nThe service preserves its timeout.\n';
 const companionText = '# Companion plan\nFunctional acceptance remains qualified.\n';
 const principlesText = '# Principles\nPreserve bounded work.\n';
 const manifest = documentManifestSchema.parse({
-  schema: 'ramify-agent.document-manifest/1', root: 'doc-001',
+  schema: 'ramify-agent.document-manifest/2', root: 'document:example-plan',
   documents: [rootText, companionText, principlesText].map((text, index) => ({
-    id: `doc-00${index + 1}`, path: ['plans/example/plan.md', 'plans/example/companion.md', 'docs/project.principles.md'][index],
+    id: `document:${['example-plan', 'example-companion', 'project-principles'][index]}`, path: ['plans/example/plan.md', 'plans/example/companion.md', 'docs/project.principles.md'][index],
     kind: index === 2 ? 'principle' : 'plan', sha256: hash(text), bytes: Buffer.byteLength(text),
-    storedAt: index === 0 ? 'input/plan.md' : `input/documents/doc-00${index + 1}.bin`, revision: { commit: null, dirty: null },
-  })), missing: [{ from: 'doc-001', target: 'plans/example/optional.md', source: { start: 0, end: 11 }, reason: 'missing', judgment: 'unjudged' }],
+    storedAt: index === 0 ? 'input/plan.md' : `input/documents/${['example-plan', 'example-companion', 'project-principles'][index]}.bin`, revision: { commit: null, dirty: null },
+  })), missing: [{ from: 'document:example-plan', target: 'plans/example/optional.md', source: { start: 0, end: 11 }, reason: 'missing', judgment: 'unjudged' }],
   principlesScan: { status: 'complete', unreadable: [] },
 });
 const inputs: ExtractionInputs = { planId: 'example', manifest, runDirectory: '/project/plans/example/.harness/jobs/run-1',
-  bytes: new Map([['doc-001', Buffer.from(rootText)], ['doc-002', Buffer.from(companionText)], ['doc-003', Buffer.from(principlesText)]]) };
+  bytes: new Map([['document:example-plan', Buffer.from(rootText)], ['document:example-companion', Buffer.from(companionText)], ['document:project-principles', Buffer.from(principlesText)]]) };
 const accepted = acceptElements(openElementCatalog(hash('manifest'), manifest), [
-  { key: 'timeout', kind: 'non-functional', document: 'doc-001', text: 'Preserve a 30 second timeout.', conditions: [{ text: 'for each request', source: 'stated' }], uncertainty: 'Retry applicability unclear.' },
-  { key: 'bounded', kind: 'fixed', document: 'doc-003', text: 'Preserve bounded work.', conditions: [], uncertainty: '' },
-  { key: 'cache', kind: 'recommendation', document: 'doc-002', text: 'Consider a cache.', conditions: [], uncertainty: 'Optional.' },
-  { key: 'acceptance', kind: 'functional', document: 'doc-001', text: 'Return the qualified result.', conditions: [], uncertainty: '' },
+  { key: 'draft:non-functional-requirement:timeout', kind: 'non-functional', document: 'document:example-plan', text: 'Preserve a 30 second timeout.', conditions: [{ text: 'for each request', source: 'stated' }], uncertainty: 'Retry applicability unclear.' },
+  { key: 'draft:fixed-requirement:bounded', kind: 'fixed', document: 'document:project-principles', text: 'Preserve bounded work.', conditions: [], uncertainty: '' },
+  { key: 'draft:recommendation:cache', kind: 'recommendation', document: 'document:example-companion', text: 'Consider a cache.', conditions: [], uncertainty: 'Optional.' },
+  { key: 'draft:functional-requirement:acceptance', kind: 'functional', document: 'document:example-plan', text: 'Return the qualified result.', conditions: [], uncertainty: '' },
 ]);
 if (!accepted.ok) throw new Error(JSON.stringify(accepted.errors));
 const catalog = accepted.catalog;
@@ -66,8 +66,8 @@ describe('Plan 36 catalog-only delivery and stable selection contracts', () => {
   test('fresh intake, principle and check packets retain captured inputs and complete tool contracts without irrelevant views', () => {
     const cases = [
       ['intake', intakeMessage(inputs), ['goal', 'elements', 'incorporation']],
-      ['principles', principleMessage(inputs, 'doc-003', goal), ['elements']],
-      ['check', checkMessage(inputs, 'doc-001', { catalog, analysis: empty }), ['corrections', 'entries', 'scenarios']],
+      ['principles', principleMessage(inputs, 'document:project-principles', goal), ['elements']],
+      ['check', checkMessage(inputs, 'document:example-plan', { catalog, analysis: empty }), ['corrections', 'entries', 'scenarios']],
     ] as const;
     for (const [kind, objective, required] of cases) {
       const delivered = packet('catalog-extractor', kind, objective);
@@ -82,9 +82,9 @@ describe('Plan 36 catalog-only delivery and stable selection contracts', () => {
       expect(delivered.roleInstructions).toContain('Later implementation module engineers, reviewers and assessors');
       expect(delivered.message).toContain('"workingDirectory": "/project"');
     }
-    expect(cases[0][1]).toContain('doc-002 (plan): plans/example/companion.md; captured file /project/plans/example/.harness/jobs/run-1/input/documents/doc-002.bin');
-    expect(cases[0][1]).toContain('From doc-001, bytes 0–11: plans/example/optional.md');
-    expect(cases[1][1]).toContain('doc-003 (principle): docs/project.principles.md; captured file /project/plans/example/.harness/jobs/run-1/input/documents/doc-003.bin');
+    expect(cases[0][1]).toContain('document:example-companion (plan): plans/example/companion.md; captured file /project/plans/example/.harness/jobs/run-1/input/documents/example-companion.bin');
+    expect(cases[0][1]).toContain('From document:example-plan, bytes 0–11: plans/example/optional.md');
+    expect(cases[1][1]).toContain('document:project-principles (principle): docs/project.principles.md; captured file /project/plans/example/.harness/jobs/run-1/input/documents/project-principles.bin');
   });
 
   test('tasks needing views retain revision and coverage; a catalog role change withdraws its inherited inventory once', () => {
@@ -93,7 +93,7 @@ describe('Plan 36 catalog-only delivery and stable selection contracts', () => {
     expect(inventory.text).toContain('candidate-view-1');
     expect(inventory.text).toContain('external declarations unmeasured');
     const originalHistory = JSON.stringify(initial.additions);
-    const check = packet('catalog-extractor', 'check', checkMessage(inputs, 'doc-001', { catalog, analysis: empty }), initial.additions);
+    const check = packet('catalog-extractor', 'check', checkMessage(inputs, 'document:example-plan', { catalog, analysis: empty }), initial.additions);
     const removals = check.additions.filter(item => item.block?.key === 'environment:views');
     expect(removals).toEqual([expect.objectContaining({ block: { key: 'environment:views', effect: 'remove' }, text: '# Block environment:views\nWithdrawn; this block no longer applies.\n' })]);
     const history = [...initial.additions, ...check.additions];
@@ -119,10 +119,10 @@ describe('Plan 36 catalog-only delivery and stable selection contracts', () => {
     expect(selection.message).toContain('stable catalog ID, never by a passage, heading or line range');
     expect(effectiveBlocks(history).get('environment:views')?.text).toContain('candidate-view-1');
     expect(selection.manifest.inheritedPoint).toBe('orientation:point-1');
-    const submitted = contextSelectorSubmissionSchema.parse({ selected: [{ id: 'nfr-001', reason: 'The service handles timed requests.',
+    const submitted = contextSelectorSubmissionSchema.parse({ selected: [{ id: 'non-functional-requirement:timeout', reason: 'The service handles timed requests.',
       conditions: ['for each request'], uncertainty: 'Retry applicability unclear.' }] });
     const prepared = prepareContextSelection(submitted, { workItem: 'wi-001', orientationInvocation: 'inv-001', orientationPoint: 'orientation:point-1',
-      selectorInvocation: 'inv-002', degraded: false }, { catalog, workItemElements: ['fr-001'], planDeviations: [] });
+      selectorInvocation: 'inv-002', degraded: false }, { catalog, workItemElements: ['functional-requirement:acceptance'], planDeviations: [] });
     expect(prepared.status).toBe('available');
     if (prepared.status !== 'available') throw new Error(JSON.stringify(prepared.errors));
     expect(prepared.selection.selected).toEqual(submitted.selected);
@@ -130,7 +130,7 @@ describe('Plan 36 catalog-only delivery and stable selection contracts', () => {
     expect(prepared.text).toContain('Retry applicability unclear.');
     const passage = { selected: [{ ...submitted.selected[0]!, id: 'Preserve a 30 second timeout.' }] };
     expect(prepareContextSelection(passage, prepared.selection, { catalog, workItemElements: [], planDeviations: [] })).toMatchObject({ status: 'unavailable', errors: [{ path: 'selected.0.id' }] });
-    expect(contextSelectorSubmissionSchema.safeParse({ selected: [{ id: 'nfr-001' }] }).success).toBe(false);
+    expect(contextSelectorSubmissionSchema.safeParse({ selected: [{ id: 'non-functional-requirement:timeout' }] }).success).toBe(false);
   });
 });
 
@@ -138,41 +138,41 @@ test('fresh catalog checker recovers all six retained plan origins and captured 
   const text = await readFile('subs/harness/fixtures/collection-review/plans/revision-preview/plan.md', 'utf8');
   const advisory = '```gherkin\nScenario: Advisory example\n When an example runs\n Then it illustrates a suggestion\n```';
   const captured = { ...inputs, planId: 'revision-preview', runDirectory: '/project/plans/revision-preview/.harness/jobs/run-1',
-    bytes: new Map([['doc-001', Buffer.from(text)], ['doc-002', Buffer.from(advisory)], ['doc-003', Buffer.from(principlesText)]]),
-    manifest: documentManifestSchema.parse({ ...manifest, documents: manifest.documents.map(document => document.id === 'doc-001'
+    bytes: new Map([['document:example-plan', Buffer.from(text)], ['document:example-companion', Buffer.from(advisory)], ['document:project-principles', Buffer.from(principlesText)]]),
+    manifest: documentManifestSchema.parse({ ...manifest, documents: manifest.documents.map(document => document.id === 'document:example-plan'
       ? { ...document, path: 'plans/revision-preview/plan.md', sha256: hash(text), bytes: Buffer.byteLength(text) }
-      : document.id === 'doc-002' ? { ...document, sha256: hash(advisory), bytes: Buffer.byteLength(advisory) } : document) }) };
+      : document.id === 'document:example-companion' ? { ...document, sha256: hash(advisory), bytes: Buffer.byteLength(advisory) } : document) }) };
   // An unincorporated companion scenario must not renumber registered origins.
   const evidence: AnalysisEvidence = { index: null, catalog, documents: { manifest: captured.manifest, bytes: captured.bytes },
-    incorporation: { schema: 'ramify-agent.document-incorporation/2', documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' },
-      { document: 'doc-002', scenarios: false, uncertainty: 'Advisory only.' }], missing: [] } };
+    incorporation: { schema: 'ramify-agent.document-incorporation/3', documents: [{ document: 'document:example-plan', scenarios: true, uncertainty: '' },
+      { document: 'document:example-companion', scenarios: false, uncertainty: 'Advisory only.' }], missing: [] } };
   const origins = incorporatedScenarios(evidence);
   expect(origins.map(origin => [origin.id, origin.lines])).toEqual([
-    ['ps-01', [71, 76]], ['ps-02', [78, 82]], ['ps-03', [84, 89]], ['ps-04', [91, 97]], ['ps-05', [99, 102]], ['ps-06', [104, 111]],
+    ['plan-scenario:preview-an-intact-proposed-chain', [71, 76]], ['plan-scenario:preview-an-explicitly-empty-chain', [78, 82]], ['plan-scenario:a-missing-predecessor-survives-the-provider-boundary', [84, 89]], ['plan-scenario:preview-retains-the-existing-rules-and-their-ordering', [91, 97]], ['plan-scenario:missing-input-is-not-an-empty-chain', [99, 102]], ['plan-scenario:existing-stored-record-reviews-keep-their-behavior', [104, 111]],
   ]);
   const analysis: ResolvedAnalysis = { ...empty, entries: [{ capability: 'preview', description: 'Preview proposed history.', owner: 'collection-review',
-    requirementRefs: ['fr-001'], acceptanceRefs: ['fr-001'], contextRefs: [], citations: [] }],
-    scenarios: origins.map((origin, index) => ({ key: `preview-case-${index + 1}`, entry: 'preview', refs: ['fr-001'],
+    requirementRefs: ['functional-requirement:acceptance'], acceptanceRefs: ['functional-requirement:acceptance'], contextRefs: [], citations: [] }],
+    scenarios: origins.map((origin, index) => ({ key: `preview-case-${index + 1}`, entry: 'preview', refs: ['functional-requirement:acceptance'],
       gherkin: origin.source.join('\n'), ...(index === 2 ? { origin: { kind: 'architect' as const }, partOf: origin.id }
         : { origin: { kind: 'plan' as const, planScenario: origin.id } }) })),
-    integrationScenarios: [{ planScenario: 'ps-03', subScenarios: ['preview-case-3'] }] };
+    integrationScenarios: [{ planScenario: 'plan-scenario:a-missing-predecessor-survives-the-provider-boundary', subScenarios: ['preview-case-3'] }] };
   const state: CheckState = { catalog, analysis };
   const frozen = JSON.stringify(state.analysis.scenarios);
-  const delivered = packet('catalog-extractor', 'check', checkMessage(captured, 'doc-001', state, origins), [], text);
+  const delivered = packet('catalog-extractor', 'check', checkMessage(captured, 'document:example-plan', state, origins), [], text);
   expect(delivered.manifest.inheritedPoint).toBeNull();
   for (const [index, origin] of origins.entries()) {
     expect(delivered.message).toContain(`Registered plan origin ${origin.id}: ${origin.name}`);
     expect(delivered.message).toContain(`lines ${origin.lines[0]}–${origin.lines[1]}; architect scenario keys: preview-case-${index + 1}`);
   }
-  expect(delivered.message).toContain('preview-case-3 (architect sub-scenario; partOf ps-03)');
-  expect(delivered.message).toContain('Correction scenarios[].key names the architect scenario key.');
-  expect(delivered.message).toContain('doc-001 (plan): plans/revision-preview/plan.md; in the plan block of this message');
+  expect(delivered.message).toContain('preview-case-3 (architect sub-scenario; partOf plan-scenario:a-missing-predecessor-survives-the-provider-boundary)');
+  expect(delivered.message).toContain('Correction scenarios[].scenarioKey names the architect scenario key.');
+  expect(delivered.message).toContain('document:example-plan (plan): plans/revision-preview/plan.md; in the plan block of this message');
   expect(delivered.message).toContain(`<plan>\n${text}</plan>`);
   expect(delivered.message).not.toContain('Advisory example');
-  expect(checkMessage(captured, 'doc-001', state)).toContain('No registered plan-origin mapping is available');
-  const applied = applyCheck(state, 'doc-001', 'inv-check', { corrections: [], entries: [], scenarios: [] }, evidence);
+  expect(checkMessage(captured, 'document:example-plan', state)).toContain('No registered plan-origin mapping is available');
+  const applied = applyCheck(state, 'document:example-plan', 'inv-check', { corrections: [], entries: [], scenarios: [] }, evidence);
   expect(applied.ok).toBe(true);
   expect(JSON.stringify(state.analysis.scenarios)).toBe(frozen);
   if (applied.ok) expect(JSON.stringify(applied.analysis.scenarios)).toBe(frozen);
-  expect(extractDocumentScenarios([{ id: 'doc-001', text }]).scenarios).toEqual(origins);
+  expect(extractDocumentScenarios([{ id: 'document:example-plan', text }]).scenarios).toEqual(origins);
 });

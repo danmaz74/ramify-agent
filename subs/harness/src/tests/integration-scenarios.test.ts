@@ -11,7 +11,7 @@ import { assignmentErrors } from '../../subs/autonomous/subs/work-coordination/s
 import { assignedObligationErrors, obligationsOf } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
 import { childrenOnPaths, dueIntegrations, integrationScopeOf, integrationWorkItem, stepDirectoryOf } from '../../subs/autonomous/subs/work-coordination/src/work/integration.js';
 import { iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
-import type { WorkItem } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { workLayout, type WorkItem } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { requestCompletion } from './helpers/analysis.js';
@@ -73,9 +73,9 @@ function runnableScenarios(root: string): ScriptedScenario[] {
     .filter(path => path.endsWith('.feature') && !path.split('/').includes('node_modules')).sort();
   return files.flatMap(file => readFileSync(join(root, file), 'utf8').split('\n').flatMap((text, index) => {
     const tags = text.trim().split(/\s+/);
-    const identity = tags.find(tag => /^@ramify-sc-\d{3,}$/.test(tag));
+    const identity = tags.find(tag => /^@ramify-scenario-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(tag));
     if (identity === undefined || tags.includes('@ramify-pending')) return [];
-    return [{ id: identity.slice('@ramify-'.length), status: 'passed' as const, file, line: index + 1 }];
+    return [{ id: `scenario:${identity.slice('@ramify-scenario-'.length)}`, status: 'passed' as const, file, line: index + 1 }];
   }));
 }
 
@@ -88,7 +88,7 @@ function configuredScenarioCheck(root: string): DirectCheckScript {
 function failingIntegration(root: string): DirectCheckStep {
   return {
     outcome: { kind: 'completed', exitCode: 1 },
-    scenarios: runnableScenarios(root).map(result => (result.id !== 'sc-003' ? result : {
+    scenarios: runnableScenarios(root).map(result => (result.id !== 'scenario:a-written-note-is-shown-with-its-tag' ? result : {
       ...result, status: 'failed' as const, failure: { step: 'Then the outcome review-tags promises is shown', message: 'expected the tag on the note, got no note' },
     })),
   };
@@ -101,12 +101,12 @@ describe('the integration work item', () => {
       ...entryTurns,
       // The first assignment leaves out the path to the tags' owner and is
       // refused with the scope the harness expects; the second is accepted.
-      'local-architect:wi-003': [
+      'local-architect:work-item:bind-a-written-note-is-shown-with-its-tag': [
         submit(bindAtAncestor, { kind: 'submit', input: { ...bindAtAncestor, assignment: { ...bindAtAncestor.assignment, scope: { ...bindAtAncestor.assignment.scope, base: { module: reviews, included: [notes].map(module => ({ directory: module.split('/').slice(1).map(part => `subs/${part}`).join('/'), reason: 'Fixture whole child tree', instructions: 'Implement the assigned fixture behavior' })) } } } } }),
         submit(requestCompletion()),
       ],
-      'engineer:wi-003': [bindTurn],
-    }, [...entryCommits, bindCommit, unchanged('wi-003'), unchanged(finalSubject)], configuredScenarioCheck(root));
+      'engineer:work-item:bind-a-written-note-is-shown-with-its-tag': [bindTurn],
+    }, [...entryCommits, bindCommit, unchanged('work-item:bind-a-written-note-is-shown-with-its-tag'), unchanged(finalSubject)], configuredScenarioCheck(root));
 
     const snapshot = onlyRun(service, plan);
     expect(snapshot.failure).toBeNull();
@@ -114,26 +114,26 @@ describe('the integration work item', () => {
     const log = await runEventsOnDisk(root, plan, runId);
     const attempts = await gates(root, runId, log);
 
-    // Creation: the done report of sc-002, the last sub-scenario, committed
-    // the work item beside it; sc-001's done report and every gate pass
+    // Creation: the done report of scenario:tags-on-note, the last sub-scenario, committed
+    // the work item beside it; scenario:note-for-tags's done report and every gate pass
     // before it committed none.
     const lines = (await readFile(runPath(root, plan, runId, runLayout.events), 'utf8')).split('\n').filter(Boolean)
       .map(line => JSON.parse(line) as { event: RunEvent; records: Array<{ path: string; body: unknown }> });
-    const creating = lines.filter(line => line.records.some(record => record.path === 'work-items/wi-003/item.json'));
+    const creating = lines.filter(line => line.records.some(record => record.path === workLayout.item('work-item:bind-a-written-note-is-shown-with-its-tag')));
     expect(creating.map(line => [line.event.type, (line.event.data as { id?: string; judgment?: string }).id, (line.event.data as { judgment?: string }).judgment]))
-      .toEqual([['obligation-reported', 'sc-002', 'done']]);
+      .toEqual([['obligation-reported', 'scenario:tags-on-note', 'done']]);
     const tagArchitects = log.flatMap(event => (event.type === 'invocation-started' && event.data.role === 'local-architect'
-      && event.data.work.workItem === 'wi-002' ? [event.data.invocation] : []));
+      && event.data.work.workItem === 'work-item:review-tags' ? [event.data.invocation] : []));
     expect(tagArchitects).toContain((creating[0]!.event.data as { by: string }).by);
-    expect(at(log, 'obligation-reported', data => data.id === 'sc-001')).toBeLessThan(at(log, 'obligation-reported', data => data.id === 'sc-002'));
+    expect(at(log, 'obligation-reported', data => data.id === 'scenario:note-for-tags')).toBeLessThan(at(log, 'obligation-reported', data => data.id === 'scenario:tags-on-note'));
     // At the ancestor, with the scenario's ID in place of an entry; its scenario is its acceptance, and it cites no element.
-    const item = creating[0]!.records.find(record => record.path === 'work-items/wi-003/item.json')!.body as WorkItem;
-    expect(item).toMatchObject({ id: 'wi-003', module: reviews, origin: { integration: 'sc-003' }, requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null });
+    const item = creating[0]!.records.find(record => record.path === workLayout.item('work-item:bind-a-written-note-is-shown-with-its-tag'))!.body as WorkItem;
+    expect(item).toMatchObject({ id: 'work-item:bind-a-written-note-is-shown-with-its-tag', module: reviews, origin: { integration: 'scenario:a-written-note-is-shown-with-its-tag' }, functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null });
 
     // Queueing: the item that implemented the last sub-scenario completed
     // first; the integration work item started after it, with its origin.
-    expect(at(log, 'obligation-reported', data => data.id === 'sc-002')).toBeLessThan(at(log, 'work-item-completed', data => data.workItem === 'wi-002'));
-    expect(at(log, 'work-item-completed', data => data.workItem === 'wi-002')).toBeLessThan(at(log, 'work-item-started', data => data.workItem === 'wi-003'));
+    expect(at(log, 'obligation-reported', data => data.id === 'scenario:tags-on-note')).toBeLessThan(at(log, 'work-item-completed', data => data.workItem === 'work-item:review-tags'));
+    expect(at(log, 'work-item-completed', data => data.workItem === 'work-item:review-tags')).toBeLessThan(at(log, 'work-item-started', data => data.workItem === 'work-item:bind-a-written-note-is-shown-with-its-tag'));
     const global = log.find(event => event.type === 'invocation-started' && event.data.role === 'initial-architect')!;
     if (global.type !== 'invocation-started') throw new Error('plan architect expected');
     const globalOutcome = JSON.parse(await readFile(runPath(root, plan, runId, runLayout.outcome(global.data.invocation)), 'utf8')) as InvocationOutcome;
@@ -141,9 +141,9 @@ describe('the integration work item', () => {
     const globalTarget = { role: 'global-fork', run: { planId: plan, runId }, session: global.data.session,
       point: { session: global.data.session, invocation: global.data.invocation }, ref: globalOutcome.session!.ref };
     expect(log.filter(event => event.type === 'work-item-started').map(event => event.data)).toEqual([
-      { workItem: 'wi-001', module: notes, origin: 'entry', globalTarget },
-      { workItem: 'wi-002', module: tags, origin: 'entry', globalTarget },
-      { workItem: 'wi-003', module: reviews, origin: 'integration', scenario: 'sc-003', globalTarget },
+      { workItem: 'work-item:review-note', module: notes, origin: 'entry', globalTarget },
+      { workItem: 'work-item:review-tags', module: tags, origin: 'entry', globalTarget },
+      { workItem: 'work-item:bind-a-written-note-is-shown-with-its-tag', module: reviews, origin: 'integration', scenario: 'scenario:a-written-note-is-shown-with-its-tag', globalTarget },
     ]);
 
     // The briefing: the scenario, its sub-scenarios and their owners, the
@@ -151,11 +151,11 @@ describe('the integration work item', () => {
     // must be given; no bridging Given is singled out.
     const sessions = agent!.sessions;
     const briefing = sessions.find(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_orientation' && session.spec.scope.workingDirectory === join(root, reviewsDirectory, 'src'))!.spec.prompt;
-    expect(briefing).toContain(`## The integration scenario sc-003: A written note is shown with its tag`);
+    expect(briefing).toContain(`## The integration scenario scenario:a-written-note-is-shown-with-its-tag: A written note is shown with its tag`);
     expect(briefing).toContain(['```gherkin', ...planScenario, '```'].join('\n'));
     expect(briefing).toContain(`The harness wrote it into \`${integrationFeature}\``);
-    expect(briefing).toContain(`- \`sc-001\` (A note is written for tagging), owned by \`${notes}\`, in \`${noteFeature}\`.\n`);
-    expect(briefing).toContain(`- \`sc-002\` (A written note is tagged), owned by \`${tags}\`, in \`${tagFeature}\`.\n`);
+    expect(briefing).toContain(`- \`scenario:note-for-tags\` (A note is written for tagging), owned by \`${notes}\`, in \`${noteFeature}\`.\n`);
+    expect(briefing).toContain(`- \`scenario:tags-on-note\` (A written note is tagged), owned by \`${tags}\`, in \`${tagFeature}\`.\n`);
     expect(briefing).not.toContain('bridging Given');
     expect(briefing).toContain(`- \`${notes}\`, in \`${notesDirectory}/src/tests/steps/\`: \`${noteSteps}\`.`);
     expect(briefing).toContain(`- \`${tags}\`, in \`${tagsDirectory}/src/tests/steps/\`: \`${tagSteps}\`.`);
@@ -166,8 +166,8 @@ describe('the integration work item', () => {
     // An entry's module architect is given its entry's scenario, and the integration scenario it came from.
     const entryBriefing = sessions.find(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_orientation' && session.spec.scope.workingDirectory === join(root, notesDirectory, 'src'))!.spec.prompt;
     expect(entryBriefing).toContain('## The scenarios of this work item');
-    expect(entryBriefing).toContain(`### sc-001: A note is written for tagging\n\n- Feature file: \`${noteFeature}\`.\n- A sub-scenario of the integration scenario \`sc-003\``);
-    expect(entryBriefing).toContain('## The states of these scenarios\n\n- `sc-001`: pending.');
+    expect(entryBriefing).toContain(`### scenario:note-for-tags: A note is written for tagging\n\n- Feature file: \`${noteFeature}\`.\n- A sub-scenario of the integration scenario \`scenario:a-written-note-is-shown-with-its-tag\``);
+    expect(entryBriefing).toContain('## The states of these scenarios\n\n- `scenario:note-for-tags`: pending.');
     // Its engineer, each scenario not done and the rules; the
     // integration item's engineer, the scenario and the step files it imports.
     const engineerInvocations = log.filter(event => event.type === 'invocation-started' && event.data.role === 'engineer');
@@ -178,10 +178,10 @@ describe('the integration work item', () => {
       expect(position, iteration).toBeGreaterThanOrEqual(0);
       return engineers[position]!.spec.prompt;
     };
-    expect(engineerOf('wi-001.i01')).toContain('### sc-001 (pending): A note is written for tagging');
-    expect(engineerOf('wi-001.i01')).toContain('## Binding a scenario');
-    const binder = engineerOf('wi-003.i01');
-    expect(binder).toContain('## The integration scenario to bind: sc-003 (pending): A written note is shown with its tag');
+    expect(engineerOf('work-item:review-note.i01')).toContain('### scenario:note-for-tags (pending): A note is written for tagging');
+    expect(engineerOf('work-item:review-note.i01')).toContain('## Binding a scenario');
+    const binder = engineerOf('work-item:bind-a-written-note-is-shown-with-its-tag.i01');
+    expect(binder).toContain('## The integration scenario to bind: scenario:a-written-note-is-shown-with-its-tag (pending): A written note is shown with its tag');
     expect(binder).toContain(`- \`${notes}\`, in \`${notesDirectory}/src/tests/steps/\`: \`${noteSteps}\`.`);
     expect(binder).toContain(`- Write one step file in \`${reviewsDirectory}/src/tests/steps/\``);
     expect(binder).not.toContain('## Binding a scenario');
@@ -199,39 +199,39 @@ describe('the integration work item', () => {
     // committed audit's scenario check ran the ancestor's feature file, its
     // pending tag removed by the gate's commit, beside the done
     // sub-scenarios of its children. The harness selected none of them.
-    const assignment = JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.assignment('wi-003', 1)), 'utf8')) as { scope: { base: unknown } };
+    const assignment = JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.assignment('work-item:bind-a-written-note-is-shown-with-its-tag', 1)), 'utf8')) as { scope: { base: unknown } };
     expect(assignment.scope.base).toEqual({ module: reviews, included: [notes, tags].map(module => ({ directory: module.split('/').slice(1).map(part => `subs/${part}`).join('/'), reason: 'Fixture whole child tree', instructions: 'Implement the assigned fixture behavior' })) });
-    const bindGate = attempts.find(attempt => attempt.subject.iteration === 'wi-003.i01')!;
+    const bindGate = attempts.find(attempt => attempt.subject.iteration === 'work-item:bind-a-written-note-is-shown-with-its-tag.i01')!;
     expect(bindGate.commands).toEqual([]);
     expect(bindGate.audit).toMatchObject({ mode: 'project-default', verdict: 'pass' });
-    expect(scenarioResults(bindGate).map(result => `${result.id} ${result.status}`).sort()).toEqual(['sc-001 passed', 'sc-002 passed', 'sc-003 passed']);
-    expect(scenarioResults(bindGate).find(result => result.id === 'sc-003')).toMatchObject({ check: 'scenarios', file: integrationFeature, status: 'passed' });
+    expect(scenarioResults(bindGate).map(result => `${result.id} ${result.status}`).sort()).toEqual(['scenario:a-written-note-is-shown-with-its-tag passed', 'scenario:note-for-tags passed', 'scenario:tags-on-note passed']);
+    expect(scenarioResults(bindGate).find(result => result.id === 'scenario:a-written-note-is-shown-with-its-tag')).toMatchObject({ check: 'scenarios', file: integrationFeature, status: 'passed' });
     const engineer = log.filter(event => event.type === 'invocation-started' && (event.data as { role: string }).role === 'engineer').at(-1)!.data as { invocation: string };
     expect(obligationLines(log)).toEqual([
-      'bound sc-001', 'reported sc-001 done',
-      'bound sc-002', 'reported sc-002 done',
-      'bound sc-003', 'reported sc-003 done',
+      'bound scenario:note-for-tags', 'reported scenario:note-for-tags done',
+      'bound scenario:tags-on-note', 'reported scenario:tags-on-note done',
+      'bound scenario:a-written-note-is-shown-with-its-tag', 'reported scenario:a-written-note-is-shown-with-its-tag done',
     ]);
-    expect(log.find(event => event.type === 'obligation-bound' && event.data.id === 'sc-003')!.data)
-      .toMatchObject({ id: 'sc-003', fakes: [], by: engineer.invocation });
-    expect(at(log, 'obligation-reported', data => data.id === 'sc-003')).toBeGreaterThan(at(log, 'gate-passed', data => data.gate === bindGate.id));
+    expect(log.find(event => event.type === 'obligation-bound' && event.data.id === 'scenario:a-written-note-is-shown-with-its-tag')!.data)
+      .toMatchObject({ id: 'scenario:a-written-note-is-shown-with-its-tag', fakes: [], by: engineer.invocation });
+    expect(at(log, 'obligation-reported', data => data.id === 'scenario:a-written-note-is-shown-with-its-tag')).toBeGreaterThan(at(log, 'gate-passed', data => data.gate === bindGate.id));
 
     // The work item completed at its own work-item gate, and the final
     // gate's full audit ran every scenario.
-    expect(at(log, 'work-item-completed', data => data.workItem === 'wi-003')).toBeGreaterThan(at(log, 'obligation-reported', data => data.id === 'sc-003'));
+    expect(at(log, 'work-item-completed', data => data.workItem === 'work-item:bind-a-written-note-is-shown-with-its-tag')).toBeGreaterThan(at(log, 'obligation-reported', data => data.id === 'scenario:a-written-note-is-shown-with-its-tag'));
     const finalGate = attempts.find(attempt => attempt.checkpoint === 'final')!;
     expect(finalGate.audit).toMatchObject({ mode: 'full', verdict: 'pass' });
-    expect(scenarioResults(finalGate).map(result => `${result.id} ${result.status}`).sort()).toEqual(['sc-001 passed', 'sc-002 passed', 'sc-003 passed']);
+    expect(scenarioResults(finalGate).map(result => `${result.id} ${result.status}`).sort()).toEqual(['scenario:a-written-note-is-shown-with-its-tag passed', 'scenario:note-for-tags passed', 'scenario:tags-on-note passed']);
     expect(log.at(-1)!.type).toBe('job-completed');
     expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 3 });
     // The work items a client reads: the integration one by its origin, with no capability of its own.
     const listed = workItemListResponseSchema.parse(await new RunQueries(createQuerySource(service)).workItems(plan, runId));
     expect(listed.workItems.map(one => [one.id, one.module, one.origin, one.capability, one.state])).toEqual([
-      ['wi-001', notes, 'entry', 'review-note', 'completed'],
-      ['wi-002', tags, 'entry', 'review-tags', 'completed'],
-      ['wi-003', reviews, 'integration', null, 'completed'],
+      ['work-item:review-note', notes, 'entry', 'capability:review-note', 'completed'],
+      ['work-item:review-tags', tags, 'entry', 'capability:review-tags', 'completed'],
+      ['work-item:bind-a-written-note-is-shown-with-its-tag', reviews, 'integration', null, 'completed'],
     ]);
-    expect(readFileSync(join(root, integrationFeature), 'utf8')).toContain('  @ramify-sc-003\n');
+    expect(readFileSync(join(root, integrationFeature), 'utf8')).toContain('  @ramify-scenario-a-written-note-is-shown-with-its-tag\n');
     git.assertAnswered();
   }, 120_000);
 
@@ -240,17 +240,17 @@ describe('the integration work item', () => {
     let failed = false;
     const { service, runId, git, agent } = await run(root, {
       ...entryTurns,
-      'local-architect:wi-003': [submit(bindAtAncestor), submit(requestCompletion())],
-      'engineer:wi-003': [
+      'local-architect:work-item:bind-a-written-note-is-shown-with-its-tag': [submit(bindAtAncestor), submit(requestCompletion())],
+      'engineer:work-item:bind-a-written-note-is-shown-with-its-tag': [
         bindTurn,
-        submit(completionProposed('The tags\' Given now writes the note the way review-note does.', { bindings: [{ id: 'sc-003' }] }),
+        submit(completionProposed('The tags\' Given now writes the note the way review-note does.', { bindings: [{ id: 'scenario:a-written-note-is-shown-with-its-tag' }] }),
           write(tagSteps, tagStepFile.replace("Given('a note was written with review-note', () => {});", "Given('a note was written with review-note', () => { /* write it as review-note does */ });"))),
       ],
-    }, [...entryCommits, bindCommit, accepted('wi-003.i01', 'revision-04', modified(tagSteps)), unchanged('wi-003'), unchanged(finalSubject)],
+    }, [...entryCommits, bindCommit, accepted('work-item:bind-a-written-note-is-shown-with-its-tag.i01', 'revision-04', modified(tagSteps)), unchanged('work-item:bind-a-written-note-is-shown-with-its-tag'), unchanged(finalSubject)],
     ({ check, context }) => {
       if (check.kind !== 'scenarios') return {};
       const runnable = runnableScenarios(root);
-      if (context.checkpoint !== 'iteration' || failed || !runnable.some(result => result.id === 'sc-003')) return { scenarios: runnable };
+      if (context.checkpoint !== 'iteration' || failed || !runnable.some(result => result.id === 'scenario:a-written-note-is-shown-with-its-tag')) return { scenarios: runnable };
       failed = true;
       return failingIntegration(root);
     });
@@ -258,25 +258,25 @@ describe('the integration work item', () => {
     expect(onlyRun(service, plan).failure).toBeNull();
     expect(onlyRun(service, plan).state).toBe('completed');
     const log = await runEventsOnDisk(root, plan, runId);
-    const attempts = (await gates(root, runId, log)).filter(attempt => attempt.subject.iteration === 'wi-003.i01');
+    const attempts = (await gates(root, runId, log)).filter(attempt => attempt.subject.iteration === 'work-item:bind-a-written-note-is-shown-with-its-tag.i01');
     expect(attempts.map(attempt => attempt.verdict)).toEqual(['failed', 'passed']);
-    expect(scenarioResults(attempts[0]!).map(result => `${result.id} ${result.status}`).sort()).toEqual(['sc-001 passed', 'sc-002 passed', 'sc-003 failed']);
+    expect(scenarioResults(attempts[0]!).map(result => `${result.id} ${result.status}`).sort()).toEqual(['scenario:a-written-note-is-shown-with-its-tag failed', 'scenario:note-for-tags passed', 'scenario:tags-on-note passed']);
 
     // The repair round's briefing carries the failure as the runner reported
     // it, and no generated diagnosis of its cause or of who repairs it.
-    const repair = agent!.sessions.filter(session => session.spec.role === 'engineer' && session.spec.prompt.includes('wi-003')).at(-1)!.spec.prompt;
+    const repair = agent!.sessions.filter(session => session.spec.role === 'engineer' && session.spec.prompt.includes('work-item:bind-a-written-note-is-shown-with-its-tag')).at(-1)!.spec.prompt;
     expect(repair).not.toContain('composition failure');
     expect(repair).not.toContain('bridging Given');
     expect(repair).not.toContain('suspect');
     // And the failing scenario itself, with its name, file, line, step and
     // message; each passing one with its binding.
-    expect(repair).toMatch(/- scenario `sc-003` "A written note is shown with its tag" failed in `scenarios`, at `[^`]+\.feature:\d+`:\n {2}- The failing step: `Then the outcome review-tags promises is shown`\.\n {2}- Its message: expected the tag on the note, got no note/);
-    expect(repair).toMatch(/`sc-001` "A note is written for tagging" passed/);
+    expect(repair).toMatch(/- scenario `scenario:a-written-note-is-shown-with-its-tag` "A written note is shown with its tag" failed in `scenarios`, at `[^`]+\.feature:\d+`:\n {2}- The failing step: `Then the outcome review-tags promises is shown`\.\n {2}- Its message: expected the tag on the note, got no note/);
+    expect(repair).toMatch(/`scenario:note-for-tags` "A note is written for tagging" passed/);
     // The failure moved nothing: the scenario stayed bound through the
     // repair, and only its architect's report made it done.
-    expect(obligationLines(log).filter(entry => entry.includes('sc-003'))).toEqual(['bound sc-003', 'bound sc-003', 'reported sc-003 done']);
-    expect(at(log, 'obligation-reported', data => data.id === 'sc-003')).toBeGreaterThan(at(log, 'gate-passed', data => data.gate === attempts[1]!.id));
-    expect(at(log, 'work-item-completed', data => data.workItem === 'wi-003')).toBeGreaterThan(0);
+    expect(obligationLines(log).filter(entry => entry.includes('scenario:a-written-note-is-shown-with-its-tag'))).toEqual(['bound scenario:a-written-note-is-shown-with-its-tag', 'bound scenario:a-written-note-is-shown-with-its-tag', 'reported scenario:a-written-note-is-shown-with-its-tag done']);
+    expect(at(log, 'obligation-reported', data => data.id === 'scenario:a-written-note-is-shown-with-its-tag')).toBeGreaterThan(at(log, 'gate-passed', data => data.gate === attempts[1]!.id));
+    expect(at(log, 'work-item-completed', data => data.workItem === 'work-item:bind-a-written-note-is-shown-with-its-tag')).toBeGreaterThan(0);
     git.assertAnswered();
   }, 120_000);
 });
@@ -284,12 +284,13 @@ describe('the integration work item', () => {
 describe('the rules, over literal records', () => {
   const source = (name: string) => [`Scenario: ${name}`, '  Given a note', '  When it is tagged', '  Then the tag is shown'];
   const scenario = (id: string, kind: ScenarioRecord['kind'], owner: string, extra: Partial<ScenarioRecord> = {}): ScenarioRecord => ({
-    schema: 'ramify-agent.scenario/1',
+    schema: 'ramify-agent.scenario/2',
     id,
     kind,
     entry: kind === 'entry' ? `entry-${id}` : null,
     owner,
-    origin: kind === 'entry' ? { kind: 'architect', refs: [] } : { kind: 'plan', planScenario: 'ps-01', ref: { lines: [12, 17] } },
+    origin: kind === 'entry' ? { kind: 'architect', refs: [] } : { kind: 'plan', planScenario: 'plan-scenario:written-note-shown-with-tag', ref: { document: 'document:review-notes-plan', lines: [12, 17] } },
+    citedElements: [],
     partOf: null,
     subScenarios: [],
     name: id,
@@ -300,19 +301,19 @@ describe('the rules, over literal records', () => {
   });
   const deep = `${reviews}/core/tasks`;
   const records = [
-    scenario('sc-001', 'entry', notes, { partOf: 'sc-004' }),
-    scenario('sc-002', 'entry', deep, { partOf: 'sc-004' }),
-    scenario('sc-003', 'entry', tags),
-    scenario('sc-004', 'integration', reviews, { subScenarios: ['sc-001', 'sc-002'] }),
+    scenario('scenario:note-created', 'entry', notes, { partOf: 'scenario:note-shown' }),
+    scenario('scenario:note-validated', 'entry', deep, { partOf: 'scenario:note-shown' }),
+    scenario('scenario:note-tagged', 'entry', tags),
+    scenario('scenario:note-shown', 'integration', reviews, { subScenarios: ['scenario:note-created', 'scenario:note-validated'] }),
   ];
 
   test('PB3-D07 an integration scenario is due once every sub-scenario is done and it has no work item yet; bound is not enough; its item is at its owner', () => {
-    const states = (second: 'pending' | 'bound' | 'done') => new Map([['sc-001', 'done'], ['sc-002', second], ['sc-003', 'pending'], ['sc-004', 'pending']] as const);
+    const states = (second: 'pending' | 'bound' | 'done') => new Map([['scenario:note-created', 'done'], ['scenario:note-validated', second], ['scenario:note-tagged', 'pending'], ['scenario:note-shown', 'pending']] as const);
     expect(dueIntegrations(records, states('pending'), [])).toEqual([]);
     expect(dueIntegrations(records, states('bound'), [])).toEqual([]);
-    expect(dueIntegrations(records, states('done'), []).map(record => record.id)).toEqual(['sc-004']);
-    const item = integrationWorkItem(records[3]!, 3);
-    expect(item).toMatchObject({ id: 'wi-004', module: reviews, origin: { integration: 'sc-004' }, requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null });
+    expect(dueIntegrations(records, states('done'), []).map(record => record.id)).toEqual(['scenario:note-shown']);
+    const item = integrationWorkItem(records[3]!);
+    expect(item).toMatchObject({ id: 'work-item:bind-note-shown', module: reviews, origin: { integration: 'scenario:note-shown' }, functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null });
     expect(dueIntegrations(records, states('done'), [item])).toEqual([]);
   });
 
@@ -338,17 +339,17 @@ describe('the rules, over literal records', () => {
 
   test('an integration work item assigns its own scenario, which no entry\'s work item may assign', () => {
     const item = (id: string, origin: WorkItem['origin']): WorkItem => ({
-      schema: 'ramify-agent.work-item/1', id, module: reviews, origin, goal: `Carry out ${id}.`,
-      requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
+      schema: 'ramify-agent.work-item/2', id, module: reviews, origin, goal: `Carry out ${id}.`,
+      functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null,
     });
-    const projection = obligationsOf({ scenarios: records, workItems: [item('wi-001', { entry: 'entry-sc-001' }), item('wi-004', { integration: 'sc-004' })], events: [] });
-    const integrationArchitect = { actor: { kind: 'work-item' as const, id: 'wi-004' }, projection };
-    expect(assignedObligationErrors(['sc-004'], integrationArchitect)).toEqual([]);
-    expect(assignedObligationErrors(['sc-001', 'sc-009'], integrationArchitect)).toEqual([
-      { path: 'assignment.obligations.0', message: 'sc-001 is reported by the module architect of wi-001, so the module architect of wi-004 cannot assign its binding', expected: 'IDs among sc-004' },
-      { path: 'assignment.obligations.1', message: '"sc-009" is no registered obligation of this run', expected: 'IDs among sc-004' },
+    const projection = obligationsOf({ scenarios: records, workItems: [item('work-item:note-created', { entry: 'entry-scenario:note-created' }), item('work-item:bind-note-shown', { integration: 'scenario:note-shown' })], events: [] });
+    const integrationArchitect = { actor: { kind: 'work-item' as const, id: 'work-item:bind-note-shown' }, projection };
+    expect(assignedObligationErrors(['scenario:note-shown'], integrationArchitect)).toEqual([]);
+    expect(assignedObligationErrors(['scenario:note-created', 'scenario:unknown'], integrationArchitect)).toEqual([
+      { path: 'assignment.obligations.0', message: 'scenario:note-created is reported by the module architect of work-item:note-created, so the module architect of work-item:bind-note-shown cannot assign its binding', expected: 'IDs among scenario:note-shown' },
+      { path: 'assignment.obligations.1', message: '"scenario:unknown" is no registered obligation of this run', expected: 'IDs among scenario:note-shown' },
     ]);
-    expect(assignedObligationErrors(['sc-004'], { actor: { kind: 'work-item', id: 'wi-001' }, projection }).map(error => error.message))
-      .toEqual(['sc-004 is reported by the module architect of wi-004, so the module architect of wi-001 cannot assign its binding']);
+    expect(assignedObligationErrors(['scenario:note-shown'], { actor: { kind: 'work-item', id: 'work-item:note-created' }, projection }).map(error => error.message))
+      .toEqual(['scenario:note-shown is reported by the module architect of work-item:bind-note-shown, so the module architect of work-item:note-created cannot assign its binding']);
   });
 });

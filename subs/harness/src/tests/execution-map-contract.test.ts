@@ -141,7 +141,7 @@ describe('execution-map/1 contract', () => {
 
   it('requires current-revision verification and known scenario/requirement counts', () => {
     const reopened = clone();
-    const requirement = reopened.nodes.find(node => node.kind === 'requirement' && node.key === 'requirement:req-status');
+    const requirement = reopened.nodes.find(node => node.kind === 'requirement' && node.key === 'consumer-requirement:req-status');
     if (!requirement || requirement.kind !== 'requirement') throw new Error('Fixture requirement missing');
     requirement.state = 'verified';
     expect(executionMapPageSchema.safeParse(reopened).success).toBe(false);

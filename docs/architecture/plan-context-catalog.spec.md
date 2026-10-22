@@ -52,7 +52,7 @@ distinct. An entry cites acceptance elements, and its scenarios cite every
 acceptance element they verify. Catalog correction preserves all acceptance
 behavior and updates each affected entry's complete citation lists and each
 affected scenario's complete `refs`. Correction `scenarios[].key` names the
-architect scenario key, never a registered plan origin (`ps-NN`). Correction
+architect scenario key, never a registered plan origin (`plan-scenario:<name>`). Correction
 changes catalog readings and citations, never registered scenario wording or
 origins. The frozen catalog and captured documents keep their original text;
 the [scenario deviation contract](acceptance-scenarios.md) governs any later
@@ -169,8 +169,19 @@ compares itself, never to a reading:
 - Delivery: the rendering of an element is a pure function of the catalog
   and an ID, so every consumer receives the same bytes for the same ID.
 - Validity: an assignment that cites an ID the catalog does not hold is
-  rejected on acceptance, with the path of the bad citation. That is the
-  one validator this catalog needs.
+  rejected on acceptance, with the path of the bad citation.
+
+Captured documents use
+`document:<name>` and the five element kinds use `context:<name>`,
+`functional-requirement:<name>`, `non-functional-requirement:<name>`,
+`fixed-requirement:<name>` and `recommendation:<name>`. Names are lowercase
+kebab case. An author proposes `draft:<namespace>:<name>` in its ordinary
+submission; acceptance removes `draft:` to form the actual catalog ID. The
+harness rejects duplicate names in a submission and names already accepted or
+retired in that run. It preserves the complete text, conditions, uncertainty
+and source document when doing so. Catalogs and document manifests use schema
+version `/2`; incorporation uses `/3`. Readers reject other schema versions
+and identifiers outside the descriptive namespaces.
 
 ## How a non-functional package is generated, and when
 

@@ -11,7 +11,7 @@ import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { OwnershipAuthority, assignmentAuthorityIdentity } from '../work/ownership-authority.js';
 import { decodeOwnershipEvidenceAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { addModule, assign, byRole, completionProposed, edit, outline, read, submit, treeInputs, write } from './helpers/iterations.js';
 import { declaringScenarios } from './helpers/declarations.js';
@@ -137,7 +137,7 @@ async function engineerRecord(naming: Naming) {
     ],
   });
   const agent = createScriptedAgent(declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+    'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
     'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
     engineer: [submit(
       completionProposed('Wrote the store and raised the limit; the badge is not mine to write.'),
@@ -165,10 +165,10 @@ async function engineerRecord(naming: Naming) {
   expect(onlyRun(service, 'review-notes').state).toBe('completed');
   scripted.assertComplete();
 
-  const result = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
+  const result = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, iterationLayout.result('work-item:review-note', 1)), 'utf8')) as IterationResult;
   const observations = (await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.observations(result.invocations[0]!)), 'utf8'))
     .split('\n').filter(Boolean).map(line => JSON.parse(line) as Observation);
-  const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, iterationLayout.assignment('wi-001', 1)), 'utf8')) as unknown;
+  const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, iterationLayout.assignment('work-item:review-note', 1)), 'utf8')) as unknown;
   const assignmentHash = assignmentAuthorityIdentity(assignment);
   const ledger = await RunLog.open(runPath(root, 'review-notes', receipt.jobId, runLayout.events), receipt.jobId);
   const references = ledger.all('ownership-evidence-retained').map(event => event.data);

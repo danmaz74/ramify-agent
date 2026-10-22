@@ -14,7 +14,7 @@ import { iterationLayout, type IterationAssignment } from '../../subs/autonomous
 import { auditPreparationPaths, captureGuardedFiles } from '../work/scope.js';
 import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import { initialScenarioStates } from '../../subs/scenarios/src/states.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { statedCommands } from './helpers/composition.js';
 import { createPassingCheckExecution } from './helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
@@ -59,8 +59,8 @@ afterEach(async () => {
 const plan = 'review-notes';
 const root = 'collection-review';
 const reviews = 'collection-review/workspace/reviews';
-const reviewsFeature = `subs/workspace/subs/reviews/src/tests/features/${plan}/reviewer-note.feature`;
-const rootFeature = `src/tests/features/${plan}/note-in-panel.feature`;
+const reviewsFeature = `subs/workspace/subs/reviews/src/tests/features/${plan}/capability%3Areviewer-note.feature`;
+const rootFeature = `src/tests/features/${plan}/capability%3Anote-in-panel.feature`;
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
@@ -70,15 +70,15 @@ describe('materializing the feature files', () => {
     cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);
     const project = fixture.root;
-    const submitted = analysis([
+    const submitted = currentAnalysis(analysis([
       entry('reviewer-note', reviews, 'A reviewer can attach one note to a completed review run.'),
       entry('note-in-panel', root, 'The review panel shows the note under the findings.'),
-    ]);
+    ]), 'document:review-notes-plan');
     const { service, git } = await openUnchangedRuns(project, {
       script: spec => spec.role === 'catalog-extractor' ? [] : [{ kind: 'submit', input: spec.role === 'initial-architect' ? submitted : requestCompletion() }],
       unchangedCheckpoints: [
         scenariosCommit(plan, 'scenarios-revision', [rootFeature, reviewsFeature]),
-        'wi-001', 'wi-002', `final verification of plan "${plan}"`,
+        'work-item:reviewer-note', 'work-item:note-in-panel', `final verification of plan "${plan}"`,
       ],
     });
     cleanups.push(() => service.close());
@@ -145,13 +145,13 @@ describe('materializing the feature files', () => {
       '# step definitions bind it from src/tests/steps/. @ramify-pending marks a',
       '# scenario that nothing has bound or reported done yet.',
       '',
-      'Feature: reviewer-note',
+      'Feature: capability:reviewer-note',
       '  A reviewer can attach one note to a completed review run.',
       '',
-      '  @ramify-sc-001',
+      '  @ramify-scenario-reviewer-note-is-used',
     ]);
     expect(reviewsText).toContain('  Scenario: A person uses reviewer-note\n    Given the project as the plan finds it\n');
-    expect(await readFile(join(project, rootFeature), 'utf8')).toContain('Feature: note-in-panel\n  The review panel shows the note under the findings.\n\n  @ramify-sc-002\n');
+    expect(await readFile(join(project, rootFeature), 'utf8')).toContain('Feature: capability:note-in-panel\n  The review panel shows the note under the findings.\n\n  @ramify-scenario-note-in-panel-is-used\n');
 
     // The commit is the accepted boundary the first module architect starts from.
     // inv-0001 to inv-0003 are the intake, the plan architect and the plan's checker.
@@ -198,15 +198,16 @@ describe('materializing the feature files', () => {
 function records(): ScenarioRecord[] {
   const source = (name: string) => [`Scenario: ${name}`, '  Given a shelf', '  When a book is shelved', '  Then the shelf lists it'];
   return [
-    { id: 'sc-001', entry: 'shelve-book', owner: 'shop/shelf', name: 'A book is shelved', file: 'subs/shelf/src/tests/features/demo/shelve-book.feature' },
-    { id: 'sc-002', entry: 'list-books', owner: 'shop', name: 'Books are listed', file: 'src/tests/features/demo/list-books.feature' },
+    { id: 'scenario:shelve-book-is-used', entry: 'capability:shelve-book', owner: 'shop/shelf', name: 'A book is shelved', file: 'subs/shelf/src/tests/features/demo/capability%3Ashelve-book.feature' },
+    { id: 'scenario:list-books-is-used', entry: 'capability:list-books', owner: 'shop', name: 'Books are listed', file: 'src/tests/features/demo/capability%3Alist-books.feature' },
   ].map(record => scenarioRecordSchema.parse({
-    schema: 'ramify-agent.scenario/1',
+    schema: 'ramify-agent.scenario/2',
     id: record.id,
     kind: 'entry',
     entry: record.entry,
     owner: record.owner,
     origin: { kind: 'architect', refs: [] },
+    citedElements: [],
     partOf: null,
     subScenarios: [],
     name: record.name,
@@ -218,10 +219,10 @@ function records(): ScenarioRecord[] {
 
 const tracked = () => ({
   records: records(),
-  states: initialScenarioStates(['sc-001', 'sc-002']),
+  states: initialScenarioStates(['scenario:shelve-book-is-used', 'scenario:list-books-is-used']),
   entries: [
-    { capability: 'shelve-book', description: 'A book can be shelved.' },
-    { capability: 'list-books', description: 'The shelf lists its books.' },
+    { capability: 'capability:shelve-book', description: 'A book can be shelved.' },
+    { capability: 'capability:list-books', description: 'The shelf lists its books.' },
   ],
 });
 
@@ -230,7 +231,7 @@ describe('re-rendering', () => {
     const directory = await temporaryDirectory();
     cleanups.push(directory.remove);
     const expected = expectedFeatureFiles(tracked(), { planId: 'demo', runId: 'run-1' });
-    expect(expected.map(file => file.path)).toEqual(['src/tests/features/demo/list-books.feature', 'subs/shelf/src/tests/features/demo/shelve-book.feature']);
+    expect(expected.map(file => file.path)).toEqual(['src/tests/features/demo/capability%3Alist-books.feature', 'subs/shelf/src/tests/features/demo/capability%3Ashelve-book.feature']);
 
     const first = await rerenderFeatureFiles(directory.path, expected);
     expect(first).toEqual({ files: expected.map(file => file.path), written: expected.map(file => file.path), commitNeeded: true });
@@ -251,10 +252,10 @@ describe('re-rendering', () => {
     cleanups.push(directory.remove);
     const before = expectedFeatureFiles(tracked(), { planId: 'demo', runId: 'run-1' });
     await rerenderFeatureFiles(directory.path, before);
-    const after = expectedFeatureFiles({ ...tracked(), states: new Map([['sc-001', 'bound'], ['sc-002', 'pending']]) }, { planId: 'demo', runId: 'run-1' });
+    const after = expectedFeatureFiles({ ...tracked(), states: new Map([['scenario:shelve-book-is-used', 'bound'], ['scenario:list-books-is-used', 'pending']]) }, { planId: 'demo', runId: 'run-1' });
     const rendered = await rerenderFeatureFiles(directory.path, after);
-    expect(rendered.written).toEqual(['subs/shelf/src/tests/features/demo/shelve-book.feature']);
-    expect(await readFile(join(directory.path, rendered.written[0]!), 'utf8')).toContain('  @ramify-sc-001\n  Scenario: A book is shelved');
+    expect(rendered.written).toEqual(['subs/shelf/src/tests/features/demo/capability%3Ashelve-book.feature']);
+    expect(await readFile(join(directory.path, rendered.written[0]!), 'utf8')).toContain('  @ramify-scenario-shelve-book-is-used\n  Scenario: A book is shelved');
   });
 
   test('refuses a file outside the project before writing any', async () => {
@@ -270,16 +271,16 @@ describe('re-rendering', () => {
     const [one, two] = records();
     const replayed = trackedScenarios([
       { transaction: { event: { type: 'analysis-accepted' }, records: [
-        { body: { schema: 'ramify-agent.entry-assignments/1', view: { status: 'placeholder' }, entries: [
-          { capability: 'shelve-book', description: 'A book can be shelved.', owner: 'shop/shelf', requirementRefs: [], acceptanceRefs: [], contextRefs: [], citations: [] },
+        { body: { schema: 'ramify-agent.entry-assignments/2', view: { status: 'placeholder' }, entries: [
+          { capability: 'shelve-book', capabilityId: 'capability:shelve-book', description: 'A book can be shelved.', owner: 'shop/shelf', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], citations: [] },
         ] } },
         { body: one }, { body: two },
       ] } },
-      { transaction: { event: { type: 'obligation-bound', data: { id: 'sc-002', fakes: [], by: 'inv-0004', submission: 'a'.repeat(64) } } as { type: string }, records: [] } },
+      { transaction: { event: { type: 'obligation-bound', data: { id: 'scenario:list-books-is-used', fakes: [], by: 'inv-0004', submission: 'a'.repeat(64) } } as { type: string }, records: [] } },
     ]);
-    expect(replayed.records.map(record => record.id)).toEqual(['sc-001', 'sc-002']);
-    expect([...replayed.states]).toEqual([['sc-001', 'pending'], ['sc-002', 'bound']]);
-    expect(replayed.entries).toEqual([{ capability: 'shelve-book', description: 'A book can be shelved.' }]);
+    expect(replayed.records.map(record => record.id)).toEqual(['scenario:shelve-book-is-used', 'scenario:list-books-is-used']);
+    expect([...replayed.states]).toEqual([['scenario:shelve-book-is-used', 'pending'], ['scenario:list-books-is-used', 'bound']]);
+    expect(replayed.entries).toEqual([{ capability: 'capability:shelve-book', description: 'A book can be shelved.' }]);
   });
 });
 
@@ -413,7 +414,7 @@ describe('the guarded list', () => {
     const expected = expectedFeatureFiles(tracked(), { planId: 'demo', runId: 'run-1' });
     await rerenderFeatureFiles(directory.path, expected);
     const guarded = await captureGuardedFiles(directory.path, [], { expected: expectedFeatureHashes(expected) });
-    await writeFile(join(directory.path, expected[1]!.path), expected[1]!.content.replace('@ramify-sc-001 @ramify-pending', '@ramify-sc-001'));
+    await writeFile(join(directory.path, expected[1]!.path), expected[1]!.content.replace('@ramify-scenario-shelve-book-is-used @ramify-pending', '@ramify-scenario-shelve-book-is-used'));
 
     const attempt = await runGate(createPassingCheckExecution(), 'iteration', {
       id: 'ga-0002',
@@ -437,7 +438,7 @@ describe('the guarded list', () => {
 describe('an engineer and the feature files', () => {
   const notes = 'collection-review/workspace/reviews/notes';
   const notesDirectory = 'subs/workspace/subs/reviews/subs/notes';
-  const notesFeature = `${notesDirectory}/src/tests/features/${plan}/review-note.feature`;
+  const notesFeature = `${notesDirectory}/src/tests/features/${plan}/capability%3Areview-note.feature`;
   const base = 'revision-00';
   const unchanged: GateCommit = { commit: null };
 
@@ -478,7 +479,7 @@ describe('an engineer and the feature files', () => {
     });
     const opened = await openRuns(project, {
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [
           submit(assign(notes, {}, outline())),
           submit(assign(notes, { goal: 'Carry out the work in the notes module, leaving the feature file to the harness.' })),
@@ -510,14 +511,14 @@ describe('an engineer and the feature files', () => {
     // gate's commit rendered it without the pending tag; the assignments
     // guarded the rendering with the tag, which is what the tree held then.
     const final = await readFile(join(project, notesFeature), 'utf8');
-    expect(final).toContain('  @ramify-sc-001\n');
+    expect(final).toContain('  @ramify-scenario-review-note-is-used\n');
     expect(final).not.toContain('tampered');
-    const rendered = final.replace('  @ramify-sc-001\n', '  @ramify-sc-001 @ramify-pending\n');
+    const rendered = final.replace('  @ramify-scenario-review-note-is-used\n', '  @ramify-scenario-review-note-is-used @ramify-pending\n');
 
     // The assignment guards the feature file at its rendering's hash, the
     // configuration, the audit definition and every Cucumber configuration
     // the configured scenario check reads; support code stays the project's.
-    const assignment = JSON.parse(await readFile(runPath(project, plan, runId, iterationLayout.assignment('wi-001', 1)), 'utf8')) as IterationAssignment;
+    const assignment = JSON.parse(await readFile(runPath(project, plan, runId, iterationLayout.assignment('work-item:review-note', 1)), 'utf8')) as IterationAssignment;
     const guarded = new Map(assignment.guarded.map(file => [file.path, file.hash]));
     expect(guarded.get(notesFeature)).toBe(contentHash(rendered));
     expect(guarded.get('ramify-agent.json')).toBe(sha256(await readFile(join(project, 'ramify-agent.json'), 'utf8')));

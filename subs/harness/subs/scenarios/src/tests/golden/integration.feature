@@ -7,7 +7,7 @@ Feature: integration
   Plan send-customer-email: the scenarios that combine several entries, each
   bound here where its sub-scenarios' owners meet.
 
-  @ramify-sc-005 @ramify-pending
+  @ramify-scenario-a-sent-email-is-listed @ramify-pending
   Scenario: A sent email is listed
     Given a customer with the address ada@example.com
     When the user activates email sending

@@ -14,6 +14,7 @@ import { rootModuleOf } from '../../subs/work-coordination/src/context.js';
 import { WorkCoordination, type CoordinationObservation, type CoordinationEffect } from '../../subs/work-coordination/src/coordination.js';
 import type { RunWrite } from './log.js';
 import { coordinationHistory } from './coordination-history.js';
+import { contractPublicationRefusal } from '../../subs/work-coordination/src/contracts/accept.js';
 import { performInitialAnalysis } from '../../subs/planning/src/planning.js';
 import { planPointer, capturedPlanBlock } from '../../subs/planning/src/messages.js';
 import { verifiedCandidateSource } from '../../../evidence/src/git-text.js';
@@ -930,6 +931,8 @@ export class AutonomousRunService {
   private write(run: Run, input: RunEventInput, records: readonly CommitRecord[] = [], at?: Date): Promise<'committed' | 'already-committed' | 'ended'> {
     return run.mutex.run(async () => {
       if (run.log.terminal || !await this.options.lock.held()) return 'ended';
+      const refusal = contractPublicationRefusal(run.log.ledger.replay(), input, records);
+      if (refusal !== null) throw refusal;
       if (records.length === 0) { await run.log.append(input, at); return 'committed'; }
       return commitRecord(run.log.ledger, { event: run.log.next(input), records: [...records] });
     });
@@ -1098,7 +1101,7 @@ export class AutonomousRunService {
 
   /** The run's review requests and coverage, from its log; undefined for an unknown run. */
   reviews(planId: string, runId: string, workItem?: string): { readonly coverage: ReviewCoverage; readonly requests: ReturnType<typeof unsettledRequests> } | undefined {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     if (run === undefined) return undefined;
     const requests = [...reviewStateOf(run.log.events).values()].filter(request => workItem === undefined || request.workItem === workItem);
@@ -1245,8 +1248,11 @@ export class AutonomousRunService {
   // Loading and recovery
 
   private readonly refusedPolicies = new Map<string, string>();
+  private readonly refusedRecordFormats = new Map<string, string>();
 
-  private refuseEarlierPolicy(planId: string, runId: string): void {
+  private refuseUnavailableRun(planId: string, runId: string): void {
+    const format = this.refusedRecordFormats.get(key(planId, runId));
+    if (format !== undefined) throw new CommandRejection('unsupported-version', `Run record format ${format} is not supported; the retained run cannot continue`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
     const recorded = this.refusedPolicies.get(key(planId, runId));
     if (recorded !== undefined) throw new CommandRejection('unsupported-version', `Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
   }
@@ -1276,6 +1282,15 @@ export class AutonomousRunService {
           this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run policy ${recorded}`);
           report.skipped.push(key(planId, jobId));
           this.warn(`Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
+          continue;
+        }
+        const obsoleteFormat = (parsed as { identityContract?: unknown }).identityContract;
+        if (obsoleteFormat !== undefined) {
+          const recorded = typeof obsoleteFormat === 'string' ? obsoleteFormat : JSON.stringify(obsoleteFormat) ?? String(obsoleteFormat);
+          this.refusedRecordFormats.set(key(planId, jobId), recorded);
+          this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run record format ${recorded}`);
+          report.skipped.push(key(planId, jobId));
+          this.warn(`Run record format ${recorded} is not supported; the retained run cannot continue`);
           continue;
         }
         const record = runRecordSchema.parse(parsed);
@@ -1658,14 +1673,14 @@ export class AutonomousRunService {
   }
 
   getRun(planId: string, runId: string): RunSnapshot | undefined {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     return run && structuredClone(runSnapshot(run.record, run.log.events));
   }
 
   /** Current debugger state, independent of the ordinary run snapshot. Inspection invokes no model. */
   debugState(planId: string, runId: string): BreakpointState | null {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     if (!run || run.log.terminal || run.stopRequested || !run.debugPause) return null;
     return structuredClone({ ...run.debugPause, cursor: run.log.version });
@@ -1673,13 +1688,13 @@ export class AutonomousRunService {
 
   /** The run's events, exactly as its log holds them. */
   events(planId: string, runId: string) {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     return structuredClone(this.runs.get(key(planId, runId))?.log.events);
   }
 
   /** The record of one run, for a caller that reads what it was started with. */
   recordOf(planId: string, runId: string): RunRecord | undefined {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     return structuredClone(this.runs.get(key(planId, runId))?.record);
   }
 
@@ -1689,7 +1704,7 @@ export class AutonomousRunService {
    * caller receives the replay, and nothing it does with it reaches the log.
    */
   committed(planId: string, runId: string) {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     return run && structuredClone({ record: run.record, directory: run.directory, entries: run.log.ledger.replay() });
   }
@@ -1705,7 +1720,7 @@ export class AutonomousRunService {
     runId: string,
     change: { readonly cause: CheckFindingCause; readonly commands: readonly CheckFindingCommand[] },
   ): Promise<CheckFindingCommit | undefined> {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     if (run === undefined) return undefined;
     const committed = await this.commitCheckFindings(run, () => ({
@@ -1723,7 +1738,7 @@ export class AutonomousRunService {
    * unknown run.
    */
   checkFindings(planId: string, runId: string, query: CheckFindingQueryInput): CheckFindingSelection | undefined {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     return run && structuredClone(selectCheckFindings(checkFindingStateOf(run.log.ledger), query));
   }
@@ -1760,6 +1775,7 @@ export class AutonomousRunService {
         report.producer === 'check:audit-instability' && report.issueKey === issueKey))?.owner;
       const report = reportCommand({
         producer: 'check:audit-instability', attempt: gate.id, reportKey: observation.key,
+        findingKey: `draft:finding:audit-instability-${sha256(observation.key).slice(0, 16)}`,
         owner: priorOwner ?? (gate.checkpoint === 'final' ? { kind: 'run' } : { kind: 'work-item', workItem: owner! }),
         source: { kind: 'tree', id: tree }, issueKey,
         verification: { kind: 'assessment' },
@@ -1804,7 +1820,7 @@ export class AutonomousRunService {
 
   /** Settles when the run's driver has nothing left to do. For tests and shutdown. */
   async settled(planId: string, runId: string): Promise<void> {
-    this.refuseEarlierPolicy(planId, runId);
+    this.refuseUnavailableRun(planId, runId);
     const run = this.runs.get(key(planId, runId));
     if (run) await run.idle();
   }
@@ -1878,6 +1894,7 @@ export class AutonomousRunService {
   }
 
   async restartInspection(planId: string, sourceRunId: string): Promise<RestartInspection | null> {
+    this.refuseUnavailableRun(planId, sourceRunId);
     const run = this.runs.get(key(planId, sourceRunId));
     if (!run) return null;
     const blockers = await this.continuationBlockers(run);
@@ -1893,6 +1910,7 @@ export class AutonomousRunService {
 
   /** Legacy command name: continue the existing task without copying its history. */
   private async prepareRestart(command: Extract<RunCommand, { type: 'prepare-restart' }>, contentHash: string): Promise<Receipt> {
+    this.refuseUnavailableRun(command.payload.planId, command.payload.jobId);
     const run = this.runs.get(key(command.payload.planId, command.payload.jobId));
     if (!run) throw new CommandRejection('not-found', 'The retained run is unavailable');
     this.commands.requireVersion(command, run.log.version);
@@ -2014,7 +2032,7 @@ export class AutonomousRunService {
       baseline: baseline.reference,
       // The plan's own scenarios, extracted once from the captured bytes. A
       // block that does not parse is a limitation, never a refusal.
-      planScenarios: extractPlanScenarios(new TextDecoder().decode(captured)),
+      planScenarios: extractPlanScenarios(new TextDecoder().decode(captured), capturedDocuments.manifest.root),
       reviewStop,
       ...(breakpoint === undefined ? {} : { breakpoint }),
     });
@@ -2159,7 +2177,7 @@ export class AutonomousRunService {
 
   private async messageDebug(command: Extract<RunCommand, { type: 'debug-message' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId, pauseId, expectedRevision, message: text } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const receipt = await run.mutex.run(async () => {
@@ -2219,7 +2237,7 @@ export class AutonomousRunService {
 
   private async resumeDebug(command: Extract<RunCommand, { type: 'debug-resume' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId, pauseId, expectedRevision } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const receipt = await run.mutex.run(async () => {
@@ -2246,7 +2264,7 @@ export class AutonomousRunService {
 
   private async stop(command: Extract<RunCommand, { type: 'stop-job' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const receipt = await run.mutex.run(async () => {
@@ -2343,7 +2361,7 @@ export class AutonomousRunService {
    */
   private async approve(command: Extract<RunCommand, { type: 'approve-analysis' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId, reviewer, note } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const receipt = await run.mutex.run(async () => {
@@ -2386,7 +2404,7 @@ export class AutonomousRunService {
    */
   private async checkFindingCommand(command: CheckFindingUserCommand, contentHash: string): Promise<Receipt> {
     const { planId, jobId } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan "${planId}"`);
     const at = this.now();
@@ -2700,7 +2718,7 @@ export class AutonomousRunService {
 
   private async resumeRecovery(command: Extract<RunCommand, { type: 'resume-recovery' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId } = command.payload;
-    this.refuseEarlierPolicy(planId, jobId);
+    this.refuseUnavailableRun(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan ${planId}`);
     const receipt = await run.mutex.run(async () => {
@@ -2755,7 +2773,8 @@ export class AutonomousRunService {
 
   private async startRecoveredDriver(run: Run): Promise<void> {
     if (this.ignoring(run) || !this.options.agent) return;
-    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
+    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }),
+      capabilityWorkflow: this.workflow !== null });
     run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
     let baseline: MeasurementSnapshot;
     const baselinePath = runLayout.measurement(snapshotId(1));
@@ -3155,7 +3174,7 @@ export class AutonomousRunService {
         if (record.path === capabilityLayout.request(need?.id ?? '')) return true;
         if (task !== undefined && record.path.startsWith(`capabilities/${task.id}/`)) return true;
         const body = record.body as { schema?: string; id?: string; iteration?: string };
-        if (body.schema === 'ramify-agent.iteration-assignment/1' && iterations.has(body.id ?? '')) return true;
+        if (body.schema === 'ramify-agent.iteration-assignment/2' && iterations.has(body.id ?? '')) return true;
         if (body.schema === 'ramify-agent.iteration-result/1' && iterations.has(body.iteration ?? '')) return true;
         return [...gates].some(gate => record.path.startsWith(`gates/${gate}/`)) || [...reviews].some(review => record.path.startsWith(`reviews/${review}/`));
       }).map(record => ({ path: record.path, label: record.path }));

@@ -71,7 +71,7 @@ except one that waits for a user's answer or for a check to run again.
   such as a proposed resolution that contradicts a stated requirement or
   principle, or would change an approved acceptance obligation. Cite the
   conflicting text exactly, with where it is: the ID of the plan element
-  that states it, such as `fr-002`, or a path of the project. Give at least
+  that states it, such as `functional-requirement:preview-visible`, or a path of the project. Give at least
   two options with their
   consequences. A weak or possible tension is yours to resolve: choose, and
   report the choice. A risk level never asks the user by itself.

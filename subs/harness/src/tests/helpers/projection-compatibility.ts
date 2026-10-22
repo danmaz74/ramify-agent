@@ -13,7 +13,7 @@ import { errorResponseSchema } from '../../interfaces/protocol/errors.js';
 
 const failures = [
   { id: '20261010T090000Z-000001', run: '20260921T080000Z-000001', code: 'unsupported-version', schema: '999' },
-  { id: '20261010T090000Z-000002', run: '20260921T080000Z-000002', code: 'unreadable', schema: '1' },
+  { id: '20261010T090000Z-000002', run: '20260921T080000Z-000002', code: 'unreadable', schema: '2' },
 ] as const;
 
 export async function recordedCompatibility() {
@@ -35,15 +35,16 @@ export async function recordedCompatibility() {
       await writeFile(join(invalidRun, runLayout.events), lines.join('\n').replaceAll(runId, failure.run) + '\n');
       const log = await RunLog.open(join(invalidRun, runLayout.events), failure.run);
       await commitRecord(log.ledger, { event: log.next({ type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' } }), records: [
-        { path: 'hypotheses/hyp-001.json', id: 'hyp-001', revision: 1, body: { schema: `ramify-agent.hypothesis/${failure.schema}` } },
+        { path: 'hypotheses/hypothesis%3Aunreadable/1.json', id: 'hypothesis:unreadable', revision: 1, body: { schema: `ramify-agent.hypothesis/${failure.schema}` } },
       ] });
       await log.append({ type: 'job-completed', data: { gate: 'ga-recorded', commit: 'a'.repeat(40), workItems: 0 } });
     }
   }, message => {
-    assert.ok(message.includes('closed iteration scratch could not be cleaned: hypotheses/hyp-001.json'), message);
+    assert.ok(message.includes('closed iteration scratch could not be cleaned:')
+      && message.includes('hypotheses/hypothesis%3Aunreadable/1.json'), message);
     warnings.push(message);
   });
-  assert.equal(warnings.length, 1);
+  assert.equal(warnings.length, 2);
   let boundary = await captureProjectionFiles(fixture.root);
   async function supported() {
     const run = await fixture.queries.run('review-notes', runId);
@@ -77,7 +78,7 @@ export async function recordedCompatibility() {
   async function refused() {
     for (const failure of failures) {
       for (const [read, path, evidence] of [
-        [() => fixture.queries.run('review-notes', failure.run), paths.run('review-notes', failure.run), `plans/review-notes/.harness/jobs/${failure.run}/hypotheses/hyp-001.json`],
+        [() => fixture.queries.run('review-notes', failure.run), paths.run('review-notes', failure.run), `plans/review-notes/.harness/jobs/${failure.run}/hypotheses/hypothesis%3Aunreadable/1.json`],
         [() => fixture.sessions.standaloneSession(failure.id), paths.standaloneSession(failure.id), `${layout.directory}/${failure.id}/${layout.session}`],
       ] as const) {
         let caught: unknown;
@@ -100,7 +101,7 @@ export async function recordedCompatibility() {
       assert.deepEqual(before, boundary); // Includes any queries performed before reopening.
       fixture.noEffects();
       const recovery = await fixture.reopen();
-      assert.equal(warnings.length, 2);
+      assert.equal(warnings.length, 4);
       assert.deepEqual(recovery.interrupted, []);
       assert.deepEqual(recovery.rematerialized, []);
       const after = await captureProjectionFiles(fixture.root);

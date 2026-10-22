@@ -9,6 +9,7 @@ expose-src intakeToolName, checkToolName, CheckSubmission, acceptIntake, acceptP
 expose-src performInitialAnalysis, PlanningPorts, PlanningInputs, PlanningInvocation, AnalysisAcceptedTransition from "planning.ts" to parent
 expose-src planPointer, capturedPlanBlock, planScenariosSection from "messages.ts" to parent
 expose-src acceptAnalysis, AcceptedAnalysis, AnalysisAcceptanceContext from "accept.ts" to parent
-expose-src acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis, AnalysisEvidence, InitialAnalysisSubmission, ResolvedAnalysis, initialAnalysisSubmissionSchema from "submission.ts" to parent
+expose-src acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisToolName, AnalysisEvidence, AnalysisRecordInputs, AnalysisEntryInput, AnalysisHypothesisInput, ResolvedAnalysis from "submission.ts" to parent
 expose-src planningRecords, PlanningRecords from "committed.ts" to parent
 expose-src documentChanges, readCapturedDocuments from "documents.ts" to parent
+expose-src DescriptiveInitialAnalysisSubmission, descriptiveInitialAnalysisSubmissionSchema, descriptiveInitialAnalysisJsonSchema, validateDescriptiveInitialAnalysis, acceptDescriptiveArchitectElements from "descriptive.ts" to parent

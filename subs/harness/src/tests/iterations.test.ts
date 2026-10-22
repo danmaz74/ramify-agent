@@ -7,7 +7,7 @@ import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { ObservationLog, type Observation, type ObservationOf } from '../../subs/task-execution/src/observations.js';
 import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import {
   addModule, assign, byRole, completionProposed, outline, submit, treeInputs, write,
 } from './helpers/iterations.js';
@@ -134,7 +134,7 @@ describe('G8: a work item revised across several iterations keeps every obligati
     // The module engineer writes the store once; the two revisions that follow it
     // write the same content, which Git reports as an unchanged tree.
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit(assign(notes, {}, outline({ changes: 'The note needs a store and a limit.', revisionReason: '' }))),
         submit(assign(notes, { goal: 'State the limit where the plan asks for it.' }, outline({
@@ -165,7 +165,7 @@ describe('G8: a work item revised across several iterations keeps every obligati
     // Three assignments, three accepted iterations, and four outline
     // revisions: one per assignment and one with the completion request.
     const assigned = events.filter(event => event.type === 'iteration-assigned');
-    expect(assigned.map(event => (event.data as { iteration: string }).iteration)).toEqual(['wi-001.i01', 'wi-001.i02', 'wi-001.i03']);
+    expect(assigned.map(event => (event.data as { iteration: string }).iteration)).toEqual(['work-item:review-note.i01', 'work-item:review-note.i02', 'work-item:review-note.i03']);
     const closed = events.filter(event => event.type === 'iteration-closed');
     expect(closed.map(event => (event.data as { outcome: string }).outcome)).toEqual(['accepted', 'accepted', 'accepted']);
     const revisions = events.filter(event => event.type === 'outline-revised');
@@ -185,7 +185,7 @@ describe('G8: a work item revised across several iterations keeps every obligati
     // own gate is the only thing that closes it, and each accepted iteration
     // stays accepted in the log that follows it.
     for (const number of [1, 2, 3]) {
-      const result = await readResult(root, runId, 'wi-001', number);
+      const result = await readResult(root, runId, 'work-item:review-note', number);
       expect(result.outcome).toBe('accepted');
       expect(result.gate).not.toBeNull();
     }
@@ -203,7 +203,7 @@ describe('G8: a work item revised across several iterations keeps every obligati
     expect(scripted.revisions()).toEqual([materialized, 'revision-01']);
     expect(scripted.branch()).toBe(`ramify-agent-run/${runId}`);
     expect(scripted.messages).toHaveLength(6);
-    expect(scripted.messages[1]).toContain('Ramify-Iteration: wi-001.i01');
+    expect(scripted.messages[1]).toContain('Ramify-Iteration: work-item:review-note.i01');
     expect(scripted.messages[1]).toContain('Added the note store.');
     // The store the first iteration wrote is really on disk, whatever Git
     // was told to answer about it.
@@ -219,7 +219,7 @@ describe('K3: exact-owner and included-subtree test areas in the engineer\'s bri
     const root = await target({ notes: false });
     // No engineer turn writes anything, so every boundary is an unchanged tree.
     const { service, runId, scripted, agent } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit(assign(reviews, {}, outline())),
         submit(assign(reviews, {
@@ -235,13 +235,13 @@ describe('K3: exact-owner and included-subtree test areas in the engineer\'s bri
     }, [unchanged, unchanged, unchanged, unchanged]);
 
     expect(onlyRun(service, 'review-notes').state, JSON.stringify(onlyRun(service, 'review-notes').failure)).toBe('completed');
-    const first = await readAssignment(root, runId, 'wi-001', 1);
-    const second = await readAssignment(root, runId, 'wi-001', 2);
+    const first = await readAssignment(root, runId, 'work-item:review-note', 1);
+    const second = await readAssignment(root, runId, 'work-item:review-note', 2);
     expect(first.gate.tests.subtrees).toEqual([]);
     expect(second.gate.tests.subtrees).toEqual([`${reviews}/core`]);
 
-    const firstGate = await readGate(root, runId, (await readResult(root, runId, 'wi-001', 1)).gate!);
-    const secondGate = await readGate(root, runId, (await readResult(root, runId, 'wi-001', 2)).gate!);
+    const firstGate = await readGate(root, runId, (await readResult(root, runId, 'work-item:review-note', 1)).gate!);
+    const secondGate = await readGate(root, runId, (await readResult(root, runId, 'work-item:review-note', 2)).gate!);
     // The module engineer is briefed, as text, with the test areas of the owners it
     // is assigned; the second briefing adds exactly the included core's.
     const briefings = agent!.sessions.filter(session => session.spec.role === 'engineer').map(session => session.spec.prompt);
@@ -286,7 +286,7 @@ describe('X1a: an engineer reaches its context budget', () => {
     ];
     // The first context return is preserved; it does not exhaust the task.
     const { service, runId, scripted, agent } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: Array(6).fill(budgetTurn),
     }, [], true);
@@ -308,7 +308,7 @@ describe('X1a: an engineer reaches its context budget', () => {
     const original = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.invocation('inv-0007')), 'utf8')) as { session: { requested: string; actual: string }; attempt: number };
     expect(original.session).toMatchObject({ requested: 'fresh', actual: 'fresh' });
     expect(original.attempt).toBe(1);
-    await expect(readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1)), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
     const observations = await readFile(runPath(root, 'review-notes', runId, runLayout.observations('inv-0007')), 'utf8');
     expect(observations).not.toContain('"compaction"');
     expect(observations).toContain('"context"');
@@ -325,7 +325,7 @@ describe('X4: a denied call mutates nothing and stays deduplicated', () => {
     // Only the allowed write reaches the tree, and that is the one change
     // Git is told to report for the iteration's commit.
     const { service, runId, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: [submit(
         completionProposed('Wrote the store; the badge is not mine to write.'),
@@ -340,7 +340,7 @@ describe('X4: a denied call mutates nothing and stays deduplicated', () => {
     ]);
 
     expect(onlyRun(service, 'review-notes').state, JSON.stringify(onlyRun(service, 'review-notes').failure)).toBe('completed');
-    const result = await readResult(root, runId, 'wi-001', 1);
+    const result = await readResult(root, runId, 'work-item:review-note', 1);
     const invocation = result.invocations[0]!;
     const path = runPath(root, 'review-notes', runId, runLayout.observations(invocation));
     const guards = (await readFile(path, 'utf8')).split('\n').filter(Boolean)

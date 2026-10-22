@@ -21,7 +21,7 @@ import { jobIdSchema, planIdSchema } from '../interfaces/protocol/ids.js';
  * The one `job.json` schema a job declares. Version 3 is the run log with
  * sessions: a run recorded before it is not served.
  */
-export const jobSchemaVersion = 'ramify-agent.job/3';
+export const jobSchemaVersion = 'ramify-agent.job/4';
 
 /**
  * The kinds of job a directory under `jobs/` can hold: an implementation

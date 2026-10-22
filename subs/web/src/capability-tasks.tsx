@@ -29,7 +29,7 @@ function Task({ task, onOpenWorkItem, onOpenGate }: { task: CapabilityTaskView;
         : <>Known interface <code>{task.original.knownInterface.path}</code> · {task.original.knownInterface.symbol}: {task.original.knownInterface.missing}</>}</p>
       {task.original.suggestedProvider && <p>Suggested provider at request time: {task.original.suggestedProvider.module} · {task.original.suggestedProvider.reason}.</p>}
       <h4>Calling code</h4><ul>{task.original.usage.map((site, index) => <li key={`${site.path}:${index}`}><code>{site.path}</code>{site.symbol ? ` · ${site.symbol}` : ''}: {site.use}{site.prospective ? ' (prospective)' : ''}</li>)}</ul>
-      <h4>Examples</h4><p className="muted">The request's original examples, unchanged by plan revisions. They carry no state; the architect's reports below judge the outcome.</p><ul>{task.original.examples.map(example => <li key={example.id}><strong>{example.title}</strong> · {example.designation}<pre>{example.code}</pre></li>)}</ul>
+      <h4>Examples</h4><p className="muted">The request's original examples, unchanged by plan revisions. They carry no state; the architect's reports below judge the outcome.</p><ul>{task.original.examples.map(example => <li key={example.id}><code>{example.id}</code> · <strong>{example.title}</strong> · {example.designation}<pre>{example.code}</pre></li>)}</ul>
       {task.original.constraints.length > 0 && <><h4>Constraints</h4><ul>{task.original.constraints.map(item => <li key={item}>{item}</li>)}</ul></>}
       <p>Suspended source tree <code>{task.source.tree}</code>; accepted base <code>{task.source.acceptedBase}</code>.</p>
       <p>Provisional paths: {task.source.delta.length ? task.source.delta.map(change => change.path).join(', ') : 'none recorded'}.</p>

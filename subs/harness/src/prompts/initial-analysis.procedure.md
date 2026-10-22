@@ -1,4 +1,4 @@
-<!-- ramify-agent initial analysis procedure, version 7. -->
+<!-- ramify-agent initial analysis procedure, version 8. -->
 The analysis has four parts. Record no hypothesis that restates an entry.
 Entry assignments and hypotheses never merge.
 
@@ -6,9 +6,9 @@ The accepted intake elements supplied with this task are already recorded; do
 not classify them again. Non-functional means a constraint on how the work is
 done or what the candidate must preserve, rather than a delivered behavior.
 
-`nonBehavioralAcceptance.ref` names the submission-local `key` of a functional
-acceptance element in this analysis. It never names an accepted intake
-`nfr-...` element. Preserve the accepted intake elements' classification,
+`nonBehavioralAcceptance.functionalAcceptanceKey` names the submission-local
+`key` of a functional acceptance element in this analysis. It never names an
+accepted intake `non-functional-requirement:<name>` element. Preserve the accepted intake elements' classification,
 coverage and identity; do not reclassify one to populate this field. The
 harness converts functional keys to catalog IDs after acceptance and still
 requires the associated registered test. An invalid referent receives a
@@ -32,7 +32,7 @@ understand it, and its acceptance scenarios. They become executable work.
 what each entry capability must do for the plan to be finished. Every entry
 has at least one. A plan scenario is one the plan itself writes in a
 `gherkin` block; the harness extracted each one, and the message below lists
-them as `ps-01`, `ps-02` and so on. Its authority is the plan's, so you
+them as `plan-scenario:<name>` identities. Its authority is the plan's, so you
 assign it and never rewrite it. An architect scenario is one you write for an
 entry; its authority is the person's review. When the analysis is accepted,
 every scenario's text is frozen. Engineers bind them with step definitions
@@ -64,19 +64,21 @@ Do this, in order:
    example and qualifications. Keep the text as close to the plan's wording
    as practical, name the captured plan document it comes from, record each
    condition as `stated` or `inferred`, and state your uncertainty. Give
-   each a `key` unique in the submission; the harness assigns its ID.
+   each a distinct `draft:functional-requirement:<name>` key; acceptance
+   records the corresponding `functional-requirement:<name>` identity.
    A functional acceptance element may retain a complete source-faithful
    Gherkin scenario when it states one requirement with its necessary
    conditions and examples. Judge faithfulness, classification and requirement
    boundaries as usual; copying alone neither proves nor invalidates a reading.
    The element is still cited by the entry and by the scenario that verifies
    it; its key never substitutes for a registered plan origin or a scenario key.
-3. Submit the plan's `context` elements: the passages that explain the
+3. Submit the plan's `context` elements with distinct
+   `draft:context:<name>` keys: the passages that explain the
    situation the plan starts from or why it exists, which a reader of an
    entry needs to understand it. One element is one whole explanation. A
    statement that only says what the plan does not deliver is no element.
-4. Read the plan scenarios the message lists: the harness numbered them
-   `ps-01`, `ps-02`, … across the plan documents the intake incorporated.
+4. Read the plan scenarios the message lists by their accepted
+   `plan-scenario:<name>` identities across the incorporated plan documents.
    Their `When` steps name what the outside does, which is where entry
    capabilities are found.
 5. Orient yourself on the architect view with the skill: the module map, each
@@ -85,11 +87,12 @@ Do this, in order:
    requires that is used from outside the plan: by a person, by an external
    system, or by a part of the project the plan does not change. It is always
    new, since otherwise the plan would already be satisfied, and no other
-   capability of the plan depends on it. Give each one a kebab-case slug, the
-   owner's declared-name path, the keys of the functional elements that
-   state its requirement (`requirementRefs`) and its acceptance
-   (`acceptanceRefs`), the keys of the context elements its reader needs
-   (`contextRefs`), and the citations that show where it belongs. The slug
+   capability of the plan depends on it. Give each one a
+   `draft:capability:<name>` proposal, the owner's declared-name path, and
+   the keys of the functional elements that state its
+   requirement (`functionalRequirementKeys`) and acceptance
+   (`functionalAcceptanceKeys`), the keys of the context elements its reader
+   needs (`contextKeys`), and the citations that show where it belongs. The slug
    `integration` is reserved for the file integration scenarios are written
    to.
 7. An owner that does not exist yet needs a `proposed` module: its parent as
@@ -99,14 +102,16 @@ Do this, in order:
    directory. A hypothesis gives no authority to create anything.
 8. Match every plan scenario to the entries. A plan scenario that one entry
    carries out alone becomes that entry's scenario: set its `origin` to
-   `{ "kind": "plan", "planScenario": "ps-NN" }` and restate its `gherkin`
+   `{ "kind": "plan", "planScenarioId": "plan-scenario:<name>" }` and restate its
+   `gherkin`
    exactly as the message shows it, from its `Scenario` line on, without tags.
    The harness compares the two after collapsing whitespace, so any other
    difference is rejected.
 9. A plan scenario that combines several entries is an integration scenario.
-   List it in `integrationScenarios` with the keys of its sub-scenarios, and
-   write one sub-scenario per entry it involves, each with `origin`
-   `{ "kind": "architect" }` and `partOf` naming the plan scenario. Build
+   List it in `integrationScenarios` with its `planScenarioId` and
+   `subScenarioKeys`, and write one sub-scenario per entry it involves, each
+   with `origin` `{ "kind": "architect" }` and `partOfPlanScenarioId` naming
+   the plan scenario. Build
    each sub-scenario by picking the integration scenario's steps verbatim,
    keyword and text: every step of the integration scenario must appear in
    one of its sub-scenarios. Where a slice leaves out another entry's action,
@@ -118,9 +123,10 @@ Do this, in order:
    module, file, symbol or deeper capability: a scenario states behavior at
    the outside, not how the tree implements it. Give it `origin`
    `{ "kind": "architect" }`.
-   In every scenario's `refs`, plan scenarios included, name the keys of the
-   acceptance elements it verifies. Together, an entry's scenarios cite every
-   one of its `acceptanceRefs`.
+   In every scenario's `functionalAcceptanceKeys`, plan scenarios included,
+   name the keys of the acceptance elements it verifies. Together, an entry's
+   scenarios cite every
+   one of its `functionalAcceptanceKeys`.
 11. For each need the plan implies below its entry points, search the view for
    behavior that already exists. Record a need existing behavior already
    covers as a hypothesis with `change: "reuse"`, its suggested owner, the
@@ -136,7 +142,9 @@ Do this, in order:
     would change symbols that already have consumers. It is what break
     analysis reads later; an extension of existing behavior is the usual case
     for it.
-14. Give every hypothesis its rationale, its confidence, its assumptions, its
+14. Propose each hypothesis as `draft:hypothesis:<name>` in `hypothesisKey`;
+    name its forecast capability in `capabilityKey` and dependencies in
+    `dependsOnHypothesisKeys`. Give it rationale, confidence, assumptions,
     uncertainties and at least the citations that let someone else verify it.
     A citation names a module of the architect view, and what it
     names must be there: a symbol it cites must be an exported original that
@@ -151,7 +159,8 @@ this order, and answers with the first one broken:
 
 1. Every `gherkin` value is exactly one `Scenario` or `Scenario Outline`,
    with at least one step and no tags.
-2. Every scenario has a key unique in the submission and names one entry of
+2. Every scenario has a `draft:scenario:<name>` key in `scenarioKey`, unique
+   in the submission, and names one entry through `entryCapabilityKey` of
    the submission.
 3. Every plan scenario appears exactly once: as the origin of one entry
    scenario, restated as the plan states it, or as one integration scenario
@@ -159,7 +168,7 @@ this order, and answers with the first one broken:
 4. Every entry has at least one scenario.
 5. Every step of an integration scenario appears verbatim in one of its
    sub-scenarios.
-6. Every acceptance element of every entry is cited in the `refs` of at
+6. Every acceptance element of every entry is cited in `functionalAcceptanceKeys` of at
    least one of its scenarios.
 
 It also records warnings, which never reject and are shown to the person who

@@ -6,7 +6,7 @@ import { iterationLayout, type IterationResult } from '../../subs/autonomous/sub
 import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs } from './helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
@@ -161,29 +161,29 @@ describe('K2: a failure outside the last engineer\'s scope', () => {
       previews: final.previews,
       commits: [
         scenariosCommitted('review-notes'),
-        accepted('wi-001.i01', 'revision-01', modified(`${notesDirectory}/src/notes.ts`, `${notesDirectory}/src/tests/notes.test.ts`)),
+        accepted('work-item:review-note.i01', 'revision-01', modified(`${notesDirectory}/src/notes.ts`, `${notesDirectory}/src/tests/notes.test.ts`)),
         // The work-item gate that failed outside the assignment wrote
         // nothing of its own, and neither did the one that passed after the
         // repair had been committed.
-        unchanged('wi-001'),
-        accepted('wi-001.i02', 'revision-02', modified(`${alertsDirectory}/src/alerts.ts`)),
-        unchanged('wi-001'),
-        unchanged('wi-002'),
+        unchanged('work-item:review-note'),
+        accepted('work-item:review-note.i02', 'revision-02', modified(`${alertsDirectory}/src/alerts.ts`)),
+        unchanged('work-item:review-note'),
+        unchanged('work-item:review-alert'),
         unchanged('final verification of plan "review-notes"'),
       ],
     });
     const opened = await openRuns(root, {
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes), entry('review-alert', alerts)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes), entry('review-alert', alerts)]), 'document:review-notes-plan'))],
         'local-architect': [
-          // wi-001: the note module, and nothing else.
+          // work-item:review-note: the note module, and nothing else.
           submit(assign(notes, {}, outline())),
           // The work item's own gate runs the whole project and exposes the
           // alerts module, which that assignment could not have written.
           submit(requestCompletion()),
           submit(assign(alerts, { goal: 'Repair what the whole project exposed.', kind: 'repair' })),
           submit(requestCompletion()),
-          // wi-002 needs nothing of its own.
+          // work-item:review-alert needs nothing of its own.
           submit(requestCompletion()),
         ],
         engineer: [raiseTheNoteLimit, repairTheAlert],
@@ -218,7 +218,7 @@ describe('K2: a failure outside the last engineer\'s scope', () => {
 
     // The architect assigned the owner that failed, and the work item's gate
     // then passed.
-    const repair = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('wi-001', 2)), 'utf8')) as {
+    const repair = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.assignment('work-item:review-note', 2)), 'utf8')) as {
       kind: string; scope: { base: { module: string } };
     };
     expect(repair.kind).toBe('repair');
@@ -265,17 +265,17 @@ describe('adding work leaves every completed piece completed', () => {
         scenariosCommitted('review-notes'),
         // The failed attempt's own commit, the repaired attempt beside it,
         // and the second iteration after them.
-        accepted('wi-001.i01', 'revision-01', modified(`${notesDirectory}/src/notes.ts`)),
-        accepted('wi-001.i01', 'revision-02', modified(`${notesDirectory}/src/tests/notes.test.ts`)),
-        accepted('wi-001.i02', 'revision-03', modified(`${alertsDirectory}/src/alerts.ts`)),
-        unchanged('wi-001'),
-        unchanged('wi-002'),
+        accepted('work-item:review-note.i01', 'revision-01', modified(`${notesDirectory}/src/notes.ts`)),
+        accepted('work-item:review-note.i01', 'revision-02', modified(`${notesDirectory}/src/tests/notes.test.ts`)),
+        accepted('work-item:review-note.i02', 'revision-03', modified(`${alertsDirectory}/src/alerts.ts`)),
+        unchanged('work-item:review-note'),
+        unchanged('work-item:review-alert'),
         unchanged('final verification of plan "review-notes"'),
       ],
     });
     const opened = await openRuns(root, {
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes), entry('review-alert', alerts)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes), entry('review-alert', alerts)]), 'document:review-notes-plan'))],
         'local-architect': [
           submit(assign(notes, {}, outline())),
           submit(assign(alerts, { goal: 'Raise the alert limit.' })),
@@ -300,7 +300,7 @@ describe('adding work leaves every completed piece completed', () => {
         // The moment the first iteration closes, the shape of everything it
         // wrote is taken; nothing that follows may change any of it.
         if (write === 'iteration-closed' && frozen.size === 0) {
-          for (const path of [iterationLayout.assignment('wi-001', 1), iterationLayout.result('wi-001', 1), workLayout.outline('wi-001', 1)]) {
+          for (const path of [iterationLayout.assignment('work-item:review-note', 1), iterationLayout.result('work-item:review-note', 1), workLayout.outline('work-item:review-note', 1)]) {
             const file = runPath(root, 'review-notes', runId, path);
             frozen.set(path, await readFile(file, 'utf8'));
             times.set(path, (await stat(file)).mtimeMs);
@@ -331,19 +331,19 @@ describe('adding work leaves every completed piece completed', () => {
     // that added none.
     expect(events.filter(event => event.type === 'iteration-closed')).toHaveLength(2);
     expect(events.filter(event => event.type === 'work-item-completed')).toHaveLength(2);
-    expect((await readResult(root, runId, 'wi-001', 1)).outcome).toBe('accepted');
-    expect((await readResult(root, runId, 'wi-001', 2)).outcome).toBe('accepted');
+    expect((await readResult(root, runId, 'work-item:review-note', 1)).outcome).toBe('accepted');
+    expect((await readResult(root, runId, 'work-item:review-note', 2)).outcome).toBe('accepted');
 
     // The first iteration's failed attempt and repaired attempt were each
     // committed, and the second iteration added its own beside them: three
     // revisions, none of them replacing another.
     expect(git.branch()).toBe(`ramify-agent-run/${runId}`);
     const committed = git.messages();
-    expect(committed.filter(message => message.includes('Ramify-Iteration: wi-001.i01'))).toHaveLength(2);
-    expect(committed.filter(message => message.includes('Ramify-Iteration: wi-001.i02'))).toHaveLength(1);
+    expect(committed.filter(message => message.includes('Ramify-Iteration: work-item:review-note.i01'))).toHaveLength(2);
+    expect(committed.filter(message => message.includes('Ramify-Iteration: work-item:review-note.i02'))).toHaveLength(1);
     expect(committed.every(message => message.includes(`Ramify-Run: ${runId}`))).toBe(true);
     expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01', 'revision-02', 'revision-03']);
-    expect((await readResult(root, runId, 'wi-001', 1)).commit).toBe('revision-02');
+    expect((await readResult(root, runId, 'work-item:review-note', 1)).commit).toBe('revision-02');
 
     // The failed attempt's own revision never became the boundary: every
     // observation was taken against the feature files' commit until
@@ -358,6 +358,6 @@ describe('adding work leaves every completed piece completed', () => {
     const closed = events.map((event, index) => ({ event, index })).filter(item => item.event.type === 'work-item-completed');
     const started = events.map((event, index) => ({ event, index })).filter(item => item.event.type === 'work-item-started');
     expect(closed[0]!.index).toBeLessThan(started[1]!.index);
-    expect(events.filter(event => event.type === 'work-item-started' && (event.data as { workItem: string }).workItem === 'wi-001')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'work-item-started' && (event.data as { workItem: string }).workItem === 'work-item:review-note')).toHaveLength(1);
   }, 60_000);
 });

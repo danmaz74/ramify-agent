@@ -1,10 +1,11 @@
 import type { GateAttempt } from './records.js';
+import { scenarioIdOfTag } from '../../../../../scenarios/src/rendering.js';
 
 /*
  * What a gate's audit says of each tracked scenario, read from the raw runner
  * output the provider published: every Cucumber command's parsed run, whose
  * scenarios carry their executed tags. A scenario is identified by its
- * `@ramify-sc-NNN` tag; the project's own scenarios carry none and are
+ * `@ramify-scenario-<name>` tag; the project's own scenarios carry none and are
  * counted, not named.
  *
  * This is inspection context only. The audit's composed verdict is the
@@ -39,13 +40,11 @@ export interface UntrackedScenarioCounts {
   readonly skipped: number;
 }
 
-const identityTag = /^@ramify-(sc-\d{3,})$/u;
-
 /** Every tracked scenario the gate's audit ran, in the order the provider listed them. */
 export function scenarioResultsOf(gate: Pick<GateAttempt, 'provider'>): ScenarioResult[] {
   return cucumberRunsOf(gate).flatMap(({ check, command, scenarios }) => scenarios.flatMap(scenario => {
-    const id = scenario.tags.map(tag => identityTag.exec(tag)?.[1]).find(found => found !== undefined);
-    return id === undefined ? [] : [resultOf(id, check, command, scenario)];
+    const id = scenario.tags.map(scenarioIdOfTag).find(found => found !== null);
+    return id == null ? [] : [resultOf(id, check, command, scenario)];
   }));
 }
 
@@ -54,7 +53,7 @@ export function untrackedScenarioCounts(gate: Pick<GateAttempt, 'provider'>): Un
   const counts = { passed: 0, failed: 0, skipped: 0 };
   for (const { scenarios } of cucumberRunsOf(gate)) {
     for (const scenario of scenarios) {
-      if (scenario.tags.some(tag => identityTag.test(tag))) continue;
+      if (scenario.tags.some(tag => scenarioIdOfTag(tag) !== null)) continue;
       counts[scenario.outcome] += 1;
     }
   }

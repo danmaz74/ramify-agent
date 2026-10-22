@@ -9,6 +9,8 @@ import { validateScenarioForm, type ScenarioFormSubmission } from '../form.js';
 import { assignScenarioIds, scenarioSourceHash, type ScenarioRecord } from '../records.js';
 import { renderFeatureFiles, type FeatureRenderingRun } from '../rendering.js';
 import type { ScenarioState } from '../states.js';
+const extractScenarioFixture = (text: string) => extractPlanScenarios(text, 'document:fixture-plan');
+
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const golden = join(here, 'golden');
@@ -40,9 +42,9 @@ function exampleRun(): { records: readonly ScenarioRecord[]; run: FeatureRenderi
   ].join('\n');
   const submission: ScenarioFormSubmission = {
     scenarios: [
-      { key: 'send-email', entry: 'send-customer-email', origin: { kind: 'plan', planScenario: 'ps-01' }, gherkin: extractPlanScenarios(plan).scenarios[0]!.source.join('\n') },
+      { key: 'send-email', entry: 'send-customer-email', origin: { kind: 'plan', planScenario: 'plan-scenario:a-customer-receives-the-email' }, gherkin: extractScenarioFixture(plan).scenarios[0]!.source.join('\n') },
       {
-        key: 'history-lists-sent-email', entry: 'email-history', origin: { kind: 'architect' }, partOf: 'ps-02',
+        key: 'history-lists-sent-email', entry: 'email-history', origin: { kind: 'architect' }, partOf: 'plan-scenario:a-sent-email-is-listed',
         gherkin: [
           'Scenario: Sent emails appear in the history',
           '  Given an email to ada@example.com was sent',
@@ -70,14 +72,14 @@ function exampleRun(): { records: readonly ScenarioRecord[]; run: FeatureRenderi
         gherkin: 'Scenario: Every send is audited\n  When the user activates email sending\n  Then one audit line records the send',
       },
     ],
-    integrationScenarios: [{ planScenario: 'ps-02', subScenarios: ['send-email', 'history-lists-sent-email'] }],
+    integrationScenarios: [{ planScenario: 'plan-scenario:a-sent-email-is-listed', subScenarios: ['send-email', 'history-lists-sent-email'] }],
   };
   const entries = [
     { capability: 'send-customer-email', owner: 'shop/customers', description: 'A user activates email sending for a customer, and that customer receives one email.', acceptanceRefs: [] },
     { capability: 'email-history', owner: 'shop/history', description: 'Scenario by scenario, the #1 view of sent email @ a glance: every email a user sent to a customer, newest first, with its recipient and the time of sending, as a | table | row.', acceptanceRefs: [] },
     { capability: 'audit-trail', owner: 'shop/audit-checks', description: 'Every send leaves one audit line.', acceptanceRefs: [] },
   ];
-  const result = validateScenarioForm(submission, extractPlanScenarios(plan).scenarios, entries);
+  const result = validateScenarioForm(submission, extractScenarioFixture(plan).scenarios, entries);
   if (!result.ok) throw new Error(result.message);
   const { records } = assignScenarioIds(result.form, {
     planId: 'send-customer-email',
@@ -99,7 +101,7 @@ function parse(content: string) {
 
 describe('rendering feature files', () => {
   const { records, run } = exampleRun();
-  const states = new Map<string, ScenarioState>([['sc-001', 'bound'], ['sc-002', 'pending'], ['sc-003', 'done'], ['sc-004', 'pending'], ['sc-005', 'pending']]);
+  const states = new Map<string, ScenarioState>([['scenario:a-customer-receives-the-email', 'bound'], ['scenario:sent-emails-appear-in-the-history', 'pending'], ['scenario:the-history-lists-emails-newest-first', 'done'], ['scenario:every-send-is-audited', 'pending'], ['scenario:a-sent-email-is-listed', 'pending']]);
   const files = renderFeatureFiles(records, states, run);
 
   test('one file per entry in its owner\'s test area, and one per common ancestor for integration scenarios', () => {
@@ -121,11 +123,11 @@ describe('rendering feature files', () => {
   test('every file parses, with the identity tag on each scenario and the pending tag exactly while it is pending', () => {
     const tags = files.flatMap((file) => parse(file.content).pickles.map((pickle) => [pickle.name, pickle.tags.map((tag) => tag.name)]));
     expect(tags).toEqual([
-      ['A sent email is listed', ['@ramify-sc-005', '@ramify-pending']],
-      ['Every send is audited', ['@ramify-sc-004', '@ramify-pending']],
-      ['A customer receives the email', ['@ramify-sc-001']],
-      ['Sent emails appear in the history', ['@ramify-sc-002', '@ramify-pending']],
-      ['The history lists emails newest first', ['@ramify-sc-003']],
+      ['A sent email is listed', ['@ramify-scenario-a-sent-email-is-listed', '@ramify-pending']],
+      ['Every send is audited', ['@ramify-scenario-every-send-is-audited', '@ramify-pending']],
+      ['A customer receives the email', ['@ramify-scenario-a-customer-receives-the-email']],
+      ['Sent emails appear in the history', ['@ramify-scenario-sent-emails-appear-in-the-history', '@ramify-pending']],
+      ['The history lists emails newest first', ['@ramify-scenario-the-history-lists-emails-newest-first']],
     ]);
   });
 
@@ -151,13 +153,13 @@ describe('rendering feature files', () => {
   });
 
   test('a state change changes only the tags of that scenario', () => {
-    const next = renderFeatureFiles(records, new Map(states).set('sc-002', 'bound'), run);
-    expect(next[3]!.content).toBe(files[3]!.content.replace('@ramify-sc-002 @ramify-pending', '@ramify-sc-002'));
+    const next = renderFeatureFiles(records, new Map(states).set('scenario:sent-emails-appear-in-the-history', 'bound'), run);
+    expect(next[3]!.content).toBe(files[3]!.content.replace('@ramify-scenario-sent-emails-appear-in-the-history @ramify-pending', '@ramify-scenario-sent-emails-appear-in-the-history'));
     expect(next.filter((file, index) => file.content !== files[index]!.content)).toHaveLength(1);
   });
 
   test('a record without a state is a caller\'s error', () => {
-    expect(() => renderFeatureFiles(records, new Map([['sc-001', 'pending']]), run)).toThrow('No state was given for sc-00');
+    expect(() => renderFeatureFiles(records, new Map([['scenario:a-customer-receives-the-email', 'pending']]), run)).toThrow('No state was given for scenario:');
   });
 });
 
@@ -183,20 +185,22 @@ describe('the sample project\'s tracked file', () => {
       '    | 2     | 3      |',
     ]));
     records.push(record(7, path, ['Scenario: A bound scenario runs when its identity selects it', '  Given an empty shelf', '  Then the shelf lists 0 books']));
-    const states = new Map<string, ScenarioState>(records.map((entry) => [entry.id, entry.id === 'sc-007' ? 'pending' : 'bound']));
+    const states = new Map<string, ScenarioState>(records.map((entry) => [entry.id, entry.id === 'scenario:a-bound-scenario-runs-when-its-identity-selects-it' ? 'pending' : 'bound']));
     const [file] = renderFeatureFiles(records, states, {
       planId: 'demo-plan',
       runId: '20260923T1200Z-000000',
       entries: [{ capability: 'shelf-books', description: 'A user shelves books, and the shelf lists them.' }],
     });
-    expect(file!.content).toBe(readFileSync(join(here, 'fixtures/sample-project', path), 'utf8'));
+    const expected = join(here, 'fixtures/sample-project', path);
+    if (update) writeFileSync(expected, file!.content);
+    expect(file!.content).toBe(readFileSync(expected, 'utf8'));
   });
 });
 
 function record(position: number, file: string, source: string[]): ScenarioRecord {
   return {
-    schema: 'ramify-agent.scenario/1',
-    id: `sc-${String(position).padStart(3, '0')}`,
+    schema: 'ramify-agent.scenario/2',
+    id: `scenario:${source[0]!.replace(/^Scenario( Outline)?: /, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
     kind: 'entry',
     entry: 'shelf-books',
     owner: 'sample/shelf',
@@ -206,6 +210,7 @@ function record(position: number, file: string, source: string[]): ScenarioRecor
     name: source[0]!.replace(/^Scenario( Outline)?: /, ''),
     source,
     hash: scenarioSourceHash(source),
+    citedElements: [],
     file,
   };
 }

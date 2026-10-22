@@ -36,10 +36,15 @@ text. Correction `scenarios[].key` expects the architect scenario key;
 3. Where you retired an element that an entry or a scenario cites, re-cite
    it: list the entry in `entries` with its complete new
    `requirementRefs`, `acceptanceRefs` and `contextRefs`, and the scenario
-   in `scenarios` with its complete new `refs`. Cite a new element by its
+   in `scenarios` with its complete new `refs`. For a descriptive submission,
+   recite the entry's complete `nonBehavioralAcceptance` list too, including
+   each functional acceptance citation and its registered test. Preserve
+   existing declarations unless a correction changes their cited element;
+   recite replacements with registered tests. Cite a new element by its
    key and an existing one by its ID. Every acceptance element of an entry
-   stays cited by one of its scenarios. Rewriting or replacing an element
-   preserves all acceptance behavior. Catalog corrections change element
+   stays cited by one of its scenarios or a non-behavioral declaration with
+   a registered test. Rewriting or replacing an element preserves all
+   acceptance behavior. Catalog corrections change element
    readings and citation lists, never registered scenario wording or origins.
 4. Submit with `{{submissionTool}}`; an empty `corrections` list, with no
    entries and no scenarios, says the reading is faithful.

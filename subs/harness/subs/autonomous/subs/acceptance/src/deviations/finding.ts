@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { CheckFindingCommand, CheckFindingEntry, CheckFindingState } from '../../../../../check-findings/src/interfaces/check-findings.js';
+import type { CheckFindingCommand, CheckFindingEntry } from '../../../../../check-findings/src/interfaces/check-findings.js';
 import { canonicalJson } from '../../../../../../src/jobs/commands.js';
 import { reportCommand } from '../../../../../../src/check-findings/report.js';
 import { deviationLayout, type PlanDeviation } from './records.js';
@@ -38,9 +38,9 @@ function bounded(text: string, limit = 4000): string {
  * The two commands that record a deviation's CheckFinding, decided in
  * order against `state`: the report that opens it, and the harness's
  * request for the person's decision. The deviation names the CheckFinding
- * the report opens, which is the next one the state allocates.
+ * the report opens.
  */
-export function deviationCommands(state: CheckFindingState, deviation: PlanDeviation): CheckFindingCommand[] {
+export function deviationCommands(deviation: PlanDeviation): CheckFindingCommand[] {
   const record = deviationLayout.deviation(deviation.id);
   const hash = deviationHash(deviation);
   const source = { kind: 'document' as const, id: `${deviation.plan.path}@${deviation.plan.revision}` };
@@ -48,6 +48,7 @@ export function deviationCommands(state: CheckFindingState, deviation: PlanDevia
     producer: planDeviationProducer,
     attempt: deviation.invocation,
     reportKey: deviation.id,
+    findingKey: `draft:${deviation.checkFinding}`,
     owner: { kind: 'run' },
     source,
     issueKey: null,
@@ -74,7 +75,7 @@ export function deviationCommands(state: CheckFindingState, deviation: PlanDevia
     credibility: 'agent-generated',
     modules: [...deviation.modules],
   });
-  const checkFinding = nextCheckFinding(state);
+  const checkFinding = deviation.checkFinding;
   const request: CheckFindingCommand = {
     type: 'dispose',
     checkFinding,
@@ -109,9 +110,4 @@ export function deviationCommands(state: CheckFindingState, deviation: PlanDevia
     },
   };
   return [report, request];
-}
-
-/** The CheckFinding the next report opens in `state`. */
-export function nextCheckFinding(state: CheckFindingState): string {
-  return `cf-${String(state.counters.findings + 1).padStart(4, '0')}`;
 }

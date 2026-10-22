@@ -7,7 +7,7 @@ import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { defaultRunPolicy } from '../run/policy.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { installTestRunner, onlyRun, runPath, startRun } from './helpers/runs.js';
 
 /*
@@ -40,10 +40,10 @@ describe('compaction during a run', () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);
-      const submitted = analysis([entry('reviewer-note', reviews)]);
+      const submitted = currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan');
 
     const { service } = await openRuns(fixture.root, {
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"'],
       script: (spec: SessionSpec) => (spec.role === 'catalog-extractor' ? [] : spec.role === 'initial-architect'
         ? [
           { kind: 'context' as const, tokens: 90_000, window: 200_000 },
@@ -90,7 +90,7 @@ describe('compaction during a run', () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);
-      const submitted = analysis([]);
+      const submitted = currentAnalysis(analysis([]), 'document:review-notes-plan');
     const { service, agent } = await openRuns(fixture.root, {
       unchangedCheckpoints: ['final verification of plan "review-notes"'],
       script: (spec: SessionSpec) => {

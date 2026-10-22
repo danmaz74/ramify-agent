@@ -55,7 +55,7 @@ async function capturedPolicy(root: string, runId: string): Promise<RunPolicy> {
 const reconcilerSessions = (agent: ScriptedAgent) => agent.sessions.filter(session => session.spec.submission.name === 'submit_reconciliation');
 
 describe('the composed run: a clean work item and a corrected one', () => {
-  test('wi-001 reaches its gate with no reconciliation; wi-002\'s concurrent concerns are related, settled, corrected and fixed, and every gate keeps its verdict', async () => {
+  test('work-item:review-notes reaches its gate with no reconciliation; work-item:catalog-tags\'s concurrent concerns are related, settled, corrected and fixed, and every gate keeps its verdict', async () => {
     const root = await compositionTarget(cleanups);
     const run = await reviewRun(root, cleanups, compositionScenario(root));
     const { service, runId, events, agent } = run;
@@ -65,22 +65,22 @@ describe('the composed run: a clean work item and a corrected one', () => {
     // Twelve requests, three per accepted iteration, one candidate each.
     const requests = eventsOf(events, 'review-request-recorded');
     expect(requests.map(event => [event.data.request, event.data.iteration, event.data.kind, event.data.candidate])).toEqual([
-      ['rq-0001', 'wi-001.i01', 'code', 'revision-01'], ['rq-0002', 'wi-001.i01', 'scope', 'revision-01'], ['rq-0003', 'wi-001.i01', 'design', 'revision-01'],
-      ['rq-0004', 'wi-002.i01', 'code', 'revision-02'], ['rq-0005', 'wi-002.i01', 'scope', 'revision-02'], ['rq-0006', 'wi-002.i01', 'design', 'revision-02'],
-      ['rq-0007', 'wi-002.i02', 'code', 'revision-03'], ['rq-0008', 'wi-002.i02', 'scope', 'revision-03'], ['rq-0009', 'wi-002.i02', 'design', 'revision-03'],
-      ['rq-0010', 'wi-002.i03', 'code', 'revision-04'], ['rq-0011', 'wi-002.i03', 'scope', 'revision-04'], ['rq-0012', 'wi-002.i03', 'design', 'revision-04'],
+      ['rq-0001', 'work-item:review-notes.i01', 'code', 'revision-01'], ['rq-0002', 'work-item:review-notes.i01', 'scope', 'revision-01'], ['rq-0003', 'work-item:review-notes.i01', 'design', 'revision-01'],
+      ['rq-0004', 'work-item:catalog-tags.i01', 'code', 'revision-02'], ['rq-0005', 'work-item:catalog-tags.i01', 'scope', 'revision-02'], ['rq-0006', 'work-item:catalog-tags.i01', 'design', 'revision-02'],
+      ['rq-0007', 'work-item:catalog-tags.i02', 'code', 'revision-03'], ['rq-0008', 'work-item:catalog-tags.i02', 'scope', 'revision-03'], ['rq-0009', 'work-item:catalog-tags.i02', 'design', 'revision-03'],
+      ['rq-0010', 'work-item:catalog-tags.i03', 'code', 'revision-04'], ['rq-0011', 'work-item:catalog-tags.i03', 'scope', 'revision-04'], ['rq-0012', 'work-item:catalog-tags.i03', 'design', 'revision-04'],
     ]);
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 12, complete: 12, partial: 0, notVerified: 0, pending: 0 });
 
-    // wi-001: clean reviews, no reconciliation, its gate completes it.
+    // work-item:review-notes: clean reviews, no reconciliation, its gate completes it.
     const started = eventsOf(events, 'reconciliation-started');
-    expect(started.map(event => event.data.reconciliation)).toEqual(['wi-002.rc01', 'wi-002.rc02']);
+    expect(started.map(event => event.data.reconciliation)).toEqual(['work-item:catalog-tags.rc01', 'work-item:catalog-tags.rc02']);
     expect(eventsOf(events, 'work-item-completed').map(event => [event.data.workItem, event.data.unresolved])).toEqual([
-      ['wi-001', undefined],
-      ['wi-002', [{ checkFinding: 'cf-0005', reason: 'left-open' }]],
+      ['work-item:review-notes', undefined],
+      ['work-item:catalog-tags', [{ checkFinding: 'finding:case-0005', reason: 'left-open' }]],
     ]);
 
-    // The three readers of wi-002's second candidate overlapped.
+    // The three readers of work-item:catalog-tags's second candidate overlapped.
     const attempt = (request: string) => ({
       started: eventsOf(events, 'review-attempt-started').find(event => event.data.request === request)!.sequence,
       finished: eventsOf(events, 'review-attempt-finished').find(event => event.data.request === request)!.sequence,
@@ -98,43 +98,43 @@ describe('the composed run: a clean work item and a corrected one', () => {
     // The signals: risk from the reader, credibility and modules bound by the harness.
     const summaries = new Map(summariesOf(service, runId).map(summary => [summary.id, summary]));
     expect([...summaries.values()].map(summary => [summary.id, summary.risk, summary.credibility, summary.modules, summary.standing, summary.reason])).toEqual([
-      ['cf-0001', 'high', 'ungrounded', [tags], 'closed', 'fixed-by-assessment'],
-      ['cf-0002', 'low', 'ungrounded', [tags], 'closed', 'waived'],
-      ['cf-0003', 'medium', 'agent-generated', [tags], 'closed', 'superseded'],
-      ['cf-0004', 'high', 'human-reviewed', [tags], 'closed', 'fixed-by-assessment'],
-      ['cf-0005', 'low', 'ungrounded', [tags], 'open', 'new'],
+      ['finding:case-0001', 'high', 'ungrounded', [tags], 'closed', 'fixed-by-assessment'],
+      ['finding:case-0002', 'low', 'ungrounded', [tags], 'closed', 'waived'],
+      ['finding:case-0003', 'medium', 'agent-generated', [tags], 'closed', 'superseded'],
+      ['finding:case-0004', 'high', 'human-reviewed', [tags], 'closed', 'fixed-by-assessment'],
+      ['finding:case-0005', 'low', 'ungrounded', [tags], 'open', 'new'],
     ]);
     // Two reports of one behavior, grouped with rationale; same-file distinct concerns stay apart.
-    expect(summaries.get('cf-0001')!.group).toEqual({ canonical: 'cf-0001', members: ['cf-0001', 'cf-0004'] });
-    expect(summaries.get('cf-0002')).toMatchObject({ group: null, materialChoice: { choice: 'The limit takes the text as given.' } });
+    expect(summaries.get('finding:case-0001')!.group).toEqual({ canonical: 'finding:case-0001', members: ['finding:case-0001', 'finding:case-0004'] });
+    expect(summaries.get('finding:case-0002')).toMatchObject({ group: null, materialChoice: { choice: 'The limit takes the text as given.' } });
 
     // Round 1 planned the correction; its acceptance claimed the repair on
     // the later candidate; round 2 fixed it while leaving a new signal open.
     const basis = (id: string) => readFile(runPath(root, plan, runId, reconciliationLayout.basis(id)), 'utf8').then(text => JSON.parse(text) as ReconciliationBasis);
-    expect(await basis('wi-002.rc01')).toMatchObject({ round: 1, floor: 'any', source: { commit: 'revision-03', tree: '3'.repeat(40) } });
-    expect((await basis('wi-002.rc01')).checkFindings.map(entry => entry.checkFinding)).toEqual(['cf-0004', 'cf-0001', 'cf-0003', 'cf-0002']);
-    expect(await basis('wi-002.rc02')).toMatchObject({ round: 2, floor: 'any', source: { commit: 'revision-04', tree: '4'.repeat(40) } });
-    const closed = eventsOf(events, 'iteration-closed').find(event => event.data.iteration === 'wi-002.i03')!;
+    expect(await basis('work-item:catalog-tags.rc01')).toMatchObject({ round: 1, floor: 'any', source: { commit: 'revision-03', tree: '3'.repeat(40) } });
+    expect((await basis('work-item:catalog-tags.rc01')).checkFindings.map(entry => entry.checkFinding)).toEqual(['finding:case-0004', 'finding:case-0001', 'finding:case-0003', 'finding:case-0002']);
+    expect(await basis('work-item:catalog-tags.rc02')).toMatchObject({ round: 2, floor: 'any', source: { commit: 'revision-04', tree: '4'.repeat(40) } });
+    const closed = eventsOf(events, 'iteration-closed').find(event => event.data.iteration === 'work-item:catalog-tags.i03')!;
     expect(closed.data.checkFindings!.map(event => [event.type, event.type === 'check-finding-decided' ? event.data.checkFinding : null])).toEqual([
-      ['check-finding-decided', 'cf-0001'], ['check-finding-decided', 'cf-0004'],
+      ['check-finding-decided', 'finding:case-0001'], ['check-finding-decided', 'finding:case-0004'],
     ]);
     expect(eventsOf(events, 'iteration-assigned').map(event => [event.data.iteration, event.data.corrects])).toEqual([
-      ['wi-001.i01', undefined], ['wi-002.i01', undefined], ['wi-002.i02', undefined], ['wi-002.i03', 'wi-002.rc01'],
+      ['work-item:review-notes.i01', undefined], ['work-item:catalog-tags.i01', undefined], ['work-item:catalog-tags.i02', undefined], ['work-item:catalog-tags.i03', 'work-item:catalog-tags.rc01'],
     ]);
     // Each round forked the architect's point after its completion request.
     expect(reconcilerSessions(agent!).map(session => session.start)).toEqual([{ mode: 'fork' }, { mode: 'fork' }]);
 
     // The design concern is grounded in the principles document it read; the scope concern in the README.
-    const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0004' });
+    const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0004' });
     expect(detail).toMatchObject({ ok: true, view: { reports: { items: [{ judgment: { ground: { ref: principles } } }] } } });
-    expect(service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0003' }))
+    expect(service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0003' }))
       .toMatchObject({ ok: true, view: { reports: { items: [{ judgment: { ground: { ref: tagsReadme } } }] } } });
     expect(JSON.stringify(agent!.sessions.find(session => session.spec.prompt.includes('Design review rq-0009'))!.results))
       .toContain(snapshotToolNames.read);
 
     // Per-module counts: the notes module has none, the tags module one unsettled.
     const modules = service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'attention', module: tags, limit: 100 });
-    expect(modules).toMatchObject({ ok: true, view: { total: 1, items: [{ id: 'cf-0005' }] } });
+    expect(modules).toMatchObject({ ok: true, view: { total: 1, items: [{ id: 'finding:case-0005' }] } });
     expect(service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all', module: notes, limit: 100 })).toMatchObject({ ok: true, view: { total: 0 } });
 
     // Every gate passed on its own checks; a waiver and an unresolved signal changed none.
@@ -152,10 +152,10 @@ describe('the composed run: a clean work item and a corrected one', () => {
       starts: { 'fresh->fresh': 4, 'fork->fork': 8 }, orientations: { recorded: 2, oriented: 2 },
     });
     expect(measured.signals).toMatchObject({ total: 5, byRisk: { high: 2, medium: 1, low: 2 }, byCredibility: { ungrounded: 3, 'agent-generated': 1, 'human-reviewed': 1 } });
-    expect(measured.rounds).toEqual({ 'wi-001': { rounds: 0, corrections: 0 }, 'wi-002': { rounds: 2, corrections: 1 } });
+    expect(measured.rounds).toEqual({ 'work-item:review-notes': { rounds: 0, corrections: 0 }, 'work-item:catalog-tags': { rounds: 2, corrections: 1 } });
     expect(measured.humanDecisions).toEqual({ requested: 0, answered: 0, userWaivers: 0, userRevocations: 0 });
     expect(measured.waivers).toEqual({ 'agent:local-architect': 1 });
-    expect(measured.unresolved).toEqual([{ workItem: 'wi-002', checkFinding: 'cf-0005', reason: 'left-open', risk: 'low' }]);
+    expect(measured.unresolved).toEqual([{ workItem: 'work-item:catalog-tags', checkFinding: 'finding:case-0005', reason: 'left-open', risk: 'low' }]);
     const exported = process.env['PLAN12_MEASUREMENTS_EXPORT'];
     if (exported !== undefined && exported !== '') await writeFile(exported, `${JSON.stringify({ fixture: 'composed', measured }, null, 2)}\n`);
   }, 120_000);
@@ -230,7 +230,7 @@ describe('CF06 and CF07: a crash at every review, reconciliation and CheckFindin
         // The prefix is untouched; recovery called no agent session.
         expect(after.slice(0, cut).map(line => line.text), context).toEqual(prefix.map(line => line.text));
         expect(restarted.agent, context).toBeUndefined();
-        const assessedIntent = prefix.find(line => line.event.type === 'reconciliation-assessed' && line.event.data.reconciliation === 'wi-002.rc01');
+        const assessedIntent = prefix.find(line => line.event.type === 'reconciliation-assessed' && line.event.data.reconciliation === 'work-item:catalog-tags.rc01');
         if (assessedIntent?.effect?.phase === 'intent' && !prefix.some(line => line.effect?.key === assessedIntent.effect!.key && line.effect.phase === 'completion')) {
           // Without an execution port, retain the authentic pending append;
           // no executor has established a lost session or completed delivery.
@@ -291,7 +291,7 @@ describe('CF06 and CF07: a crash at every review, reconciliation and CheckFindin
 });
 
 describe('CF07: a shutdown owns the live readers of the composed run, and a late result is fenced', () => {
-  test('closing the service while two of wi-002\'s readers run stops both and records nothing; a reader that ignores its stop ingests nothing; a restart without an execution agent preserves unfinished attempts', async () => {
+  test('closing the service while two of work-item:catalog-tags\'s readers run stops both and records nothing; a reader that ignores its stop ingests nothing; a restart without an execution agent preserves unfinished attempts', async () => {
     const root = await compositionTarget(cleanups);
     const waiting = [gate(), gate()] as const;
     const signal = (index: 0 | 1) => ({ kind: 'await' as const, until: async () => { waiting[index].open(); } });
@@ -347,7 +347,6 @@ describe('CF15: the composed run under tight review bounds', () => {
     const scenario = compositionScenario(root, { concurrency: 1, queue: 1, retries: 1 });
     const run = await reviewRun(root, cleanups, {
       ...scenario,
-      limits: { reconciliationRoundsPerWorkItem: 1 },
       // No correction is made: the work item's gate follows the second iteration.
       gates: [...compositionGates.slice(0, 4), ...compositionGates.slice(5)],
       reviewers: {
@@ -356,11 +355,11 @@ describe('CF15: the composed run under tight review bounds', () => {
         'rq-0004#1': [{ kind: 'submit', input: { concerns: 'invalid' } }, { kind: 'end', message: 'gave up' }],
       },
       reconcilers: {
-        'wi-001.rc01': [{ kind: 'submit', input: { relations: [], dispositions: [], next: { kind: 'complete' },
+        'work-item:review-notes.rc01': [{ kind: 'submit', input: { relations: [], dispositions: [], next: { kind: 'complete' },
           brief: 'Continue using the passing configured checks; keep the queue-overflow review unavailable.' } }],
         // The architect considers all signals and explicitly leaves them open.
-        'wi-002.rc01': reconcile(
-          submission([disposition('cf-0001', { action: 'leave' }), disposition('cf-0003', { action: 'leave' }), disposition('cf-0002', { action: 'leave' })], { kind: 'unresolved' }),
+        'work-item:catalog-tags.rc01': reconcile(
+          submission([disposition('finding:case-0001', { action: 'leave' }), disposition('finding:case-0003', { action: 'leave' }), disposition('finding:case-0002', { action: 'leave' })], { kind: 'unresolved' }),
         ),
       },
     });
@@ -382,16 +381,16 @@ describe('CF15: the composed run under tight review bounds', () => {
     for (const fork of forks) expect(fork.verdicts[0]).toMatchObject({ accepted: true });
     expect(eventsOf(events, 'reconciliation-assessed').map(event => event.data.next)).toEqual(['complete', 'unresolved']);
     expect(eventsOf(events, 'work-item-completed').map(event => [event.data.workItem, event.data.unresolved])).toEqual([
-      ['wi-001', undefined],
-      ['wi-002', [{ checkFinding: 'cf-0001', reason: 'left-open' }, { checkFinding: 'cf-0003', reason: 'left-open' }, { checkFinding: 'cf-0002', reason: 'left-open' }]],
+      ['work-item:review-notes', undefined],
+      ['work-item:catalog-tags', [{ checkFinding: 'finding:case-0001', reason: 'left-open' }, { checkFinding: 'finding:case-0003', reason: 'left-open' }, { checkFinding: 'finding:case-0002', reason: 'left-open' }]],
     ]);
     // Nothing manufactured a pass: the signals stay open, and every gate kept the verdict its checks gave.
     expect(summariesOf(service, runId).map(summary => [summary.id, summary.standing, summary.risk])).toEqual([
-      ['cf-0001', 'open', 'high'], ['cf-0002', 'open', 'low'], ['cf-0003', 'open', 'medium'],
+      ['finding:case-0001', 'open', 'high'], ['finding:case-0002', 'open', 'low'], ['finding:case-0003', 'open', 'medium'],
     ]);
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
     expect(measured.reviews).toMatchObject({ requests: 9, attempts: 10, retries: 1, notVerifiedByReason: { 'queue-overflow': 3 }, orientations: { recorded: 0 } });
-    expect(measured.rounds).toEqual({ 'wi-001': { rounds: 1, corrections: 0 }, 'wi-002': { rounds: 1, corrections: 0 } });
+    expect(measured.rounds).toEqual({ 'work-item:review-notes': { rounds: 1, corrections: 0 }, 'work-item:catalog-tags': { rounds: 1, corrections: 0 } });
     expect(measured.unresolved.map(entry => entry.risk)).toEqual(['high', 'medium', 'low']);
   }, 120_000);
 });

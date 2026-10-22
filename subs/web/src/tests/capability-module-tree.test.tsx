@@ -42,7 +42,7 @@ const noteDrafts = { parent: 'shop/notes', purpose: 'Keeps a reviewer\'s unsent 
 
 /** Matching, initial-only, changed placement, implemented-only, all three roles, a proposed module and rowless branches. */
 const comparison: ModuleCapabilityComparisonResponse = moduleCapabilityComparisonResponseSchema.parse({
-  identityPolicy: 'exact-capability-slug/1',
+  identityPolicy: 'exact-accepted-capability-id/2',
   runVersion: 46,
   initialView: { status: 'materialized', revision: 'rev/1:view:2', input: 'input/1:def456', coverageLimits: [] },
   tree,
@@ -258,7 +258,7 @@ test('the compared states are named: initial view, current tree and run version'
     'Initial analysisarchitect view revision rev/1:view:2, input input/1:def456',
     'Current module treerevision rev/1:tree:4, input input/1:abc123',
     'Run version46',
-    'Identity policyexact-capability-slug/1',
+    'Identity policyexact-accepted-capability-id/2',
   ]);
 });
 

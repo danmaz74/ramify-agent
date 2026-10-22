@@ -12,7 +12,7 @@ export function withSelectionReasons(text: string, selected: ContextSelection['s
   const out: string[] = [];
   let index = 0;
   while (index < lines.length) {
-    const heading = /^### ([^\s:]+): /u.exec(lines[index]!);
+    const heading = /^### (\S+): /u.exec(lines[index]!);
     const entry = heading === null ? undefined : reasons.get(heading[1]!);
     if (entry === undefined) { out.push(lines[index]!); index++; continue; }
     let end = index + 1;

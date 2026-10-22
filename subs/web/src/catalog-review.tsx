@@ -55,7 +55,7 @@ export function CatalogReview({ evidence }: { readonly evidence: PlanEvidence | 
         <p role="alert" key={`${item.from}:${item.start}`}>Unclear missing reference: {item.target} from {item.fromPath} at bytes {item.start}–{item.end}. Source: <q>{item.excerpt}</q> {item.reason}</p>)}
       <details><summary>Document incorporation</summary>
         <ul>{evidence.incorporation.map(item =>
-          <li key={item.document}>{item.path}: {item.scenarios ? 'scenarios incorporated' : 'scenarios not incorporated'}{item.uncertainty && `; uncertainty: ${item.uncertainty}`}</li>)}</ul>
+          <li key={item.document}><code>{item.document}</code> · {item.path}: {item.scenarios ? 'scenarios incorporated' : 'scenarios not incorporated'}{item.uncertainty && `; uncertainty: ${item.uncertainty}`}</li>)}</ul>
         {evidence.missing.filter(item => item.judgment === 'advisory').map(item =>
           <p key={`${item.from}:${item.start}`}>Advisory missing reference: {item.target}. {item.reason}</p>)}
       </details>
@@ -66,7 +66,7 @@ export function CatalogReview({ evidence }: { readonly evidence: PlanEvidence | 
 function ElementCard({ element }: { readonly element: ElementView }) {
   return (
     <li className="card" aria-label={`Element ${element.id}`}>
-      <strong>{element.id}</strong> · <code>{element.path}</code>{element.locator && ` · ${element.locator}`}
+      <strong>{element.id}</strong> · document <code>{element.document}</code> at <code>{element.path}</code>{element.locator && ` · ${element.locator}`}
       <blockquote className="element-text">{element.text}</blockquote>
       {element.conditions.map((condition, index) => <p key={index}>{condition.source} condition: {condition.text}</p>)}
       {element.uncertainty && <p>Uncertainty: {element.uncertainty}</p>}

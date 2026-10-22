@@ -44,6 +44,55 @@ Historical evidence retains the names actually recorded. The toolkit's
 module-architect skill and its glossary retain their upstream terminology under
 the snapshot's [provenance](../skills/module-architect/PROVENANCE.md).
 
+### Semantic Identities
+
+Initial analysis proposes draft keys for functional requirements, context,
+entry capabilities, hypotheses and scenarios in its ordinary submission. The
+harness validates the complete submission and commits the accepted catalog,
+entry assignments, hypotheses, capability records, initial work items and
+scenarios in one accepted transition. Submission fields identify their reference
+family and stage. Accepted records carry the namespace and descriptive name as
+their actual ID; no separate registration call or reservation precedes
+acceptance. Catalog replacement records retirement and replacement relationships
+under the catalog checker's existing authority. The [catalog specification](architecture/plan-context-catalog.spec.md)
+and [scenario contract](architecture/acceptance-scenarios.md) define source and
+wording authority.
+
+An agreement submission proposes `contractKey`, `providerObligationKey` and
+`consumerRequirementKey` as draft keys in the ordinary contract task. Acceptance
+resolves them in its existing transaction; a revision keeps accepted identities,
+while a newly attached consumer receives its own requirement identity. Records
+use contract `/3`, provider obligation `/2`, consumer requirement `/2` and
+work-item `/2` shapes. Record paths encode their IDs. The capability run captures
+the contract engineer and module architect's provider-yield action when an
+engineer names an existing capability whose provider agreement is needed.
+
+Public analysis entries expose `functionalRequirementIds`,
+`functionalAcceptanceIds` and `contextIds`. A work item detail resolves those
+accepted IDs against the frozen catalog and includes each selected element's
+full text, conditions, source document and uncertainty. Public work, scenario,
+contract and finding readers use current record versions and select by exact
+accepted ID, including its namespace; HTTP paths encode it as one segment.
+An unavailable recorded format yields an inspectable query or command error;
+the harness leaves its durable bytes intact.
+
+An engineer proposes capability request and example draft keys in submission
+`/2`; qualification proposes a task draft key. Acceptance records request,
+task, plan, exchange and handback `/2` with the same accepted relationships.
+A later placement submission supplies `requestKey: draft:placement-request:<name>`;
+acceptance removes `draft:` and records that exact `placement-request:<name>`
+identity in `/2`. A repeated request must propose a distinct key, and an
+occupied key is rejected. Its global decision derives
+`placement-decision:placement-<name>` from the accepted request. A decision on
+an accepted `unresolved-request:<name>` instead derives
+`placement-decision:unresolved-<name>`. Derived provider, revision and
+integration work items use `/2`; a final correction proposes its work item
+name. A module architect proposes `draft:test:<name>` in each required-test
+registration; acceptance records `test:<name>` and derives each registered
+capability case from its
+accepted task and case source with a stable collision-safe discriminator.
+Registration, binding, reporting and reload preserve those accepted IDs.
+
 ### Forecast Early; Decide with Current Evidence
 
 When a concrete need arises, reuse the responsible agent's oriented context

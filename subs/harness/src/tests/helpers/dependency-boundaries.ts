@@ -16,7 +16,7 @@ const trees = { initial: '1'.repeat(40), parent: '2'.repeat(40), child: '3'.repe
 const parentChanges = [{ path: 'subs/b/src/fact.ts', status: 'M' }];
 const childChanges = [{ path: 'subs/c/src/source.ts', status: 'M' }, { path: 'subs/c/src/tests/source.test.ts', status: 'M' }];
 const integratedChanges = [{ path: 'subs/b/src/fact.ts', status: 'M' }, { path: 'subs/b/src/tests/fact.test.ts', status: 'M' }];
-const features = [{ path: 'subs/a/src/tests/features/need/a-reads-b.feature', status: 'A' }, { path: 'subs/b/src/tests/features/need/b-entry.feature', status: 'A' }];
+const features = [{ path: 'subs/a/src/tests/features/need/capability%3Aa-reads-b.feature', status: 'A' }, { path: 'subs/b/src/tests/features/need/capability%3Ab-entry.feature', status: 'A' }];
 
 /** Stated external answers for nested dispatch and child gates. Nothing derives Git answers from live files. */
 export function dependencyBoundaries(root: string, mode: Mode) {
@@ -78,11 +78,11 @@ export function dependencyBoundaries(root: string, mode: Mode) {
       expect(project).toBe(root); expect(message).toContain(`Ramify-Run: ${branch?.slice('ramify-agent-run/'.length)}`);
       if (message.includes('Ramify-Scenarios: materialized')) { expect(head).toBe(initial); head = scenarios; commits.push('scenarios'); return head; }
       const gate = /Ramify-Gate: (ga-\d{4})/u.exec(message)?.[1]; expect(gate).toBeDefined();
-      if (mode === 'scheduling') { expect(message.startsWith('cap-001.i01:')).toBe(true); expect(head).toBe(scenarios); head = childCommit; commits.push('parent'); gateCommits.set(gate!, head); return head; }
+      if (mode === 'scheduling') { expect(message.startsWith('capability-task:b-source.i01:')).toBe(true); expect(head).toBe(scenarios); head = childCommit; commits.push('parent'); gateCommits.set(gate!, head); return head; }
       expect(mode).toBe('gate');
-      if (message.startsWith('cap-002.i01:')) { expect(stage).toBe('child'); expect(head).toBe(scenarios); head = childCommit; commits.push('child'); gateCommits.set(gate!, head); return head; }
-      if (message.startsWith('cap-002.i02:')) { expect(stage).toBe('integrated'); expect(head).toBe(childCommit); head = integratedCommit; commits.push('integrated'); gateCommits.set(gate!, head); return head; }
-      expect(message.startsWith('cap-002\n') || message.startsWith('cap-001.i01:')).toBe(true); expect(head).toBe(integratedCommit); return null;
+      if (message.startsWith('capability-task:c-normalization.i01:')) { expect(stage).toBe('child'); expect(head).toBe(scenarios); head = childCommit; commits.push('child'); gateCommits.set(gate!, head); return head; }
+      if (message.startsWith('capability-task:c-normalization.i02:')) { expect(stage).toBe('integrated'); expect(head).toBe(childCommit); head = integratedCommit; commits.push('integrated'); gateCommits.set(gate!, head); return head; }
+      expect(message.startsWith('capability-task:c-normalization\n') || message.startsWith('capability-task:b-source.i01:')).toBe(true); expect(head).toBe(integratedCommit); return null;
     },
   });
   const initialFiles = mode === 'gate' ? { ...dependencyInitialFiles,

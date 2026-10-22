@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { join } from 'node:path';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { finalCandidate } from '../../../acceptance/src/tests/helpers/final-candidate.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
@@ -70,7 +70,7 @@ async function run(root: string, plan: Parameters<typeof byRole>[0], commits: re
   const git = answeredGit(root, { head: 'revision-00', commits: [materialization, ...commits],
     previews: candidate?.previews ?? [] });
   const opened = await openRuns(root, {
-    script: byRole(plan), inputs: treeInputs(), git, ...(candidate === null ? {} : { candidates: candidate.candidates }),
+    script: byRole({ 'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })], ...plan }), inputs: treeInputs(), git, ...(candidate === null ? {} : { candidates: candidate.candidates }),
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
@@ -99,16 +99,17 @@ async function fixtureWith(modules: ReadonlyArray<{ directory: string; name: str
 }
 
 function place(capability: string, owner: string) {
-  return localDecision(
+  const id = `capability:${capability}`;
+  return { ...localDecision(
     {
       question: `Where does ${capability} belong?`,
       outcome: 'reuse',
-      capability,
+      capability: id,
       owner,
       rationale: 'The rule is a capability of its own, in a subtree this architect may place work in.',
     },
-    [registryChange({ capability, owner, behavior: `The module provides ${capability}.` })],
-  );
+    [registryChange({ capability: id, owner, behavior: `The module provides ${capability}.` })],
+  ), decisionKey: `draft:placement-decision:${capability}` };
 }
 
 const yieldFor = (requirements: readonly string[]) => ({
@@ -119,6 +120,14 @@ const yieldFor = (requirements: readonly string[]) => ({
 
 async function events(root: string, runId: string): Promise<RunEvent[]> {
   return runEventsOnDisk(root, 'review-notes', runId);
+}
+
+function attached(seam: Seam) {
+  const { contractKey, providerObligationKey, ...proposal } = established(seam);
+  void contractKey;
+  void providerObligationKey;
+  return { ...proposal, contractId: `contract:${seam.capability}`,
+    providerObligationId: `provider-obligation:${seam.capability}` };
 }
 
 describe('P5: a shared obligation runs its provider once and each consumer verifies separately', () => {
@@ -136,10 +145,10 @@ describe('P5: a shared obligation runs its provider once and each consumer verif
     const note = paths(noteLimit);
     const tag = paths(tagLimit);
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', notes), entry('review-tags', tags)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes), entry('review-tags', tags)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-        submit(yieldFor(['rq-001'])),
+        submit(yieldFor(['consumer-requirement:notes-note-limit'])),
         submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))),
         submit(requestCompletion()),
         submit(assign(notes, { kind: 'verification', goal: 'Replace the fake with the real limit.' })),
@@ -160,17 +169,17 @@ describe('P5: a shared obligation runs its provider once and each consumer verif
       'contract-engineer': [
         submit(established(noteLimit), ...contractWrites(noteLimit)),
         // The same agreement, a second consumer: only the integration differs.
-        submit(established(tagLimit), write(paths(tagLimit).consumer, consumerAgainstReal(tagLimit).replace('createNoteLimit(', 'createNoteLimitFake(').replace('/src/note-limit.ts', '/src/fakes/note-limit.fake.ts').replace('{ createNoteLimit }', '{ createNoteLimitFake }'))),
+        submit(attached(tagLimit), write(paths(tagLimit).consumer, consumerAgainstReal(tagLimit).replace('createNoteLimit(', 'createNoteLimitFake(').replace('/src/note-limit.ts', '/src/fakes/note-limit.fake.ts').replace('{ createNoteLimit }', '{ createNoteLimitFake }'))),
       ],
     }, [
-      accepted('wi-001.i02', 'revision-01', [...added(note.contract, note.fake, note.subjects, note.conformance), ...modified(note.consumer)]),
-      accepted('wi-003.i01', 'revision-02', [...added(note.real), ...modified(note.subjects)]),
-      unchanged('wi-003'),
-      accepted('wi-001.i03', 'revision-03', modified(note.consumer)),
-      unchanged('wi-001'),
-      accepted('wi-002.i02', 'revision-04', modified(tag.consumer)),
-      accepted('wi-002.i03', 'revision-05', modified(tag.consumer)),
-      unchanged('wi-002'),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(note.contract, note.fake, note.subjects, note.conformance), ...modified(note.consumer)]),
+      accepted('work-item:provide-note-limit.i01', 'revision-02', [...added(note.real), ...modified(note.subjects)]),
+      unchanged('work-item:provide-note-limit'),
+      accepted('work-item:review-notes.i03', 'revision-03', modified(note.consumer)),
+      unchanged('work-item:review-notes'),
+      accepted('work-item:review-tags.i02', 'revision-04', modified(tag.consumer)),
+      accepted('work-item:review-tags.i03', 'revision-05', modified(tag.consumer)),
+      unchanged('work-item:review-tags'),
       unchanged('final verification of plan "review-notes"'),
     ]);
 
@@ -181,17 +190,17 @@ describe('P5: a shared obligation runs its provider once and each consumer verif
     // One contract, one obligation, one provider execution.
     const registrations = log.filter(event => event.type === 'contract-registered');
     expect(registrations).toHaveLength(2);
-    expect(registrations[0]!.data).toMatchObject({ contract: 'ct-001', revision: 1, obligation: 'ob-ct-001', requirements: ['rq-001'], providerWorkItem: 'wi-003' });
+    expect(registrations[0]!.data).toMatchObject({ contract: 'contract:note-limit', revision: 1, obligation: 'provider-obligation:note-limit', requirements: ['consumer-requirement:notes-note-limit'], providerWorkItem: 'work-item:provide-note-limit' });
     // The second registration adds its requirement and its binding, and
     // nothing else: the same contract, the same obligation revision, and the
     // provider work item the first one started.
-    expect(registrations[1]!.data).toMatchObject({ contract: 'ct-001', revision: 1, obligation: 'ob-ct-001', requirements: ['rq-002'], providerWorkItem: 'wi-003' });
+    expect(registrations[1]!.data).toMatchObject({ contract: 'contract:note-limit', revision: 1, obligation: 'provider-obligation:note-limit', requirements: ['consumer-requirement:tags-note-limit'], providerWorkItem: 'work-item:provide-note-limit' });
 
     expect(log.filter(event => event.type === 'provider-conformed')).toHaveLength(1);
     // Each consumer verifies separately, against the one provider.
     const verifications = log.filter(event => event.type === 'requirement-verified');
-    expect(verifications.map(event => event.data.requirement)).toEqual(['rq-001', 'rq-002']);
-    expect(verifications.map(event => event.data.workItem)).toEqual(['wi-001', 'wi-002']);
+    expect(verifications.map(event => event.data.requirement)).toEqual(['consumer-requirement:notes-note-limit', 'consumer-requirement:tags-note-limit']);
+    expect(verifications.map(event => event.data.workItem)).toEqual(['work-item:review-notes', 'work-item:review-tags']);
 
     // Three work items: two entry consumers and one provider.
     expect(log.filter(event => event.type === 'work-item-started')).toHaveLength(3);
@@ -236,25 +245,25 @@ describe('P5: a chain of changes back through a module that has yielded is not a
     const limit = paths(noteLimit);
     const format = paths(noteFormat);
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
-        // wi-001 in A: it needs the limit, which is B's.
+        // work-item:review-notes in A: it needs the limit, which is B's.
         submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-        submit(yieldFor(['rq-001'])),
-        // wi-002 in B, the provider of the limit: it needs the format, which
+        submit(yieldFor(['consumer-requirement:notes-note-limit'])),
+        // work-item:provide-note-limit in B, the provider of the limit: it needs the format, which
         // is A's. A has a work item yielded, and this need still starts a
         // work item of its own.
         submit({ ...assign(limits, {}, outline({ changes: 'Implement the agreed limit.' })), localDecisions: [place('note-format', notes)] }),
-        submit(yieldFor(['rq-002'])),
-        // wi-003 in A, the provider of the format.
+        submit(yieldFor(['consumer-requirement:limit-work-note-format'])),
+        // work-item:provide-note-format in A, the provider of the format.
         submit(assign(notes, {}, outline({ changes: 'Implement the agreed format.' }))),
         submit(requestCompletion()),
-        // wi-002, resumed: replace the format fake with the real one and
+        // work-item:provide-note-limit, resumed: replace the format fake with the real one and
         // implement the limit it owes, so the agreed suites pass against
         // both real providers.
         submit(assign(limits, { kind: 'verification', goal: 'Replace the format fake with the real one, and implement the limit this work item owes.' })),
         submit(requestCompletion()),
-        // wi-001, resumed: verify the limit.
+        // work-item:review-notes, resumed: verify the limit.
         submit(assign(notes, { kind: 'verification', goal: 'Replace the limit fake with the real one.' })),
         submit(requestCompletion()),
       ],
@@ -272,14 +281,14 @@ describe('P5: a chain of changes back through a module that has yielded is not a
         submit(established(noteFormat), ...contractWrites(noteFormat)),
       ],
     }, [
-      accepted('wi-001.i02', 'revision-01', [...added(limit.contract, limit.fake, limit.subjects, limit.conformance), ...modified(limit.consumer)]),
-      accepted('wi-002.i02', 'revision-02', [...added(format.contract, format.fake, format.subjects, format.conformance), ...modified(format.consumer)]),
-      accepted('wi-003.i01', 'revision-03', [...added(format.real), ...modified(format.subjects)]),
-      unchanged('wi-003'),
-      accepted('wi-002.i03', 'revision-04', [...added(limit.real), ...modified(format.consumer, limit.subjects)]),
-      unchanged('wi-002'),
-      accepted('wi-001.i03', 'revision-05', modified(limit.consumer)),
-      unchanged('wi-001'),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(limit.contract, limit.fake, limit.subjects, limit.conformance), ...modified(limit.consumer)]),
+      accepted('work-item:provide-note-limit.i02', 'revision-02', [...added(format.contract, format.fake, format.subjects, format.conformance), ...modified(format.consumer)]),
+      accepted('work-item:provide-note-format.i01', 'revision-03', [...added(format.real), ...modified(format.subjects)]),
+      unchanged('work-item:provide-note-format'),
+      accepted('work-item:provide-note-limit.i03', 'revision-04', [...added(limit.real), ...modified(format.consumer, limit.subjects)]),
+      unchanged('work-item:provide-note-limit'),
+      accepted('work-item:review-notes.i03', 'revision-05', modified(limit.consumer)),
+      unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
     ]);
 
@@ -290,10 +299,10 @@ describe('P5: a chain of changes back through a module that has yielded is not a
     // Three capabilities, three work items, two of them in module A.
     expect(log.filter(event => event.type === 'work-item-started')).toHaveLength(3);
     const started = log.filter(event => event.type === 'work-item-started').map(event => event.data);
-    expect(started.filter(data => data.module === notes).map(data => data.workItem)).toEqual(['wi-001', 'wi-003']);
+    expect(started.filter(data => data.module === notes).map(data => data.workItem)).toEqual(['work-item:review-notes', 'work-item:provide-note-format']);
 
     // They complete in the order 3, 2, 1.
-    expect(log.filter(event => event.type === 'work-item-completed').map(event => event.data.workItem)).toEqual(['wi-003', 'wi-002', 'wi-001']);
+    expect(log.filter(event => event.type === 'work-item-completed').map(event => event.data.workItem)).toEqual(['work-item:provide-note-format', 'work-item:provide-note-limit', 'work-item:review-notes']);
 
     // No cycle: the nodes of the graph are capabilities, so a chain that
     // runs back through a module is an ordinary chain.
@@ -303,7 +312,7 @@ describe('P5: a chain of changes back through a module that has yielded is not a
     // The second provider work item was started for the item that yielded,
     // which is what the depth-first stack records.
     const resumed = log.filter(event => event.type === 'work-item-resumed').map(event => event.data.workItem);
-    expect(resumed).toEqual(['wi-002', 'wi-001']);
+    expect(resumed).toEqual(['work-item:provide-note-limit', 'work-item:review-notes']);
 
     // Each provider and each consumer committed once, in the order the chain
     // completed, and the gates between them changed nothing.
@@ -335,11 +344,11 @@ describe('P5: a capability that transitively depends on itself', () => {
     const limit = paths(noteLimit);
     const back = paths(backToNotes);
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-        submit(yieldFor(['rq-001'])),
-        // wi-002, the provider of the limit: its engineer asks for the
+        submit(yieldFor(['consumer-requirement:notes-note-limit'])),
+        // work-item:provide-note-limit, the provider of the limit: its engineer asks for the
         // capability its own consumer is implementing.
         submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))),
         // The cycle came back here. The re-plan asks for the same thing.
@@ -353,14 +362,14 @@ describe('P5: a capability that transitively depends on itself', () => {
       'contract-engineer': [
         submit(established(noteLimit), ...contractWrites(noteLimit)),
         submit(established(backToNotes), ...contractWrites(backToNotes)),
-        submit(established(backToNotes), ...contractWrites(backToNotes)),
+        submit({ ...attached(backToNotes), consumerRequirementKey: 'draft:consumer-requirement:limit-work-review-notes-retry' }),
       ],
     }, [
-      accepted('wi-001.i02', 'revision-01', [...added(limit.contract, limit.fake, limit.subjects, limit.conformance), ...modified(limit.consumer)]),
-      accepted('wi-002.i02', 'revision-02', [...added(back.contract, back.fake, back.subjects, back.conformance), ...modified(back.consumer)]),
+      accepted('work-item:review-notes.i02', 'revision-01', [...added(limit.contract, limit.fake, limit.subjects, limit.conformance), ...modified(limit.consumer)]),
+      accepted('work-item:provide-note-limit.i02', 'revision-02', [...added(back.contract, back.fake, back.subjects, back.conformance), ...modified(back.consumer)]),
       // The second attempt at the same agreement writes the same files with
       // the same content, and Git reports an unchanged tree for it.
-      unchanged('wi-002.i04'),
+      unchanged('work-item:provide-note-limit.i04'),
     ], 2);
 
     const snapshot = onlyRun(service, 'review-notes');
@@ -371,8 +380,8 @@ describe('P5: a capability that transitively depends on itself', () => {
     const detections = log.filter(event => event.type === 'dependency-cycle-detected');
     expect(detections).toHaveLength(2);
     for (const detection of detections) {
-      expect(detection.data.members).toEqual(['note-limit', 'review-notes']);
-      expect(detection.data.closedBy).toBe('wi-002');
+      expect(detection.data.members).toEqual(['capability:note-limit', 'capability:review-notes']);
+      expect(detection.data.closedBy).toBe('work-item:provide-note-limit');
     }
     expect(detections.map(event => event.data.detection)).toEqual([1, 2]);
 
@@ -385,13 +394,13 @@ describe('P5: a capability that transitively depends on itself', () => {
     // Every detected cycle is a notice the person sees, resolved or not.
     const notices = snapshot.notices.filter(notice => notice.kind === 'dependency-cycle');
     expect(notices).toHaveLength(2);
-    expect(notices[0]).toMatchObject({ cycle: ['note-limit', 'review-notes'], closedBy: 'wi-002', resolved: false });
-    expect(notices[0]!.summary).toContain('note-limit → review-notes → note-limit');
+    expect(notices[0]).toMatchObject({ cycle: ['capability:note-limit', 'capability:review-notes'], closedBy: 'work-item:provide-note-limit', resolved: false });
+    expect(notices[0]!.summary).toContain('capability:note-limit → capability:review-notes → capability:note-limit');
 
     // The run that failed on the cycle still committed what each agreement
     // established, and its repeat of the same agreement committed nothing.
     expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01', 'revision-02']);
-    expect(git.subjects().at(-1)).toContain('wi-002.i04');
+    expect(git.subjects().at(-1)).toContain('work-item:provide-note-limit.i04');
     git.assertAnswered();
   }, 60_000);
 });

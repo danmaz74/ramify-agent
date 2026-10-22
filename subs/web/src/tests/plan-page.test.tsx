@@ -106,7 +106,7 @@ function run(jobId: string, state: RunSnapshot['state'], decisionRequests: RunDe
 
 test('a run that waits for the person\'s decision carries its own badge in the run list, apart from running and from an ended run\'s open request', async () => {
   const client = clientWith('# Plan');
-  const held = { workItem: 'wi-002', requests: [{ checkFinding: 'cf-0006', request: 'cfd-0004' }] };
+  const held = { workItem: 'work-item:case-002', requests: [{ checkFinding: 'finding:case-0006', request: 'cfd-0004' }] };
   client.runList = {
     runs: [
       run('20260924T120000Z-a00001', 'running', { open: 1, waiting: true, workItems: [held] }),
@@ -119,7 +119,7 @@ test('a run that waits for the person\'s decision carries its own badge in the r
   const waiting = (await screen.findByRole('link', { name: '20260924T120000Z-a00001' })).closest('li')!;
   const badge = within(waiting).getByText('Waiting for your decision');
   expect(badge.className).toBe('badge awaiting-decision');
-  expect(badge.getAttribute('title')).toBe('Held until you answer: work item wi-002');
+  expect(badge.getAttribute('title')).toBe('Held until you answer: work item work-item:case-002');
   // Its run state stays what the log says: running, not failed.
   expect(within(waiting).getByText('running').className).toBe('badge run-state run-state-running');
   for (const other of ['20260924T110000Z-a00002', '20260924T100000Z-a00003']) {

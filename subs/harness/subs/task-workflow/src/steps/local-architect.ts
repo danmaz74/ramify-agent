@@ -29,7 +29,7 @@ import type { IterationAssignment } from '../../../autonomous/subs/work-coordina
 import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../../../autonomous/subs/work-coordination/src/work/session.js';
 import type { StartingPointGroup } from '../../../autonomous/subs/work-coordination/src/work/starting-inputs.js';
 import {
-  capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectToolName, unreportedByCompletion, validateLocalArchitect,
+  localArchitectJsonSchema, localArchitectToolName, unreportedByCompletion, validateLocalArchitect,
   type LocalArchitectSubmission, type WorkEvidence,
 } from '../../../autonomous/subs/work-coordination/src/work/submission.js';
 import { architectViews, knownFacts, loadedPackage, projectLocation, runLocation, type ConstructedStepCommon } from './constructed.js';
@@ -239,8 +239,8 @@ export function constructWorkTurnStep(value: unknown, environment: StepEnvironme
   const submission = {
     toolName: localArchitectToolName,
     description: 'End this turn with the work item\'s result. The harness validates it; an invalid submission is returned with every error and its path, and a valid one ends this invocation.',
-    inputSchema: inputs.capabilityWorkflow ? capabilityLocalArchitectJsonSchema : localArchitectJsonSchema,
-    submissionSchema: 'ramify-agent.local-architect-submission/1',
+    inputSchema: localArchitectJsonSchema,
+    submissionSchema: 'ramify-agent.local-architect-submission/2',
   };
   const task = { kind, goal: inputs.briefing.item.goal, requirements, omit: selected === undefined ? [] : [selected.text] };
   const brief = composeTaskBrief(projectRoot, {
@@ -324,12 +324,7 @@ export async function judgeWorkTurn(step: Pick<ConstructedWorkTurnStep, 'inputs'
   context: { readonly index: ArchitectIndex | null; readonly ramify: RamifyCli; readonly projectRoot: string;
     readonly previousAssignment?: IterationAssignment | undefined; readonly validatePrevious?: () => Promise<void> }): Promise<WorkTurnJudgement> {
   const evidence = workEvidenceOf(step, context.index);
-  const shaped = input as { kind?: unknown; assignment?: { kind?: unknown; revisesContract?: unknown } } | null;
-  const historical = step.inputs.capabilityWorkflow && typeof input === 'object' && input !== null
-    && (shaped?.kind === 'yield-for-providers' || shaped?.assignment?.kind === 'contract' || shaped?.assignment?.revisesContract !== undefined);
-  const verdict: SubmissionValidation<LocalArchitectSubmission> = historical
-    ? { ok: false, errors: [{ path: 'kind', message: 'The contract and provider-yield workflow is historical; use capability requests and scoped assignments' }] }
-    : validateLocalArchitect(input, evidence);
+  const verdict = validateLocalArchitect(input, evidence);
   const unreported = verdict.ok ? undefined : unreportedByCompletion(input, evidence.obligations);
   if (!verdict.ok || verdict.value.kind !== 'assign') return { verdict, unreported };
   if (verdict.value.assignment.revisesContract !== undefined) {

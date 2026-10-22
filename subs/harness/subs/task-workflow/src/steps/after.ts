@@ -8,7 +8,6 @@ import type { RamifyCli } from '../../../evidence/src/ramify-cli.js';
 import type { ArchitectIndex } from '../../../evidence/src/views.js';
 import { writeFileAtomic } from '../../../ledger/src/atomic.js';
 import { capabilityRunPolicyVersion } from '../../../autonomous/subs/work-coordination/src/capability/policy.js';
-import { capabilityRequestId } from '../../../autonomous/subs/work-coordination/src/capability/records.js';
 import { captureProvisionalSource } from '../../../autonomous/subs/work-coordination/src/capability/source.js';
 import { acceptedCommit } from '../../../autonomous/subs/acceptance/src/checks/accepted.js';
 import type { GateAttempt } from '../../../autonomous/subs/acceptance/src/checks/records.js';
@@ -362,7 +361,7 @@ async function afterEngineer(handling: Handling, submission: EngineerSubmission,
     case 'completion-proposed': return afterProposal(handling, item, assignment, number, submission);
     case 'partial':
     case 'unsuitable': return afterReport(handling, item, assignment, number, submission);
-    case 'capability-needed': return afterCapabilityNeed(handling, item, assignment, options);
+    case 'capability-needed': return afterCapabilityNeed(handling, item, assignment, submission, options);
     case 'contract-needed':
       handling.notRun('the contract iteration a contract-needed submission starts, and the close of its iteration, which `step after` does not apply; nothing was recorded');
       return;
@@ -551,10 +550,11 @@ async function nextTurnInputs(handling: Handling, item: WorkItem, assignment: It
   handling.applied(`the module architect's next-turn inputs: ${path}`);
 }
 
-async function afterCapabilityNeed(handling: Handling, item: WorkItem, assignment: IterationAssignment, options: StepAfterOptions): Promise<void> {
+async function afterCapabilityNeed(handling: Handling, item: WorkItem, assignment: IterationAssignment,
+  submission: Extract<EngineerSubmission, { kind: 'capability-needed' }>, options: StepAfterOptions): Promise<void> {
   const { run, context, invocation } = handling;
   const accepted = acceptedCommit(run.log.ledger.replay(), run.base);
-  const request = capabilityRequestId(committedRecords(run.log.ledger.replay()).capabilityRequests.size + 1);
+  const request = submission.request.requestKey.slice('draft:'.length);
   const source = await captureProvisionalSource({
     git: context.git, sourceGit: options.provisionalSourceGit, projectRoot: context.projectRoot, runDirectory: run.directory, request,
     acceptedBase: accepted, writerSettledBy: invocation, changedPaths: await context.git.changedPaths(context.projectRoot, accepted),

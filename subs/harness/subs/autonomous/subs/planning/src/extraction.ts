@@ -8,7 +8,7 @@ import {
 } from '../../../../plan-evidence/src/interfaces/catalog.js';
 import { extractPlanScenarios, type PlanScenario } from '../../../../scenarios/src/extraction.js';
 import type { SubmissionError, SubmissionValidation } from '../../../../task-execution/src/submissions.js';
-import { incorporationSchema, type Incorporation } from './evidence-contracts.js';
+import { incorporationSchema, submittedIncorporationSchema, type Incorporation } from './evidence-contracts.js';
 import type { CatalogFinding } from './records.js';
 import { analysisCitationErrors, analysisElementReferences, scenarioFormOf, type AnalysisEvidence, type ResolvedAnalysis } from './submission.js';
 
@@ -28,7 +28,7 @@ export const intakeSubmissionSchema = z.object({
   /** The plan's goal in a few sentences, close to its own words; each principles extraction reads it. */
   goal: text,
   elements: z.array(submittedElementSchema),
-  incorporation: incorporationSchema.omit({ schema: true }),
+  incorporation: submittedIncorporationSchema,
 }).strict();
 export type IntakeSubmission = z.infer<typeof intakeSubmissionSchema>;
 export const intakeToolName = 'submit_intake';
@@ -39,8 +39,6 @@ export const principleSubmissionSchema = z.object({ elements: z.array(submittedE
 export type PrincipleSubmission = z.infer<typeof principleSubmissionSchema>;
 export const principleToolName = 'submit_principle_elements';
 export const principleJsonSchema = z.toJSONSchema(principleSubmissionSchema) as JsonSchema;
-
-const citationList = z.array(text);
 
 /** One correction of the checker, with its reason. */
 export const correctionSchema = z.discriminatedUnion('action', [
@@ -53,18 +51,45 @@ export const correctionSchema = z.discriminatedUnion('action', [
 ]);
 export type Correction = z.infer<typeof correctionSchema>;
 
+export const checkToolName = 'submit_catalog_check';
+const functionalCitation = z.union([
+  z.object({ functionalRequirementId: z.string().regex(/^functional-requirement:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
+  z.object({ functionalRequirementKey: z.string().regex(/^draft:functional-requirement:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
+]);
+const contextCitation = z.union([
+  z.object({ contextId: z.string().regex(/^context:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
+  z.object({ contextKey: z.string().regex(/^draft:context:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
+]);
+const descriptiveNonBehavioralAcceptance = z.object({
+  functionalAcceptanceCitation: functionalCitation,
+  kind: z.literal('non-behavioral'),
+  test: text,
+}).strict();
 export const checkSubmissionSchema = z.object({
   corrections: z.array(correctionSchema),
-  /** Entries whose citations change, with their complete new lists. */
-  entries: z.array(z.object({
-    capability: text, requirementRefs: citationList, acceptanceRefs: citationList, contextRefs: citationList,
+  entries: z.array(z.object({ capabilityId: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    functionalRequirementCitations: z.array(functionalCitation), functionalAcceptanceCitations: z.array(functionalCitation),
+    contextCitations: z.array(contextCitation),
+    /** Complete declarations, including registered test identities, for this corrected entry. */
+    nonBehavioralAcceptance: z.array(descriptiveNonBehavioralAcceptance),
   }).strict()),
-  /** Scenarios whose citations change, by the architect's scenario key, with their complete new list. */
-  scenarios: z.array(z.object({ key: text, refs: citationList }).strict()),
+  scenarios: z.array(z.object({ scenarioKey: z.string().regex(/^draft:scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    functionalAcceptanceCitations: z.array(functionalCitation) }).strict()),
 }).strict();
 export type CheckSubmission = z.infer<typeof checkSubmissionSchema>;
-export const checkToolName = 'submit_catalog_check';
 export const checkJsonSchema = z.toJSONSchema(checkSubmissionSchema) as JsonSchema;
+type ResolvedCheck = { corrections: CheckSubmission['corrections']; entries: Array<{ capability: string; requirementRefs: string[]; acceptanceRefs: string[]; contextRefs: string[];
+  nonBehavioralAcceptance: Array<{ ref: string; kind: 'non-behavioral'; test: string }> }>; scenarios: Array<{ key: string; refs: string[] }> };
+function resolveCheckCitations(value: CheckSubmission): ResolvedCheck {
+  const citation = (value: Record<string, string>) => Object.values(value)[0]!;
+  return { corrections: value.corrections, entries: value.entries.map(entry => ({
+    capability: entry.capabilityId.slice('capability:'.length), requirementRefs: entry.functionalRequirementCitations.map(citation),
+    acceptanceRefs: entry.functionalAcceptanceCitations.map(citation), contextRefs: entry.contextCitations.map(citation),
+    nonBehavioralAcceptance: entry.nonBehavioralAcceptance.map(item => ({
+      ref: citation(item.functionalAcceptanceCitation), kind: item.kind, test: item.test,
+    })),
+  })), scenarios: value.scenarios.map(scenario => ({ key: scenario.scenarioKey, refs: scenario.functionalAcceptanceCitations.map(citation) })) };
+}
 
 export type Accepted<T> = { readonly ok: true } & T | { readonly ok: false; readonly errors: readonly SubmissionError[] };
 
@@ -78,7 +103,10 @@ export function acceptIntake(catalog: ElementCatalog, manifest: DocumentManifest
   if (errors.length > 0) return { ok: false, errors };
   const accepted = acceptElements(catalog, value.elements);
   if (!accepted.ok) return { ok: false, errors: accepted.errors.map(error => toError('elements', error)) };
-  return { ok: true, catalog: accepted.catalog, incorporation: incorporationSchema.parse({ schema: 'ramify-agent.document-incorporation/2', ...value.incorporation }) };
+  return { ok: true, catalog: accepted.catalog, incorporation: incorporationSchema.parse({
+    schema: 'ramify-agent.document-incorporation/3',
+    ...value.incorporation,
+  }) };
 }
 
 /** One principles document's elements, which must all be read from it. */
@@ -104,6 +132,7 @@ export interface CheckState {
  */
 export function applyCheck(state: CheckState, document: string, invocation: string, value: CheckSubmission, evidence: AnalysisEvidence):
   Accepted<CheckState & { readonly findings: readonly CatalogFinding[] }> {
+  const cited = resolveCheckCitations(value);
   const errors: SubmissionError[] = [];
   const own = new Set(state.catalog.elements.filter(element => element.document === document).map(element => element.id));
   const added: unknown[] = [];
@@ -126,7 +155,11 @@ export function applyCheck(state: CheckState, document: string, invocation: stri
     });
   });
   if (errors.length > 0) return { ok: false, errors };
-  const revised = reviseCatalog(state.catalog, { rewrite, retire, add: added, references: analysisElementReferences({ entries: value.entries.map(entry => ({ ...entry, description: '', owner: '', citations: [] })), scenarios: value.scenarios.map(scenario => ({ ...scenario, entry: '', origin: { kind: 'architect' as const }, gherkin: '' })) }) });
+  const replacements = value.corrections.filter(correction => correction.action === 'replace').flatMap(correction =>
+    correction.retire.map(retired => ({ retired, with: correction.elements.map(element => element.key) })));
+  const revised = reviseCatalog(state.catalog, { rewrite, retire, add: added, replacements,
+    references: analysisElementReferences({ entries: cited.entries.map(entry => ({ ...entry, description: '', owner: '', citations: [] })),
+      scenarios: cited.scenarios.map(scenario => ({ ...scenario, entry: '', origin: { kind: 'architect' as const }, gherkin: '' })) }) });
   if (!revised.ok) return { ok: false, errors: revised.errors.map(error => toError(error.startsWith('entries.') || error.startsWith('scenarios.') ? '' : 'corrections', error)) };
 
   const active = new Set(revised.catalog.elements.map(element => element.id));
@@ -137,20 +170,23 @@ export function applyCheck(state: CheckState, document: string, invocation: stri
     return [...citations];
   };
   const capabilities = new Set(state.analysis.entries.map(entry => entry.capability));
-  const entries = new Map(value.entries.map((entry, index) => {
-    if (value.entries.slice(0, index).some(prior => prior.capability === entry.capability)) errors.push({ path: `entries.${index}.capability`, message: 'Duplicate entry correction' });
-    if (!capabilities.has(entry.capability)) errors.push({ path: `entries.${index}.capability`, message: `No entry "${entry.capability}"`, expected: 'an entry of the analysis' });
+  const entries = new Map(cited.entries.map((entry, index) => {
+    if (cited.entries.slice(0, index).some(prior => prior.capability === entry.capability)) errors.push({ path: `entries.${index}.capabilityId`, message: 'Duplicate entry correction' });
+    if (!capabilities.has(entry.capability)) errors.push({ path: `entries.${index}.capabilityId`, message: `No entry "${entry.capability}"`, expected: 'an entry of the analysis' });
     return [entry.capability, {
-      requirementRefs: resolve(entry.requirementRefs, `entries.${index}.requirementRefs`),
-      acceptanceRefs: resolve(entry.acceptanceRefs, `entries.${index}.acceptanceRefs`),
-      contextRefs: resolve(entry.contextRefs, `entries.${index}.contextRefs`),
+      requirementRefs: resolve(entry.requirementRefs, `entries.${index}.functionalRequirementCitations`),
+      acceptanceRefs: resolve(entry.acceptanceRefs, `entries.${index}.functionalAcceptanceCitations`),
+      contextRefs: resolve(entry.contextRefs, `entries.${index}.contextCitations`),
+      ...(entry.nonBehavioralAcceptance === undefined ? {} : { nonBehavioralAcceptance: entry.nonBehavioralAcceptance.map((item, position) => ({
+        ...item, ref: resolve([item.ref], `entries.${index}.nonBehavioralAcceptance.${position}.functionalAcceptanceCitation`)[0]!,
+      })) }),
     }] as const;
   }));
   const keys = new Set(state.analysis.scenarios.map(scenario => scenario.key));
-  const scenarios = new Map(value.scenarios.map((scenario, index) => {
-    if (value.scenarios.slice(0, index).some(prior => prior.key === scenario.key)) errors.push({ path: `scenarios.${index}.key`, message: 'Duplicate scenario correction' });
-    if (!keys.has(scenario.key)) errors.push({ path: `scenarios.${index}.key`, message: `No scenario "${scenario.key}"`, expected: 'a scenario key of the analysis' });
-    return [scenario.key, resolve(scenario.refs, `scenarios.${index}.refs`)] as const;
+  const scenarios = new Map(cited.scenarios.map((scenario, index) => {
+    if (cited.scenarios.slice(0, index).some(prior => prior.key === scenario.key)) errors.push({ path: `scenarios.${index}.scenarioKey`, message: 'Duplicate scenario correction' });
+    if (!keys.has(scenario.key)) errors.push({ path: `scenarios.${index}.scenarioKey`, message: `No scenario "${scenario.key}"`, expected: 'a scenario key of the analysis' });
+    return [scenario.key, resolve(scenario.refs, `scenarios.${index}.functionalAcceptanceCitations`)] as const;
   }));
   if (errors.length > 0) return { ok: false, errors };
 
@@ -294,7 +330,8 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
   if ('unavailable' in rendered) throw new Error(`The catalog cannot render its own elements: ${rendered.unavailable.missing.join(', ')}`);
   const cited = new Set(ids);
   const plan = inputs.manifest.documents.find(item => item.id === document)?.kind === 'plan';
-  const entries = state.analysis.entries.filter(entry => [...entry.requirementRefs, ...entry.acceptanceRefs, ...entry.contextRefs].some(id => cited.has(id)));
+  const entries = state.analysis.entries.filter(entry => [...entry.requirementRefs, ...entry.acceptanceRefs, ...entry.contextRefs,
+    ...(entry.nonBehavioralAcceptance?.map(item => item.ref) ?? [])].some(id => cited.has(id)));
   const scenarios = state.analysis.scenarios.filter(scenario => (scenario.refs ?? []).some(id => cited.has(id)));
   const origins = planScenarios.filter(scenario => (scenario.document ?? inputs.manifest.root) === document);
   return [
@@ -304,7 +341,7 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
     ids.length === 0 ? 'No element was read from it.' : `The ${ids.length === 1 ? 'element' : `${ids.length} elements`} read from it, as every later reader receives them:`, '',
     ...(ids.length === 0 ? [] : [rendered.text]),
     ...(plan ? ['', '# Scenario-origin mapping', '',
-      'Correction scenarios[].key names the architect scenario key. Registered plan origins (ps-NN) identify captured scenarios; partOf relates architect sub-scenarios to an integration origin. Source intervals below are 1-based captured-document lines. Frozen scenario text is unchanged.', '',
+      'Correction scenarios[].scenarioKey names the architect scenario key. Registered plan origins use plan-scenario:<name>; partOf relates architect sub-scenarios to an integration origin. Source intervals below are 1-based captured-document lines. Frozen scenario text is unchanged.', '',
       ...(origins.length === 0 ? ['No registered plan-origin mapping is available for this document in the supplied registry. Do not infer identities from scenario order.'] : origins.map(origin => {
         const keys = state.analysis.scenarios.filter(scenario => scenario.origin.kind === 'plan'
           ? scenario.origin.planScenario === origin.id : scenario.partOf === origin.id);
@@ -312,7 +349,7 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
       })),
       '', '# The entries and scenarios that cite them', '',
       ...(entries.length === 0 ? ['None.'] : entries.map(entry =>
-        `- Entry ${entry.capability}: ${entry.description} Requirements: ${entry.requirementRefs.join(', ') || 'none'}; acceptance: ${entry.acceptanceRefs.join(', ') || 'none'}; context: ${entry.contextRefs.join(', ') || 'none'}.`)),
+        `- Entry ${entry.capability}: ${entry.description} Requirements: ${entry.requirementRefs.join(', ') || 'none'}; acceptance: ${entry.acceptanceRefs.join(', ') || 'none'}; context: ${entry.contextRefs.join(', ') || 'none'}; non-behavioral acceptance: ${entry.nonBehavioralAcceptance?.map(item => `${item.ref} (registered test ${item.test})`).join(', ') || 'none'}.`)),
       ...scenarios.map(scenario => `- Scenario ${scenario.key} of ${scenario.entry}: cites ${(scenario.refs ?? []).join(', ')}.`)] : []),
     '', `Submit with \`${checkToolName}\`; an empty \`corrections\` list says the reading is faithful.`,
   ].join('\n');

@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { citationSchema, modulePathSchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import { recordRefSchema } from '../../../../../task-execution/src/records.js';
 import { elementIdSchema } from '../../../../../plan-evidence/src/interfaces/catalog.js';
-import { slugSchema } from '../../../planning/src/records.js';
 import { scenarioIdSchema } from '../../../../../scenarios/src/records.js';
 
 /*
@@ -21,14 +20,14 @@ import { scenarioIdSchema } from '../../../../../scenarios/src/records.js';
 
 const text = z.string().min(1);
 
-/** `wi-001`, the count of committed work items. */
+/** Accepted semantic identity of one work item. */
 export type WorkItemId = string;
-
-export const workItemId = (count: number): WorkItemId => `wi-${String(count).padStart(3, '0')}`;
+const workItemIdSchema = z.string().regex(/^work-item:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const capabilityIdSchema = z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 export const workItemSchema = z.object({
-  schema: z.literal('ramify-agent.work-item/1'),
-  id: text,
+  schema: z.literal('ramify-agent.work-item/2'),
+  id: workItemIdSchema,
   module: modulePathSchema,
   /**
    * The harness derives the one capability from the entry, obligation or
@@ -36,23 +35,23 @@ export const workItemSchema = z.object({
    * no capability of its own.
    */
   origin: z.union([
-    z.object({ entry: slugSchema }).strict(),
+    z.object({ entry: capabilityIdSchema }).strict(),
     z.object({ obligation: recordRefSchema }).strict(),
     z.object({ verification: recordRefSchema }).strict(),
     z.object({ integration: scenarioIdSchema }).strict(),
     z.object({ finalVerification: text }).strict(),
   ]),
   /** A completed item's follow-up preserves that item's historical completion. */
-  follows: text.optional(),
+  follows: workItemIdSchema.optional(),
   goal: text,
   /** The functional elements that state the work item's requirement. */
-  requirementRefs: z.array(elementIdSchema),
+  functionalRequirementIds: z.array(elementIdSchema),
   /** The functional elements that state its acceptance. */
-  acceptanceRefs: z.array(elementIdSchema),
+  functionalAcceptanceIds: z.array(elementIdSchema),
   /** The context elements a reader needs to understand it. */
-  contextRefs: z.array(elementIdSchema),
+  contextIds: z.array(elementIdSchema),
   /** The work item whose yield started this one; the depth-first stack. */
-  startedFor: text.nullable(),
+  startedFor: workItemIdSchema.nullable(),
 }).strict();
 export type WorkItem = z.infer<typeof workItemSchema>;
 
@@ -79,14 +78,14 @@ export const decompositionSchema = z.object({
 }).strict();
 
 export const workItemOutlineSchema = z.object({
-  schema: z.literal('ramify-agent.work-item-outline/1'),
-  workItem: text,
+  schema: z.literal('ramify-agent.work-item-outline/2'),
+  workItem: workItemIdSchema,
   revision: z.int().positive(),
   invocation: text,
   /** The analysis, concise. */
   changes: text,
   decomposition: decompositionSchema,
-  reuse: z.array(z.object({ capability: slugSchema, owner: modulePathSchema, role: text }).strict()),
+  reuse: z.array(z.object({ capability: capabilityIdSchema, owner: modulePathSchema, role: text }).strict()),
   breakingChanges: z.array(z.object({
     guarantee: text,
     reason: text,
@@ -108,13 +107,13 @@ export type WorkItemOutline = z.infer<typeof workItemOutlineSchema>;
 
 /** Where a work item's records are materialized, relative to the run's directory. */
 export const workLayout = {
-  item: (id: WorkItemId): string => join('work-items', id, 'item.json'),
-  outline: (id: WorkItemId, revision: number): string => join('work-items', id, 'outline', `${revision}.json`),
-  directory: (id: WorkItemId): string => join('work-items', id),
+  item: (id: WorkItemId): string => join('work-items', encodeURIComponent(id).replace(/:/g, '%3A'), 'item.json'),
+  outline: (id: WorkItemId, revision: number): string => join('work-items', encodeURIComponent(id).replace(/:/g, '%3A'), 'outline', `${revision}.json`),
+  directory: (id: WorkItemId): string => join('work-items', encodeURIComponent(id).replace(/:/g, '%3A')),
 } as const;
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const workSchemas = {
-  item: { schema: 'ramify-agent.work-item/1', body: workItemSchema },
-  outline: { schema: 'ramify-agent.work-item-outline/1', body: workItemOutlineSchema },
+  item: { schema: 'ramify-agent.work-item/2', body: workItemSchema },
+  outline: { schema: 'ramify-agent.work-item-outline/2', body: workItemOutlineSchema },
 } as const;

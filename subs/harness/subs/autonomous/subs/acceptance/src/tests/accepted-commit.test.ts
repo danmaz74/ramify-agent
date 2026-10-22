@@ -9,7 +9,7 @@ import { iterationLayout, type IterationResult } from '../../../work-coordinatio
 import { runLayout } from '../../../../src/run/records.js';
 import type { RunWrite } from '../../../../src/run/log.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit } from './helpers/gate-git.js';
@@ -85,13 +85,13 @@ async function target(options: { readonly withNotes?: boolean } = {}) {
 }
 
 async function readResult(root: string, runId: string, number: number): Promise<IterationResult> {
-  return JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', number)), 'utf8')) as IterationResult;
+  return JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', number)), 'utf8')) as IterationResult;
 }
 
 /** One accepted iteration over the notes module, with whatever the module engineer does. */
 function onePass(steps: Parameters<typeof submit>[1][] = []) {
   return {
-    'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+    'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
     'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
     engineer: [submit(completionProposed('Raised the limit and left the rest alone.'), ...steps)],
   };
@@ -132,12 +132,13 @@ describe('a change to the working directory blocks nothing', () => {
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun('review-notes'));
     await opened.service.settled('review-notes', receipt.jobId);
-    expect(onlyRun(opened.service, 'review-notes').state, JSON.stringify(onlyRun(opened.service, 'review-notes').failure)).toBe('completed');
+    expect(onlyRun(opened.service, 'review-notes').state, JSON.stringify({ failure: onlyRun(opened.service, 'review-notes').failure,
+      sessions: opened.agent?.sessions.map(session => ({ role: session.spec.role, verdicts: session.verdicts, outcome: session.outcome })) })).toBe('completed');
     await expect(readFile(temporary)).rejects.toThrow();
     const result = await readResult(root, receipt.jobId, 1);
     const attempt = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.gate(result.gate!)), 'utf8')) as GateAttempt;
     expect(attempt).toMatchObject({ verdict: 'passed', audited: 'revision-01' });
-    expect(scripted.messages[1]).toContain('Ramify-Iteration: wi-001.i01');
+    expect(scripted.messages[1]).toContain('Ramify-Iteration: work-item:review-note.i01');
     expect(scripted.calls.filter(call => call.operation === 'commitAccepted')).toHaveLength(4);
     scripted.assertComplete();
   }, 120_000);
@@ -236,7 +237,7 @@ describe('a change to the working directory blocks nothing', () => {
     await until(() => (opened.service.events('review-notes', receipt.jobId) ?? []).some(event => event.type === 'scratch-preserved'), 30_000);
     const events = await runEventsOnDisk(root, 'review-notes', receipt.jobId);
     expect(events.find(event => event.type === 'scratch-preserved')?.data).toMatchObject({
-      iteration: 'wi-001.i01', paths: [indexed],
+      iteration: 'work-item:review-note.i01', paths: [indexed],
     });
     const failed = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.gate('ga-0002')), 'utf8')) as GateAttempt;
     expect(failed).toMatchObject({ verdict: 'failed', cause: 'check-failed', commit: null, audited: null });
@@ -297,7 +298,7 @@ describe('a change to the working directory blocks nothing', () => {
     expect(commits).toHaveLength(4);
     expect(ledger.indexOf('mark:the late write')).toBeGreaterThan(-1);
     expect(ledger.indexOf('mark:the late write')).toBeLessThan(commits[1]!);
-    expect(scripted.messages[1]).toContain('Ramify-Iteration: wi-001.i01');
+    expect(scripted.messages[1]).toContain('Ramify-Iteration: work-item:review-note.i01');
     // Both files are really in the tree the commit boundary was reached over.
     expect(await readFile(join(root, storePath), 'utf8')).toBe('export const store = new Map();\n');
     expect(await readFile(join(root, latePath), 'utf8')).toBe('export const late = true;\n');
@@ -460,7 +461,7 @@ describe('the accepted boundary after an audit infrastructure retry', () => {
         scenarios,
         // The attempt whose audit could not run still committed what the
         // engineer wrote, including the declaration of the new module.
-        { commit: 'revision-01', changes: moduleEntries, against: materialized, subject: 'wi-001.i01' },
+        { commit: 'revision-01', changes: moduleEntries, against: materialized, subject: 'work-item:review-note.i01' },
         // The retry finds the same files still standing against the
         // accepted boundary, which has not moved, and a tree Git reports as
         // unchanged against the commit the first attempt made. The work
@@ -487,10 +488,10 @@ describe('the accepted boundary after an audit infrastructure retry', () => {
     };
     const opened = await openRuns(root, {
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes, 'A reviewer note.', {
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes, 'A reviewer note.', {
           parent: 'collection-review/workspace/reviews', directory: notesDirectory,
           purpose: 'Holds reviewer notes.', tags: [],
-        })]))],
+        })]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [submit(
           completionProposed('Created the notes module.'),
@@ -537,7 +538,7 @@ describe('the accepted boundary after an audit infrastructure retry', () => {
     expect(closed).toHaveLength(1);
     expect(closed[0]!.transaction.event.type === 'iteration-closed' && closed[0]!.transaction.event.data.notices).toEqual([{
       kind: 'module-created', module: notes, declaration: `${notesDirectory}/module.ramify`,
-      commit: accepted, iteration: 'wi-001.i01', decision: null,
+      commit: accepted, iteration: 'work-item:review-note.i01', decision: null,
     }]);
     // Exactly one revision was ever minted after the feature files', and the
     // three boundaries that followed it were each told the tree was unchanged.
@@ -550,7 +551,7 @@ describe('the accepted boundary after an audit infrastructure retry', () => {
       state: 'measured', numerator: 2, denominator: 1, value: 2,
       evidence: [failed!.id, retry!.id],
     });
-    const projected = await queries.workItem('review-notes', receipt.jobId, 'wi-001');
+    const projected = await queries.workItem('review-notes', receipt.jobId, 'work-item:review-note');
     expect(projected.iterations[0]!.result?.commit).toBe(accepted);
     const events = await queries.events('review-notes', receipt.jobId, 0);
     expect(events.events.find(event => event.transition === 'iteration-closed')?.refs).toContainEqual({ kind: 'commit', id: accepted });
@@ -571,7 +572,7 @@ describe('the message the harness writes', () => {
     const gate: GateAttempt = {
       schema: 'ramify-agent.gate-attempt/3',
       id: 'ga-0012', checkpoint: 'iteration',
-      subject: { workItem: 'wi-001', iteration: 'wi-001.i02' },
+      subject: { workItem: 'work-item:review-note', iteration: 'work-item:review-note.i02' },
       proposedBy: 'inv-0014', repairRound: 1, infrastructureAttempt: 0,
       head: 'abc', commit: null, audited: 'abc', evidence: null, guardedChanges: [],
       commands: [],
@@ -595,7 +596,7 @@ describe('the message the harness writes', () => {
 
     const message = commitMessage(parts);
     expect(commitMessage(parts)).toBe(message);
-    expect(message).toContain('wi-001.i02: send the customer email from the page');
+    expect(message).toContain('work-item:review-note.i02: send the customer email from the page');
     expect(message).toContain('Send the customer email from the page.');
     expect(message).not.toContain('Checks:');
     expect(message).toContain('Earlier attempts: ga-0011 failed (check-failed)');

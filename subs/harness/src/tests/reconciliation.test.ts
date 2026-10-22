@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptedAgent, ScriptStep } from '../../subs/agent/src/scripted.js';
 import type { CheckFindingSummary } from '../../subs/check-findings/src/interfaces/check-findings.js';
 import { CommandRejection } from '../jobs/commands.js';
@@ -37,11 +37,13 @@ vi.mock('node:child_process', async original =>
  */
 
 const cleanups: Array<() => Promise<void>> = [];
+let concernSequence = 0;
+beforeEach(() => { concernSequence = 0; });
 afterEach(async () => {
   try {
     for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
     expectNoProcesses();
-  } finally { forgetExternalTools(); }
+  } finally { concernSequence = 0; forgetExternalTools(); }
 });
 
 const index = `${notesDirectory}/src/index.ts`;
@@ -59,6 +61,7 @@ const engineers: ReadonlyArray<readonly ScriptStep[]> = [
 type Risk = 'high' | 'medium' | 'low';
 /** One concern about a path of the candidate. */
 const concern = (path: string, summary: string, risk: Risk) => ({
+  findingKey: `draft:finding:case-${String(++concernSequence).padStart(4, '0')}`,
   summary, consequence: `${summary}, so the behavior differs from the goal`, rationale: 'read the candidate diff', uncertainty: 'moderate',
   remedy: 'a bounded change in the named file', locations: [{ path, startLine: 1, endLine: 1 }], suggests: null, risk, ground: null,
 });
@@ -153,7 +156,7 @@ describe('CF08: nothing to assess', () => {
     const completion = run.events.findIndex(event => event.type === 'outline-revised' && event.data.architectRef !== undefined);
     const gateAt = run.events.findIndex((event, position) => position > completion && event.type === 'gate-attempted');
     expect(eventsOf(run.events.slice(0, gateAt), 'review-attempt-finished')).toHaveLength(3);
-    expect(eventsOf(run.events, 'work-item-completed')[0]!.data).toEqual({ workItem: 'wi-001', gate: expect.any(String) });
+    expect(eventsOf(run.events, 'work-item-completed')[0]!.data).toEqual({ workItem: 'work-item:review-notes', gate: expect.any(String) });
   }, 60_000);
 });
 
@@ -164,24 +167,24 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
       policy: { concurrency: 1 },
       engineer: engineers.slice(0, 3),
       reviewers: {
-        // cf-0001 and cf-0002: two distinct concerns about one file.
+        // finding:case-0001 and finding:case-0002: two distinct concerns about one file.
         'rq-0001': review(changed[1], [concern(store, 'The store is exported twice', 'high'), concern(store, 'The store could be a plain object', 'low')]),
-        // cf-0003: a judgment the architect finds wrong.
+        // finding:case-0003: a judgment the architect finds wrong.
         'rq-0002': review(changed[2], [concern(limit, 'The limit should count bytes', 'medium')]),
-        // cf-0004: the same behavior as cf-0001, reported by another reader of a later candidate.
+        // finding:case-0004: the same behavior as finding:case-0001, reported by another reader of a later candidate.
         'rq-0003': review(changed[3], [concern(store, 'The store has a doubled export keyword', 'high')]),
       },
       reconcilers: {
-        'wi-001.rc01': reconcile(submission([
-          disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-          disposition('cf-0004', { action: 'fixed', reassessed: ['cfr-0004'] }),
-          disposition('cf-0002', { action: 'waive', uncertainty: 'A plain object would serve as well.' }, {
+        'work-item:review-notes.rc01': reconcile(submission([
+          disposition('finding:case-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
+          disposition('finding:case-0004', { action: 'fixed', reassessed: ['cfr-0004'] }),
+          disposition('finding:case-0002', { action: 'waive', uncertainty: 'A plain object would serve as well.' }, {
             communication: { mode: 'report', choice: 'The store stays a Map.', uncertainty: 'A plain object would serve as well.', reason: 'It departs from the reviewer\'s suggestion.' },
           }),
-          disposition('cf-0003', { action: 'supersede', reassessed: ['cfr-0003'], replacement: 'The plan limits characters, not bytes.' }),
+          disposition('finding:case-0003', { action: 'supersede', reassessed: ['cfr-0003'], replacement: 'The plan limits characters, not bytes.' }),
         ], { kind: 'complete' }, [
-          { from: 'cf-0004', to: 'cf-0001', relation: 'same-issue', shared: 'The store module exports its store once.', evidence: [`${store}:1`], rationale: 'Both name the doubled export of the same declaration.' },
-          { from: 'cf-0002', to: 'cf-0001', relation: 'related-but-distinct', shared: 'The store declaration.', evidence: [`${store}:1`], rationale: 'One is a defect, the other a simplification.' },
+          { from: 'finding:case-0004', to: 'finding:case-0001', relation: 'same-issue', shared: 'The store module exports its store once.', evidence: [`${store}:1`], rationale: 'Both name the doubled export of the same declaration.' },
+          { from: 'finding:case-0002', to: 'finding:case-0001', relation: 'related-but-distinct', shared: 'The store declaration.', evidence: [`${store}:1`], rationale: 'One is a defect, the other a simplification.' },
         ])),
       },
     });
@@ -190,8 +193,8 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
 
     // One round, one fork at the architect's point after its completion request.
     const completion = eventsOf(events, 'outline-revised').find(event => event.data.architectRef !== undefined)!;
-    expect(eventsOf(events, 'reconciliation-started').map(event => event.data)).toEqual([{ workItem: 'wi-001', reconciliation: 'wi-001.rc01', round: 1 }]);
-    const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc01'));
+    expect(eventsOf(events, 'reconciliation-started').map(event => event.data)).toEqual([{ workItem: 'work-item:review-notes', reconciliation: 'work-item:review-notes.rc01', round: 1 }]);
+    const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('work-item:review-notes.rc01'));
     expect(basis).toMatchObject({
       round: 1, floor: 'any', source: { commit: 'revision-03', tree: finalReviewTree }, due: [],
       forkPoint: { kind: 'session', session: completion.data.architectRef!.session, ref: completion.data.architectRef!.ref },
@@ -202,7 +205,7 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
       ],
     });
     // The attention set is in attention order: by risk, then credibility, then the most recent report.
-    expect(basis.checkFindings.map(entry => entry.checkFinding)).toEqual(['cf-0004', 'cf-0001', 'cf-0003', 'cf-0002']);
+    expect(basis.checkFindings.map(entry => entry.checkFinding)).toEqual(['finding:case-0004', 'finding:case-0001', 'finding:case-0003', 'finding:case-0002']);
     const [fork] = reconcilerSessions(agent!);
     expect(fork!.spec.session).toEqual({ mode: 'fork', from: JSON.stringify(JSON.parse(completion.data.architectRef!.ref).point) });
     expect(fork!.start).toEqual({ mode: 'fork' });
@@ -226,38 +229,38 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
     // The relations and dispositions, committed as one line.
     const assessed = eventsOf(events, 'reconciliation-assessed');
     expect(assessed).toHaveLength(1);
-    expect(assessed[0]!.data).toMatchObject({ reconciliation: 'wi-001.rc01', next: 'complete' });
+    expect(assessed[0]!.data).toMatchObject({ reconciliation: 'work-item:review-notes.rc01', next: 'complete' });
     expect(assessed[0]!.data.checkFindings.map(event => event.type)).toEqual([
       'check-finding-related', 'check-finding-related', 'check-finding-decided', 'check-finding-decided', 'check-finding-decided', 'check-finding-decided',
     ]);
     const summaries = new Map(listOf(service, runId).map(summary => [summary.id, summary]));
-    expect(summaries.get('cf-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', group: { canonical: 'cf-0001', members: ['cf-0001', 'cf-0004'] } });
-    expect(summaries.get('cf-0004')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', group: { canonical: 'cf-0001', members: ['cf-0001', 'cf-0004'] } });
+    expect(summaries.get('finding:case-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', group: { canonical: 'finding:case-0001', members: ['finding:case-0001', 'finding:case-0004'] } });
+    expect(summaries.get('finding:case-0004')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', group: { canonical: 'finding:case-0001', members: ['finding:case-0001', 'finding:case-0004'] } });
     // Same file, distinct concerns: not grouped.
-    expect(summaries.get('cf-0002')).toMatchObject({ standing: 'closed', reason: 'waived', group: null, materialChoice: { choice: 'The store stays a Map.' } });
+    expect(summaries.get('finding:case-0002')).toMatchObject({ standing: 'closed', reason: 'waived', group: null, materialChoice: { choice: 'The store stays a Map.' } });
     // A judgment superseded with no code change.
-    expect(summaries.get('cf-0003')).toMatchObject({ standing: 'closed', reason: 'superseded' });
-    const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0001' });
+    expect(summaries.get('finding:case-0003')).toMatchObject({ standing: 'closed', reason: 'superseded' });
+    const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0001' });
     expect(detail).toMatchObject({ ok: true, view: { decisions: { items: [{
       actor: { kind: 'agent', role: 'local-architect', invocation: assessed[0]!.data.invocation },
       source: { kind: 'tree', id: finalReviewTree },
       evidence: [{ kind: 'reconciliation-submission', ref: runLayout.submission(assessed[0]!.data.invocation), hash: expect.stringMatching(/^sha256:/u) }],
     }] } } });
-    const waiver = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0002' });
-    expect(waiver).toMatchObject({ ok: true, view: { decisions: { items: [{ decision: { action: 'waive', authority: { kind: 'work-item-assessment', ref: 'wi-001.rc01' }, acceptedRisk: 'low' } }] } } });
+    const waiver = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0002' });
+    expect(waiver).toMatchObject({ ok: true, view: { decisions: { items: [{ decision: { action: 'waive', authority: { kind: 'work-item-assessment', ref: 'work-item:review-notes.rc01' }, acceptedRisk: 'low' } }] } } });
 
     // The brief was appended to the architect's own session after the commit.
     const appended = eventsOf(events, 'reconciliation-brief-appended');
-    expect(appended.map(event => event.data)).toEqual([{ reconciliation: 'wi-001.rc01', session: completion.data.architectRef!.session, ref: expect.any(String), outcome: 'appended', reason: null }]);
+    expect(appended.map(event => event.data)).toEqual([{ reconciliation: 'work-item:review-notes.rc01', session: completion.data.architectRef!.session, ref: expect.any(String), outcome: 'appended', reason: null }]);
     expect(events.indexOf(appended[0]!)).toBeGreaterThan(events.indexOf(assessed[0]!));
-    const record = await committed<ReconciliationAssessment>(root, runId, reconciliationLayout.assessment('wi-001.rc01'));
-    expect(record.brief).toContain('cf-0003: supersede');
+    const record = await committed<ReconciliationAssessment>(root, runId, reconciliationLayout.assessment('work-item:review-notes.rc01'));
+    expect(record.brief).toContain('finding:case-0003: supersede');
     expect(record).toMatchObject({ requestedStart: 'fork', actualStart: 'fork', next: 'complete', relations: ['cfl-0001', 'cfl-0002'] });
 
     // No human, and the gate still ran after the assessment and alone completed the work item.
     const workGate = eventsOf(events, 'gate-attempted').find(event => event.data.checkpoint === 'work-item')!;
     expect(events.indexOf(workGate)).toBeGreaterThan(events.indexOf(appended[0]!));
-    expect(eventsOf(events, 'work-item-completed')[0]!.data).toEqual({ workItem: 'wi-001', gate: workGate.data.gate });
+    expect(eventsOf(events, 'work-item-completed')[0]!.data).toEqual({ workItem: 'work-item:review-notes', gate: workGate.data.gate });
   }, 60_000);
 });
 
@@ -268,7 +271,7 @@ test('an unavailable review arriving after completion gets an architect continua
   let crashAppend = true;
   const run = await reviewRun(root, cleanups, {
     agentReady: agent => interceptOperations(agent, operations => ({ ...operations, async appendContext(input) {
-      if (crashAppend && input.additions.some(item => item.key === 'brief:wi-001.rc01')) { frozen = true; return new Promise(() => undefined); }
+      if (crashAppend && input.additions.some(item => item.key === 'brief:work-item:review-notes.rc01')) { frozen = true; return new Promise(() => undefined); }
       return operations.appendContext(input);
     } })),
     detached: true, policy: { retries: 0 }, architect: architect(false), engineer: engineers.slice(0, 3),
@@ -276,7 +279,7 @@ test('an unavailable review arriving after completion gets an architect continua
       'rq-0001': review(changed[1]), 'rq-0002': review(changed[2]),
       'rq-0003': [{ kind: 'await', until: () => completion.opened }, { kind: 'end', message: 'Advisory provider unavailable after completion request.' }],
     },
-    reconcilers: { 'wi-001.rc01': [{ kind: 'submit', input: { relations: [], dispositions: [], next: { kind: 'complete' },
+    reconcilers: { 'work-item:review-notes.rc01': [{ kind: 'submit', input: { relations: [], dispositions: [], next: { kind: 'complete' },
       brief: 'Continue using the passing configured checks and engineer evidence; retain the unavailable advisory result.' } }] },
     afterWrite: async (write, id) => {
       if (write === 'outline-revised' && (await runEventsOnDisk(root, plan, id)).some(event => event.type === 'outline-revised' && event.data.architectRef != null)) completion.open();
@@ -292,7 +295,7 @@ test('an unavailable review arriving after completion gets an architect continua
   expect(unavailable.data).toMatchObject({ result: 'not-verified', reason: 'invalid-output' });
   expect(listOf(run.service, run.runId)).toEqual([]);
   expect(before.some(event => event.type === 'work-item-completed')).toBe(false);
-  const record = await committed<ReconciliationAssessment>(root, run.runId, reconciliationLayout.assessment('wi-001.rc01'));
+  const record = await committed<ReconciliationAssessment>(root, run.runId, reconciliationLayout.assessment('work-item:review-notes.rc01'));
   expect(record.submission).toMatchObject({ dispositions: [], next: { kind: 'complete' }, brief: expect.stringContaining('Continue using') });
   const fork = reconcilerSessions(run.agent!)[0]!;
   expect(fork.spec.prompt).toContain('An advisory review was unavailable.');
@@ -333,14 +336,14 @@ describe('CF11 and CF15: correction rounds', () => {
         'rq-0004': review(changed[4], [concern(limit, 'The limit could be a named constant', 'low')]),
       },
       reconcilers: {
-        'wi-001.rc01': reconcile(submission([
-          disposition('cf-0001', { action: 'repair' }),
-          disposition('cf-0002', { action: 'waive', uncertainty: 'Either shape serves.' }),
+        'work-item:review-notes.rc01': reconcile(submission([
+          disposition('finding:case-0001', { action: 'repair' }),
+          disposition('finding:case-0002', { action: 'waive', uncertainty: 'Either shape serves.' }),
         ], { kind: 'correct', goal: 'Make the note limit 500 characters, as the plan asks.' })),
-        'wi-001.rc02': reconcile(
+        'work-item:review-notes.rc02': reconcile(
           submission([
-            disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-            ...(broad ? [disposition('cf-0003', { action: 'leave' })] : []),
+            disposition('finding:case-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
+            ...(broad ? [disposition('finding:case-0003', { action: 'leave' })] : []),
           ], { kind: broad ? 'unresolved' : 'complete' }),
         ),
       },
@@ -350,59 +353,59 @@ describe('CF11 and CF15: correction rounds', () => {
 
     // Round 1 planned the repair with this reconciliation's intent.
     const [first, second] = eventsOf(events, 'reconciliation-assessed');
-    expect(first!.data).toMatchObject({ reconciliation: 'wi-001.rc01', next: 'correct' });
-    const planned = first!.data.checkFindings.find(event => event.type === 'check-finding-decided' && event.data.checkFinding === 'cf-0001');
-    expect(planned).toMatchObject({ data: { decision: { decision: { action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } } } } });
+    expect(first!.data).toMatchObject({ reconciliation: 'work-item:review-notes.rc01', next: 'correct' });
+    const planned = first!.data.checkFindings.find(event => event.type === 'check-finding-decided' && event.data.checkFinding === 'finding:case-0001');
+    expect(planned).toMatchObject({ data: { decision: { decision: { action: 'plan-repair', repair: { kind: 'intent', ref: 'work-item:review-notes.rc01' } } } } });
 
     // The architect's own session was continued to assign the correction,
     // with the brief in its history, and the assignment resolves the intent.
     const parentTurns = agent!.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name !== 'submit_reconciliation');
     const correctionTurn = parentTurns[5]!;
     expect(correctionTurn.spec.session.mode).toBe('continue');
-    expect(correctionTurn.inherited.some(text => text.includes('Reconciliation wi-001.rc01 (round 1)'))).toBe(true);
-    expect(correctionTurn.spec.prompt).toContain('## Reconciliation wi-001.rc01');
+    expect(correctionTurn.inherited.some(text => text.includes('Reconciliation work-item:review-notes.rc01 (round 1)'))).toBe(true);
+    expect(correctionTurn.spec.prompt).toContain('## Reconciliation work-item:review-notes.rc01');
     expect(correctionTurn.spec.prompt).toContain('Make the note limit 500 characters, as the plan asks.');
     expect(correctionTurn.spec.prompt).toContain('Its brief was appended to your session.');
     const continued = eventsOf(events, 'invocation-started').find(event => event.data.continues?.reason === 'reconciliation');
-    expect(continued!.data.continues!.briefs).toEqual(['wi-001.rc01']);
+    expect(continued!.data.continues!.briefs).toEqual(['work-item:review-notes.rc01']);
     const assigned = eventsOf(events, 'iteration-assigned');
-    expect(assigned.map(event => event.data.corrects)).toEqual([undefined, undefined, undefined, 'wi-001.rc01']);
+    expect(assigned.map(event => event.data.corrects)).toEqual([undefined, undefined, undefined, 'work-item:review-notes.rc01']);
 
     // The correction closed accepted with the repair claim on its own line;
     // the CheckFinding stayed open until the next round fixed it.
-    const closed = eventsOf(events, 'iteration-closed').find(event => event.data.iteration === 'wi-001.i04')!;
+    const closed = eventsOf(events, 'iteration-closed').find(event => event.data.iteration === 'work-item:review-notes.i04')!;
     await expect(readFile(join(root, notesDirectory, 'src/tmp/correction.txt'))).rejects.toMatchObject({ code: 'ENOENT' });
     expect(closed.data.checkFindings).toEqual([expect.objectContaining({
       type: 'check-finding-decided',
-      data: expect.objectContaining({ checkFinding: 'cf-0001', decision: expect.objectContaining({ decision: { action: 'claim-repair', candidate: { kind: 'tree', id: correctedTree }, change: 'wi-001.i04' } }) }),
+      data: expect.objectContaining({ checkFinding: 'finding:case-0001', decision: expect.objectContaining({ decision: { action: 'claim-repair', candidate: { kind: 'tree', id: correctedTree }, change: 'work-item:review-notes.i04' } }) }),
     })]);
-    expect(eventsOf(events, 'review-request-recorded').map(event => event.data.iteration)).toEqual(['wi-001.i01', 'wi-001.i02', 'wi-001.i03', ...(broad ? ['wi-001.i04'] : [])]);
-    const retained = await committed<{ reviewPolicy?: { mode: string; reason: string } }>(root, runId, iterationLayout.result('wi-001', 4));
+    expect(eventsOf(events, 'review-request-recorded').map(event => event.data.iteration)).toEqual(['work-item:review-notes.i01', 'work-item:review-notes.i02', 'work-item:review-notes.i03', ...(broad ? ['work-item:review-notes.i04'] : [])]);
+    const retained = await committed<{ reviewPolicy?: { mode: string; reason: string } }>(root, runId, iterationLayout.result('work-item:review-notes', 4));
     expect(retained.reviewPolicy?.mode).toBe(broad ? undefined : 'not-run');
     if (broad) {
       const extraReview = agent!.sessions.find(session => session.spec.role === 'reviewer' && session.spec.prompt.includes('Code review rq-0004'))!;
       expect(extraReview.spec.prompt).toContain('decision: waive');
-      expect(extraReview.spec.prompt).toContain('The assessment of cf-0002 against the current source.');
+      expect(extraReview.spec.prompt).toContain('The assessment of finding:case-0002 against the current source.');
       expect(extraReview.spec.prompt).toContain('Avoid repeating unchanged issues.');
     }
 
     // Round 2 can correct any risk; the architect explicitly leaves one open.
-    const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc02'));
+    const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('work-item:review-notes.rc02'));
     expect(basis).toMatchObject({ round: 2, floor: 'any', source: { commit: 'revision-04', tree: correctedTree } });
-    expect(basis.checkFindings.map(entry => entry.checkFinding)).toEqual(['cf-0001', ...(broad ? ['cf-0003'] : [])]);
+    expect(basis.checkFindings.map(entry => entry.checkFinding)).toEqual(['finding:case-0001', ...(broad ? ['finding:case-0003'] : [])]);
     const [, refork] = reconcilerSessions(agent!);
     expect(refork!.spec.session).toEqual({ mode: 'fork', from: JSON.stringify(JSON.parse(eventsOf(events, 'outline-revised').filter(event => event.data.architectRef !== undefined)[1]!.data.architectRef!.ref).point) });
     expect(refork!.spec.prompt).toContain('A correction may be planned for any signal');
     expect(refork!.verdicts[0]).toMatchObject({ accepted: true });
-    expect(second!.data).toMatchObject({ reconciliation: 'wi-001.rc02', next: broad ? 'unresolved' : 'complete' });
+    expect(second!.data).toMatchObject({ reconciliation: 'work-item:review-notes.rc02', next: broad ? 'unresolved' : 'complete' });
 
     const summaries = new Map(listOf(service, runId).map(summary => [summary.id, summary]));
-    expect(summaries.get('cf-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
-    expect(summaries.get('cf-0002')).toMatchObject({ standing: 'closed', reason: 'waived' });
-    if (broad) expect(summaries.get('cf-0003')).toMatchObject({ standing: 'open', reason: 'new', risk: 'low' });
-    else expect(summaries.has('cf-0003')).toBe(false);
+    expect(summaries.get('finding:case-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
+    expect(summaries.get('finding:case-0002')).toMatchObject({ standing: 'closed', reason: 'waived' });
+    if (broad) expect(summaries.get('finding:case-0003')).toMatchObject({ standing: 'open', reason: 'new', risk: 'low' });
+    else expect(summaries.has('finding:case-0003')).toBe(false);
     // The work item completed through its gate, naming what it left open.
-    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual(broad ? [{ checkFinding: 'cf-0003', reason: 'left-open' }] : undefined);
+    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual(broad ? [{ checkFinding: 'finding:case-0003', reason: 'left-open' }] : undefined);
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
     run.git.assertComplete();
   }, 60_000);
@@ -423,10 +426,10 @@ describe('CF11 and CF15: correction rounds', () => {
         'rq-0003': review(changed[3]),
       },
       reconcilers: {
-        'wi-001.rc01': reconcile(submission([disposition('cf-0001', { action: 'leave' })], { kind: 'unresolved' })),
-        'wi-001.rc02': reconcile(submission([
-          disposition('cf-0001', { action: 'leave' }),
-          disposition('cf-0002', { action: 'leave' }),
+        'work-item:review-notes.rc01': reconcile(submission([disposition('finding:case-0001', { action: 'leave' })], { kind: 'unresolved' })),
+        'work-item:review-notes.rc02': reconcile(submission([
+          disposition('finding:case-0001', { action: 'leave' }),
+          disposition('finding:case-0002', { action: 'leave' }),
         ], { kind: 'unresolved' })),
       },
       afterWrite: async (write, runId) => {
@@ -434,7 +437,7 @@ describe('CF11 and CF15: correction rounds', () => {
         if (write !== 'gate-committed' || raised) return;
         if (!(await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'reconciliation-assessed')) return;
         raised = true;
-        await service.recordCheckFindings(plan, runId, { cause: { kind: 'producer', producer: 'review:code', attempt: 'late' }, commands: [report(boundConcern({ attempt: 'late', tree: finalReviewTree }))] });
+        await service.recordCheckFindings(plan, runId, { cause: { kind: 'producer', producer: 'review:code', attempt: 'late' }, commands: [report(boundConcern({ attempt: 'late', tree: finalReviewTree, findingKey: 'draft:finding:case-0002' }))] });
       },
     });
     service = run.service;
@@ -444,13 +447,13 @@ describe('CF11 and CF15: correction rounds', () => {
     const { runId, agent } = run;
     expect(raised).toBe(true);
     expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
-    expect(await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc01'))).toMatchObject({ floor: 'any' });
+    expect(await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('work-item:review-notes.rc01'))).toMatchObject({ floor: 'any' });
     expect(reconcilerSessions(agent!)[0]!.verdicts[0]).toMatchObject({ accepted: true });
     expect(eventsOf(events, 'reconciliation-started')).toHaveLength(2);
     expect(eventsOf(events, 'reconciliation-refused')).toHaveLength(1);
     expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([
-      { checkFinding: 'cf-0001', reason: 'left-open' },
-      { checkFinding: 'cf-0002', reason: 'left-open' },
+      { checkFinding: 'finding:case-0001', reason: 'left-open' },
+      { checkFinding: 'finding:case-0002', reason: 'left-open' },
     ]);
     // The gates keep their verdicts, and the run completes.
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
@@ -461,13 +464,13 @@ describe('CF11 and CF15: correction rounds', () => {
 describe('CF12: a strong authority conflict asks the user, with exact references', () => {
   test('the conflict cites an element\'s exact text and the catalog\'s revision, the work item waits for the answer, and the next round assesses it', async () => {
     const root = await reviewTarget(cleanups);
-    // Part of fr-002, the entry's acceptance element as the frozen catalog holds it.
-    const conflict = 'asks for review-notes-acceptance';
+    // Part of functional-requirement:review-notes-acceptance, the entry's acceptance element as the frozen catalog holds it.
+    const conflict = 'asks for draft:functional-requirement:review-notes-acceptance';
     const options = [
       { id: 'one-note', summary: 'Keep one note per review run', consequence: 'The plan stands; the reviewer\'s request is declined.' },
       { id: 'many-notes', summary: 'Allow several notes', consequence: 'The plan\'s constraint changes, which a person must approve.' },
     ];
-    const ask = (text: string, document = 'fr-002') => submission([disposition('cf-0001', { action: 'request-user-decision', conflicts: [{ document, text }], options })], { kind: 'await-user' });
+    const ask = (text: string, document = 'functional-requirement:review-notes-acceptance') => submission([disposition('finding:case-0001', { action: 'request-user-decision', conflicts: [{ document, text }], options })], { kind: 'await-user' });
     const run = await reviewRun(root, cleanups, {
       detached: true,
       engineer: engineers.slice(0, 3),
@@ -478,16 +481,16 @@ describe('CF12: a strong authority conflict asks the user, with exact references
       },
       reconcilers: {
         // The first citation is not the element's text, the second names the plan as the old document did; both are returned to the fork.
-        'wi-001.rc01': reconcile(ask('A note belongs to one run.'), ask(conflict, 'plan'), ask(conflict)),
-        'wi-001.rc02': reconcile(submission([
-          disposition('cf-0001', { action: 'waive', uncertainty: 'None: the user chose.' }),
+        'work-item:review-notes.rc01': reconcile(ask('A note belongs to one run.'), ask(conflict, 'plan'), ask(conflict)),
+        'work-item:review-notes.rc02': reconcile(submission([
+          disposition('finding:case-0001', { action: 'waive', uncertainty: 'None: the user chose.' }),
         ], { kind: 'complete' })),
       },
     });
     cleanups.push(() => run.service.close());
     const { service, runId } = run;
     const pending = () => {
-      const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0001' });
+      const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0001' });
       return detail?.ok === true && detail.view.kind === 'detail' && detail.view.summary.pendingUserDecision !== null ? detail.view : undefined;
     };
     await until(() => pending() !== undefined);
@@ -496,8 +499,8 @@ describe('CF12: a strong authority conflict asks the user, with exact references
     const catalogHash = (accepted.data as { evidence: { catalog: { hash: string } } }).evidence.catalog.hash;
     expect(waiting.decisions.items.at(-1)).toMatchObject({
       decision: {
-        action: 'request-user-decision', authority: { kind: 'work-item-assessment', ref: 'wi-001.rc01' }, options,
-        conflicts: [{ text: conflict, document: 'fr-002', revision: `sha256:${catalogHash}` }],
+        action: 'request-user-decision', authority: { kind: 'work-item-assessment', ref: 'work-item:review-notes.rc01' }, options,
+        conflicts: [{ text: conflict, document: 'functional-requirement:review-notes-acceptance', revision: `sha256:${catalogHash}` }],
       },
     });
     const verdicts = reconcilerSessions(run.agent!)[0]!.verdicts;
@@ -513,7 +516,7 @@ describe('CF12: a strong authority conflict asks the user, with exact references
     // A person answers through the protocol's command; the next round assesses the answer and settles it.
     // A reader may still append while the person answers; the answer is sent again at the version its refusal names.
     const receipt = await answerAtCurrentVersion(service, runId, {
-      checkFinding: 'cf-0001', expectedRevision: waiting.summary.revision, request: waiting.summary.pendingUserDecision!, option: 'one-note',
+      checkFinding: 'finding:case-0001', expectedRevision: waiting.summary.revision, request: waiting.summary.pendingUserDecision!, option: 'one-note',
     });
     expect((await runEventsOnDisk(root, plan, runId)).find(event => event.sequence === receipt.sequence))
       .toMatchObject({ type: 'check-findings-recorded', data: { cause: { kind: 'user-command', command: { commandId: receipt.commandId } } } });
@@ -521,9 +524,9 @@ describe('CF12: a strong authority conflict asks the user, with exact references
     const events = await runEventsOnDisk(root, plan, runId);
     expect(onlyRun(service, plan).state).toBe('completed');
     expect(eventsOf(events, 'reconciliation-assessed').map(event => [event.data.reconciliation, event.data.next])).toEqual([
-      ['wi-001.rc01', 'await-user'], ['wi-001.rc02', 'complete'],
+      ['work-item:review-notes.rc01', 'await-user'], ['work-item:review-notes.rc02', 'complete'],
     ]);
-    expect(listOf(service, runId).find(summary => summary.id === 'cf-0001')).toMatchObject({ standing: 'closed', reason: 'waived' });
+    expect(listOf(service, runId).find(summary => summary.id === 'finding:case-0001')).toMatchObject({ standing: 'closed', reason: 'waived' });
     expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toBeUndefined();
   }, 60_000);
 });
@@ -537,10 +540,10 @@ describe('CF09 and CF16: a basis that no longer holds', () => {
     const userWaiver: ScriptStep = {
       kind: 'await',
       until: async () => {
-        // While the fork assesses, a person waives cf-0001.
+        // While the fork assesses, a person waives finding:case-0001.
         await service.recordCheckFindings(plan, runId, {
           cause: { kind: 'user-response', command: 'waive-1' },
-          commands: [dispose('cf-0001', 1, decision(
+          commands: [dispose('finding:case-0001', 1, decision(
             { action: 'waive', authority: { kind: 'user-decision', ref: 'waive-1' }, acceptedRisk: 'high', uncertainty: 'The reviewer may be right.' },
             { actor: { kind: 'user', name: 'reviewer' } },
           ))],
@@ -562,17 +565,17 @@ describe('CF09 and CF16: a basis that no longer holds', () => {
         'rq-0003': review(changed[3], [concern(store, 'The store is not frozen', 'medium')]),
       },
       reconcilers: {
-        'wi-001.rc01': [userWaiver, ...reconcile(submission([
-          disposition('cf-0001', { action: 'waive', uncertainty: 'The limit is a detail.' }),
-          disposition('cf-0002', { action: 'waive', uncertainty: 'Nothing mutates it.' }),
+        'work-item:review-notes.rc01': [userWaiver, ...reconcile(submission([
+          disposition('finding:case-0001', { action: 'waive', uncertainty: 'The limit is a detail.' }),
+          disposition('finding:case-0002', { action: 'waive', uncertainty: 'Nothing mutates it.' }),
         ], { kind: 'complete' }))],
-        'wi-001.rc02': reconcile(submission([
-          disposition('cf-0002', { action: 'defer', revisit: 'When a caller mutates the store.' }),
+        'work-item:review-notes.rc02': reconcile(submission([
+          disposition('finding:case-0002', { action: 'defer', revisit: 'When a caller mutates the store.' }),
         ], { kind: 'complete' })),
-        'wi-001.rc03': reconcile(
-          // cf-0003 concerns another module: this architect cannot waive it.
-          submission([disposition('cf-0003', { action: 'waive', uncertainty: 'Not ours.' })], { kind: 'complete' }),
-          submission([disposition('cf-0003', { action: 'leave' })], { kind: 'unresolved' }),
+        'work-item:review-notes.rc03': reconcile(
+          // finding:case-0003 concerns another module: this architect cannot waive it.
+          submission([disposition('finding:case-0003', { action: 'waive', uncertainty: 'Not ours.' })], { kind: 'complete' }),
+          submission([disposition('finding:case-0003', { action: 'leave' })], { kind: 'unresolved' }),
         ),
       },
       afterWrite: async (write, id) => {
@@ -582,7 +585,7 @@ describe('CF09 and CF16: a basis that no longer holds', () => {
         raised = true;
         await service.recordCheckFindings(plan, id, {
           cause: { kind: 'producer', producer: 'review:code', attempt: 'late' },
-          commands: [report(boundConcern({ attempt: 'late', tree: correctedTree, summary: 'The cart module reads the notes store' }))],
+          commands: [report(boundConcern({ attempt: 'late', tree: correctedTree, summary: 'The cart module reads the notes store', findingKey: 'draft:finding:case-0003' }))],
         });
       },
     });
@@ -593,31 +596,31 @@ describe('CF09 and CF16: a basis that no longer holds', () => {
     const events = await runEventsOnDisk(root, plan, runId);
     expect(onlyRun(service, plan).state).toBe('completed');
 
-    // rc01 was refused at its commit: cf-0001 moved while the fork assessed it.
+    // rc01 was refused at its commit: finding:case-0001 moved while the fork assessed it.
     const refused = eventsOf(events, 'reconciliation-refused').map(event => event.data);
-    expect(refused[0]).toMatchObject({ reconciliation: 'wi-001.rc01', stage: 'assessment', reason: 'cf-0001 is at revision 2, not 1' });
-    expect(eventsOf(events, 'reconciliation-assessed').map(event => event.data.reconciliation)).toEqual(['wi-001.rc02', 'wi-001.rc03']);
-    const rc02 = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc02'));
-    expect(rc02.checkFindings).toEqual([{ checkFinding: 'cf-0002', revision: 1 }]);
+    expect(refused[0]).toMatchObject({ reconciliation: 'work-item:review-notes.rc01', stage: 'assessment', reason: 'finding:case-0001 is at revision 2, not 1' });
+    expect(eventsOf(events, 'reconciliation-assessed').map(event => event.data.reconciliation)).toEqual(['work-item:review-notes.rc02', 'work-item:review-notes.rc03']);
+    const rc02 = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('work-item:review-notes.rc02'));
+    expect(rc02.checkFindings).toEqual([{ checkFinding: 'finding:case-0002', revision: 1 }]);
     // The work item's first gate audited a changed store: its completion was refused.
-    expect(refused[1]).toMatchObject({ reconciliation: 'wi-001.rc02', stage: 'completion', reason: expect.stringContaining(`${store} changed between the reconciled source revision-03 and the gate's revision-04`) });
+    expect(refused[1]).toMatchObject({ reconciliation: 'work-item:review-notes.rc02', stage: 'completion', reason: expect.stringContaining(`${store} changed between the reconciled source revision-03 and the gate's revision-04`) });
     // The second gate met a signal raised after the basis: a round remained, and it was refused again.
     expect(refused[2]).toMatchObject({ stage: 'completion', reason: 'a CheckFinding became open after the basis' });
     expect(refused).toHaveLength(3);
     // The last round could not waive a signal of another module.
     const [, , last] = reconcilerSessions(run.agent!);
-    expect(JSON.stringify(last!.verdicts[0])).toContain('insufficient-authority: cf-0003 concerns project/cart');
+    expect(JSON.stringify(last!.verdicts[0])).toContain('insufficient-authority: finding:case-0003 concerns project/cart');
     const summaries = new Map(listOf(service, runId).map(summary => [summary.id, summary]));
-    expect(summaries.get('cf-0001')).toMatchObject({ standing: 'closed', reason: 'waived' });
-    expect(summaries.get('cf-0002')).toMatchObject({ standing: 'deferred', reason: 'deferred' });
-    expect(summaries.get('cf-0003')).toMatchObject({ standing: 'open', modules: ['project/cart'] });
-    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([{ checkFinding: 'cf-0003', reason: 'left-open' }]);
+    expect(summaries.get('finding:case-0001')).toMatchObject({ standing: 'closed', reason: 'waived' });
+    expect(summaries.get('finding:case-0002')).toMatchObject({ standing: 'deferred', reason: 'deferred' });
+    expect(summaries.get('finding:case-0003')).toMatchObject({ standing: 'open', modules: ['project/cart'] });
+    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([{ checkFinding: 'finding:case-0003', reason: 'left-open' }]);
     // Three work-item gates ran, each with its own verdict.
     expect(eventsOf(events, 'gate-attempted').filter(event => event.data.checkpoint === 'work-item').map(event => event.data.verdict)).toEqual(['passed', 'passed', 'passed']);
   }, 60_000);
 });
 
-/** The correction scenario's reviewers and forks: cf-0001 repaired in round 1, fixed in round 2. */
+/** The correction scenario's reviewers and forks: finding:case-0001 repaired in round 1, fixed in round 2. */
 const correctionScenario = {
   policy: { concurrency: 1 },
   commits: correctedCandidates(),
@@ -631,8 +634,8 @@ const correctionScenario = {
     'rq-0004': review(changed[4]),
   },
   reconcilers: {
-    'wi-001.rc01': reconcile(submission([disposition('cf-0001', { action: 'repair' })], { kind: 'correct', goal: 'Make the note limit 500 characters.' })),
-    'wi-001.rc02': reconcile(submission([disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] })], { kind: 'complete' })),
+    'work-item:review-notes.rc01': reconcile(submission([disposition('finding:case-0001', { action: 'repair' })], { kind: 'correct', goal: 'Make the note limit 500 characters.' })),
+    'work-item:review-notes.rc02': reconcile(submission([disposition('finding:case-0001', { action: 'fixed', reassessed: ['cfr-0001'] })], { kind: 'complete' })),
   },
 } as const;
 
@@ -644,7 +647,7 @@ describe('CF10: a missing fork point and a failed brief append', () => {
       agentReady: agent => {
         let lost = false;
         interceptOperations(agent, operations => ({ ...operations, async inspect(runId, sessionId, point) {
-          if (!lost && point && existsSync(runPath(root, plan, runId, reconciliationLayout.basis('wi-001.rc01')))) {
+          if (!lost && point && existsSync(runPath(root, plan, runId, reconciliationLayout.basis('work-item:review-notes.rc01')))) {
             lost = true; agent.loseSession(point);
           }
           return operations.inspect(runId, sessionId, point);
@@ -658,27 +661,27 @@ describe('CF10: a missing fork point and a failed brief append', () => {
     expect(first!.spec.session.mode).toBe('fresh');
     expect(first!.start).toEqual({ mode: 'fresh' });
     expect(first!.spec.prompt).toContain('## CheckFindings needing attention (1)');
-    expect(first!.spec.prompt).toContain('The plan asks for review-notes-request.');
+    expect(first!.spec.prompt).toContain('The plan asks for draft:functional-requirement:review-notes-request.');
     expect(first!.spec.prompt).toContain(`\`${notesDirectory}/src/tests/\``);
-    const record = await committed<ReconciliationAssessment>(root, runId, reconciliationLayout.assessment('wi-001.rc01'));
+    const record = await committed<ReconciliationAssessment>(root, runId, reconciliationLayout.assessment('work-item:review-notes.rc01'));
     expect(record).toMatchObject({ requestedStart: 'fork', actualStart: 'fresh' });
     const forkEnded = eventsOf(events, 'invocation-ended').find(event => event.data.invocation === record.invocation)!;
     expect(forkEnded.data.degraded).toMatchObject({ requested: 'fork', actual: 'fresh' });
 
     // The decisions were committed; the append found the session lost, and the session was finished as lost.
     const appended = eventsOf(events, 'reconciliation-brief-appended');
-    expect(appended[0]!.data).toMatchObject({ reconciliation: 'wi-001.rc01', outcome: 'session-lost', ref: null });
+    expect(appended[0]!.data).toMatchObject({ reconciliation: 'work-item:review-notes.rc01', outcome: 'session-lost', ref: null });
     expect(eventsOf(events, 'session-finished').some(event => event.data.session === appended[0]!.data.session && event.data.reason === 'lost')).toBe(true);
     // The next architect turn starts fresh, and its input carries the brief from the log.
     const parentTurns = agent!.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name !== 'submit_reconciliation');
     const correctionTurn = parentTurns[5]!;
     expect(correctionTurn.spec.session).toEqual({ mode: 'fresh' });
     expect(correctionTurn.spec.prompt).toContain('could not be appended to your session (session-lost');
-    expect(correctionTurn.spec.prompt).toContain('> Reconciliation wi-001.rc01 (round 1)');
+    expect(correctionTurn.spec.prompt).toContain('> Reconciliation work-item:review-notes.rc01 (round 1)');
     // The second round forks the new session's point, and its brief lands.
     expect(second!.start).toEqual({ mode: 'fork' });
-    expect(appended[1]!.data).toMatchObject({ reconciliation: 'wi-001.rc02', outcome: 'appended' });
-    expect(listOf(service, runId)[0]).toMatchObject({ id: 'cf-0001', standing: 'closed', reason: 'fixed-by-assessment' });
+    expect(appended[1]!.data).toMatchObject({ reconciliation: 'work-item:review-notes.rc02', outcome: 'appended' });
+    expect(listOf(service, runId)[0]).toMatchObject({ id: 'finding:case-0001', standing: 'closed', reason: 'fixed-by-assessment' });
   }, 60_000);
 });
 
@@ -689,7 +692,7 @@ describe('CF10: the brief append outcomes that land nothing', () => {
       ...correctionScenario,
       agentReady: agent => {
         interceptOperations(agent, operations => ({ ...operations, async appendContext(input) {
-          if (input.additions.some(item => item.key === 'brief:wi-001.rc01')) throw new Error('the executor refused the append');
+          if (input.additions.some(item => item.key === 'brief:work-item:review-notes.rc01')) throw new Error('the executor refused the append');
           return operations.appendContext(input);
         } }));
       },
@@ -698,8 +701,8 @@ describe('CF10: the brief append outcomes that land nothing', () => {
     expect(onlyRun(service, plan).state).toBe('completed');
     const appended = eventsOf(events, 'reconciliation-brief-appended');
     expect(appended.map(event => event.data)).toEqual([
-      { reconciliation: 'wi-001.rc01', session: expect.any(String), ref: null, outcome: 'failed', reason: 'the executor refused the append' },
-      { reconciliation: 'wi-001.rc02', session: appended[0]!.data.session, ref: expect.any(String), outcome: 'appended', reason: null },
+      { reconciliation: 'work-item:review-notes.rc01', session: expect.any(String), ref: null, outcome: 'failed', reason: 'the executor refused the append' },
+      { reconciliation: 'work-item:review-notes.rc02', session: appended[0]!.data.session, ref: expect.any(String), outcome: 'appended', reason: null },
     ]);
     // Unlike a lost session, a failed append keeps it: the correction turn
     // continues it, and its input quotes the brief from the log.
@@ -707,10 +710,10 @@ describe('CF10: the brief append outcomes that land nothing', () => {
     const parentTurns = agent!.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name !== 'submit_reconciliation');
     const correctionTurn = parentTurns[5]!;
     expect(correctionTurn.spec.session.mode).toBe('continue');
-    expect(correctionTurn.inherited.some(text => text.includes('Reconciliation wi-001.rc01'))).toBe(false);
+    expect(correctionTurn.inherited.some(text => text.includes('Reconciliation work-item:review-notes.rc01'))).toBe(false);
     expect(correctionTurn.spec.prompt).toContain('could not be appended to your session (failed: the executor refused the append)');
-    expect(correctionTurn.spec.prompt).toContain('> Reconciliation wi-001.rc01 (round 1)');
-    expect(listOf(service, runId)[0]).toMatchObject({ id: 'cf-0001', standing: 'closed', reason: 'fixed-by-assessment' });
+    expect(correctionTurn.spec.prompt).toContain('> Reconciliation work-item:review-notes.rc01 (round 1)');
+    expect(listOf(service, runId)[0]).toMatchObject({ id: 'finding:case-0001', standing: 'closed', reason: 'fixed-by-assessment' });
   }, 60_000);
 
   test('a round after the architect\'s session was lost has no session to append to, and records no-session', async () => {
@@ -730,23 +733,23 @@ describe('CF10: the brief append outcomes that land nothing', () => {
       agentReady: agent => {
         let lost = false;
         interceptOperations(agent, operations => ({ ...operations, async inspect(runId, sessionId, point) {
-          if (!lost && point && existsSync(runPath(root, plan, runId, reconciliationLayout.basis('wi-001.rc01')))) {
+          if (!lost && point && existsSync(runPath(root, plan, runId, reconciliationLayout.basis('work-item:review-notes.rc01')))) {
             lost = true; agent.loseSession(point);
           }
           return operations.inspect(runId, sessionId, point);
         } }));
       },
       reconcilers: {
-        'wi-001.rc01': reconcile(submission([
-          disposition('cf-0001', { action: 'request-user-decision', conflicts: [{ document: 'fr-002', text: 'The plan asks for review-notes-acceptance.' }], options }),
+        'work-item:review-notes.rc01': reconcile(submission([
+          disposition('finding:case-0001', { action: 'request-user-decision', conflicts: [{ document: 'functional-requirement:review-notes-acceptance', text: 'The plan asks for draft:functional-requirement:review-notes-acceptance.' }], options }),
         ], { kind: 'await-user' })),
-        'wi-001.rc02': reconcile(submission([disposition('cf-0001', { action: 'waive', uncertainty: 'None: the user chose.' })], { kind: 'complete' })),
+        'work-item:review-notes.rc02': reconcile(submission([disposition('finding:case-0001', { action: 'waive', uncertainty: 'None: the user chose.' })], { kind: 'complete' })),
       },
     });
     cleanups.push(() => run.service.close());
     const { service, runId } = run;
     const pending = () => {
-      const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0001' });
+      const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0001' });
       return detail?.ok === true && detail.view.kind === 'detail' && detail.view.summary.pendingUserDecision !== null ? detail.view.summary : undefined;
     };
     await until(() => pending() !== undefined);
@@ -754,7 +757,7 @@ describe('CF10: the brief append outcomes that land nothing', () => {
     // The decision is visible once the assessment is committed; the brief's
     // completion and the lost session's end are appended after it.
     await answerAtCurrentVersion(service, runId, {
-      checkFinding: 'cf-0001', expectedRevision: waiting.revision, request: waiting.pendingUserDecision!, option: 'one-note',
+      checkFinding: 'finding:case-0001', expectedRevision: waiting.revision, request: waiting.pendingUserDecision!, option: 'one-note',
     });
     await service.settled(plan, runId);
     const events = await runEventsOnDisk(root, plan, runId);
@@ -762,14 +765,14 @@ describe('CF10: the brief append outcomes that land nothing', () => {
     // Round 1's append found the session lost and finished it; round 2 came
     // straight after the answer, with no architect turn to start another.
     expect(eventsOf(events, 'reconciliation-brief-appended').map(event => [event.data.reconciliation, event.data.outcome, event.data.session])).toEqual([
-      ['wi-001.rc01', 'session-lost', expect.any(String)],
-      ['wi-001.rc02', 'no-session', null],
+      ['work-item:review-notes.rc01', 'session-lost', expect.any(String)],
+      ['work-item:review-notes.rc02', 'no-session', null],
     ]);
     expect(eventsOf(events, 'reconciliation-brief-appended')[1]!.data.reason).toContain('was not kept');
-    const record = await committed<ReconciliationAssessment>(root, runId, reconciliationLayout.assessment('wi-001.rc02'));
+    const record = await committed<ReconciliationAssessment>(root, runId, reconciliationLayout.assessment('work-item:review-notes.rc02'));
     expect(record).toMatchObject({ parent: null, next: 'complete' });
     // The decisions were committed all the same, and the gate completed the work item.
-    expect(listOf(service, runId)[0]).toMatchObject({ id: 'cf-0001', standing: 'closed', reason: 'waived' });
+    expect(listOf(service, runId)[0]).toMatchObject({ id: 'finding:case-0001', standing: 'closed', reason: 'waived' });
     expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toBeUndefined();
   }, 60_000);
 });
@@ -801,7 +804,7 @@ async function crashAroundAppend(when: 'before' | 'after'): Promise<void> {
     agentReady: agent => {
       scripted = agent;
       interceptOperations(agent, operations => { capturedOperations = operations; return { ...operations, async appendContext(input) {
-        if (!crashAppend || !input.additions.some(item => item.key === 'brief:wi-001.rc01')) return operations.appendContext(input);
+        if (!crashAppend || !input.additions.some(item => item.key === 'brief:work-item:review-notes.rc01')) return operations.appendContext(input);
         if (when === 'after') await operations.appendContext(input);
         crashed.open();
         return new Promise(() => undefined);
@@ -811,24 +814,24 @@ async function crashAroundAppend(when: 'before' | 'after'): Promise<void> {
   await crashed.opened;
   await new Promise(resolve => setTimeout(resolve, 200));
   const before = await runEventsOnDisk(root, plan, run.runId);
-  expect(before.at(-1)).toMatchObject({ type: 'reconciliation-assessed', data: { reconciliation: 'wi-001.rc01', next: 'correct' } });
+  expect(before.at(-1)).toMatchObject({ type: 'reconciliation-assessed', data: { reconciliation: 'work-item:review-notes.rc01', next: 'correct' } });
   await staleCrashLock(root);
 
   crashAppend = false;
   const restarted = await restart(root, scripted);
-  expect(restarted.recovery.effects).toEqual([`${plan}/${run.runId}: the parent append of reconciliation wi-001.rc01`, `${plan}/${run.runId}: continued unfinished tasks through ordinary execution`]);
+  expect(restarted.recovery.effects).toEqual([`${plan}/${run.runId}: the parent append of reconciliation work-item:review-notes.rc01`, `${plan}/${run.runId}: continued unfinished tasks through ordinary execution`]);
   await restarted.service.settled(plan, run.runId);
   const after = await runEventsOnDisk(root, plan, run.runId);
   const recovered = after.slice(before.length);
-  expect(recovered[0]).toMatchObject({ type: 'reconciliation-brief-appended', data: { reconciliation: 'wi-001.rc01', outcome: when === 'before' ? 'appended' : 'already-present' } });
+  expect(recovered[0]).toMatchObject({ type: 'reconciliation-brief-appended', data: { reconciliation: 'work-item:review-notes.rc01', outcome: when === 'before' ? 'appended' : 'already-present' } });
   expect(onlyRun(restarted.service, plan).state, JSON.stringify(onlyRun(restarted.service, plan).failure)).toBe('completed');
   // No second assessment, and the brief is in the architect's session once.
-  expect(eventsOf(after, 'reconciliation-assessed').filter(event => event.data.reconciliation === 'wi-001.rc01')).toHaveLength(1);
+  expect(eventsOf(after, 'reconciliation-assessed').filter(event => event.data.reconciliation === 'work-item:review-notes.rc01')).toHaveLength(1);
   const parent = eventsOf(after, 'outline-revised').find(event => event.data.architectRef !== undefined)!.data.architectRef!;
   const parentPoint = JSON.parse(parent.ref) as { point: { sessionId: string } };
-  expect((await capturedOperations!.inspect(run.runId, parentPoint.point.sessionId))!.additions.filter(item => item.key === 'brief:wi-001.rc01')).toHaveLength(1);
+  expect((await capturedOperations!.inspect(run.runId, parentPoint.point.sessionId))!.additions.filter(item => item.key === 'brief:work-item:review-notes.rc01')).toHaveLength(1);
   // The repair decision kept its intent, recoverable after the crash.
-  const detail = restarted.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: 'cf-0001' });
+  const detail = restarted.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: 'finding:case-0001' });
   expect(detail).toMatchObject({ ok: true, view: { summary: { standing: 'closed', reason: 'fixed-by-assessment' } } });
 
   // A second restart finds nothing to do.
@@ -873,7 +876,7 @@ describe('CF15: a work item waits for actual review settlement', () => {
     const sessions = reduceSessions(events);
     expect(sessions.get(started.data.session)!.state).toBe('finished');
     // The actual review result is in the basis before the correction review runs.
-    const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc01'));
+    const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('work-item:review-notes.rc01'));
     expect(basis.requests.find(request => request.request === 'rq-0003')).toEqual({ request: 'rq-0003', attempt: 'rq-0003.a01', result: result === 'complete' ? 'complete' : 'not-verified' });
     expect(finished.find(event => event.data.request === 'rq-0004')!.data).toMatchObject({ result: 'complete' });
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 4, complete: result === 'complete' ? 4 : 3, partial: 0, notVerified: result === 'complete' ? 0 : 1, pending: 0 });
@@ -891,15 +894,15 @@ test('Plan 43 context observation retains the pending correction before ordinary
   });
   const { service, runId, agent, events } = run;
   expect(onlyRun(service, plan).state).toBe('completed');
-  const correction = eventsOf(events, 'iteration-assigned').find(event => event.data.corrects === 'wi-001.rc01')!;
+  const correction = eventsOf(events, 'iteration-assigned').find(event => event.data.corrects === 'work-item:review-notes.rc01')!;
   const accepted = eventsOf(events, 'iteration-closed').find(event => event.data.iteration === correction.data.iteration)!;
   expect(accepted.data).toMatchObject({ outcome: 'accepted', commit: 'revision-04' });
   expect(accepted.data.checkFindings).toEqual([expect.objectContaining({ type: 'check-finding-decided', data: expect.objectContaining({
-    checkFinding: 'cf-0001', decision: expect.objectContaining({ decision: expect.objectContaining({ action: 'claim-repair', candidate: { kind: 'tree', id: correctedTree } }) }),
+    checkFinding: 'finding:case-0001', decision: expect.objectContaining({ decision: expect.objectContaining({ action: 'claim-repair', candidate: { kind: 'tree', id: correctedTree } }) }),
   }) })]);
-  expect(listOf(service, runId).find(finding => finding.id === 'cf-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
+  expect(listOf(service, runId).find(finding => finding.id === 'finding:case-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
   const parentTurns = agent!.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name !== 'submit_reconciliation');
-  const correctionTurn = parentTurns.find(session => session.spec.prompt.includes('Reconciliation wi-001.rc01') && session.spec.submission.name === 'submit_work_item_result')!;
+  const correctionTurn = parentTurns.find(session => session.spec.prompt.includes('Reconciliation work-item:review-notes.rc01') && session.spec.submission.name === 'submit_work_item_result')!;
   expect(correctionTurn.spec.session.mode).toBe('continue');
   expect(eventsOf(events, 'invocation-ended').some(event => event.data.ended === 'context-budget-reached' || event.data.ended === 'resource-pending')).toBe(false);
   expect(eventsOf(events, 'operation-recovery-paused')).toHaveLength(0);

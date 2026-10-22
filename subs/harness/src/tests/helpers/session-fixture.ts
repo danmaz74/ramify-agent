@@ -9,7 +9,7 @@ import { runSessionsResponseSchema, type RunSessionView } from '../../interfaces
 import type { RunServiceOptions } from '../../run/lifecycle.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { readTranscript } from '../../../subs/task-execution/src/transcripts/writer.js';
-import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
+import { analysis, currentAnalysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import { openRunsWithoutProcesses } from './external-tools.js';
 import { assign, byRole, completionProposed, outline, read, submit, treeInputs } from './iterations.js';
 import { forkDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
@@ -121,7 +121,7 @@ async function interruptedRun(root: string): Promise<FinishedSessionRuns['interr
     script: [
       { kind: 'message', text: 'Orienting before the analysis.' },
       { kind: 'stall', ms: 1500, thenIgnoreStop: true },
-      { kind: 'submit', input: emptyAnalysis() },
+      { kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:reviewer-identity-plan') },
     ],
   });
   try {
@@ -227,23 +227,23 @@ function pacedEngineer(pacer: Pacer): ScriptStep[] {
  * its completion request declares them.
  */
 function liveScript(root: string, pacer: Pacer) {
-  const { scenarios } = extractPlanScenarios(readFileSync(join(root, 'plans', sessionPlans.live, 'plan.md'), 'utf8'));
+  const { scenarios } = extractPlanScenarios(readFileSync(join(root, 'plans', sessionPlans.live, 'plan.md'), 'utf8'), 'document:plan');
   return declaringScenarios(byRole({
-    'initial-architect': [submit(analysis(
+    'initial-architect': [submit(currentAnalysis(analysis(
       [entry(tone, sharedUi, 'Gives the status badge a tone its markup carries.')],
-      [hypothesis('tone-legend', { change: 'create', suggestedOwner: sharedUi, dependsOn: [tone] })],
+      [hypothesis('tone-legend', { change: 'create', suggestedOwner: sharedUi })],
       [],
       scenarios.map((scenario, index) => ({
         key: `badge-tone-${index + 1}`,
         entry: tone,
         origin: { kind: 'plan' as const, planScenario: scenario.id },
-        refs: [`${tone}-acceptance`],
+        refs: [`draft:functional-requirement:${tone}-acceptance`],
         gherkin: scenario.source.join('\n'),
       })),
-    ))],
+    ), 'document:status-badge-tone-plan'))],
     'local-architect': [
       submit(requestPlacement({
-        forCapability: tone,
+        forCapability: `capability:${tone}`, requestKey: 'draft:placement-request:badge-tone',
         question: 'Do the tone names belong to the badge, or to a palette the shared UI keeps?',
         requiredBehavior: 'Four named tones a badge can carry: neutral, positive, warning and critical.',
         candidates: [{ owner: sharedUi, note: 'The badge is the only reader so far.' }],
@@ -254,13 +254,13 @@ function liveScript(root: string, pacer: Pacer) {
     'global-fork': [submit(forkDecision({
       decision: {
         question: 'Do the tone names belong to the badge, or to a palette the shared UI keeps?',
-        outcome: 'create', capability: palette, changesExistingSymbols: false, owner: sharedUi,
+        outcome: 'create', capability: `capability:${palette}`, changesExistingSymbols: false, owner: sharedUi,
         rationale: 'The tones are shared vocabulary of the shared UI, and the badge is their first reader.',
         constraints: [], uncertainties: [], evidence: { citations: [{ module: sharedUi }], gaps: [] },
       },
       registry: [registryChange({
-        capability: palette, owner: sharedUi, behavior: 'Names the four badge tones.',
-        consumers: [{ capability: tone, workItem: 'wi-001' }],
+        capability: `capability:${palette}`, owner: sharedUi, behavior: 'Names the four badge tones.',
+        consumers: [{ capability: `capability:${tone}`, workItem: 'work-item:badge-tone' }],
       })],
       brief: 'tone-palette is new in the shared UI; badge-tone consumes it.',
     }))],
@@ -286,7 +286,7 @@ export function liveRunSettings(root: string, pacer: Pacer): LiveRunSettings {
     checkpoints: [
       // The run's feature files, committed once readiness has passed.
       scenariosCommit(planId),
-      ...['wi-001.i01', 'wi-001', `final verification of plan "${planId}"`].map(subject => ({ subject, commit: null, changes: [] })),
+      ...['work-item:badge-tone.i01', 'work-item:badge-tone', `final verification of plan "${planId}"`].map(subject => ({ subject, commit: null, changes: [] })),
     ],
   });
   const scripted = createScriptedAgent(liveScript(root, pacer));

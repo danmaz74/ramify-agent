@@ -132,9 +132,9 @@ export async function recordedProjectionConsumers(paging = false, prepare?: (roo
     ] })));
     pagingEntries.push(await writer.append(() => ({ type: 'message', invocation: 'inv-0001', role: 'user', blocks: [{ type: 'text', body: inline('é🙂'.repeat(100000)) }] })));
     await writer.drain();
-    await commitRecord(log.ledger, { event: log.next({ type: 'analysis-accepted', data: { invocation: 'inv-0001', entries: 1, hypotheses: 0, registry: 1, workItems: 105, scenarios: 0, warnings: [], catalog: { context: 0, functional: 0, nonFunctional: 0, fixed: 0, recommendation: 0 }, findings: [], evidence: { catalog: { path: 'recorded/catalog.json', hash: 'a'.repeat(64) }, incorporation: { path: 'recorded/incorporation.json', hash: 'b'.repeat(64) } } } }),
-      records: [{ path: 'registry/paging/1.json', id: 'paging', revision: 1, body: registered('paging') },
-        ...Array.from({ length: 105 }, (_, n) => { const id = `wi-${String(n).padStart(3, '0')}`; return { path: `work-items/${id}/item.json`, id, revision: 1, body: item(id, { entry: 'paging' }) }; })] });
+    await commitRecord(log.ledger, { event: log.next({ type: 'analysis-accepted', data: { invocation: 'inv-0001', entries: 1, hypotheses: 0, registry: 1, workItems: 105, scenarios: 0, scenarioIds: [], warnings: [], catalog: { context: 0, functional: 0, nonFunctional: 0, fixed: 0, recommendation: 0 }, findings: [], evidence: { catalog: { path: 'recorded/catalog.json', hash: 'a'.repeat(64) }, incorporation: { path: 'recorded/incorporation.json', hash: 'b'.repeat(64) } } } }),
+      records: [{ path: 'registry/capability%3Apaging/1.json', id: 'capability:paging', revision: 1, body: registered('capability:paging') },
+        ...Array.from({ length: 105 }, (_, n) => { const id = `work-item:paging-${String(n).padStart(3, '0')}`; return { path: `work-items/${encodeURIComponent(id)}/item.json`, id, revision: 1, body: item(id, { entry: 'capability:paging' }) }; })] });
     await log.append({ type: 'session-opened', data: { session: 'ses-0002', role: 'engineer', work: {}, executor: 'scripted', model: 'recorded-model' } });
     const secondWriter = new TranscriptWriter({ session: 'ses-0002', path: join(directory, runLayout.transcript('ses-0002')), root: directory,
       store: new ContentStore(join(directory, runLayout.blobs)), inlineBytes: 1000000, now: () => new Date(at) });

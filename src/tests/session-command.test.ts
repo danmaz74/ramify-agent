@@ -97,8 +97,8 @@ test('a step run on the scripted fake prints its stream and records, and exits 0
   const workItem = join(directory, 'work-item.json');
   const assignment = join(directory, 'assignment.json');
   await writeFile(workItem, JSON.stringify({
-    schema: 'ramify-agent.work-item/1', id: 'session-table', module: 'collection-review/workspace/reviews', origin: { entry: 'review-note' },
-    goal: 'Say in the session table\'s comment that there is one per application.', requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
+    schema: 'ramify-agent.work-item/2', id: 'work-item:session-table', module: 'collection-review/workspace/reviews', origin: { entry: 'capability:session-table' },
+    goal: 'Say in the session table\'s comment that there is one per application.', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null,
   }));
   await writeFile(assignment, JSON.stringify({
     kind: 'assign', localDecisions: [],
@@ -117,7 +117,7 @@ test('a step run on the scripted fake prints its stream and records, and exits 0
   await run('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--message', 'audit configuration'], { cwd: project });
   const inputs = join(directory, 'inputs.json');
   const authored = await command(['step', 'inputs', '--role', 'engineer', '--project', project, '--work-item', workItem, '--assignment', assignment, '--out', inputs]);
-  expect(authored.stderr).toContain('Authored engineer inputs for session-table.i01 with no run');
+  expect(authored.stderr).toContain('Authored engineer inputs for work-item:session-table.i01 with no run');
   expect(authored.code).toBe(0);
 
   const script = join(directory, 'step-script.json');
