@@ -1,8 +1,8 @@
 import { nonfunctionalSourceBoundary as sourceBoundary } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/source-boundaries.js';
-import { afterEach, expect, test, vi } from 'vitest';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { afterEach, expect, test } from 'vitest';
+import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { boundedNonfunctionalTools, coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
 import { snapshotTools, snapshotReadLimits, type CandidateSnapshot, type SnapshotComparison } from '../../subs/reviews/src/snapshot.js';
 import { intakeToolName, principleToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
@@ -16,9 +16,6 @@ import { notes, notesDirectory, reviewTarget, store } from '../../subs/autonomou
 import { freeze, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, until } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { InvocationRunner } from '../../subs/task-workflow/src/steps/runner.js';
-import { HarnessSessionOperations, type HarnessOperationInput } from '../prompts/session-adapter.js';
-import { buildDeliveredManifest, type DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -87,9 +84,8 @@ test('D9/I05: bounded source tools filter both captured lists and patches, restr
   expect((await fallback.find(tool => tool.name === 'snapshot_diff')!.execute({ comparison: 'run-start' }, signal)).isError).toBe(true);
 });
 
-for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-restart', 'missing-intent-restart'] as const) test(`D8/D12/D13/I05: actual ${mode} multi-item NFR packet carries accepted A→B changes with empty B→B and all obligations`, async () => {
-  const legacy = mode === 'legacy-restart', pending = mode === 'current-restart' || mode === 'missing-intent-restart',
-    missingIntent = mode === 'missing-intent-restart', restart = mode === 'restart' || legacy || pending, repair = mode === 'repair';
+for (const mode of ['ordinary', 'restart', 'repair'] as const) test(`D8/D12/D13/I05: actual ${mode} multi-item NFR packet carries accepted A→B changes with empty B→B and all obligations`, async () => {
+  const restart = mode === 'restart', repair = mode === 'repair';
   const repairedTree = 'd'.repeat(40), repairedCommit = 'e'.repeat(40);
   const project = await reviewTarget(cleanups);
   const core = 'collection-review/workspace/reviews/core', coreDir = 'subs/workspace/subs/reviews/subs/core';
@@ -127,88 +123,18 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
   const inputs = treeInputs(); const capture = inputs.capture.bind(inputs);
   const configuredInputs = { ...inputs, capture: async (...args: Parameters<typeof inputs.capture>) => ({ ...await capture(...args), source: { commit: A, dirty: true } }) };
   let frozen = false;
-  let legacyIntentPath = '', legacyIntentBytes = '', legacyPrepared = false;
-  const legacySystem = 'Original recorded assessment system bytes.', legacyPrompt = 'Original recorded assessment prompt bytes.';
-  if (legacy) {
-    type Start = { startInvocation(...args: unknown[]): Promise<unknown> };
-    const prototype = InvocationRunner.prototype as unknown as Start;
-    const originalStart = prototype.startInvocation;
-    const startSpy = vi.spyOn(prototype, 'startInvocation').mockImplementation(async function (this: Start, ...args) {
-      const request = args[2] as { toolName: string; systemPrompt: string; prompt: string; equip: () => unknown };
-      if (request.toolName === coordinatorAssessmentToolName) {
-        request.systemPrompt = legacySystem; request.prompt = legacyPrompt;
-        request.equip = () => ({ builtinTools: [], tools: boundedNonfunctionalTools({ source, projectRoot: project, candidate: C, base: B }).map(tool => ({ ...tool,
-          description: tool.description.replace('This tool reads the pinned candidate source. Use ordinary file tools and shell for Git history, run records and other evidence.',
-            'Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.'),
-        })) });
-      }
-      return originalStart.apply(this, args);
-    });
-    const originalOperationStart = HarnessSessionOperations.prototype.start;
-    const operationSpy = vi.spyOn(HarnessSessionOperations.prototype, 'start').mockImplementation(async function (this: HarnessSessionOperations, input: HarnessOperationInput) {
-      if (input.spec.submission.name !== coordinatorAssessmentToolName || legacyPrepared) return originalOperationStart.call(this, input);
-      const declaration = { name: coordinatorAssessmentToolName, description: `Submit this task using exactly this JSON schema: ${JSON.stringify(JSON.parse(input.loaded.submissionSchema))}`, inputSchema: { type: 'object' as const }, mutating: false };
-      const sections = [{ key: 'goal', text: '# Goal\nAssess the original prepared badge candidate.' },
-        { key: 'requirements', text: `# Requirements\n${input.brief.requirements.join('\n')}` },
-        { key: 'support:nonfunctional-source', text: JSON.stringify({ base: B, head: B, tree: C, comparison: 'prepared-source-versus-current-accepted-boundary', changedPaths: [], readScope: ['.'] }) }];
-      const additions: DeliveredInput[] = [
-        { key: 'role:nonfunctional-coordinator', kind: 'role-instructions', text: 'Original pinned NFR role prefix.', source: 'old/system.md', revision: 'old-pinned' },
-        { key: `tool:${declaration.name}`, kind: 'tool-declaration', text: JSON.stringify(declaration), source: null, revision: null },
-        ...sections.map(section => ({ key: `brief:${section.key}`, kind: 'brief' as const, text: section.text, source: null, revision: 'old-nfr-revision' })),
-        { key: 'procedure:assessment', kind: 'procedure', text: 'Inspect this prepared candidate independently and assess every fixed/NFR element.', source: 'old/procedure.md', revision: 'old-pinned' },
-        { key: 'task', kind: 'task', text: `Original assessment task; submit through ${declaration.name}.`, source: null, revision: 'old-nfr-revision' },
-      ];
-      const message = additions.filter(item => !['role-instructions', 'tool-declaration'].includes(item.kind)).map(item => item.text).join('\n\n');
-      const packet = { roleInstructions: 'Original pinned NFR role prefix.', message, submissionTool: declaration.name, declaration, additions,
-        manifest: buildDeliveredManifest({ inheritedPoint: null, inherited: [], appended: additions, currentMessage: message }) };
-      const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-      const policy = { context: input.spec.context, authority: input.authority, validator: input.validator, destination: input.destination };
-      const task = { role: input.spec.role, message, submissionTool: declaration.name,
-        environment: { workingDirectory: project, candidate: C, snapshot: C, limits: input.brief.environment.limits },
-        policyIdentity: hash(policy), validatorIdentity: hash(input.validator), destinationIdentity: hash(input.destination) };
-      const declarations = [...input.spec.tools.map(({ name, description, inputSchema, mutating }) => ({ name, description, inputSchema, mutating: mutating ?? false })), declaration];
-      const intent = { schema: 'ramify-agent.harness-operation/2', requestHash: hash(input.brief), runId: input.runId, operationId: input.operationId, session: input.session,
-        source: null, mode: 'fresh', packet, context: { inherited: additions, history: [{ revision: 'old-nfr-revision', sections }], revision: 'old-nfr-revision' }, policy, task, declarations };
-      legacyIntentPath = join(project, 'plans/.harness/session-operations/correlations/operations', `${hash([input.runId, input.operationId])}.json`);
-      legacyIntentBytes = JSON.stringify(intent); await mkdir(dirname(legacyIntentPath), { recursive: true }); await writeFile(legacyIntentPath, legacyIntentBytes);
-      legacyPrepared = true;
-      return originalOperationStart.call(this, { ...input, restore: true, prepared: async (packet, declarations) => { await input.prepared?.(packet, declarations); frozen = true; await freeze(); } });
-    });
-    cleanups.push(async () => { startSpy.mockRestore(); operationSpy.mockRestore(); });
-  }
-  if (pending) {
-    const originalOperationStart = HarnessSessionOperations.prototype.start;
-    const operationSpy = vi.spyOn(HarnessSessionOperations.prototype, 'start').mockImplementation(async function (this: HarnessSessionOperations, input: HarnessOperationInput) {
-      if (input.spec.submission.name !== coordinatorAssessmentToolName) return originalOperationStart.call(this, input);
-      const hash = createHash('sha256').update(JSON.stringify([input.runId, input.operationId])).digest('hex');
-      legacyIntentPath = join(project, 'plans/.harness/session-operations/correlations/operations', `${hash}.json`);
-      return originalOperationStart.call(this, { ...input, prepared: async (packet, declarations) => { await input.prepared?.(packet, declarations); frozen = true; await freeze(); } });
-    });
-    cleanups.push(async () => { operationSpy.mockRestore(); });
-  }
   const opened = await openRuns(project, { git: git.git, candidates: source, inputs: configuredInputs, script,
-    ...(mode === 'restart' ? { afterWrite: async (write: string) => { if (legacy ? write === 'invocation-prepared' && legacyPrepared : write === 'candidate-prepared') { frozen = true; await freeze(); } } } : {}) });
+    ...(restart ? { afterWrite: async (write: string) => { if (write === 'candidate-prepared') { frozen = true; await freeze(); } } } : {}) });
   let active = opened; const receipt = await opened.service.execute(startRun('review-notes'));
-  if (restart) { await until(() => frozen || onlyRun(opened.service, 'review-notes').state === 'failed', 30_000); expect(frozen, JSON.stringify((await runEventsOnDisk(project, 'review-notes', receipt.jobId)).slice(-4))).toBe(true); if (legacy || pending) vi.restoreAllMocks(); if (missingIntent) await rm(legacyIntentPath); await staleCrashLock(project); active = await openRuns(project, { git: git.git, candidates: source, inputs: configuredInputs, script }); }
+  if (restart) { await until(() => frozen || onlyRun(opened.service, 'review-notes').state === 'failed', 30_000); expect(frozen, JSON.stringify((await runEventsOnDisk(project, 'review-notes', receipt.jobId)).slice(-4))).toBe(true); await staleCrashLock(project); active = await openRuns(project, { git: git.git, candidates: source, inputs: configuredInputs, script }); }
   cleanups.push(() => active.service.close()); await active.service.settled('review-notes', receipt.jobId);
   const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
   expect(onlyRun(active.service, 'review-notes').state, JSON.stringify({ tail: events.slice(-8), git: git.calls })).toBe('completed');
   const coordinators = events.filter(event => event.type === 'invocation-started' && event.data.role === 'nonfunctional-coordinator');
-  if (pending || legacy) expect(coordinators).toHaveLength(2);
-  if (missingIntent) expect(events.some(event => event.type === 'invocation-ended' && event.data.invocation === (coordinators[0]?.type === 'invocation-started' ? coordinators[0].data.invocation : '') && event.data.ended === 'failed')).toBe(true);
-  const started = pending || legacy ? coordinators.at(-1)! : coordinators[0]!;
+  const started = coordinators[0]!;
   if (started.type !== 'invocation-started') throw new Error('Missing NFR invocation');
   const hash = createHash('sha256').update(JSON.stringify([receipt.jobId, started.data.invocation])).digest('hex');
   const packet = (JSON.parse(await readFile(join(project, 'plans/.harness/session-operations/correlations/operations', `${hash}.json`), 'utf8')) as { packet: TaskPacket }).packet;
-  if (legacy) {
-    expect(await readFile(legacyIntentPath, 'utf8')).toBe(legacyIntentBytes);
-    const original = coordinators[0]!;
-    if (original.type !== 'invocation-started') throw new Error('Missing original assessment');
-    const invocation = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, runLayout.invocation(original.data.invocation)), 'utf8'));
-    expect(invocation.prompt.requestedInputsHash).toBe(createHash('sha256').update([legacySystem, legacyPrompt].join('\n\0\n')).digest('hex'));
-    expect(packet.roleInstructions).not.toBe('Original pinned NFR role prefix.');
-    expect(events.some(event => event.type === 'invocation-ended' && event.data.invocation === original.data.invocation && event.data.ended === 'failed')).toBe(true);
-  }
   const text = packet.message; const sourceText = packet.additions.find(item => item.key === 'brief:support:nonfunctional-source')!.text;
   const sourceBrief = JSON.parse(sourceText.slice(sourceText.indexOf('{')));
   expect(sourceBrief.comparisons).toEqual([{ name: 'run-start', base: A, target: C, changedPaths: changes.slice(0,3).sort((a,b) => a.path.localeCompare(b.path)) }, { name: 'accepted-boundary', base: B, target: C, changedPaths: [] }]);

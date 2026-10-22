@@ -188,6 +188,21 @@ test('manual export updates a retained terminal run through ledger without chang
   expect(calls).toBe(1);
   expect(await readFile(join(fixture.directory, runLayout.events), 'utf8')).toBe(before);
   expect(await readFile(join(fixture.directory, repairExportPayloadPath('apr-0001', 2)), 'utf8')).toBe(payloadBefore);
+  // A repeated export updates the same issue with the retained payload and creates none.
+  const retried: string[] = [];
+  const retry = await runRepairExportCommand(fixture.options, { commandExecution: async request => {
+    if (request.argv.includes('update')) {
+      retried.push('update');
+      expect(request.argv).toContain('tracker-1');
+      expect(JSON.parse(request.stdin ?? 'null')).toEqual(JSON.parse(payloadBefore));
+      return commandResult(request, { stdout: '{}' });
+    }
+    retried.push(request.argv.includes('list') ? 'list' : 'other');
+    return commandResult(request, { stdout: JSON.stringify([{ id: 'tracker-1', external_ref: fixture.payload.incident.export.externalRef, status: 'closed' }]) });
+  } });
+  expect(retry.exitStatus).toBe(0);
+  expect(JSON.parse(retry.stdout).exports[0]).toMatchObject({ state: 'exported', issueId: 'tracker-1' });
+  expect(retried).toEqual(['list', 'update']);
 });
 
 test('manual export preserves pending state and payload when the CLI is unavailable', async () => {

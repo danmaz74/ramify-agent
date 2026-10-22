@@ -263,11 +263,5 @@ describe('durable audit workspace ownership', () => {
     expect(reasked.verdict).toBe('pass');
     expect(await nestedRuns()).toBe(1);
     expect(await exists(receiptPath)).toBe(true);
-    const evidenceDirectory = process.env['PLAN21_ITERATION10_EVIDENCE'];
-    if (evidenceDirectory !== undefined) {
-      await writeFile(join(evidenceDirectory, 'iteration10-nested-restart.json'), `${JSON.stringify({
-        schema: 'plan21.iteration10.nested-restart/1', commit: f.commit, receipt, first, recovered, reasked, nestedExecutions: await nestedRuns(),
-      }, null, 2)}\n`);
-    }
   }, 90_000);
 });

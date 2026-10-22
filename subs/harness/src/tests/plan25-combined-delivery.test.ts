@@ -37,7 +37,7 @@ type Intent = { packet: TaskPacket; context: { inherited: DeliveredInput[]; hist
 
 // Independent fixture answers name the original commit, accepted commit and
 // prepared tree separately. No Git, producer or process runs in this workflow.
-for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) test(`Q01–Q03/I06: ${mode} combined orientation, selection, implementation, reviews and NFR delivery`, async () => {
+for (const mode of ['retained', 'fresh-fallback'] as const) test(`Q01–Q03/I06: ${mode} combined orientation, selection, implementation, reviews and NFR delivery`, async () => {
   const root = await reviewTarget(cleanups);
   const caller = `${notesDirectory}/src/notes.ts`;
   const testPath = `${notesDirectory}/src/tests/notes.test.ts`;
@@ -45,7 +45,6 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
   const nfr = 'Existing callers keep their behavior when note storage is introduced.';
   const planFile = join(root, 'plans/review-notes/plan.md');
   await writeFile(planFile, `${await readFile(planFile, 'utf8')}\n${nfr}\n`);
-  const explicit = mode !== 'legacy-records';
   const orientationPoint = { path: caller, note: 'Orientation caller: inspect compatibility' };
   const assignmentPoint = { path: caller, note: 'Assignment caller: preserve existing use' };
   const resultPoint = { path: store, note: 'Engineer result: inspect candidate implementation' };
@@ -62,12 +61,12 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
     previews: Array.from({ length: 5 }, () => ({ repositoryRoot: root, head: B, tree: C })) });
   const roles = declaringScenarios(byRole({
     'initial-architect': [submit(currentAnalysis(analysis([entry('note-store', notes)]), 'document:review-notes-plan'))],
-    'local-architect': [submit(assign(notes, explicit ? { startingPoints: [assignmentPoint] } : {}, outline())), submit(requestCompletion())],
-    engineer: [submit(completionProposed('Store implemented', explicit ? { startingPoints: [resultPoint, { path: 'missing.ts', note: 'Unavailable optional hint' }] } : {}), write(store, files[store]))],
+    'local-architect': [submit(assign(notes, { startingPoints: [assignmentPoint] }, outline())), submit(requestCompletion())],
+    engineer: [submit(completionProposed('Store implemented', { startingPoints: [resultPoint, { path: 'missing.ts', note: 'Unavailable optional hint' }] }), write(store, files[store]))],
   }));
   const agent = createScriptedAgent(spec => {
     if (spec.submission.name === intakeToolName) return submit({ goal: 'Introduce note storage while preserving callers.', elements: [{ key: 'draft:non-functional-requirement:compatibility', kind: 'non-functional', document: 'document:review-notes-plan', text: nfr, conditions: [], uncertainty: '' }], incorporation: { documents: [{ document: 'document:review-notes-plan', scenarios: true, uncertainty: '' }], missing: [] } });
-    if (spec.submission.name === 'submit_work_orientation') return submit({ focus: 'Note storage and callers', currentUnderstanding: 'Inspect existing callers before assigning implementation.', questions: [], ...(explicit ? { startingPoints: [orientationPoint] } : {}) });
+    if (spec.submission.name === 'submit_work_orientation') return submit({ focus: 'Note storage and callers', currentUnderstanding: 'Inspect existing callers before assigning implementation.', questions: [], startingPoints: [orientationPoint] });
     if (spec.submission.name === 'submit_context_selection') return submit({ selected: [{ id: 'non-functional-requirement:compatibility', reason: 'Caller compatibility constrains note storage.', conditions: [], uncertainty: '' }] });
     if (spec.submission.name === 'submit_orientation') return submit({ read: [readme], summary: 'Keep the store in memory.' });
     if (spec.submission.name === 'submit_review') return submit({ inspected: [store], missing: [], concerns: [] });
@@ -153,23 +152,21 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
   expect(architect).toHaveLength(2); expect(reviews, JSON.stringify(events.filter(event => /review/u.test(event.type)))).toHaveLength(3);
   expect(agent.sessions.find(session => session.spec.submission.name === 'submit_context_selection')!.start.mode).toBe(mode === 'fresh-fallback' ? 'fresh' : 'fork');
   expect(selection.manifest.inheritedPoint === null).toBe(mode === 'fresh-fallback');
-  if (explicit) {
-    const recorded = events.find(event => event.type === 'work-orientation-recorded')!;
-    if (recorded.type !== 'work-orientation-recorded' || !recorded.data.packet) throw new Error('Missing orientation packet');
-    expect(await readFile(runPath(root, 'review-notes', receipt.jobId, recorded.data.packet), 'utf8')).toContain(orientationPoint.note);
-    expect(selection.message.includes(orientationPoint.note)).toBe(mode === 'fresh-fallback');
-    expect(engineer.message).toContain(assignmentPoint.note);
-    expect(architect[1]!.message).toContain(resultPoint.note);
-    for (const review of reviews) {
-      const pointers = review.additions.find(item => item.key === pointKey)!.text;
-      expect(pointers).toContain(assignmentPoint.note); expect(pointers).toContain(resultPoint.note);
-      expect(pointers).toContain(`pinned candidate ${B}`); expect(pointers).not.toContain(root);
-      expect(pointers).not.toContain('Unavailable optional hint');
-    }
-    const origins = nfrPacket.additions.find(item => item.key === pointKey)!.text;
-    expect(origins).toContain('"producer":"architect assignment"'); expect(origins).toContain('"producer":"engineer accepted result"');
-    expect(origins).toContain('"workItem":"work-item:note-store"'); expect(origins).toContain('"iteration":"work-item:note-store.i01"'); expect(origins).toContain(`"boundary":"${B}"`);
-  } else expect(packets.some(packet => packet.message.includes('Engineer result:'))).toBe(false);
+  const recorded = events.find(event => event.type === 'work-orientation-recorded')!;
+  if (recorded.type !== 'work-orientation-recorded' || !recorded.data.packet) throw new Error('Missing orientation packet');
+  expect(await readFile(runPath(root, 'review-notes', receipt.jobId, recorded.data.packet), 'utf8')).toContain(orientationPoint.note);
+  expect(selection.message.includes(orientationPoint.note)).toBe(mode === 'fresh-fallback');
+  expect(engineer.message).toContain(assignmentPoint.note);
+  expect(architect[1]!.message).toContain(resultPoint.note);
+  for (const review of reviews) {
+    const pointers = review.additions.find(item => item.key === pointKey)!.text;
+    expect(pointers).toContain(assignmentPoint.note); expect(pointers).toContain(resultPoint.note);
+    expect(pointers).toContain(`pinned candidate ${B}`); expect(pointers).not.toContain(root);
+    expect(pointers).not.toContain('Unavailable optional hint');
+  }
+  const origins = nfrPacket.additions.find(item => item.key === pointKey)!.text;
+  expect(origins).toContain('"producer":"architect assignment"'); expect(origins).toContain('"producer":"engineer accepted result"');
+  expect(origins).toContain('"workItem":"work-item:note-store"'); expect(origins).toContain('"iteration":"work-item:note-store.i01"'); expect(origins).toContain(`"boundary":"${B}"`);
   expect(architect[1]!.message).not.toContain('# Block procedure:local-architect:main');
   expect(architect[1]!.manifest.entries.some(item => item.delivery === 'inherited' && item.block?.key === 'procedure:local-architect:main')).toBe(true);
   const comparisonText = nfrPacket.additions.find(item => item.key === 'brief:support:nonfunctional-source')!.text;

@@ -11,6 +11,7 @@ import {
 } from '../tools/shell.js';
 
 import { strictMarkerCommand } from './helpers/settlement-boundaries.js';
+import { commandResult } from './helpers/command-result.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
@@ -139,4 +140,36 @@ describe('the shell tool', () => {
     expect((shellJsonSchema as { additionalProperties?: unknown }).additionalProperties).toBe(false);
   });
 
+  test('answers the exit code and tail, records the call, and reports a timeout as unverified rather than failed', async () => {
+    const directory = await workspace();
+    const recorded: Recorded = { starts: [], ends: [] };
+    const answers: Array<Parameters<typeof commandResult>[1]> = [
+      { outcome: { kind: 'completed', exitCode: 3 }, stdout: 'out\n', stderr: 'err\n' },
+      { outcome: { kind: 'timed-out', timeoutMs: 400 } },
+    ];
+    let call = 0;
+    const tool = createShellTool({
+      workingDirectory: directory,
+      judge: async () => ({ ok: true }),
+      outputFile: call => join(directory, 'output', `${call}.log`),
+      starting: async call => { recorded.starts.push(call); },
+      ended: async (call, result) => { recorded.ends.push({ call, result }); },
+      commandExecution: async request => commandResult(request, answers[call++]!),
+    });
+
+    const failed = await tool.definition.execute({ command: 'echo out; echo err >&2; exit 3' }, new AbortController().signal);
+    expect(failed.isError).toBe(true);
+    expect(failed.text).toContain('$ echo out; echo err >&2; exit 3');
+    expect(failed.text).toContain('Exit 3.');
+    expect(failed.text).toContain('out\nerr\n');
+    expect(recorded.starts[0]).toMatchObject({ command: 'echo out; echo err >&2; exit 3', timeoutMs: shellDefaultTimeoutMs });
+    expect(recorded.ends[0]?.result.exitCode).toBe(3);
+    expect(await readFile(recorded.starts[0]!.outputFile, 'utf8')).toBe('out\nerr\n');
+
+    const stalled = await tool.definition.execute({ command: 'sleep 30', timeoutMs: 400 }, new AbortController().signal);
+    expect(stalled.isError).toBe(true);
+    expect(recorded.ends[1]?.result.outcome).toEqual({ kind: 'timed-out', timeoutMs: 400 });
+    expect(stalled.text).toContain('stopped for stall recovery');
+    expect(stalled.text).toContain('result remains unverified');
+  });
 });

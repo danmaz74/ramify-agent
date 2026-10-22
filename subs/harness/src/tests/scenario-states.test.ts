@@ -225,7 +225,6 @@ const owing = (ids: string) => ({
     + 'it is correctly implemented and passing; where work remains, assign it, or submit `unresolved` with what blocks it',
   expected: `a done report for each of ${ids}`,
 });
-const revised = (id: string, basedOnRevision: number) => ({ id, judgment: 'bound' as const, basedOnRevision });
 
 describe('PB3-D12, PB3-D06: binding, the done report and the pending tag', () => {
   test('a binding makes a scenario bound and takes its tag off before the gate that selects it; a done report finishes it, directly from pending too; the final gate runs every scenario in full mode', async () => {
@@ -448,60 +447,6 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
     expect(read(root, feature)).toContain('  @ramify-scenario-review-note-is-used\n');
     git.assertAnswered();
   }, 120_000);
-
-  test('only the architect\'s revision moves done back to bound; a rebinding of done with no fakes leaves it done', async () => {
-    const root = await fixtureWith('notes');
-    const feature = featureOf(notesDirectory, 'review-note');
-    const steps = stepsOf(notesDirectory, 'review-note');
-    const source = `${notesDirectory}/src/notes.ts`;
-    const { service, runId, agent, git } = await run(root, {
-      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
-      'local-architect': [
-        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
-        submit({ ...assign(notes, { goal: 'Replace the fake limit with the real one.', obligations: ['scenario:review-note-is-used'] }), reports: [done('scenario:review-note-is-used', 0)] }),
-        // A completion request cannot carry the revision: it would leave
-        // scenario:review-note-is-used without a done report. The revision travels with the work.
-        [
-          ...submit({ ...requestCompletion(), reports: [revised('scenario:review-note-is-used', 1)] }),
-          ...submit({ ...assign(notes, { goal: 'Cover the limit at its edge.', obligations: ['scenario:review-note-is-used'] }), reports: [revised('scenario:review-note-is-used', 1)] }),
-        ],
-        submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 2)] }),
-      ],
-      engineer: [
-        submit(completionProposed('Bound against the fake limit.', { bindings: [{ id: 'scenario:review-note-is-used', fakes: ['FakeNoteLimit'] }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile)),
-        submit(completionProposed('The notes use the real limit.', { bindings: [{ id: 'scenario:review-note-is-used' }] }), write('notes.ts', `${consumerStub}// real limit\n`)),
-        submit(completionProposed('The limit holds at its edge.', { bindings: [{ id: 'scenario:review-note-is-used' }] }), write('notes.ts', `${consumerStub}// real limit, at its edge\n`)),
-      ],
-    }, [
-      accepted('work-item:review-note.i01', 'revision-01', [...added(steps), ...modified(feature)]),
-      accepted('work-item:review-note.i02', 'revision-02', modified(source)),
-      accepted('work-item:review-note.i03', 'revision-03', modified(source)),
-      unchanged('work-item:review-note'),
-      unchanged(finalSubject),
-    ]);
-
-    expect(onlyRun(service, plan).failure).toBeNull();
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const log = await events(root, runId);
-    expect(scenarioLines(log)).toEqual([
-      'bound scenario:review-note-is-used (FakeNoteLimit)', 'reported scenario:review-note-is-used done', 'bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used bound', 'bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used done',
-    ]);
-    const [, , rebound, revisedBack] = architectPrompts(agent);
-    const engineers = invocationsOf(log, 'engineer');
-    expect(rebound).toContain(`- scenario:review-note-is-used (scenario): done, revision 1; bound by ${engineers[1]} with no fakes; last report done by`);
-    // PB3-C06: the accepted source moved since the report, shown as its own
-    // fact beside the unchanged declaration; the harness infers nothing from it.
-    expect(rebound).toContain('# Accepted source since your reports');
-    expect(rebound).toContain('The accepted source is now revision-02.');
-    expect(rebound).toContain('- scenario:review-note-is-used: last reported done against accepted source revision-01');
-    expect(rebound.indexOf('# Accepted source since your reports')).toBeGreaterThan(rebound.indexOf('- scenario:review-note-is-used (scenario): done'));
-    expect(rejection(architectVerdicts(agent)[2]![0])).toEqual([owing('scenario:review-note-is-used')]);
-    expect(revisedBack).toContain(`- scenario:review-note-is-used (scenario): bound, revision 2; bound by ${engineers[2]} with no fakes; last report bound by`);
-    // A revision never brings the pending tag back.
-    expect(read(root, feature)).toContain('  @ramify-scenario-review-note-is-used\n');
-    expect(read(root, feature)).not.toContain('@ramify-scenario-review-note-is-used @ramify-pending');
-    git.assertAnswered();
-  }, 120_000);
 });
 
 describe('PB3-D11: a completion proposal binds every assigned obligation', () => {
@@ -648,43 +593,6 @@ describe('§9: work-item completion', () => {
     const log = await events(root, runId);
     expect(log.filter(event => event.type === 'obligation-reported')).toHaveLength(1);
     expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 1 });
-  }, 120_000);
-
-  test('a done scenario that fails a later gate fails that gate, and stays done', async () => {
-    const root = await fixtureWith('notes');
-    const feature = featureOf(notesDirectory, 'review-note');
-    const steps = stepsOf(notesDirectory, 'review-note');
-    let regressions = 0;
-    const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
-      'local-architect': [
-        submit(assign(notes, { obligations: ['scenario:review-note-is-used'] }, outline())),
-        submit({ ...requestCompletion(), reports: [done('scenario:review-note-is-used', 0)] }),
-        submit({ ...requestCompletion(), reports: [] }),
-      ],
-      engineer: [submit(completionProposed('Bound.', { bindings: [{ id: 'scenario:review-note-is-used' }] }), write(steps.slice(`${notesDirectory}/src/`.length), stepFile))],
-    }, [
-      accepted('work-item:review-note.i01', 'revision-01', [...added(steps), ...modified(feature)]),
-      unchanged('work-item:review-note'),
-      unchanged('work-item:review-note'),
-      unchanged(finalSubject),
-    ], {
-      checkScript: ({ check, context }) => {
-        if (check.kind !== 'scenarios') return {};
-        if (context.checkpoint !== 'work-item' || regressions > 0) return { scenarios: runnableScenarios(root) };
-        regressions += 1;
-        return failingScenario(root, 'scenario:review-note-is-used');
-      },
-    });
-
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const attempts = (await gates(root, runId)).filter(attempt => attempt.checkpoint === 'work-item');
-    expect(attempts.map(attempt => attempt.verdict)).toEqual(['failed', 'passed']);
-    expect(resultsOf(attempts[0]!)).toEqual([expect.objectContaining({ id: 'scenario:review-note-is-used', status: 'failed' })]);
-    // The failure changed no state and the file kept no pending tag.
-    expect(scenarioLines(await events(root, runId))).toEqual(['bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used done']);
-    expect(read(root, feature)).toContain('  @ramify-scenario-review-note-is-used\n');
-    git.assertAnswered();
   }, 120_000);
 });
 

@@ -39,8 +39,8 @@ import { architectIndex, moduleEntry } from './helpers/views.js';
  * files, and its engineer works at the ancestor with the children on both
  * paths in scope. A failure of the integration scenario reaches its engineer
  * raw, with every result, and with no diagnosis of its cause.
- * No process starts here; the real checker's verdict on what the module engineer
- * wrote is `integration-scenarios-integration.test.ts`'s.
+ * No process starts here; the installed checker's verdict on the ancestor's
+ * test import is `installed-ramify.boundary.test.ts`'s.
  */
 
 vi.mock('node:child_process', async original =>

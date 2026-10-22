@@ -114,15 +114,20 @@ prompt already has its own Ramify section; do the same for the other roles.
       `openai-codex/gpt-5.6-sol:high` and keep that run as the recording for
       the replay fake.
 
-## 5. A load-sensitive test
+## 5. A stop can end a job with a live engineer session
 
-- [ ] `composition.test.ts`, the union-producer test: under heavy parallel
-      load (24 test files at once, 2026-09-21) the `stop` scenario produced no
-      `ended = stopped` invocation, so two union values had no producer. It
-      passes alone, at `HEAD` and on the working tree. The scenario stops the
-      run when the writer is acquired while the engineer waits 60 s; find what
-      the invocation ends as when the machine is slow, and make the scenario
-      deterministic.
+- [ ] In the composed `stop` run (`composition.test.ts`, the stop scenario),
+      a stop sent at `writer-acquired` can reach `job-stopped` without the
+      engineer's `invocation-ended` or `session-finished`, so its session
+      stays live in the derived log. Reproduced twice in four loaded runs on
+      2026-10-22; the failing tail is `writer-acquired inv-0007,
+      stop-requested, invocation-prepared inv-0007, [writer-released],
+      session-finished ses-0002/0004, job-stopped`, with no
+      `invocation-ended` for `ses-0006`. The old per-write query sweep in
+      the same file delayed the run enough to hide it. The test helper
+      `runToEnd` (`helpers/composition.ts`) now holds the run at the
+      stopping write until the stop is accepted, which keeps the test
+      deterministic; the production ordering still needs the fix.
 
 
 ## 6. Clean up raw run data
@@ -184,3 +189,17 @@ the execution map's badge).
 - [ ] Replace the design review's fixed guidance selection (principles files
       and the READMEs on the way to a changed path) with a relevance
       judgment, once the live-model trial says what the fixed selection costs.
+
+## 9. Policy fields and names production never reads
+
+- [ ] `policy.recovery.baseDelayMs` and `maxDelayMs` are declared in
+      `subs/harness/subs/autonomous/src/run/records.ts` and set in
+      `subs/harness/src/run/policy.ts`, but `taskRetryDelay` in
+      `subs/harness/subs/recovery/src/reentry.ts` hardcodes 250 ms doubling.
+      Either read the fields or delete them from the schema.
+- [ ] The `recoveryRuntime` option of the run service
+      (`subs/harness/subs/autonomous/src/run/service.ts`) is accepted and
+      never read.
+- [ ] `capabilityRecoveryBoundaries` names `capability-gate-recorded`, an
+      event type the run log declares but nothing emits.
+- [ ] `contextBudgetReached` in the agent port has no production caller.

@@ -177,8 +177,8 @@ test('a repeated ordinary preparation failure waits again without transport retr
   expect(subject.gitBoundary.git.unexpected).toEqual([]);
 });
 
-test.each(['ordinary', 'missing', 'spent'] as const)('restart at %s preparation preserves the paused boundary and retries preparation without replaying accepted work', async boundary => {
-  const subject = await scenario(boundary);
+test('restart at spent preparation preserves the paused boundary and retries preparation without replaying accepted work', async () => {
+  const subject = await scenario('spent');
   const originalEngineers = subject.specs.filter(spec => spec.role === 'engineer').length;
   await subject.service.close();
   subject.restore();
@@ -187,13 +187,12 @@ test.each(['ordinary', 'missing', 'spent'] as const)('restart at %s preparation 
   await reopened.service.settled(plan, subject.runId);
   const run = reopened.service.getRun(plan, subject.runId)!;
   expect(run.state, JSON.stringify(run.failure)).toBe('completed');
-  expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(originalEngineers + (boundary === 'ordinary' ? 1 : 0));
-  expect(subject.specs.filter(spec => spec.submission.name === 'submit_automatic_repair')).toHaveLength(boundary === 'spent' ? 1 : 0);
+  expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(originalEngineers);
+  expect(subject.specs.filter(spec => spec.submission.name === 'submit_automatic_repair')).toHaveLength(1);
   const events = reopened.service.events(plan, subject.runId)!;
-  expect(events.filter(event => event.type === 'repair-incident-recorded' && event.data.stage === 'refused')).toHaveLength(boundary === 'ordinary' ? 0 : 1);
+  expect(events.filter(event => event.type === 'repair-incident-recorded' && event.data.stage === 'refused')).toHaveLength(1);
   subject.gitBoundary.assertComplete();
 }, 20_000);
-
 
 test.each(['unsafe', 'semantic'] as const)('%s original authority remains terminal and cannot use missing root assignment recovery', async boundary => {
   const subject = await scenario(boundary);

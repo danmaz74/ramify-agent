@@ -1494,8 +1494,8 @@ The run's own tests are beside them.
   briefing without bridging diagnoses, a refused scope that leaves out a
   path, the binding, the architect's report and the completion; a repair
   briefing with the raw failure and every result; and the rules over
-  literal records. `integration-scenarios-integration.test.ts` runs the
-  same scenario to completion and gives the tree to the installed Ramify,
+  literal records. `installed-ramify.boundary.test.ts` builds the same
+  scenario's tree and gives it to the installed Ramify,
   which accepts the ancestor's named imports of both step files and refuses
   one once its `expose-test` is removed. Both share
   `helpers/integration-scenario.ts`.

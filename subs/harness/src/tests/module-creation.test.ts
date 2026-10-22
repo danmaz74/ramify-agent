@@ -29,7 +29,7 @@ vi.mock('node:child_process', async original =>
  * What a commit added or removed is Git's to report, never the harness's to
  * observe: each scenario states the `A`, `M` and `D` entries Git answers,
  * and the assertions read the notice the run derived from them. The real
- * architect-view bootstrap witness lives in `module-creation-integration.test.ts`.
+ * architect-view bootstrap witness lives in `installed-ramify.boundary.test.ts`.
  */
 
 const cleanups: Array<() => Promise<void>> = [];

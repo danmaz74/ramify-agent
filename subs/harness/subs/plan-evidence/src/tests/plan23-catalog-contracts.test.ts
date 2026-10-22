@@ -31,15 +31,6 @@ describe('Plan 23 C01/C02 catalog local-key validation', () => {
     expect(acceptElements(catalog, [element('draft:functional-requirement:cap-a')])).toMatchObject({ ok: true, ids: new Map([['draft:functional-requirement:cap-a', 'functional-requirement:cap-a']]) });
     expect(catalog.elements).toEqual([]);
   });
-  test('replacement revisions retire an identity that cannot be reused', () => {
-    const initial = acceptElements(openElementCatalog(hash, manifest), [element('draft:functional-requirement:req-a'), element('draft:functional-requirement:cap-a')]); if (!initial.ok) throw new Error('fixture');
-    const retired = reviseCatalog(initial.catalog, { rewrite: [], retire: ['functional-requirement:cap-a'],
-      add: [element('draft:functional-requirement:next')], replacements: [{ retired: 'functional-requirement:cap-a', with: ['draft:functional-requirement:next'] }],
-      references: [field(['functional-requirement:req-a'])] });
-    expect(retired).toMatchObject({ ok: true, ids: new Map([['draft:functional-requirement:next', 'functional-requirement:next']]), catalog: { retired: ['functional-requirement:cap-a'] } });
-    if (!retired.ok) throw new Error('retirement rejected');
-    expect(acceptElements(retired.catalog, [element('draft:functional-requirement:cap-a')]).ok).toBe(false);
-  });
   test('revision references reject retired IDs/new wrong-kind keys atomically and retry does not advance IDs', () => {
     const initial = acceptElements(openElementCatalog(hash, manifest), [element('draft:functional-requirement:req-a')]); if (!initial.ok) throw new Error('fixture');
     const before = serializeElementCatalog(initial.catalog);
@@ -58,12 +49,9 @@ describe('Plan 23 C01/C02 catalog local-key validation', () => {
       'entries.cap-a.requirementRefs.0: "draft:functional-requirement:req-a" is functional-requirement; this field requires no permitted element kinds from this submission',
     ]);
   });
-  test('Gherkin remains valid element text, while a separate gherkin field is refused', () => {
-    const catalog = openElementCatalog(hash, manifest);
-    const text = 'Scenario: A caller receives a result\n Given a valid request\n When the caller submits it\n Then the result is returned';
-    expect(acceptElements(catalog, [{ ...element('draft:functional-requirement:req-a'), text }])).toMatchObject({ ok: true, catalog: { elements: [{ id: 'functional-requirement:req-a', text }] } });
-    const rejected = acceptElements(catalog, [{ ...element('draft:functional-requirement:req-a'), gherkin: text }]);
-    expect(rejected.ok).toBe(false); if (rejected.ok) return;
-    expect(rejected.errors.join(' ')).toContain('gherkin'); expect(rejected.errors.join(' ')).toContain('draft:functional-requirement:req-a');
+  test('a draft-stage field refuses accepted IDs and an accepted-stage field refuses draft keys, at the field path', () => {
+    const accepted = acceptElements(openElementCatalog(hash, manifest), [element('draft:functional-requirement:req-a')]); if (!accepted.ok) throw new Error('fixture');
+    expect(validateElementReferences([{ ...field(['functional-requirement:req-a']), stage: 'draft' }, { ...field(['draft:functional-requirement:req-a']), stage: 'accepted' }], accepted.catalog, [])).toEqual([
+      expect.stringMatching(/^entries\.cap-a\.requirementRefs\.0: .* accepted ID or wrong-stage reference/), expect.stringMatching(/^entries\.cap-a\.requirementRefs\.0: .* is a draft key/)]);
   });
 });

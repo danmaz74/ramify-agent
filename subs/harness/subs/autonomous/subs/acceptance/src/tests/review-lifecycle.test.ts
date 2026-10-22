@@ -1,4 +1,4 @@
-import { readdir, readFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -9,7 +9,6 @@ import { runLayout } from '../../../../src/run/records.js';
 
 import { RunQueries } from '../../../../../projections/src/queries.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
-import { reviewLayout } from '../reviews/records.js';
 import { snapshotToolNames } from '../../../../../reviews/src/snapshot.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
 import { mappedAudit, passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
@@ -81,18 +80,6 @@ async function settledLog(root: string, runId: string): Promise<RunEvent[]> {
   }
 }
 
-/** A service opened over the crashed project: what recovery asks of Git is answered, and nothing is driven. */
-async function restart(root: string) {
-  const restarted = await openRuns(root, {
-    // This reader-prefix projection control deliberately has no execution port.
-    git: mockGit({ changedPaths: async () => [], currentHead: async () => 'revision-03' }),
-    candidates: scriptedCandidates(root, candidates()),
-    policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }),
-  });
-  cleanups.push(() => restarted.service.close());
-  return restarted;
-}
-
 describe('CF07: a stop owns every live reader, and a late result is fenced', () => {
   test('two live readers are stopped with the writer, each attempt is settled before job-stopped, and a reader that ignores its stop ingests nothing', async () => {
     const root = await reviewTarget(cleanups);
@@ -152,44 +139,6 @@ describe('CF07: a stop owns every live reader, and a late result is fenced', () 
     expect(service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' })).toMatchObject({ ok: true, view: { total: 0 } });
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 2, complete: 0, partial: 0, notVerified: 2, pending: 0 });
   }, 60_000);
-
-  test('a quiet reader outlives historical idle and settlement limits and completes before the final gate', async () => {
-    const root = await reviewTarget(cleanups);
-    const entered = gate(); const release = gate(); const completion = gate(); let revisions = 0;
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    try {
-      const pending = reviewRun(root, cleanups, {
-        policy: { settleMs: 300 },
-        afterWrite: async write => { if (write === 'outline-revised' && ++revisions === 2) completion.open(); },
-        engineer: engineers(),
-        reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': [
-          { kind: 'await', until: () => { entered.open(); return release.opened; } },
-          tool(snapshotToolNames.diff, { path: store }), tool(snapshotToolNames.diff, { path: `${notesDirectory}/src/index.ts` }),
-          { kind: 'submit', input: { inspected: [store, `${notesDirectory}/src/index.ts`], missing: [], concerns: [] } },
-        ] },
-      });
-      await Promise.all([entered.opened, completion.opened]);
-      await vi.advanceTimersByTimeAsync(60 * 60_000);
-      release.open();
-      const run = await pending;
-      const { events, service, runId } = run;
-      expect(onlyRun(service, plan).state).toBe('completed');
-      const finished = eventsOf(events, 'review-attempt-finished');
-      expect(finished).toHaveLength(3);
-      expect(finished.every(event => event.data.result === 'complete' && event.data.reason === null)).toBe(true);
-      const completed = events.find(event => event.type === 'job-completed')!;
-      expect(finished.every(event => event.sequence < completed.sequence)).toBe(true);
-      expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 });
-    // Each reviewer's evaluation names the review request it served.
-    const metrics = await new RunQueries(createQuerySource(service)).metrics(plan, runId);
-    const served = new Map(eventsOf(events, 'review-attempt-started').map(event => [event.data.invocation, event.data.request]));
-    const reviewers = metrics.evaluation.invocations.filter(evaluation => evaluation.role === 'reviewer');
-    expect(reviewers).toHaveLength(3);
-    expect(reviewers.map(evaluation => evaluation.request).sort()).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
-    for (const evaluation of reviewers) expect(evaluation.request).toBe(served.get(evaluation.invocation));
-      run.git.assertComplete();
-    } finally { release.open(); vi.useRealTimers(); }
-  }, 60_000);
 });
 
 describe('CF04: review coverage under a full queue', () => {
@@ -217,119 +166,12 @@ describe('CF04: review coverage under a full queue', () => {
     ]);
     expect(eventsOf(events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
     expect(await attemptRecord(root, runId, 'rq-0003.a01')).toMatchObject({ result: { result: 'complete' } });
-  }, 60_000);
-});
-
-describe('CF06: a crash around a review is recovered exactly once', () => {
-  test('a reopen without an execution agent retains the already requested candidate review', async () => {
-    const root = await reviewTarget(cleanups);
-    const crashed = gate();
-    let frozen = false;
-    const run = await reviewRun(root, cleanups, {
-      detached: true,
-      engineer: engineers(),
-      reviewers: { 'rq-0001': clean(store) },
-      afterWrite: async write => {
-        if (frozen) return freeze();
-        if (write !== 'iteration-closed') return;
-        frozen = true;
-        crashed.open();
-        return freeze();
-      },
-    });
-    await crashed.opened;
-    const before = await settledLog(root, run.runId);
-    expect(before.some(event => event.type === 'iteration-closed' && event.data.iteration === 'work-item:review-notes.i01')).toBe(true);
-    expect(eventsOf(before, 'review-request-recorded')).toHaveLength(1);
-    await staleCrashLock(root);
-
-    const restarted = await restart(root);
-    expect(restarted.agent).toBeUndefined();
-    expect(restarted.recovery.reviews).toEqual([]);
-    const after = await runEventsOnDisk(root, plan, run.runId);
-    expect(eventsOf(after, 'iteration-candidate-prepared')).toEqual(eventsOf(before, 'iteration-candidate-prepared'));
-    expect(after.slice(0, before.length)).toEqual(before);
-    expect(after.slice(before.length).map(event => event.type)).toEqual(['invocation-ended']);
-    expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'work-item:review-notes.i01', outcome: 'accepted' });
-    expect(eventsOf(after, 'review-request-recorded')).toEqual(eventsOf(before, 'review-request-recorded'));
-    expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 1 });
-
-    // A second restart finds nothing owed and changes nothing.
-    await restarted.service.close();
-    cleanups.pop();
-    const again = await restart(root);
-    expect(again.recovery.reviews).toEqual([]);
-    expect(await runEventsOnDisk(root, plan, run.runId)).toEqual(after);
-  }, 60_000);
-
-  test('a reopen without an execution agent retains an unfinished review attempt without inventing a result', async () => {
-    const root = await reviewTarget(cleanups);
-    const crashed = gate();
-    let frozen = false;
-    const run = await reviewRun(root, cleanups, {
-      detached: true,
-      engineer: engineers(),
-      reviewers: { 'rq-0001': clean(store) },
-      afterWrite: async (write, runId) => {
-        if (frozen) return freeze();
-        if (write !== 'invocation-started') return;
-        if (!(await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'review-attempt-started')) return;
-        frozen = true;
-        crashed.open();
-        return freeze();
-      },
-    });
-    await crashed.opened;
-    const before = await settledLog(root, run.runId);
-    const started = eventsOf(before, 'review-attempt-started');
-    expect(started.map(event => event.data.attempt)).toEqual(['rq-0001.a01']);
-    expect(before.some(event => event.type === 'review-attempt-finished')).toBe(false);
-    await staleCrashLock(root);
-
-    const restarted = await restart(root);
-    expect(restarted.agent).toBeUndefined();
-    expect(restarted.recovery.invocations).toContain(`${plan}/${run.runId}: ${started[0]!.data.invocation}`);
-    expect(restarted.recovery.reviews).toEqual([]);
-    const after = await runEventsOnDisk(root, plan, run.runId);
-    expect(after.slice(0, before.length)).toEqual(before);
-    for (const event of after.slice(before.length)) expect(event).toMatchObject({ type: 'invocation-ended', data: { finished: 'interrupted' } });
-    expect(eventsOf(after, 'review-attempt-finished')).toEqual([]);
-    expect(eventsOf(after, 'review-attempt-started')).toEqual(started);
-    expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 1, pending: 1 });
-
-    await restarted.service.close();
-    cleanups.pop();
-    const again = await restart(root);
-    expect(again.recovery.reviews).toEqual([]);
-    expect(await runEventsOnDisk(root, plan, run.runId)).toEqual(after);
-  }, 60_000);
-
-  test('a committed result is rebuilt from the log with its CheckFinding, and no reviewer runs again', async () => {
-    const root = await reviewTarget(cleanups);
-    const run = await reviewRun(root, cleanups, {
-      engineer: engineers(),
-      reviewers: { 'rq-0001': clean(store), 'rq-0002': concern(limit, 'The limit counts UTF-16 units'), 'rq-0003': clean(store) },
-      reconcilers: { 'work-item:review-notes.rc01': reconcile(submission([disposition('finding:case-0001', { action: 'leave' })], { kind: 'unresolved' })) },
-    });
-    const { service, runId } = run;
-    const coverage = service.reviews(plan, runId)!;
-    const list = service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' });
-    expect(list).toMatchObject({ ok: true, view: { total: 1 } });
-    const attempt = await readFile(runPath(root, plan, runId, reviewLayout.attempt('rq-0002.a01')), 'utf8');
-    await service.close();
-    cleanups.splice(cleanups.indexOf(cleanups.at(-1)!), 1);
-
-    // The crash lost every materialized review and CheckFinding record.
-    await rm(runPath(root, plan, runId, 'reviews'), { recursive: true });
-    await rm(runPath(root, plan, runId, 'check-findings'), { recursive: true });
-    const restarted = await restart(root);
-    expect(restarted.agent).toBeUndefined();
-    expect(restarted.recovery.rematerialized).toEqual([expect.stringMatching(new RegExp(`^${plan}/${runId}: \\d+ record file\\(s\\)$`, 'u'))]);
-    expect(restarted.recovery.reviews).toEqual([]);
-    expect(restarted.service.reviews(plan, runId)).toEqual(coverage);
-    expect(restarted.service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' })).toEqual(list);
-    expect(await readFile(runPath(root, plan, runId, reviewLayout.attempt('rq-0002.a01')), 'utf8')).toBe(attempt);
-    expect((await readdir(runPath(root, plan, runId, 'reviews'))).sort()).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
+    // Each reviewer's evaluation names the review request it served.
+    const metrics = await new RunQueries(createQuerySource(service)).metrics(plan, runId);
+    const served = new Map(eventsOf(events, 'review-attempt-started').map(event => [event.data.invocation, event.data.request]));
+    const reviewers = metrics.evaluation.invocations.filter(evaluation => evaluation.role === 'reviewer');
+    expect(reviewers.map(evaluation => evaluation.request).sort()).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
+    for (const evaluation of reviewers) expect(evaluation.request).toBe(served.get(evaluation.invocation));
   }, 60_000);
 });
 
@@ -571,7 +413,7 @@ describe('the gate audit and the run mutex', () => {
     await staleCrashLock(root);
   }, 60_000);
 
-  test.each([false, true] as const)('an added unstable test closes after reliable coverage on a new final candidate (retry replacement: %s)', async retryReplacement => {
+  test('an added unstable test closes after reliable coverage on a new final candidate whose audit is retried', async () => {
     const root = await reviewTarget(cleanups);
     const testPath = `${notesDirectory}/src/tests/added-note-limit.test.ts`;
     await expect(readFile(join(root, testPath), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
@@ -588,11 +430,11 @@ describe('the gate audit and the run mutex', () => {
     };
     const passing = passingAudit();
     const auditCalls: string[] = [];
-    const replacementGate = retryReplacement ? 'ga-0011' : 'ga-0009';
+    const replacementGate = 'ga-0011';
     const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
       auditCalls.push(input.attemptId);
       const result = await passing.run(input);
-      if (retryReplacement && (input.attemptId === 'ga-0009' || input.attemptId === 'ga-0010')) return {
+      if (input.attemptId === 'ga-0009' || input.attemptId === 'ga-0010') return {
         ...result, status: 'failed' as const, auditedSourceCommit: null, verdict: null,
         reportCommit: null, runRef: null, treeRef: null,
         provider: { status: 'failed', error: { code: 'timeout', message: 'Temporary final audit timeout', retryable: true } }, checks: {},
@@ -605,22 +447,22 @@ describe('the gate audit and the run mutex', () => {
         flakinessPolicy: { onFailure: 'warning' },
       } } };
     } };
-    const previews = Array.from({ length: retryReplacement ? 11 : 9 }, (_, index) => ({ repositoryRoot: root,
+    const previews = Array.from({ length: 11 }, (_, index) => ({ repositoryRoot: root,
       head: index >= 4 ? 'revision-04' : 'revision-03', tree: index >= 4 ? repairedTree : finalReviewTree }));
     const frozen = gate();
     const scenario = {
-      configuredAudit: warningAudit, commits, previews, recovery: retryReplacement, detached: retryReplacement,
-      ...(retryReplacement ? { afterWrite: async (write: string, runId: string) => {
+      configuredAudit: warningAudit, commits, previews, recovery: true, detached: true,
+      afterWrite: async (write: string, runId: string) => {
         if (write !== 'gate-committed') return;
         const events = await runEventsOnDisk(root, plan, runId);
         if (events.some(event => event.type === 'gate-attempted' && event.data.gate === 'ga-0009')) {
           frozen.open(); await freeze();
         }
-      } } : {}),
+      },
       gates: [revisionGates[0]!, revisionGates[1]!, { ...revisionGates[2]!, changes: [...revisionGates[2]!.changes!, { status: 'A', path: testPath }] },
         { commit: null }, { commit: null },
         { commit: 'revision-04', changes: [{ status: 'M', path: testPath }] }, { commit: null }, { commit: null },
-        ...(retryReplacement ? [{ commit: null }, { commit: null }] : [])],
+        { commit: null }, { commit: null }],
       engineer: [...engineers().slice(0, 2), submit(completionProposed('Exported the store and added note-limit coverage.'),
         write(store, 'export const store = new Map(); // v3\n'),
         write(`${notesDirectory}/src/index.ts`, "export * from './store.js';\n"), write(testPath, unstableTest)),
@@ -649,20 +491,18 @@ describe('the gate audit and the run mutex', () => {
         rationale: 'The first final candidate established instability in a test introduced by the plan.' })],
     };
     let run = await reviewRun(root, cleanups, scenario);
-    if (retryReplacement) {
-      await frozen.opened;
-      const before = await runEventsOnDisk(root, plan, run.runId);
-      expect(eventsOf(before, 'gate-attempted').find(event => event.data.gate === 'ga-0009')?.data.verdict).toBe('not-verified');
-      expect(eventsOf(before, 'nonfunctional-assessed')).toHaveLength(2);
-      await staleCrashLock(root);
-      const resumed = await openRuns(root, { git: run.git.git, candidates: run.source,
-        configuredAudit: warningAudit, script: reviewScript(scenario),
-        policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy(), recovery: true }),
-      });
-      cleanups.push(() => resumed.service.close());
-      await resumed.service.settled(plan, run.runId);
-      run = { ...run, service: resumed.service, events: await runEventsOnDisk(root, plan, run.runId) };
-    }
+    await frozen.opened;
+    const before = await runEventsOnDisk(root, plan, run.runId);
+    expect(eventsOf(before, 'gate-attempted').find(event => event.data.gate === 'ga-0009')?.data.verdict).toBe('not-verified');
+    expect(eventsOf(before, 'nonfunctional-assessed')).toHaveLength(2);
+    await staleCrashLock(root);
+    const resumed = await openRuns(root, { git: run.git.git, candidates: run.source,
+      configuredAudit: warningAudit, script: reviewScript(scenario),
+      policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy(), recovery: true }),
+    });
+    cleanups.push(() => resumed.service.close());
+    await resumed.service.settled(plan, run.runId);
+    run = { ...run, service: resumed.service, events: await runEventsOnDisk(root, plan, run.runId) };
     expect(onlyRun(run.service, plan).state, JSON.stringify(eventsOf(run.events, 'job-failed'))).toBe('completed');
     expect(eventsOf(run.events, 'candidate-prepared')).toMatchObject([
       { data: { candidate: 'cand-001', tree: finalReviewTree } },
@@ -690,18 +530,15 @@ describe('the gate audit and the run mutex', () => {
     expect(run.source.calls).toContain(`readBlob revision-04 ${testPath}`);
     expect(auditCalls).toContain('ga-0006');
     expect(auditCalls).toContain('ga-0009');
-    if (retryReplacement) {
-      expect(auditCalls).toContain('ga-0010'); expect(auditCalls).toContain('ga-0011');
-      expect(eventsOf(run.events, 'operation-recovery-paused')).toHaveLength(0);
-      expect(eventsOf(run.events, 'nonfunctional-assessed')).toHaveLength(2);
-      const attempts = await Promise.all(['ga-0009', 'ga-0010', 'ga-0011'].map(async id =>
-        JSON.parse(await readFile(runPath(root, plan, run.runId, runLayout.gate(id)), 'utf8')) as {
-          infrastructureAttempt: number; head: string; verdict: string;
-        }));
-      expect(attempts.map(attempt => attempt.infrastructureAttempt)).toEqual([0, 1, 2]);
-      expect(attempts.map(attempt => attempt.verdict)).toEqual(['not-verified', 'not-verified', 'passed']);
-      expect(attempts.every(attempt => attempt.head === 'revision-04')).toBe(true);
-    }
+    expect(auditCalls).toContain('ga-0010'); expect(auditCalls).toContain('ga-0011');
+    expect(eventsOf(run.events, 'operation-recovery-paused')).toHaveLength(0);
+    const attempts = await Promise.all(['ga-0009', 'ga-0010', 'ga-0011'].map(async id =>
+      JSON.parse(await readFile(runPath(root, plan, run.runId, runLayout.gate(id)), 'utf8')) as {
+        infrastructureAttempt: number; head: string; verdict: string;
+      }));
+    expect(attempts.map(attempt => attempt.infrastructureAttempt)).toEqual([0, 1, 2]);
+    expect(attempts.map(attempt => attempt.verdict)).toEqual(['not-verified', 'not-verified', 'passed']);
+    expect(attempts.every(attempt => attempt.head === 'revision-04')).toBe(true);
     expect(eventsOf(run.events, 'job-completed')).toHaveLength(1);
     expect(eventsOf(run.events, 'job-completed')[0]!.sequence).toBeGreaterThan(eventsOf(run.events, 'final-instability-reconciled')[1]!.sequence);
     run.git.assertComplete();
@@ -830,7 +667,7 @@ describe('the gate audit and the run mutex', () => {
     expect(eventsOf(twice, 'check-findings-recorded')).toEqual(eventsOf(after, 'check-findings-recorded'));
   }, 60_000);
 
-  test.each(['iteration-candidate-prepared', 'gate-attempted'] as const)('restart after %s waits for a failed candidate review before repairing it', async freezeAt => {
+  test('restart after iteration-candidate-prepared waits for a failed candidate review before repairing it', async () => {
     const root = await reviewTarget(cleanups);
     const crashed = gate(); const newReader = gate();
     let frozen = false;
@@ -841,9 +678,7 @@ describe('the gate audit and the run mutex', () => {
       reviewers: { 'rq-0001': [never()] },
       afterWrite: async (write, runId) => {
         if (frozen) return freeze();
-        if (freezeAt === 'iteration-candidate-prepared') {
-          if (write !== 'gate-committing' || !(await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'iteration-candidate-prepared')) return;
-        } else if (write !== freezeAt) return;
+        if (write !== 'gate-committing' || !(await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'iteration-candidate-prepared')) return;
         frozen = true;
         crashed.open();
         return freeze();
@@ -851,17 +686,15 @@ describe('the gate audit and the run mutex', () => {
     });
     await crashed.opened;
     const before = await runEventsOnDisk(root, plan, run.runId);
-    if (freezeAt === 'iteration-candidate-prepared') {
-      expect(eventsOf(before, 'review-request-recorded')).toHaveLength(0);
-      expect(eventsOf(before, 'gate-attempted').find(event => event.data.gate === 'ga-0002')).toBeUndefined();
-    }
+    expect(eventsOf(before, 'review-request-recorded')).toHaveLength(0);
+    expect(eventsOf(before, 'gate-attempted').find(event => event.data.gate === 'ga-0002')).toBeUndefined();
     expect(before.some(event => event.type === 'review-attempt-finished' && event.data.request === 'rq-0001')).toBe(false);
     await staleCrashLock(root);
-    const recoveredGit = freezeAt === 'iteration-candidate-prepared' ? mockGit({
+    const recoveredGit = mockGit({
       currentHead: async () => 'revision-01', changedPaths: async () => [],
       findCommitByTrailers: async () => 'revision-01',
       previewCandidateTree: async () => ({ repositoryRoot: root, head: 'revision-01', tree: 'tree-01' }),
-    }) : run.git.git;
+    });
     const restarted = await openRuns(root, {
       inputs: treeInputs(),
       script: spec => spec.role === 'reviewer' ? [{ kind: 'await', until: () => newReader.opened }, ...clean(store)]

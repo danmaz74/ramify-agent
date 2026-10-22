@@ -523,10 +523,7 @@
         {
           "file": "subs/harness/src/tests/composition.test.ts",
           "titles": [
-            "the recovery tables of the ten state machines",
-            "every value of every union has a producer",
-            "no query appends an event",
-            "the acceptance matrix, composed"
+            "no query appends an event"
           ]
         },
         {

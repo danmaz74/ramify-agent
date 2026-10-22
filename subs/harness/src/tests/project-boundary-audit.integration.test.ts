@@ -6,8 +6,6 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
 import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
-import { gateViewSchema } from '../interfaces/protocol/runs.js';
-import { RunQueries } from '../../subs/projections/src/queries.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { defaultRunPolicy } from '../run/policy.js';
 import { runReadiness } from '../../subs/autonomous/subs/acceptance/src/readiness.js';
@@ -15,7 +13,6 @@ import { committedAuditConfigurationSchema } from '../run/project-records.js';
 import { gateAttemptSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
 import { gitService } from '../../subs/evidence/src/git.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
-import { constructedRun } from './helpers/constructed.js';
 import {
   auditDefinition, commandCheck, configuredGate, configuredRepository, privateConfiguredAudit, recordingOwnership,
   type ConfiguredRepository,
@@ -29,9 +26,7 @@ import { rootDescription } from './helpers/root-description.js';
  * an ignored documentation tree) encloses a grandchild project of its own;
  * the external tree holds a definition discovery must skip. Every check is a
  * command that appends its project's name to a counter outside the
- * repository, so a test sees exactly which projects executed. Setting
- * PLAN21_ITERATION10_EVIDENCE to a directory writes each witness's attempts
- * and provider artifacts there.
+ * repository, so a test sees exactly which projects executed.
  */
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -52,12 +47,6 @@ async function audit(ownership = recordingOwnership()) {
   const created = await privateConfiguredAudit(ownership);
   cleanups.push(created.remove);
   return { ...created, ownership };
-}
-
-async function evidence(name: string, value: unknown): Promise<void> {
-  const directory = process.env['PLAN21_ITERATION10_EVIDENCE'];
-  if (directory === undefined) return;
-  await writeFile(join(directory, `${name}.json`), `${JSON.stringify(value, null, 2)}\n`);
 }
 
 interface F4 {
@@ -108,29 +97,6 @@ async function f4(state: 'pass' | 'fail'): Promise<F4> {
       return Object.fromEntries(['root', 'engine', 'engine/tools', 'vendor/lib'].map(project => [project, lines.filter(line => line === project).length]));
     },
   };
-}
-
-/**
- * The gate views the harness serves for these attempts once a run recorded
- * them: each durable attempt replayed through the run projection, exactly
- * as the web receives it. The browser witness renders them.
- */
-async function exportGateViews(name: string, gates: Readonly<Record<string, GateAttempt>>): Promise<void> {
-  const durable = Object.values(gates).map(gate => {
-    const { auditOverall: _overall, ...attempt } = gate;
-    return gateAttemptSchema.parse(JSON.parse(JSON.stringify(attempt)));
-  });
-  const run = constructedRun(durable.map(attempt => ({
-    type: 'gate-attempted', data: { gate: attempt.id, checkpoint: attempt.checkpoint, verdict: attempt.verdict, next: attempt.next },
-    records: [{ path: `gates/${attempt.id}/attempt.json`, body: attempt }],
-  })));
-  const queries = new RunQueries({ projectRoot: '/nonexistent', agentName: undefined,
-    committed: () => run, committedRuns: () => [run], runVersions: () => [] });
-  await evidence(name, {
-    schema: 'plan21.iteration10.gate-views/1', source: 'project-boundary-audit.integration.test.ts',
-    gates: Object.fromEntries(await Promise.all(Object.entries(gates).map(async ([label, gate]) =>
-      [label, gateViewSchema.parse((await queries.gate(run.record.planId, run.record.jobId, gate.id)).gate)]))),
-  });
 }
 
 /** What a final gate shows a reviewer, with each project's identities, and the provider artifacts. */
@@ -211,14 +177,8 @@ describe('a full nested final audit over F4 (PB3-E05)', () => {
     const engine = reused.audit!.projects!.find(project => project.projectRoot === 'engine')!;
     expect(engine).toMatchObject({ execution: 'reused', auditedSourceCommit: repaired, reuse: { auditedCommit: repaired, ignoredChangedPaths: ['engine/docs/notes.md'] } });
     expect((await fixture.runs()).engine).toBe(executions.engine);
-
-    await evidence('iteration10-f4-nested-final', {
-      schema: 'plan21.iteration10.f4-nested/1', providerVersion: 'ramify-audit@0.8.0', ramifyVersion: 'ramify.ts@0.4.3',
-      commits: { failing: repository.head, repaired, docs },
-      gates: { failing: digest(failing), passing: digest(passing), reused: digest(reused) },
-      grandchildRecord: toolsRecord, briefing, executions: await fixture.runs(),
-    });
-    await exportGateViews('iteration10-gate-views-final', { failing, passing, reused });
+    // The failing grandchild's published record stays retrievable beside the later passing ones.
+    expect(await repository.git('cat-file', '-t', failing.audit!.projects![2]!.evidence!.reportCommit!)).toBe('commit');
   });
 
   it('indeterminate nested discovery leaves the final gate unverified, whatever the root answered', { timeout: 300_000 }, async () => {
@@ -233,9 +193,6 @@ describe('a full nested final audit over F4 (PB3-E05)', () => {
     expect(gate.audit?.discovery?.unavailable.map(gap => gap.enclosingProject)).toEqual(['.']);
     expect(gate.audit?.verdict).toBe('indeterminate');
     expect(gate.verdict).not.toBe('passed');
-    await evidence('iteration10-f4-indeterminate-discovery', {
-      schema: 'plan21.iteration10.f4-indeterminate/1', commit: invalid, gate: digest(gate), executions: await fixture.runs(),
-    });
   });
 });
 
@@ -271,11 +228,6 @@ describe('the readiness baseline over F4: provider defaults before full nested f
     expect(projectsOf(final)).toEqual([['.', 'pass', 'reused'], ['engine', 'pass', 'ran'], ['engine/tools', 'fail', 'ran']]);
     expect(final.audit?.discovery?.skipped.map(skip => [skip.projectRoot, skip.reason])).toEqual([['vendor/lib', 'external']]);
     expect(await fixture.runs()).toEqual({ root: 1, engine: 1, 'engine/tools': 1, 'vendor/lib': 0 });
-    await evidence('iteration10-f4-readiness', {
-      schema: 'plan21.iteration10.f4-readiness/1', sourceCommit: repository.head,
-      ready: { attempt: ready.attempt, gate: digest(ready.gate!) }, reused: { attempt: reused.attempt, gate: digest(reused.gate!) },
-      final: digest(final), executions: await fixture.runs(),
-    });
   });
 });
 
@@ -316,13 +268,6 @@ describe('recovering and cancelling a nested final audit over F4 (PB3-E06)', () 
     ownership.invocations.set('run-f4:ga-0002', { ...ownership.invocations.get('run-f4:ga-0001')!, attemptId: 'ga-0002' });
     await expect(ask('ga-0002')).rejects.toThrow(/answers request run-f4:ga-0001/u);
     expect(await fixture.runs()).toEqual(executed);
-
-    await evidence('iteration10-f4-recovery', {
-      schema: 'plan21.iteration10.f4-recovery/1', commit: repository.head,
-      receipt: ownership.invocations.get('run-f4:ga-0001'), first: identities(first), recovered: identities(recovered),
-      reasked: reasked.projects?.map(project => ({ projectRoot: project.projectRoot, execution: project.execution, reportCommit: project.reportCommit, reuse: project.reuse })),
-      executions: await fixture.runs(),
-    });
   });
 
   it('cancellation during a nested project settles its process and workspace before a replacement attempt', { timeout: 300_000 }, async () => {
@@ -368,10 +313,5 @@ describe('recovering and cancelling a nested final audit over F4 (PB3-E06)', () 
     expect(replacement.audit?.projects?.map(project => [project.projectRoot, project.execution]))
       .toEqual([['.', 'reused'], ['engine', 'reused'], ['engine/tools', 'ran']]);
     expect(await fixture.runs()).toEqual({ root: 1, engine: 1, 'engine/tools': 2, 'vendor/lib': 0 });
-    await evidence('iteration10-f4-cancellation', {
-      schema: 'plan21.iteration10.f4-cancellation/1', commit: repository.head, heldProcess: pid,
-      cancelled: digest(cancelled), replacement: digest(replacement), executions: await fixture.runs(),
-    });
-    await exportGateViews('iteration10-gate-views-cancellation', { cancelled, replacement });
   });
 });

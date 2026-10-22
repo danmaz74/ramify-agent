@@ -12,6 +12,23 @@ each distinct behavior. Checks at a declared maximum use only the minimum input
 needed to cross that boundary. Timing rules use controlled clocks or observable
 ordering, rather than elapsed-speed expectations.
 
+Tests verify this repository's logic, never the behavior of ramify-audit,
+Ramify, Cucumber, Vitest, Node, the kernel or an SDK. The one exception is a
+single named canary file per dependency:
+[audit-conformance.test.ts](../subs/harness/subs/audit/src/tests/audit-conformance.test.ts)
+for ramify-audit,
+[killed-writer.test.ts](../subs/harness/subs/ledger/src/tests/killed-writer.test.ts)
+for the kernel and
+[pi-agent.test.ts](../subs/harness/subs/agent/subs/pi/src/tests/pi-agent.test.ts)
+for the Pi SDK. A test never asserts a schema's option list, a constant, a
+prompt sentence or a serialized blob unless a consumer's behavior depends on
+it. Test files are named by their subject, never by a plan number.
+
+Test doubles and fixtures under `tests/helpers/` have no test files. A
+helper's refusals, such as an unstated or unused scripted answer, are proven
+by its consumers' teardown (`assertComplete`, `assertAnswered`,
+`expectNoProcesses`). Node discovery excludes `**/tests/helpers/**/*.test.ts`.
+
 Workflow tests mock the disk-backed session store with a directory-scoped
 in-memory adapter. It preserves detached JSON values, copied payload bytes,
 atomic compare-and-swap and close/reopen state while real session operations and
@@ -43,7 +60,9 @@ their original outcome.
 Some claims require native Git objects, installed producer/CLI behavior or kernel
 process/lock behavior. Their exact files, claims, owning cases and reasons live in
 [src/tests/test-boundaries.json](../src/tests/test-boundaries.json). Only those
-files enter the `boundaries` project. Split mixed files before registering them;
+files enter the `boundaries` project. Each registration's reason is specific to
+its case and names the node twin the boundary complements. Split mixed files
+before registering them;
 a filename, suffix or owner grants no exemption. The configuration rejects bad,
 duplicate, missing, excluded or non-Node registrations using the installed
 runner's original configured discovery. Existing fixture and scratch exclusions,

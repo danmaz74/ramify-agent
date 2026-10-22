@@ -9,7 +9,6 @@ import { snapshotToolNames } from '../../../subs/reviews/src/snapshot.js';
 import { scriptedCandidates, testReviewPolicy, type ScriptedCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { concern, disposition, reconcile, review, submission } from './check-findings-composition.js';
 import { declaringScenarios } from './declarations.js';
-import { createPassingCheckExecution } from './direct-check-execution.js';
 import { FakeRamifyCli } from './fake-ramify.js';
 import { fixtureScratchGit } from './mock-git.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';

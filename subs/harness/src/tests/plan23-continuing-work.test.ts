@@ -387,14 +387,16 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
       expect(git.unexpected).toEqual([]);
     } finally { await second.service.close(); }
   }, 120_000);
-  test.each([['engineer', 'unfinished'], ['engineer', 'accepted'], ['contract-engineer', 'unfinished'], ['contract-engineer', 'accepted'], ['contract-engineer', 'registered'], ['local-architect', 'completion-outline']] as const)('ordinary %s restores its %s original phase and completes without duplicate handbacks', async (role, phase) => {
+  // An engineer's unfinished intent and an architect's completion outline; the
+  // accepted and registered phases are the recovery table's invocation-ended
+  // and contract-registered rows.
+  test.each([['engineer', 'unfinished'], ['local-architect', 'completion-outline']] as const)('ordinary %s restores its %s original phase and completes without duplicate handbacks', async (role, phase) => {
     const fixture = await copyFixture(); roots.push(fixture.root);
     let reached = false; let operation = ''; let runId = ''; let boundaries!: OpenRunsOptions; let originalScript!: Parameters<typeof createScriptedAgent>[0];
     let selected = false; const intentFaults: FaultHit[] = [];
     const scenario = runSessionScenario({ root: fixture.root, cleanup: () => undefined,
       onOpened: (_opened, external, script) => { boundaries = external; originalScript = script; },
       afterWrite: async (kind, id) => {
-        if (phase === 'registered' && kind === 'contract-registered') { reached = true; await freeze(); }
         if (phase === 'completion-outline' && kind === 'outline-revised') {
           const event = (await runEventsOnDisk(fixture.root, 'review-notes', id)).at(-1);
           if (event?.type === 'outline-revised' && event.data.architectRef !== undefined) { operation = event.data.invocation; runId = id; reached = true; await freeze(); }
@@ -411,8 +413,7 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
         return { ...operations, async continue(value) {
           const target = !selected && value.task.role === role;
           if (target) { selected = true; operation = value.operationId; runId = value.runId; if (phase === 'unfinished') faultOperation = operation; }
-          const handle = await operations.continue(value);
-          return target && phase === 'accepted' ? { ...handle, receipt: handle.receipt.then(async receipt => { await handle.settled(); reached = true; await freeze(); return receipt; }) } : handle;
+          return operations.continue(value);
         } };
       } }),
     });
@@ -428,12 +429,7 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
       if (commit === 'revision-01') { expect(project).toBe(fixture.root); return 'a'.repeat(40); }
       return boundaries.candidates!.commitTree(project, commit);
     } };
-    let originalGateProof = phase === 'registered';
-    const git = { ...boundaries.git!, async previewCandidateTree(project: string) {
-      if (originalGateProof) { originalGateProof = false; expect(project).toBe(fixture.root); return { repositoryRoot: fixture.root, head: 'revision-01', tree: 'a'.repeat(40) }; }
-      return boundaries.git!.previewCandidateTree(project);
-    } };
-    const restarted = await openRuns(fixture.root, { ...boundaries, git, candidates, afterWrite: undefined, agent: resumedAgent });
+    const restarted = await openRuns(fixture.root, { ...boundaries, candidates, afterWrite: undefined, agent: resumedAgent });
     try {
       await restarted.service.settled('review-notes', runId);
       const events = await runEventsOnDisk(fixture.root, 'review-notes', runId);

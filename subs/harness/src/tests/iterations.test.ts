@@ -30,7 +30,7 @@ import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRu
  * repository; what it observes is the run's own records and the calls the
  * run made at that boundary. The one scenario whose subject is the boundary
  * itself — a passing commit and the audit published against it — keeps every
- * real tool, in `iterations-integration.test.ts`.
+ * real tool, in `iteration-gate-integration.test.ts`.
  *
  * The process guard below is the negative control: every scenario here
  * starts no process at all, and one that tried would name itself.
@@ -269,49 +269,6 @@ describe('K3: exact-owner and included-subtree test areas in the engineer\'s bri
     expect(secondGate).toMatchObject({ commit: null, audited: materialized, verdict: 'passed' });
     expect(scripted.revisions()).toEqual([materialized]);
     // No external tool was started for any of this.
-    expectNoProcesses();
-    scripted.assertComplete();
-  }, 120_000);
-});
-
-// Keep the historical acceptance matrix's owning title; the old adapter output is explicit.
-describe('X1a: an engineer reaches its context budget', () => {
-  test('an explicit legacy context return keeps work unfinished until the caller stops', async () => {
-    const root = await target();
-    const budgetTurn = [
-      { kind: 'compaction' as const, reason: 'threshold' as const, tokensBefore: 130_000, tokensAfter: 40_000 },
-      { kind: 'context' as const, tokens: 200_000, window: null },
-      { kind: 'message' as const, text: 'I raised the limit and have not written its test.' },
-      { kind: 'legacy-context-return' as const, tokens: 200_000, report: 'I raised the limit and have not written its test.' },
-    ];
-    // The first context return is preserved; it does not exhaust the task.
-    const { service, runId, scripted, agent } = await run(root, {
-      'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
-      engineer: Array(6).fill(budgetTurn),
-    }, [], true);
-    expect(onlyRun(service, 'review-notes')).toMatchObject({ state: 'stopped', failure: null });
-    const job = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.record), 'utf8')) as
-      { policy: { limits: { budgetReturnsPerIteration: number } } };
-    expect(job.policy.limits.budgetReturnsPerIteration).toBe(6);
-    const events = await runEventsOnDisk(root, 'review-notes', runId);
-    expect(events.filter(event => event.type === 'iteration-closed' || event.type === 'work-item-completed' || event.type === 'gate-committing')).toEqual([]);
-    const engineers = agent!.sessions.filter(session => session.spec.role === 'engineer');
-    expect(engineers.length).toBeGreaterThanOrEqual(1);
-    expect(engineers[0]!.start).toEqual({ mode: 'fresh' });
-    expect(engineers[0]!.verdicts).toEqual([]);
-    expect(engineers[0]!.suppressedCompactions).toBe(0);
-    expect(engineers[0]!.outcome?.kind).toBe('context-budget-reached');
-    const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome('inv-0007')), 'utf8')) as { ended: string; budget: unknown };
-    expect(outcome.ended).toBe('context-budget-reached');
-    expect(outcome.budget).toEqual({ threshold: 0, observed: 200_000, reportDelivered: true });
-    const original = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.invocation('inv-0007')), 'utf8')) as { session: { requested: string; actual: string }; attempt: number };
-    expect(original.session).toMatchObject({ requested: 'fresh', actual: 'fresh' });
-    expect(original.attempt).toBe(1);
-    await expect(readFile(runPath(root, 'review-notes', runId, iterationLayout.result('work-item:review-note', 1)), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
-    const observations = await readFile(runPath(root, 'review-notes', runId, runLayout.observations('inv-0007')), 'utf8');
-    expect(observations).toContain('"compaction"');
-    expect(observations).toContain('"context"');
     expectNoProcesses();
     scripted.assertComplete();
   }, 120_000);

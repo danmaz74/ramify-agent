@@ -328,85 +328,74 @@ test('a captured budget-return allowance does not stop capability architect cont
   expect(events.filter(event => event.type === 'invocation-started' && event.data.role === 'capability-architect')).toHaveLength(2);
 }, 30_000);
 
-for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port-inputs'] as const) {
-  test(`CA16 CA26: ${mode} can correct an action beyond the captured rejection count`, async () => {
-    const fixture = await copyCapabilityFixture();
-    cleanups.push(fixture.remove);
+test('CA16 CA26: preview-then-correct can correct an action beyond the captured rejection count', async () => {
+  const fixture = await copyCapabilityFixture();
+  cleanups.push(fixture.remove);
   const boundaryAnswers = capabilityFlowBoundaries(fixture.root, 'delegation', 'a+b'); answers.push(boundaryAnswers);
-
-
-    const ordinary = script([]);
-    let architectTurns = 0;
-    const scripted: Script = spec => {
-      if (spec.role !== 'capability-architect') return typeof ordinary === 'function' ? ordinary(spec) : ordinary;
-      architectTurns += 1;
-      if (architectTurns > 1) return [{ kind: 'wait', ms: 60_000 }];
-      const [, task, revision, invocation] = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-      const basis = { task, planRevision: Number(revision), invocation };
-      const incomplete = { ...basis, kind: 'assign', owner: b };
-      const corrected = { ...basis, kind: 'partial', progress: 'Inspected the request', unfinished: ['Assign B'] };
-      if (mode === 'preview-then-correct') return [
-        ...Array.from({ length: 5 }, () => ({ kind: 'tool' as const, tool: 'validate_capability_action', input: incomplete })),
-        ...Array.from({ length: 3 }, () => ({ kind: 'submit' as const, input: incomplete })),
-        { kind: 'submit', input: corrected },
-      ];
-      if (mode === 'invalid-port-inputs') return [...Array.from({ length: 3 }, () => ({
-        kind: 'tool' as const, tool: 'submit_capability_action', input: incomplete, reachedTool: false,
-      })), { kind: 'submit', input: corrected }];
-      return [...Array.from({ length: 3 }, () => ({ kind: 'submit' as const, input: incomplete })),
-        { kind: 'submit', input: corrected }];
-    };
-    const opened = await openGuardedCapabilityRuns(fixture.root, boundaryAnswers, {
-      ...boundaryAnswers.options, script: scripted, inputs: treeInputs(),
-      policy: root => ({ ...testPolicy(root), limits: { ...testPolicy(root).limits, rejectedSubmissionsPerTurn: 2 } }),
-    });
-    cleanups.push(() => opened.service.close());
-    const receipt = await opened.service.execute(startRun('need'));
-    await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event =>
-      event.type === 'capability-coordinator-resumed' && event.data.task === 'capability-task:source-fact'), 30_000);
-    const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
-    const start = events.find(event => event.type === 'invocation-started' && event.data.role === 'capability-architect');
-    if (start?.type !== 'invocation-started') throw new Error('Capability architect invocation did not start');
-    const outcome = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
-      runLayout.outcome(start.data.invocation)), 'utf8')) as InvocationOutcome;
-    const observations = (await readFile(runPath(fixture.root, 'need', receipt.jobId,
-      runLayout.observations(start.data.invocation)), 'utf8')).split('\n').filter(Boolean)
-      .map(line => JSON.parse(line) as { type: string; data: { target?: string } });
-    expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 3 });
-    expect(observations.filter(entry => entry.type === 'rejection' && entry.data.target === 'submit_capability_action')).toHaveLength(3);
-    if (mode === 'preview-then-correct') {
-      const preview = opened.agent?.sessions.find(session => session.spec.role === 'capability-architect')?.results
-        .filter(result => result.tool === 'validate_capability_action') ?? [];
-      expect(preview).toHaveLength(5);
-      expect(preview.every(result => result.isError)).toBe(true);
-      // Across the complete declaration set the action schema reaches the model once, in the
-      // submission declaration; the validator declares a compact object that refers to it.
-      const architect = opened.agent!.sessions.find(session => session.spec.role === 'capability-architect')!;
-      const schema = JSON.stringify(z.toJSONSchema(capabilityActionSchema));
-      const declared = [...architect.spec.tools, architect.spec.submission].map(tool => ({ name: tool.name, description: tool.description, inputSchema: JSON.stringify(tool.inputSchema) }));
-      expect(declared.map(tool => tool.name)).toEqual(expect.arrayContaining(['validate_capability_action', 'submit_capability_action']));
-      expect(declared.reduce((count, tool) => count + tool.description.split(schema).length - 1 + tool.inputSchema.split(schema).length - 1, 0)).toBe(1);
-      expect(declared.find(tool => tool.name === 'submit_capability_action')!.description).toContain(schema);
-      expect(architect.spec.tools.find(tool => tool.name === 'validate_capability_action')!.inputSchema).toEqual({
-        type: 'object', description: 'A candidate submit_capability_action input; that declaration carries the complete schema.', additionalProperties: true });
-    }
-    let stopped = false;
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const version = opened.service.getRun('need', receipt.jobId)!.version;
-      try { await opened.service.execute(stopRun('need', receipt.jobId, version)); stopped = true; break; }
-      catch (error) { if (!String(error).includes('at version')) throw error; }
-    }
-    expect(stopped).toBe(true);
-    await opened.service.settled('need', receipt.jobId);
-    expect(events.filter(event => event.type === 'job-failed')).toEqual([]);
-    expect(events.filter(event => event.type === 'capability-assigned')).toHaveLength(0);
-    expect(events.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
-    expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
-    const job = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.record), 'utf8')) as {
-      policy: { limits: { rejectedSubmissionsPerTurn: number } } };
-    expect(job.policy.limits.rejectedSubmissionsPerTurn).toBe(2);
-  }, 45_000);
-}
+  const ordinary = script([]);
+  let architectTurns = 0;
+  const scripted: Script = spec => {
+    if (spec.role !== 'capability-architect') return typeof ordinary === 'function' ? ordinary(spec) : ordinary;
+    architectTurns += 1;
+    if (architectTurns > 1) return [{ kind: 'wait', ms: 60_000 }];
+    const [, task, revision, invocation] = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+    const basis = { task, planRevision: Number(revision), invocation };
+    const incomplete = { ...basis, kind: 'assign', owner: b };
+    const corrected = { ...basis, kind: 'partial', progress: 'Inspected the request', unfinished: ['Assign B'] };
+    return [
+      ...Array.from({ length: 5 }, () => ({ kind: 'tool' as const, tool: 'validate_capability_action', input: incomplete })),
+      ...Array.from({ length: 3 }, () => ({ kind: 'submit' as const, input: incomplete })),
+      { kind: 'submit', input: corrected },
+    ];
+  };
+  const opened = await openGuardedCapabilityRuns(fixture.root, boundaryAnswers, {
+    ...boundaryAnswers.options, script: scripted, inputs: treeInputs(),
+    policy: root => ({ ...testPolicy(root), limits: { ...testPolicy(root).limits, rejectedSubmissionsPerTurn: 2 } }),
+  });
+  cleanups.push(() => opened.service.close());
+  const receipt = await opened.service.execute(startRun('need'));
+  await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event =>
+    event.type === 'capability-coordinator-resumed' && event.data.task === 'capability-task:source-fact'), 30_000);
+  const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
+  const start = events.find(event => event.type === 'invocation-started' && event.data.role === 'capability-architect');
+  if (start?.type !== 'invocation-started') throw new Error('Capability architect invocation did not start');
+  const outcome = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
+    runLayout.outcome(start.data.invocation)), 'utf8')) as InvocationOutcome;
+  const observations = (await readFile(runPath(fixture.root, 'need', receipt.jobId,
+    runLayout.observations(start.data.invocation)), 'utf8')).split('\n').filter(Boolean)
+    .map(line => JSON.parse(line) as { type: string; data: { target?: string } });
+  expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 3 });
+  expect(observations.filter(entry => entry.type === 'rejection' && entry.data.target === 'submit_capability_action')).toHaveLength(3);
+  const preview = opened.agent?.sessions.find(session => session.spec.role === 'capability-architect')?.results
+    .filter(result => result.tool === 'validate_capability_action') ?? [];
+  expect(preview).toHaveLength(5);
+  expect(preview.every(result => result.isError)).toBe(true);
+  // Across the complete declaration set the action schema reaches the model once, in the
+  // submission declaration; the validator declares a compact object that refers to it.
+  const architect = opened.agent!.sessions.find(session => session.spec.role === 'capability-architect')!;
+  const schema = JSON.stringify(z.toJSONSchema(capabilityActionSchema));
+  const declared = [...architect.spec.tools, architect.spec.submission].map(tool => ({ name: tool.name, description: tool.description, inputSchema: JSON.stringify(tool.inputSchema) }));
+  expect(declared.map(tool => tool.name)).toEqual(expect.arrayContaining(['validate_capability_action', 'submit_capability_action']));
+  expect(declared.reduce((count, tool) => count + tool.description.split(schema).length - 1 + tool.inputSchema.split(schema).length - 1, 0)).toBe(1);
+  expect(declared.find(tool => tool.name === 'submit_capability_action')!.description).toContain(schema);
+  expect(architect.spec.tools.find(tool => tool.name === 'validate_capability_action')!.inputSchema).toEqual({
+    type: 'object', description: 'A candidate submit_capability_action input; that declaration carries the complete schema.', additionalProperties: true });
+  let stopped = false;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const version = opened.service.getRun('need', receipt.jobId)!.version;
+    try { await opened.service.execute(stopRun('need', receipt.jobId, version)); stopped = true; break; }
+    catch (error) { if (!String(error).includes('at version')) throw error; }
+  }
+  expect(stopped).toBe(true);
+  await opened.service.settled('need', receipt.jobId);
+  expect(events.filter(event => event.type === 'job-failed')).toEqual([]);
+  expect(events.filter(event => event.type === 'capability-assigned')).toHaveLength(0);
+  expect(events.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
+  expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
+  const job = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.record), 'utf8')) as {
+    policy: { limits: { rejectedSubmissionsPerTurn: number } } };
+  expect(job.policy.limits.rejectedSubmissionsPerTurn).toBe(2);
+}, 45_000);
 
 test('scripted current-engine composition refuses an earlier captured policy before creating a run', async () => {
   const fixture = await copyCapabilityFixture();

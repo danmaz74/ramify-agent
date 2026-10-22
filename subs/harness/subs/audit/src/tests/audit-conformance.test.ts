@@ -1,3 +1,6 @@
+// The one ramify-audit canary. Its numbered facts pin the installed SDK behavior
+// that the harness's scripted audit answers assume; no other test asserts
+// ramify-audit's own behavior.
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync, lstatSync, readlinkSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';

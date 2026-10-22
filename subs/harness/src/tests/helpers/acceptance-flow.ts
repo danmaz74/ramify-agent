@@ -1,9 +1,8 @@
 import { checkFindingStateOf } from '../../check-findings/state.js';
 import { acceptanceBoundaries } from './acceptance-boundaries.js';
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect } from 'vitest';
 import type { Script } from '../../../subs/agent/src/scripted.js';
@@ -13,11 +12,11 @@ import type { ConfiguredAuditInput } from '../../../subs/audit/src/check-executi
 import { localCommandAudit, mappedAudit } from './direct-check-execution.js';
 import { requestCompletion } from './analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
-import { assign, edit, installMiniRunner, outline, submit, treeInputs, write } from './iterations.js';
+import { assign, edit, outline, submit, treeInputs, write } from './iterations.js';
 import { rootDescription } from './root-description.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { testReviewPolicy } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
-import { freeze, initRepository, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './runs.js';
+import { runEventsOnDisk, runPath, startRun, stopRun, testPolicy, until } from './runs.js';
 
 const a = 'capability-coordination/a';
 const b = 'capability-coordination/b';
@@ -32,8 +31,7 @@ const acceptanceDivision = [
 ];
 
 export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reload' | 'drift' | 'restart' | 'verify-restart' |
-  'gate-restart' | 'gate-intent-restart' | 'gate-committing-restart' |
-  'review-restart' | 'review-submission-restart' | 'concern-submission-restart' | 'repair-exhaustion', cleanups: Array<() => Promise<void>>, realBoundary = false,
+  'concern-submission-restart' | 'repair-exhaustion', cleanups: Array<() => Promise<void>>,
   /** Inspects the settled run of the full revision flow. */
   inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>, infrastructureRecovery = false, handbackCommitDrift = false, staleRecovery = false, isolation = false): Promise<void> {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
@@ -41,31 +39,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
     work: 'work-item:richer-a-fact', deferred: 'work-item:b-entry', scenario: 'scenario:review-source' };
   const encode = (value: string) => encodeURIComponent(value);
   const examples = ['capability-example:render-source', 'capability-example:provider-source', 'capability-example:review-source'];
-  if (realBoundary) {
-    await mkdir(join(fixture.root, 'subs/a/src/tests/steps'), { recursive: true });
-    await writeFile(join(fixture.root, 'subs/a/src/tests/steps/capability.steps.js'), [
-      "import assert from 'node:assert/strict';",
-      "import { execFileSync } from 'node:child_process';",
-      "import { Given, When, Then } from '@cucumber/cucumber';",
-      "Given('the project as the plan finds it', function () {});",
-      "When('the person uses richer-a-fact', function () { this.result = execFileSync('./node_modules/.bin/vitest', ['run', 'subs/a/src/tests/caller.test.ts'], { cwd: process.cwd(), encoding: 'utf8' }); });",
-      "Then('the outcome richer-a-fact promises is shown', function () { assert.match(this.result, /1 passed/); });",
-      '',
-    ].join('\n'));
-    await initRepository(fixture.root); await installMiniRunner(fixture.root);
-    // Real Vitest compiles the fixture's TypeScript and resolves its .js source
-    // specifiers; the small runner used by cooperation tests executes JS only.
-    await rm(join(fixture.root, 'node_modules/vitest'), { recursive: true, force: true });
-    await rm(join(fixture.root, 'node_modules/.bin/vitest'), { force: true });
-    await symlink(join(process.cwd(), 'node_modules/vitest'), join(fixture.root, 'node_modules/vitest'));
-    await symlink(join(process.cwd(), 'node_modules/.bin/vitest'), join(fixture.root, 'node_modules/.bin/vitest'));
-    await rm(join(fixture.root, 'node_modules/.bin/cucumber-js'), { force: true });
-    await symlink(join(process.cwd(), 'node_modules/.bin/cucumber-js'), join(fixture.root, 'node_modules/.bin/cucumber-js'));
-    await mkdir(join(fixture.root, 'node_modules/@cucumber'), { recursive: true });
-    await symlink(join(process.cwd(), 'node_modules/@cucumber/cucumber'), join(fixture.root, 'node_modules/@cucumber/cucumber'));
-  }
-  const external = realBoundary ? undefined : acceptanceBoundaries(fixture.root, mode, infrastructureRecovery);
-  if (external !== undefined) cleanups.push(async () => external.assertComplete());
+  const external = acceptanceBoundaries(fixture.root, mode, infrastructureRecovery);
+  cleanups.push(async () => external.assertComplete());
   let architect = 0;
   let reviewer = 0;
   let reconciliationTurns = 0;
@@ -141,9 +116,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
       expect(readFileSync(join(fixture.root, 'subs/a/src/caller.ts'), 'utf8')).toContain("import { readFact } from '../../b/src/fact.js'");
       expect(readFileSync(join(fixture.root, 'subs/a/src/tests/caller.test.ts'), 'utf8')).toContain("toBe('Fresh fact: old from B')");
       suspendedContinuationStarted = true;
-      if (mode === 'restart' || mode === 'verify-restart' || mode === 'gate-restart' ||
-        mode === 'gate-intent-restart' || mode === 'gate-committing-restart' ||
-        mode === 'review-restart' || mode === 'review-submission-restart' || mode === 'concern-submission-restart') return resuming
+      if (mode === 'restart' || mode === 'verify-restart' || mode === 'concern-submission-restart') return resuming
         ? submit({ kind: 'completion-proposed', summary: 'A resumed after restart with the accepted result', findings: [] })
         : [{ kind: 'wait', ms: 60_000 }];
       if (mode === 'deferred' || mode === 'reload') return submit({ kind: 'completion-proposed', summary: 'A resumed with the accepted result', findings: [] });
@@ -204,8 +177,6 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
       const basis = { task, planRevision: Number(revision), invocation };
       const assignOwner = (owner: string, purpose: string) => submit({ ...basis, kind: 'assign', assignment: assign(owner, {
         goal: purpose, approach: purpose, completionEvidence: 'Real source and tests',
-        ...(purpose.startsWith('Repair') && (mode === 'review-restart' || mode === 'review-submission-restart')
-          ? { reviewReason: 'Verify the changed independent oracle through an explicit additional review before the recovery boundary.' } : {}),
       }).assignment });
       if (current.includes('requires a correction assignment')) {
         correctionAssigned = true;
@@ -293,8 +264,6 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
   let releaseCoordinator!: () => void;
   const coordinatorClosing = new Promise<void>(resolve => { releaseCoordinator = resolve; });
   let closingVerification: Promise<void> | undefined;
-  let frozenFault = false;
-  let targetGateId: string | undefined;
   let closeVerification: (() => Promise<void>) | undefined;
   let activeService: Awaited<ReturnType<typeof openCapabilityRuns>>['service'] | undefined;
   // The ordinary matrix answers configured policy with explicit synthetic
@@ -458,26 +427,10 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
         entry.type === 'invocation-ended' && entry.data.invocation === latestReviewer.data.invocation && entry.data.ended === 'submitted') &&
         pendingReview?.type === 'review-request-recorded' && !current.some(entry => entry.type === 'review-attempt-finished' && entry.data.request === pendingReview.data.request);
       const boundary = mode === 'verify-restart' && write === 'capability-verification-started' ||
-        mode === 'gate-intent-restart' && write === 'gate-attempted' &&
-          event?.type === 'gate-committing' && event.data.checkpoint === 'work-item' ||
-        mode === 'gate-committing-restart' && write === 'gate-committing' &&
-          event?.type === 'gate-committing' && event.data.checkpoint === 'work-item' ||
-        mode === 'gate-restart' && write === 'gate-committed' &&
-          gate?.type === 'gate-attempted' && gate.data.checkpoint === 'work-item' && gate.data.verdict === 'passed' ||
-        mode === 'review-submission-restart' && write === 'invocation-ended' && reviewer >= 2 && pendingSubmission ||
-        mode === 'concern-submission-restart' && write === 'invocation-ended' && reviewer === 1 && pendingSubmission ||
-        mode === 'review-restart' && write === 'gate-attempted' && reviewer >= 2 &&
-          event?.type === 'gate-committing' && event.data.checkpoint === 'work-item';
-      if (boundary && !frozenFault && closingVerification === undefined) {
-        targetGateId = event?.type === 'gate-committing' ? event.data.gate
-          : gate?.type === 'gate-attempted' && gate.data.checkpoint === 'work-item' ? gate.data.gate : undefined;
-        if (mode === 'gate-restart' || mode === 'gate-intent-restart' || mode === 'gate-committing-restart' || mode === 'review-restart') {
-          frozenFault = true;
-          await freeze();
-        } else {
-          if (mode === 'concern-submission-restart') await until(() => coordinatorSettled, 30_000);
-          closingVerification = closeVerification?.();
-        }
+        mode === 'concern-submission-restart' && write === 'invocation-ended' && reviewer === 1 && pendingSubmission;
+      if (boundary && closingVerification === undefined) {
+        if (mode === 'concern-submission-restart') await until(() => coordinatorSettled, 30_000);
+        closingVerification = closeVerification?.();
       }
     },
     policy: root => {
@@ -488,10 +441,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
       } };
     } } satisfies Parameters<typeof openCapabilityRuns>[1];
   const opened = await openCapabilityRuns(fixture.root, options);
-  if (mode !== 'gate-restart' && mode !== 'gate-intent-restart' && mode !== 'gate-committing-restart' &&
-    mode !== 'review-restart' && mode !== 'review-submission-restart' && mode !== 'concern-submission-restart') {
-    cleanups.push(() => opened.service.close());
-  }
+  if (mode !== 'concern-submission-restart') cleanups.push(() => opened.service.close());
   activeService = opened.service;
   closeVerification = () => {
     const closed = opened.service.close();
@@ -527,19 +477,16 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
     const gates = (opened.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'work-item');
     expect(gates.map(event => event.type === 'gate-attempted' ? event.data.verdict : '')).toEqual(['not-verified', 'passed']);
   }
-  if (mode === 'verify-restart' || mode === 'gate-restart' || mode === 'gate-intent-restart' ||
-    mode === 'gate-committing-restart' || mode === 'review-restart' || mode === 'review-submission-restart' ||
-    mode === 'concern-submission-restart') {
-    await until(() => frozenFault || closingVerification !== undefined, 120_000).catch(async error => {
+  if (mode === 'verify-restart' || mode === 'concern-submission-restart') {
+    await until(() => closingVerification !== undefined, 120_000).catch(async error => {
       const current = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
       throw new Error(`${String(error)}; architect ${architect}; gates ${JSON.stringify(current.filter(event => event.type === 'gate-attempted'))}; tail ${JSON.stringify(current.slice(-12))}`);
     });
-    if (frozenFault) await staleCrashLock(fixture.root);
-    else await closingVerification;
+    await closingVerification;
     const before = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
     if (mode === 'verify-restart') expect(before.filter(event => event.type === 'capability-verification-started')).toHaveLength(1);
     expect(before.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
-    if (mode === 'review-submission-restart' || mode === 'concern-submission-restart') {
+    if (mode === 'concern-submission-restart') {
       const request = before.filter(event => event.type === 'review-request-recorded').at(-1);
       expect(request).toBeDefined();
       expect(before.some(event => event.type === 'review-attempt-started' && event.data.request === request?.data.request)).toBe(true);
@@ -562,9 +509,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
         .toMatchObject({ kept: false, finished: 'run-ended' });
     }
     const gates = before.filter(event => event.type === 'gate-attempted').length;
-    const committing = before.filter(event => event.type === 'gate-committing' && event.data.gate === targetGateId).length;
     const reviews = before.filter(event => event.type === 'review-attempt-finished').length;
-    const reviewerStarts = before.filter(event => event.type === 'invocation-started' && event.data.role === 'reviewer').length;
     resuming = true;
     const reopened = await openCapabilityRuns(fixture.root, options);
     cleanups.push(() => reopened.service.close());
@@ -613,36 +558,27 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
     const expectedNewGates = mode === 'concern-submission-restart' ? 2 : alreadyPassedTaskGate ? 0 : 1;
     expect(after.filter(event => event.type === 'gate-attempted'), JSON.stringify({ before: before.slice(-12), after: after.slice(-18) }))
       .toHaveLength(gates + expectedNewGates);
-    if (mode === 'gate-intent-restart' || mode === 'gate-committing-restart') {
-      expect(targetGateId).toBeDefined();
-      expect(after.filter(event => event.type === 'gate-committing' && event.data.gate === targetGateId)).toHaveLength(committing || 1);
-      expect(after.filter(event => event.type === 'gate-attempted' && event.data.gate === targetGateId)).toHaveLength(1);
-    }
     const reviewEvents = after.filter(event => event.type === 'review-attempt-finished');
-    if (mode === 'verify-restart' || mode === 'review-restart') expect(reviewEvents).toHaveLength(reviews);
+    if (mode === 'verify-restart') expect(reviewEvents).toHaveLength(reviews);
     expect(after.filter(event => event.type === 'review-request-recorded').length).toBeGreaterThan(0);
-    if (mode === 'review-submission-restart' || mode === 'concern-submission-restart') {
+    if (mode === 'concern-submission-restart') {
       const replayedReviewers = after.filter((event): event is Extract<typeof event, { type: 'invocation-started' }> =>
         event.type === 'invocation-started' && event.data.role === 'reviewer');
       const originalReviewers = before.filter((event): event is Extract<typeof event, { type: 'invocation-started' }> =>
         event.type === 'invocation-started' && event.data.role === 'reviewer');
-      const sameReviewers = mode === 'concern-submission-restart'
-        ? replayedReviewers.filter(event => event.data.work.iteration === originalReviewers[0]?.data.work.iteration)
-        : replayedReviewers;
+      const sameReviewers = replayedReviewers.filter(event => event.data.work.iteration === originalReviewers[0]?.data.work.iteration);
       expect(sameReviewers, JSON.stringify({ before: before.filter(event => event.type.startsWith('review-') ||
         (event.type === 'invocation-started' && event.data.role === 'reviewer') ||
         event.type === 'invocation-ended').slice(-14), after: after.filter(event => event.type.startsWith('review-') ||
         (event.type === 'invocation-started' && event.data.role === 'reviewer') ||
-        event.type === 'invocation-ended').slice(-16) })).toHaveLength(mode === 'concern-submission-restart' ? 1 : reviewerStarts);
-      if (mode === 'concern-submission-restart') {
-        const firstRequest = before.find(event => event.type === 'review-request-recorded');
-        if (firstRequest?.type !== 'review-request-recorded') throw new Error('The concern review request was not recorded');
-        const finished = after.filter((event): event is Extract<typeof event, { type: 'review-attempt-finished' }> =>
-          event.type === 'review-attempt-finished' && event.data.request === firstRequest.data.request);
-        expect(finished).toHaveLength(1);
-        expect(finished[0]?.data.attempt).toBe(`${firstRequest.data.request}.a01`);
-        expect(finished[0]?.data.checkFindings.filter(finding => finding.type === 'check-finding-opened')).toHaveLength(1);
-      }
+        event.type === 'invocation-ended').slice(-16) })).toHaveLength(1);
+      const firstRequest = before.find(event => event.type === 'review-request-recorded');
+      if (firstRequest?.type !== 'review-request-recorded') throw new Error('The concern review request was not recorded');
+      const finished = after.filter((event): event is Extract<typeof event, { type: 'review-attempt-finished' }> =>
+        event.type === 'review-attempt-finished' && event.data.request === firstRequest.data.request);
+      expect(finished).toHaveLength(1);
+      expect(finished[0]?.data.attempt).toBe(`${firstRequest.data.request}.a01`);
+      expect(finished[0]?.data.checkFindings.filter(finding => finding.type === 'check-finding-opened')).toHaveLength(1);
     }
     await until(() => suspendedContinuationStarted || (reopened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
     expect(suspendedContinuationStarted).toBe(true);
@@ -827,7 +763,6 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
     { id: 'capability-example:provider-source', code: "expect(readFact()).toEqual({text:'old', source:'B'})" },
     { id: 'capability-example:review-source', code: "expect(personReviewsSource()).toBe('B')" },
   ] });
-  if (realBoundary) expect(execFileSync('git', ['cat-file', '-t', request.source.tree], { cwd: fixture.root, encoding: 'utf8' }).trim()).toBe('tree');
   expect(events.filter(event => event.type === 'work-item-completed' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
   const handbackEvent = events.find(event => event.type === 'capability-handed-back')!;
   await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'invocation-started' &&

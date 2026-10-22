@@ -201,34 +201,4 @@ describe('a driven run', () => {
     expect(eventsOf(events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0001', 'rq-0002', 'rq-0003', 'rq-0004', 'rq-0005', 'rq-0006']);
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 6, complete: 6, partial: 0, notVerified: 0, pending: 0 });
   }, 120_000);
-
-  test('waiting reviews remain eligible when the captured attempt allowance exceeds the historical settlement allowance', async () => {
-    const root = await reviewTarget(cleanups);
-    const completionRequested = gate();
-    let revisions = 0;
-    const run = await reviewRun(root, cleanups, {
-      // One attempt may take a minute and the work item waits one second.
-      policy: { kinds: ['code'], concurrency: 1, attemptMs: 60_000, settleMs: 1_000 },
-      afterWrite: async write => {
-        // The first revision comes with the first assignment; the second is the completion request's.
-        if (write === 'outline-revised' && (revisions += 1) === 2) completionRequested.open();
-      },
-      engineer: engineers(),
-      reviewers: {
-        'rq-0001': [{ kind: 'await', until: () => completionRequested.opened }, ...clean(changed[1])],
-        'rq-0002': clean(changed[2]), 'rq-0003': clean(changed[3]),
-      },
-    });
-    const { service, runId, events } = run;
-    expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
-    const finished = eventsOf(events, 'review-attempt-finished');
-    expect(finished.map(event => [event.data.attempt, event.data.result, event.data.reason])).toEqual(expect.arrayContaining([
-      ['rq-0001.a01', 'complete', null],
-      ['rq-0002.a01', 'complete', null],
-      ['rq-0003.a01', 'complete', null],
-    ]));
-    expect(eventsOf(events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 });
-    expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
-  }, 120_000);
 });

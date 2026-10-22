@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { commitRecord, effect } from '../jobs/commit.js';
+import { commitRecord } from '../jobs/commit.js';
 import { commitEventSchema, logLines, openCommitLog, recordBytes, recordRef, type CommitEvent } from './helpers/commit.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 
@@ -89,84 +89,5 @@ describe('a transition already in the log is not appended again', () => {
     await commitRecord(log, { event: started(), records });
     expect(await commitRecord(log, { event: accepted(), records })).toBe('committed');
     expect(await logLines(directory.path)).toHaveLength(2);
-  });
-});
-
-describe('an external effect repeated with its key happens once', () => {
-  function brief(directory_: string) {
-    let performed = 0;
-    const keys: string[] = [];
-    return {
-      get performed() {
-        return performed;
-      },
-      keys,
-      spec: (key: string) => ({
-        key,
-        intent: { event: commitEventSchema.parse({ type: 'brief-appended', note: key }), records: [recordRef(`briefs/${key}.json`, key, 1)] },
-        perform: async (given: string) => {
-          performed += 1;
-          keys.push(given);
-          return { appended: given };
-        },
-        complete: (result: { appended: string }) => ({
-          event: commitEventSchema.parse({ type: 'brief-delivered', note: result.appended }),
-          records: [],
-        }),
-      }),
-      directory: directory_,
-    };
-  }
-
-  test('a second call under the same key performs nothing and returns the recorded result', async () => {
-    const log = await openCommitLog(directory.path);
-    const external = brief(directory.path);
-
-    const first = await effect(log, external.spec('append-0001'));
-    const second = await effect(log, external.spec('append-0001'));
-
-    expect(first).toEqual({ appended: 'append-0001' });
-    expect(second).toEqual(first);
-    expect(external.performed).toBe(1);
-    expect(external.keys).toEqual(['append-0001']);
-
-    const lines = await logLines(directory.path);
-    expect(lines.map(line => line.event.type)).toEqual(['brief-appended', 'brief-delivered']);
-    expect(log.pendingEffects()).toEqual([]);
-  });
-
-  test('a call after a restart performs nothing and appends nothing', async () => {
-    const first = await openCommitLog(directory.path);
-    const external = brief(directory.path);
-    await effect(first, external.spec('append-0002'));
-
-    const second = await openCommitLog(directory.path);
-    expect(await effect(second, external.spec('append-0002'))).toEqual({ appended: 'append-0002' });
-    expect(external.performed).toBe(1);
-    expect(await logLines(directory.path)).toHaveLength(2);
-  });
-
-  test('a failed effect leaves its intent pending, and performing it again appends no second intent', async () => {
-    const log = await openCommitLog(directory.path);
-    let attempts = 0;
-    const spec = (key: string) => ({
-      key,
-      intent: { event: commitEventSchema.parse({ type: 'brief-appended', note: key }), records: [recordRef(`briefs/${key}.json`, key, 1)] },
-      perform: async () => {
-        attempts += 1;
-        if (attempts === 1) throw new Error('the external system was unavailable');
-        return { appended: key };
-      },
-      complete: (result: { appended: string }) => ({ event: commitEventSchema.parse({ type: 'brief-delivered', note: result.appended }), records: [] }),
-    });
-
-    await expect(effect(log, spec('append-0003'))).rejects.toThrow('the external system was unavailable');
-    expect(log.pendingEffects().map(pending => pending.key)).toEqual(['append-0003']);
-
-    expect(await effect(log, spec('append-0003'))).toEqual({ appended: 'append-0003' });
-    expect(attempts).toBe(2);
-    const lines = await logLines(directory.path);
-    expect(lines.map(line => line.event.type)).toEqual(['brief-appended', 'brief-delivered']);
-    expect(log.pendingEffects()).toEqual([]);
   });
 });

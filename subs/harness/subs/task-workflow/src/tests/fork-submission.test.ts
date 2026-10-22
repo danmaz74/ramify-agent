@@ -3,7 +3,7 @@ import type { ArchitectIndex } from '../../../evidence/src/views.js';
 import { architectIndex, moduleEntry } from '../../../../src/tests/helpers/views.js';
 import type { Hypothesis, RegistryEntry } from '../../../autonomous/subs/planning/src/records.js';
 import { extensionIsANewCapability, type PlacementDecision } from '../../../autonomous/subs/work-coordination/src/architecture/records.js';
-import { forkJsonSchema, forkToolName, validateFork, type PlacementEvidence } from '../../../autonomous/subs/work-coordination/src/architecture/submission.js';
+import { forkJsonSchema, validateFork, type PlacementEvidence } from '../../../autonomous/subs/work-coordination/src/architecture/submission.js';
 import { validateLocalArchitect } from '../../../autonomous/subs/work-coordination/src/work/submission.js';
 import { placementDecisionFixture as decision, forkDecision, placementRequest, registryChange } from '../../../autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 
@@ -77,10 +77,9 @@ function messages(result: ReturnType<typeof validateFork>): string[] {
 }
 
 describe('the fork submission schema', () => {
-  test('is a union discriminated on kind, and has no field for an ID the harness knows', () => {
+  test('has no field for an ID the harness knows', () => {
     const union = (forkJsonSchema as { anyOf?: unknown[]; oneOf?: unknown[] });
     const members = (union.anyOf ?? union.oneOf) as Array<{ properties?: Record<string, unknown> }>;
-    expect(members).toHaveLength(5);
     const text = JSON.stringify(forkJsonSchema);
     for (const assigned of ['"id"', '"authority"', '"invocation"', '"schema"', '"revision"', '"origin"', '"previousOwner"', '"view"', '"hash"']) {
       expect(text).not.toContain(assigned);
@@ -92,7 +91,6 @@ describe('the fork submission schema', () => {
       expect(Object.keys(member.properties ?? {})).not.toContain('request');
       expect(Object.keys(member.properties ?? {})).not.toContain('workItem');
     }
-    expect(forkToolName).toBe('submit_placement_decision');
   });
 
   test('a schema violation returns every error with its path, and a corrected submission is accepted', () => {

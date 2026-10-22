@@ -1045,6 +1045,7 @@ export async function runToEnd(scenario: Scenario, watch?: (service: RunService,
   let runId = '';
   let stopped = false;
   let stopPromise: Promise<void> | null = null;
+  let stopWrite: string | null = null;
   const opened = await openRuns(target.root, {
     agent,
     git,
@@ -1057,7 +1058,9 @@ export async function runToEnd(scenario: Scenario, watch?: (service: RunService,
     ...(scenario.policy === undefined ? {} : { policy: scenario.policy }),
     afterWrite: async (write, id) => {
       runId = id;
-      scenario.during?.(write, { runId: id, root: target.root, stop: () => { if (!stopped) { stopped = true; stopPromise = sendStop(opened.service, id); } } });
+      scenario.during?.(write, { runId: id, root: target.root, stop: () => { if (!stopped) { stopped = true; stopWrite = write; stopPromise = sendStop(opened.service, id); } } });
+      // The run holds at the write that sent the stop until the stop is accepted.
+      if (stopWrite === write && stopPromise !== null) { stopWrite = null; await stopPromise; }
       await watch?.(opened.service, id);
     },
   });

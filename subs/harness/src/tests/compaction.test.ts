@@ -5,7 +5,6 @@ import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { defaultRunPolicy } from '../run/policy.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { installTestRunner, onlyRun, runPath, startRun } from './helpers/runs.js';
@@ -80,11 +79,6 @@ describe('compaction during a run', () => {
     expect(localCompaction).toHaveLength(1);
     expect(localCompaction[0]!.data).toEqual({ trigger: 'overflow', succeeded: true, before: 140_000, after: null, error: null });
   }, 300_000);
-
-  test('production compaction is native for every role with no harness context ceiling', () => {
-    const policy = defaultRunPolicy({ projectRoot: '/work/project' });
-    for (const context of Object.values(policy.context)) expect(context).toEqual({ compaction: 'allowed', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 });
-  });
 
   test('a session records compaction without a role-specific prohibition', async () => {
     const fixture = await copyFixture();

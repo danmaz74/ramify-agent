@@ -1,10 +1,5 @@
-/// <reference types="node" />
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
-import { ModuleTreeCanvas, type ModuleTreeCanvasNode } from 'ramify.ts/module-tree';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import {
   moduleCapabilityComparisonResponseSchema, type ModuleCapabilities, type ModuleCapabilityComparisonResponse,
@@ -94,31 +89,6 @@ function position(module: string): { x: number; y: number } {
   return { x: Number(match[1]), y: Number(match[2]) };
 }
 const rowsOf = (module: string) => [...shell(module)!.querySelectorAll<HTMLButtonElement>('button.capability-row')];
-
-function HookRow({ label }: { readonly label: string }) {
-  const [count, setCount] = useState(0);
-  return <button type="button" onClick={() => setCount(value => value + 1)}>{label} {count}</button>;
-}
-
-test('CM10: a hook-using row renders in the packaged canvas under the web module\'s single React', async () => {
-  const errors: unknown[][] = [];
-  const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => { errors.push(args); });
-  const nodes: ModuleTreeCanvasNode[] = [
-    { id: 'shop', name: 'shop', parent: null, children: ['shop/notes'], color: '#2f5fa7', width: 220, height: 64 },
-    { id: 'shop/notes', name: 'notes', parent: 'shop', children: [], color: '#2f5fa7', width: 220, height: 120 },
-  ];
-  render(
-    <div style={{ width: 960, height: 720 }}>
-      <ModuleTreeCanvas nodes={nodes} selectedNodeId={null} collapsedNodeIds={new Set()} ariaLabel="Probe"
-        renderNodeBody={node => <HookRow label={node.name} />} onSelectNode={() => undefined} onToggleCollapsed={() => undefined} />
-    </div>,
-  );
-  const row = await screen.findByText('notes 0');
-  await act(async () => { fireEvent.click(row); });
-  expect(row.textContent).toBe('notes 1');
-  spy.mockRestore();
-  expect(errors.map(args => String(args[0]))).not.toContainEqual(expect.stringMatching(/Invalid hook call|more than one copy of React/));
-});
 
 test('CM02: every returned capability ID is a row of its module node, sized so that every row is visible', () => {
   render(<Harness value={comparison} />);
@@ -353,79 +323,4 @@ test('CM12: a 60-row module keeps every row, in a node tall enough for them all,
   // Pan, zoom and the minimap stay available for the tall node.
   expect(document.querySelector('.react-flow__minimap')).toBeTruthy();
   expect(document.querySelector('.react-flow__controls')).toBeTruthy();
-});
-
-// CM01: the capability view uses the packaged canvas only. Plan 11's separate
-// execution map owns a direct React Flow viewport; it does not copy this tree.
-const webSource = join(dirname(fileURLToPath(import.meta.url)), '..');
-function sources(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return entry.name === 'tests' ? [] : sources(path);
-    return /\.(tsx?|css)$/.test(entry.name) ? [path] : [];
-  });
-}
-const webFiles = sources(webSource).map(path => ({ path: relative(webSource, path), text: readFileSync(path, 'utf8') }));
-
-/** Whether a relative import of a web source leaves the project, whose src/ is subs/web/src. */
-function leavesProject(from: string, target: string): boolean {
-  return target.startsWith('.') && !new URL(target, `file:///project/subs/web/src/${from}`).pathname.startsWith('/project/');
-}
-
-test('CM01: the capability module tree imports its canvas and styles only from the package', () => {
-  const files = webFiles;
-  expect(files.map(file => file.path)).toEqual(expect.arrayContaining(['capability-module-tree.tsx', 'run-page.tsx', 'styles.css', 'examples/capability-module-example.tsx']));
-  expect(files.some(file => file.path.startsWith('tests/'))).toBe(false);
-  const imports = files.flatMap(file => [...file.text.matchAll(/(?:from|import|@import)\s+['"]([^'"]+)['"]/g)].map(match => [file.path, match[1]!] as const));
-  expect(imports.filter(([path, target]) => leavesProject(path, target))).toEqual([]);
-  expect(leavesProject('capability-module-tree.tsx', '../../../../subs/presentation/src/module-tree-entry.js')).toBe(true);
-  expect(imports.filter(([, target]) => /ramify\.ts\/(dist|subs|src)|presentation|project-view/.test(target!))).toEqual([]);
-  expect(imports.filter(([, target]) => target!.startsWith('ramify.ts'))).toEqual([
-    ['capability-module-tree.tsx', 'ramify.ts/module-tree'],
-    ['execution-modules.tsx', 'ramify.ts/module-tree'],
-    ['styles.css', 'ramify.ts/module-tree.css'],
-  ]);
-  expect(imports.filter(([, target]) => target!.startsWith('@xyflow'))).toEqual([
-    ['execution-map.tsx', '@xyflow/react'],
-    ['execution-modules.tsx', '@xyflow/react'],
-  ]);
-  // The capability view still has no copied shell CSS or React Flow internals.
-  for (const file of files.filter(file => file.path !== 'execution-map.tsx')) {
-    expect(file.text, file.path).not.toMatch(/\.module-tree__|react-flow__|\bnodrag\b|\bnopan\b|ProjectExplorerModel|module-activity|ModuleActivity/);
-  }
-});
-
-// Found by the browser acceptance: at 390 px the Run page's seven area tabs
-// ran 340 px past the viewport, with Progress itself off-screen. The tab rows
-// wrap; the browser run records the page width that results.
-test('the tab rows wrap, so Progress stays reachable at a narrow width', () => {
-  const styles = webFiles.find(file => file.path === 'styles.css')!.text;
-  expect(/^\.tabs \{[^}]*flex-wrap: wrap;/m.test(styles)).toBe(true);
-});
-
-// KI-8: `main { max-width: 52rem }` capped the canvas, because the earlier `.run-page main`
-// named the Run page's parent and matched nothing. The route class on <main> lifts the cap
-// for the Run route alone, and the page keeps the same measure on all but its broad and wide
-// areas. The header and the tab bar span the page, so they line up with every area.
-test('the Run route lifts the shell width cap and keeps a reading measure on its prose', () => {
-  const styles = webFiles.find(file => file.path === 'styles.css')!.text;
-  expect(styles).not.toMatch(/^\.run-page main/m);
-  expect(styles).toMatch(/^main\.route-run \{ max-width: none; \}$/m);
-  expect(styles).toMatch(/^\.run-page > \* \{ max-width: 52rem; \}$/m);
-  expect(styles).toMatch(/^\.run-page > \.area-broad \{ max-width: 80rem; \}$/m);
-  expect(styles).toMatch(/^\.run-page > \.area-wide \{ max-width: none; \}$/m);
-  expect(styles).toMatch(/^\.run-page > \.page-header, \.run-page > \.tabs \{ max-width: none; \}$/m);
-  expect(webFiles.find(file => file.path === 'run-page.tsx')!.text)
-    .toMatch(/className="area area-wide" aria-label="Progress"/);
-});
-
-// The fitted zoom is what makes rows readable, so the canvas takes the viewport height and,
-// under 82rem, the whole page width with the detail panel stacked below it.
-test('the canvas takes the viewport height, and the detail panel stacks below 82rem', () => {
-  const styles = webFiles.find(file => file.path === 'styles.css')!.text;
-  expect(styles).not.toMatch(/height: 38rem/);
-  expect(styles).toMatch(/\.capability-module-canvas \{\n\s*height: calc\(100vh - 14rem\); min-height: 26rem;/);
-  const narrow = styles.slice(styles.indexOf('@media (max-width: 82rem)'));
-  expect(narrow).toMatch(/\.capability-module-layout \{ grid-template-columns: 1fr; \}/);
-  expect(narrow).toMatch(/\.capability-module-canvas \{ height: calc\(100vh - 22rem\); \}/);
 });

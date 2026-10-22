@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 import { createVitest } from 'vitest/node';
 import { readFileSync, realpathSync, statSync } from 'node:fs';
-import { resolve, relative } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 /**
  * ramify-agent runs its own test toolchain. This config keeps vitest, started
@@ -14,18 +14,26 @@ import { resolve, relative } from 'node:path';
  * React and inlines `ramify.ts` and `@xyflow/react`, so the packaged canvas
  * resolves the web module's React rather than the linked checkout's copy.
  */
-const nodeDiscovery = {
+export const nodeDiscovery = {
   environment: 'node' as const,
   include: ['src/tests/**/*.test.ts', 'subs/**/src/**/*.test.ts'],
-  exclude: ['subs/web/**', 'subs/harness/fixtures/**', '**/src/tmp/**'],
+  exclude: ['subs/web/**', 'subs/harness/fixtures/**', '**/src/tmp/**', '**/tests/helpers/**/*.test.ts'],
 };
-const webDiscovery = {
+export const webDiscovery = {
   environment: 'jsdom' as const,
   include: ['subs/web/src/**/*.test.{ts,tsx}'],
   exclude: ['subs/harness/fixtures/**', '**/src/tmp/**'],
 };
-export default defineConfig(async () => {
-  const root = process.cwd();
+/** The include and exclude globs of one configured Vitest project. */
+export interface Discovery { environment: 'node' | 'jsdom'; include: string[]; exclude: string[] }
+
+/**
+ * Reads and validates src/tests/test-boundaries.json under `root`, and returns
+ * the registered boundary files. Every file must be an exact, regular,
+ * registered-once path inside the root that the Node project's own discovery
+ * would otherwise select. Any defect throws, which fails configuration.
+ */
+export async function boundaryPaths(root: string, nodeDiscovery: Discovery, webDiscovery: Discovery): Promise<string[]> {
   const manifest = JSON.parse(readFileSync(resolve(root, 'src/tests/test-boundaries.json'), 'utf8'));
   if (manifest.schema !== 'ramify-agent.test-boundaries/1' || !Array.isArray(manifest.boundaries)) throw new Error('Invalid test boundary registry schema');
   const paths: string[] = [];
@@ -47,6 +55,12 @@ export default defineConfig(async () => {
     const discovered = new Map((await discovery.globTestSpecifications()).map(spec => [relative(root, spec.moduleId).split('\\').join('/'), spec.project.name]));
     for (const path of paths) if (discovered.get(path) !== 'inventory-node') throw new Error(`Test boundary is outside configured Node discovery: ${path}`);
   } finally { await discovery.close(); }
+  return paths;
+}
+
+export default defineConfig(async () => {
+  const root = process.cwd();
+  const paths = await boundaryPaths(root, nodeDiscovery, webDiscovery);
   return {
     test: {
       projects: [

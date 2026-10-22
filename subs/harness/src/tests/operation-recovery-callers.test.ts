@@ -1,8 +1,9 @@
-import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import type { AgentPort, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
+import { SessionDriverUnavailableError } from '../../subs/agent/src/interfaces/session-operations.js';
 import { contextSelectorToolName, workOrientationToolName } from '../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
 import { localArchitectToolName } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
@@ -33,8 +34,6 @@ import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { scenarioGit } from './helpers/recovery-git.js';
 
-vi.unmock('../../subs/session-store/src/session-store.js');
-
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 
@@ -47,6 +46,29 @@ afterEach(async () => {
 function recoveryPolicy(root: string) {
   const policy = testPolicy(root, { recovery: true });
   return { ...policy, recovery: { ...policy.recovery!, baseDelayMs: 0, maxDelayMs: 1 } };
+}
+
+/**
+ * Payloads stored before `lose()` read back as the disk store reads a deleted
+ * file (null) or a damaged one (`Corrupt transcript payload`); storing the
+ * same bytes again restores them. The disk store's own distinction is
+ * verified in session-store's "isolates optional committed payload" cases.
+ */
+function losingPayloads(agent: AgentPort, loss: 'missing' | 'corrupt') {
+  let lost = false;
+  let unavailable = 0;
+  const restored = new Set<string>();
+  const port: AgentPort = { ...agent, bindSessionStore(store) {
+    return agent.bindSessionStore!({ ...store,
+      async putPayload(bytes) { const id = await store.putPayload(bytes); restored.add(id); return id; },
+      async getPayload(id) {
+        if (!lost || restored.has(id)) return store.getPayload(id);
+        unavailable += 1;
+        if (loss === 'missing') return null;
+        throw new SessionDriverUnavailableError(`Corrupt transcript payload ${id}`);
+      } });
+  } };
+  return { port, lose() { lost = true; restored.clear(); }, unavailable: () => unavailable };
 }
 
 /** The interruption precedes the fixture turn, so retry does not consume a semantic answer. */
@@ -70,6 +92,7 @@ async function composedCaller(scenario: Scenario, matches?: (spec: SessionSpec) 
   // The outer wrapper includes extraction, orientation and selection callers that
   // the composition's declaration helper answers through its default turns.
   const agent = createScriptedAgent(matches ? interruptOnce(declared, matches) : declared);
+  const losing = losingPayloads(agent, contextLoss ?? 'missing');
   const final = scenario.finalCandidate!;
   // New-policy pure preparation captures the retained partial candidate before
   // the next architect turn. The delegation has reached its first provider
@@ -84,18 +107,14 @@ async function composedCaller(scenario: Scenario, matches?: (spec: SessionSpec) 
   const commands = statedCommands(target.root, scenario.commands ?? []);
   let contextLost = false;
   const opened = await openRuns(target.root, {
-    agent, git, candidates: compositionCandidates(target.root, scenario), inputs: scenario.inputs(),
+    agent: contextLoss === undefined ? agent : losing.port, git, candidates: compositionCandidates(target.root, scenario), inputs: scenario.inputs(),
     configuredAudit: announcingAudit(), commandExecution: commands, policy: recoveryPolicy,
     afterWrite: async (write, runId) => {
       if (!contextLoss || contextLost || write !== 'invocation-ended') return;
       const events = await logEvents(target.root, runId);
       if (!events.some(event => event.type === 'invocation-ended' && event.data.ended === 'failed')) return;
       contextLost = true;
-      const payloads = join(target.root, 'plans', '.harness', 'session-operations', 'store', 'payloads');
-      for (const id of await readdir(payloads)) {
-        if (contextLoss === 'missing') await rm(join(payloads, id));
-        else await writeFile(join(payloads, id), 'corrupt optional conversation bytes');
-      }
+      losing.lose();
     },
   });
   cleanups.push(() => opened.service.close());
@@ -103,22 +122,21 @@ async function composedCaller(scenario: Scenario, matches?: (spec: SessionSpec) 
   await opened.service.settled(plan, receipt.jobId);
   expect(opened.service.getRun(plan, receipt.jobId)?.state, JSON.stringify(opened.service.getRun(plan, receipt.jobId)?.failure)).toBe(scenario.ends);
   commands.assertComplete(); git.assertComplete();
-  return { ...opened, agent, git, root: target.root, runId: receipt.jobId, events: await logEvents(target.root, receipt.jobId) };
+  return { ...opened, agent, unavailable: losing.unavailable(), git, root: target.root, runId: receipt.jobId, events: await logEvents(target.root, receipt.jobId) };
 }
 
 describe('ordinary recovery through actual workflow callers', () => {
+  // Every caller reaches the same operation runtime; only the session it
+  // starts from differs. Fresh starts and the continuation's fresh retry read
+  // no stored context, so only a fork's retry observes the loss.
   const cases = [
-    { caller: 'initial architect', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.role === 'initial-architect' },
-    { caller: 'catalog extraction', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.role === 'catalog-extractor' },
-    { caller: 'local orientation', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.submission.name === workOrientationToolName },
-    { caller: 'context selector fork', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.submission.name === contextSelectorToolName },
-    { caller: 'local organizing continuation', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.submission.name === localArchitectToolName && spec.session.mode === 'continue' },
-    { caller: 'engineer', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.role === 'engineer' },
-    { caller: 'contract engineer', scenario: scenarios.delegation, matches: (spec: SessionSpec) => spec.role === 'contract-engineer' },
-    { caller: 'global placement fork', scenario: scenarios.placement, matches: (spec: SessionSpec) => spec.role === 'global-fork' },
-  ];
-  for (const { caller, scenario, matches } of cases) {
-    test.each(['missing', 'corrupt'] as const)(`${caller} restarts with %s context without repeating accepted transitions`, async contextLoss => {
+    { caller: 'context selector fork', contextLoss: 'missing', scenario: scenarios.iteration,
+      matches: (spec: SessionSpec) => spec.submission.name === contextSelectorToolName },
+    { caller: 'global placement fork', contextLoss: 'corrupt', scenario: scenarios.placement,
+      matches: (spec: SessionSpec) => spec.role === 'global-fork' },
+  ] as const;
+  for (const { caller, contextLoss, scenario, matches } of cases) {
+    test(`${caller} restarts fresh with ${contextLoss} context without repeating accepted transitions`, async () => {
       const run = await composedCaller(scenario, matches, contextLoss);
       expect(run.service.getRun(plan, run.runId)?.state).toBe(scenario.ends);
       const failed = run.agent.sessions.filter(session => session.outcome?.kind === 'failed');
@@ -127,6 +145,8 @@ describe('ordinary recovery through actual workflow callers', () => {
       const next = run.agent.sessions[run.agent.sessions.indexOf(first) + 1]!;
       expect(next.spec.role).toBe(first.spec.role);
       expect(next.spec.submission.name).toBe(first.spec.submission.name);
+      expect([first.spec.session.mode, next.start]).toEqual(['fork', { mode: 'fresh' }]);
+      expect(run.unavailable, 'the restart read lost context').toBeGreaterThan(0);
       expect(next.outcome?.kind).toBe('submitted');
       expect(run.events.some(event => event.type === 'operation-recovery-attempt')).toBe(false);
       expect(run.events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
@@ -175,11 +195,11 @@ describe('ordinary recovery through actual workflow callers', () => {
     expect(outcome.session?.ref || null).toBeNull();
     const submissionPath = runPath(target.root, plan, receipt.jobId, runLayout.submission(acceptedInvocation));
     const acceptedBytes = await readFile(submissionPath);
-    const payloads = join(target.root, 'plans', '.harness', 'session-operations', 'store', 'payloads');
-    for (const id of await readdir(payloads)) await rm(join(payloads, id));
     await staleCrashLock(target.root);
     const resumed = createScriptedAgent(declared);
-    const reopened = await openRuns(target.root, { ...options, agent: resumed });
+    const losing = losingPayloads(resumed, 'missing');
+    losing.lose();
+    const reopened = await openRuns(target.root, { ...options, agent: losing.port });
     cleanups.push(() => reopened.service.close());
     await reopened.service.settled(plan, receipt.jobId);
     expect(reopened.service.getRun(plan, receipt.jobId)?.state, JSON.stringify(reopened.service.getRun(plan, receipt.jobId)?.failure)).toBe('completed');
