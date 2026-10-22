@@ -6,6 +6,7 @@ import type { ReviewPolicy } from '../../review-policy.js';
 import type { RunPolicy } from '../../../../../src/run/records.js';
 import type { RunWrite } from '../../../../../src/run/log.js';
 import type { ConfiguredAuditPort } from '../../../../../../audit/src/check-execution.js';
+import type { CandidateTreePreview } from '../../../../../../evidence/src/candidate-tree.js';
 import { reviewLayout, type ReviewAttempt } from '../../reviews/records.js';
 import { analysis, entry, requestCompletion } from '../../../../../../../src/tests/helpers/analysis.js';
 import { scriptedCandidates, testReviewPolicy, type ScriptedCandidates, type ScriptedCommit } from './candidates.js';
@@ -112,6 +113,8 @@ export interface ReviewRun {
   readonly gates?: readonly GateCommit[];
   /** Exact number of final candidate tree previews this scenario reaches. */
   readonly previewCount?: number;
+  /** Exact prepared and committed observations for a repair that creates a second final candidate. */
+  readonly previews?: readonly CandidateTreePreview[];
   /** Run limits beside the test policy's, such as the reconciliation rounds. */
   readonly limits?: Partial<RunPolicy['limits']>;
   /**
@@ -173,7 +176,7 @@ export async function reviewRun(root: string, cleanups: Array<() => Promise<void
   const beforeFinal = gates.slice(0, -1).reduce((head, gate) => gate.commit ?? head, materialized);
   const afterFinal = gates.at(-1)?.commit ?? beforeFinal;
   const tree = scripted[beforeFinal]?.tree;
-  const previewCount = scenario.previewCount ?? 4;
+  const previewCount = scenario.previews?.length ?? scenario.previewCount ?? 4;
   if (previewCount > 0 && (tree === undefined || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(tree))) {
     throw new Error(`Review run must state a valid final candidate tree for ${beforeFinal}`);
   }
@@ -183,7 +186,7 @@ export async function reviewRun(root: string, cleanups: Array<() => Promise<void
       scenariosCommit(plan, materialized, base),
       ...gates,
     ],
-    previews: Array.from({ length: previewCount }, (_, index) => ({ repositoryRoot: root,
+    previews: scenario.previews ?? Array.from({ length: previewCount }, (_, index) => ({ repositoryRoot: root,
       head: index === previewCount - 1 && previewCount >= 4 ? afterFinal : beforeFinal, tree: tree! })),
   });
   const source = scriptedCandidates(root, scripted);

@@ -89,12 +89,18 @@ export function replayNonfunctionalPhase(
           requireFact(event.data.round === closedRounds.length && !externalContinuations.includes(event.data.round)
             && event.data.candidate === final!.candidateId && event.data.assessment === final!.assessment.id,
           'final correction does not match the retained candidate and assessment');
-          requireFact(entries.some(prior => prior.sequence < entry.sequence
+          const finalGate = entries.find(prior => prior.sequence < entry.sequence
             && prior.transaction.event.type === 'gate-attempted'
             && prior.transaction.event.data.gate === event.data.gate
-            && prior.transaction.event.data.checkpoint === 'final'
-            && prior.transaction.event.data.verdict !== 'passed'),
-          'final correction has no failed final gate');
+            && prior.transaction.event.data.checkpoint === 'final');
+          requireFact(finalGate !== undefined
+            && (finalGate.transaction.event.type === 'gate-attempted' && finalGate.transaction.event.data.verdict !== 'passed'
+              || entries.some(prior => prior.sequence < entry.sequence
+                && prior.transaction.event.type === 'final-instability-reconciled'
+                && prior.transaction.event.data.gate === event.data.gate
+                && prior.transaction.event.data.candidate === event.data.candidate
+                && prior.transaction.event.data.next === 'correct')),
+          'final correction has no failed gate or retained instability repair decision');
           requireFact(entries.some(prior => prior.sequence < entry.sequence
             && prior.transaction.event.type === 'invocation-ended'
             && prior.transaction.event.data.invocation === event.data.invocation

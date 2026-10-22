@@ -1,4 +1,5 @@
 import { readdir, readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptStep } from '../../../../../agent/src/scripted.js';
 import type { ConfiguredAuditPort } from '../../../../../audit/src/check-execution.js';
@@ -12,10 +13,11 @@ import { snapshotToolNames } from '../../../../../reviews/src/snapshot.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
 import { mappedAudit, passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
-import { completionProposed, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
+import { assign, completionProposed, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
+import { requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { disposition, reconcile, submission } from '../../../../../../src/tests/helpers/check-findings-composition.js';
 import { mockGit } from '../../../../../../src/tests/helpers/mock-git.js';
-import { attemptRecord, candidates, eventsOf, gate, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
+import { attemptRecord, candidates, eventsOf, finalReviewTree, gate, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, revisionGates, store, tool } from './helpers/reviews.js';
 import { freeze, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 
 vi.mock('node:child_process', async original =>
@@ -494,6 +496,100 @@ describe('the gate audit and the run mutex', () => {
       .toMatchObject([{ accepted: false }, { accepted: true }]);
     await staleCrashLock(root);
   }, 60_000);
+
+  test('an added unstable test closes only after reliable coverage on a newly audited final candidate', async () => {
+    const root = await reviewTarget(cleanups);
+    const testPath = `${notesDirectory}/src/tests/added-note-limit.test.ts`;
+    await expect(readFile(join(root, testPath), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+    const unstableTest = `import { test, expect } from 'vitest';\nimport { noteLimit } from '../notes.ts';\n\ntest('the added note limit', () => {\n  expect(noteLimit).toBe(500);\n  expect(noteLimit + Math.random()).toBeGreaterThan(500.5);\n});\n`;
+    const reliableTest = `import { test, expect } from 'vitest';\nimport { noteLimit } from '../notes.ts';\n\ntest('the note limit', () => {\n  expect(noteLimit).toBe(500);\n  expect(noteLimit).toBeGreaterThan(0);\n});\n`;
+    const repairedTree = 'd'.repeat(40);
+    const original = candidates();
+    const third = original['revision-03']!;
+    const commits = { ...original,
+      'revision-03': { ...third, changes: [...third.changes, { status: 'A', path: testPath }],
+        files: { ...third.files, [testPath]: unstableTest } },
+      'revision-04': { tree: repairedTree, base: 'revision-03', changes: [{ status: 'M', path: testPath }],
+        files: { ...third.files, [testPath]: reliableTest } },
+    };
+    const passing = passingAudit();
+    const auditCalls: string[] = [];
+    const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+      auditCalls.push(input.attemptId);
+      const result = await passing.run(input);
+      if (input.attemptId !== 'ga-0006') return result;
+      const provider = result.provider as { summary: Record<string, unknown> };
+      return { ...result, provider: { ...provider, summary: { ...provider.summary,
+        warningDispositions: [{ entry: { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+          path: testPath, kind: 'test', testId: 'the added note limit' }, basis: 'retained-instability' }],
+        flakinessPolicy: { onFailure: 'warning' },
+      } } };
+    } };
+    const previews = Array.from({ length: 9 }, (_, index) => ({ repositoryRoot: root,
+      head: index >= 4 ? 'revision-04' : 'revision-03', tree: index >= 4 ? repairedTree : finalReviewTree }));
+    const run = await reviewRun(root, cleanups, {
+      configuredAudit: warningAudit, commits, previews,
+      gates: [revisionGates[0]!, revisionGates[1]!, { ...revisionGates[2]!, changes: [...revisionGates[2]!.changes!, { status: 'A', path: testPath }] },
+        { commit: null }, { commit: null },
+        { commit: 'revision-04', changes: [{ status: 'M', path: testPath }] }, { commit: null }, { commit: null }],
+      engineer: [...engineers().slice(0, 2), submit(completionProposed('Exported the store and added note-limit coverage.'),
+        write(store, 'export const store = new Map(); // v3\n'),
+        write(`${notesDirectory}/src/index.ts`, "export * from './store.js';\n"), write(testPath, unstableTest)),
+      submit(completionProposed('Replaced the unstable added test with deterministic assertions.'),
+        write(testPath, reliableTest))],
+      architect: [
+        submit(assign(notes, { goal: 'Add the note store.' }, outline())),
+        submit(assign(notes, { goal: 'State the note limit.' })),
+        submit(assign(notes, { goal: 'Export the store.' })),
+        submit(requestCompletion()),
+        submit(assign(notes, { goal: 'Preserve reliable coverage for the note limit.' }, outline())),
+        submit(requestCompletion()),
+      ],
+      reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(testPath), 'rq-0004': clean(testPath) },
+      reconcilers: {
+        'final-instability-ga-0006': reconcile({ ...submission([
+          disposition('cf-0001', { action: 'repair' }),
+        ], { kind: 'correct', goal: 'Replace the unstable added test with reliable coverage.' }),
+        testOrigins: [{ checkFinding: 'cf-0001', origin: 'added', basis: 'The test was introduced by this plan.' }] }),
+        'final-instability-ga-0009': [tool(snapshotToolNames.read, { path: testPath }), ...reconcile({ ...submission([
+          disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
+        ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'added',
+          basis: 'The test was introduced by this plan.', coverageEvidence: 'Snapshot read of the repaired candidate verifies both deterministic note-limit assertions in the replacement test.' }] })],
+      },
+      globalFork: [submit({ module: notes, goal: 'Replace the unstable test while retaining coverage.',
+        rationale: 'The first final candidate established instability in a test introduced by the plan.' })],
+    });
+    expect(onlyRun(run.service, plan).state, JSON.stringify(eventsOf(run.events, 'job-failed'))).toBe('completed');
+    expect(eventsOf(run.events, 'candidate-prepared')).toMatchObject([
+      { data: { candidate: 'cand-001', tree: finalReviewTree } },
+      { data: { candidate: 'cand-002', tree: repairedTree } },
+    ]);
+    expect(eventsOf(run.events, 'candidate-bound-to-gate')).toMatchObject([
+      { data: { candidate: 'cand-001', gate: 'ga-0006', tree: finalReviewTree } },
+      { data: { candidate: 'cand-002', gate: 'ga-0009', tree: repairedTree } },
+    ]);
+    expect(eventsOf(run.events, 'final-instability-reconciled')).toMatchObject([
+      { data: { next: 'correct', gate: 'ga-0006' } },
+      { data: { next: 'complete', gate: 'ga-0009' } },
+    ]);
+    expect(eventsOf(run.events, 'nonfunctional-assessed')).toHaveLength(2);
+    expect(eventsOf(run.events, 'final-correction-planned')).toHaveLength(1);
+    const first = JSON.parse(await readFile(runPath(root, plan, run.runId, runLayout.gate('ga-0006')), 'utf8')) as { verdict: string; audited: string };
+    const second = JSON.parse(await readFile(runPath(root, plan, run.runId, runLayout.gate('ga-0009')), 'utf8')) as { verdict: string; audited: string };
+    expect(first.verdict).toBe('passed');
+    expect(second.verdict).toBe('passed');
+    expect(first.audited).toBe('revision-03');
+    expect(second.audited).toBe('revision-04');
+    const finding = run.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: 'cf-0001' });
+    expect(finding?.ok && finding.view.kind === 'detail' ? finding.view.summary : null)
+      .toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
+    expect(run.source.calls).toContain(`readBlob revision-04 ${testPath}`);
+    expect(auditCalls).toContain('ga-0006');
+    expect(auditCalls).toContain('ga-0009');
+    expect(eventsOf(run.events, 'job-completed')).toHaveLength(1);
+    expect(eventsOf(run.events, 'job-completed')[0]!.sequence).toBeGreaterThan(eventsOf(run.events, 'final-instability-reconciled')[1]!.sequence);
+    run.git.assertComplete();
+  }, 120_000);
 
   test('a final-only warning with unknown origin stays unresolved', async () => {
     const root = await reviewTarget(cleanups);
