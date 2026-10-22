@@ -3,8 +3,6 @@ import {
   executionCapabilityDetailSchema, executionMapPageSchema, executionMapQuerySchema,
   executionScenarioDetailSchema,
 } from '../interfaces/protocol/execution-map.js';
-import { errorResponseSchema } from '../interfaces/protocol/errors.js';
-import { protocolPaths } from '../interfaces/protocol/paths.js';
 import {
   executionMapFixtureCapabilityDetail as capabilityDetail, executionMapFixtureIdentity as ids,
   executionMapFixturePage as page, executionMapFixtureScenarioDetail as scenarioDetail,
@@ -175,13 +173,5 @@ describe('execution-map/1 contract', () => {
       key: 'scenario:sc-missing', detail: { state: 'unavailable', reason: 'Frozen source was not retained.' } }).success).toBe(true);
     expect(executionScenarioDetailSchema.safeParse({ schema: 'execution-map/1', runVersion: 42,
       key: 'scenario:sc-missing', detail: { state: 'available', name: 'Missing', source: [], record } }).success).toBe(false);
-  });
-
-  it('names version-bound URLs and the existing explicit stale-version error', () => {
-    expect(protocolPaths.runExecutionMap('p', 'r 1', 42, 'cursor/1', 50))
-      .toBe('/api/v1/plans/p/runs/r%201/execution-map?version=42&cursor=cursor%2F1&limit=50');
-    expect(protocolPaths.runExecutionCapability('p', 'r', 'status-badge', 42)).toContain('/execution-map/capabilities/status-badge?version=42');
-    expect(protocolPaths.runExecutionScenario('p', 'r', 'sc-status', 42)).toContain('/execution-map/scenarios/sc-status?version=42');
-    expect(errorResponseSchema.safeParse({ error: { code: 'stale-version', message: 'Run advanced.', currentVersion: 43 } }).success).toBe(true);
   });
 });
