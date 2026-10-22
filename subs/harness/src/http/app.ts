@@ -26,7 +26,7 @@ import {
 } from '../interfaces/protocol/runs.js';
 import {
   runSessionIdSchema, runSessionResponseSchema, runSessionsResponseSchema, sessionBodyResponseSchema, sessionListResponseSchema, sessionQueryLimits,
-  sessionTranscriptResponseSchema, sessionUpdatesResponseSchema, standaloneSessionResponseSchema, type SessionCursor,
+  sessionTranscriptResponseSchema, sessionUpdatesResponseSchema, type SessionCursor,
 } from '../interfaces/protocol/sessions.js';
 import { CommandRejection } from '../jobs/commands.js';
 import { discoverPlans, readPlan } from '../plans/discover.js';
@@ -68,8 +68,6 @@ type ExecutionCapabilityRequest = Request<{ planId: string; runId: string; capab
 type ExecutionScenarioRequest = Request<{ planId: string; runId: string; scenario: string }>;
 type RunSessionRequest = Request<{ planId: string; runId: string; session: string }>;
 type BodyRequest = Request<{ planId: string; runId: string; hash: string }>;
-type StandaloneRequest = Request<{ session: string }>;
-type StandaloneBodyRequest = Request<{ session: string; hash: string }>;
 
 /**
  * The Express application: the protocol's queries and commands under
@@ -319,24 +317,6 @@ export function createApp(options: AppOptions): express.Express {
 
   app.get(`${apiPrefix}/sessions`, async (request, response) => {
     send(response, sessionListResponseSchema, await projected(() => sessions.list(counter(request.query['offset'], 'offset'))));
-  });
-
-  app.get(`${apiPrefix}/sessions/standalone/:session`, async (request: StandaloneRequest, response) => {
-    send(response, standaloneSessionResponseSchema, await projected(() => sessions.standaloneSession(request.params.session)));
-  });
-
-  app.get(`${apiPrefix}/sessions/standalone/:session/transcript`, async (request: StandaloneRequest, response) => {
-    const after = counter(request.query['after'], 'after');
-    send(response, sessionTranscriptResponseSchema, await projected(() => sessions.transcript({ source: 'standalone', session: request.params.session }, after)));
-  });
-
-  app.get(`${apiPrefix}/sessions/standalone/:session/bodies/:hash`, async (request: StandaloneBodyRequest, response) => {
-    send(response, sessionBodyResponseSchema, await projected(() => sessions.standaloneBody(request.params.session, request.params.hash)));
-  });
-
-  app.get(`${apiPrefix}/sessions/standalone/:session/files`, async (request: StandaloneRequest, response) => {
-    const path = filePath(request.query['path']);
-    send(response, sessionBodyResponseSchema, await projected(() => sessions.standaloneFile(request.params.session, path)));
   });
 
   app.get(`${apiPrefix}/plans/:planId/runs/:runId/sessions`, async (request: RunRequest, response) => {

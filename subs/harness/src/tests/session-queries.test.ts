@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { appendFile, readFile, readdir, rename, rm, stat } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -11,13 +11,12 @@ import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { metricsResponseSchema } from '../interfaces/protocol/runs.js';
 import {
   runSessionResponseSchema, runSessionsResponseSchema, sessionBodyResponseSchema, sessionListResponseSchema, sessionTranscriptResponseSchema,
-  sessionUpdatesResponseSchema, standaloneSessionResponseSchema,
+  sessionUpdatesResponseSchema,
   type RunSessionView, type SessionCursor, type SessionRef,
 } from '../interfaces/protocol/sessions.js';
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
-import { historicalSessionLayout } from '../../subs/projections/src/tests/helpers/historical-session-layout.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';
@@ -28,7 +27,6 @@ import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
 import { emptyAnalysis, runEventsOnDisk, runPath, startRun, stopRun, unscriptedChangeHistory, until } from './helpers/runs.js';
 import { currentAnalysis } from './helpers/analysis.js';
 import { scriptedGit } from './helpers/scripted-git.js';
-import { installLegacySessions } from './helpers/legacy-sessions.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
 
 vi.mock('node:child_process', async original =>
@@ -38,9 +36,8 @@ vi.mock('node:child_process', async original =>
  * The session queries over HTTP, read by a plain Node client: `fetch` and
  * the protocol's schemas.
  *
- * A scripted run whose sessions take every relation, and two standalone
- * sessions, one finished and one whose harness died before its outcome,
- * are listed, derived and read back through their transcripts and bodies.
+ * A scripted run whose sessions take every relation is listed, derived and
+ * read back through its transcripts and bodies.
  * A run followed while it runs is polled with cursors: the poll answers
  * only entries after each cursor and reports a state change in the poll
  * after it is committed.
@@ -102,16 +99,14 @@ function fileBodies(entry: TranscriptEntry): string[] {
 }
 
 describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts and bodies', () => {
-  test('a scripted run and two standalone sessions, one finished and one interrupted, read over HTTP', async () => {
+  test('the served implementation run is listed with transcript pages while the earlier session layout is ignored', async () => {
     const scenario = await runSessionScenario({ cleanup: step => { cleanups.push(step); } });
     const { root, runId, events } = scenario;
     // The server takes the project lock.
     await scenario.service.close();
-    // Two sessions an earlier `session` command recorded, one of which ran
-    // `echo checking`; nothing writes this layout any more, and it is still read.
-    const { finished, crashed } = await installLegacySessions(root);
-    // The harness died before it wrote the outcome, which it writes last.
-    await rm(join(root, historicalSessionLayout.directory, crashed, historicalSessionLayout.outcome));
+    const retired = join(root, 'plans', '.harness', 'sessions', '20261010T084131Z-725903');
+    await mkdir(retired, { recursive: true });
+    await writeFile(join(retired, 'session.json'), '{bad json');
 
     const server = await startServerWith({
       projectRoot: root, port: 0, assetsDirectory: join(root, 'no-such-build'), ramify: new FakeRamifyCli(),
@@ -121,17 +116,12 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
     const origin = server.url;
     const sessions = reduceSessions(events);
 
-    // The project's list: every run session and both standalone sessions,
-    // ordered by last change since none is live or suspended.
+    // The earlier directory is neither scanned nor reported.
     const list = await ok(origin, protocolPaths.sessions(), sessionListResponseSchema);
-    expect([list.total, list.offset, list.next, list.unserved]).toEqual([sessions.size + 2, 0, null, []]);
+    expect([list.total, list.offset, list.next, list.unserved]).toEqual([sessions.size, 0, null, []]);
+    expect(list.sessions.every(entry => entry.ref.source === 'run')).toBe(true);
     const times = list.sessions.map(entry => Date.parse(entry.changedAt));
     expect(times).toEqual([...times].sort((a, b) => b - a));
-    const standalone = list.sessions.filter(entry => entry.ref.source === 'standalone');
-    expect(standalone.map(entry => [entry.ref.session, entry.state, entry.finished, entry.executor, entry.model, entry.reaches]).sort()).toEqual([
-      [crashed, 'interrupted', null, 'scripted', null, { kind: 'module', module: notes }],
-      [finished, 'finished', null, 'scripted', null, { kind: 'module', module: notes }],
-    ].sort());
     for (const session of sessions.values()) {
       const entry = list.sessions.find(candidate => candidate.ref.source === 'run' && candidate.ref.session === session.id);
       expect(entry, session.id).toMatchObject({
@@ -244,34 +234,6 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
     for (const path of [runLayout.record, '../../../../../package.json', `${file!.path}/..`]) {
       expect(await refused(origin, protocolPaths.runSessionFile(plan, runId, file!.session, path)), path).toEqual([404, 'not-found']);
     }
-
-    // The standalone sessions: finished with its outcome, interrupted without.
-    const done = await ok(origin, protocolPaths.standaloneSession(finished), standaloneSessionResponseSchema);
-    expect(done).toMatchObject({
-      session: { state: 'finished', executor: 'scripted', invocations: 1 },
-      prompt: 'Raise the note limit to 500.',
-      outcome: { ended: 'submitted', interruption: null, error: null },
-      evaluation: { invocation: finished, role: 'engineer', writer: true, ended: 'submitted', lines: { coverage: 'partial', gaps: ['a standalone session records no line events'] } },
-    });
-    expect(await ok(origin, protocolPaths.standaloneSession(finished), standaloneSessionResponseSchema)).toEqual(done);
-    const gone = await ok(origin, protocolPaths.standaloneSession(crashed), standaloneSessionResponseSchema);
-    expect(gone).toMatchObject({ session: { state: 'interrupted' }, outcome: null, evaluation: { ended: null, usage: { unavailable: 'the invocation has not ended' } } });
-    const crashedEntries = (await readTranscript(join(root, historicalSessionLayout.directory, crashed, historicalSessionLayout.transcript))).entries;
-    expect(gone.session.changedAt).toBe(crashedEntries.at(-1)!.at);
-    expect(await refused(origin, protocolPaths.standaloneSession('20200101T000000Z-000000'))).toEqual([404, 'not-found']);
-
-    const standaloneRef: SessionRef = { source: 'standalone', session: finished };
-    const transcript = await ok(origin, protocolPaths.standaloneTranscript(finished, 0), sessionTranscriptResponseSchema);
-    expect(transcript.session).toEqual(standaloneRef);
-    expect(transcript.page.entries).toEqual((await readTranscript(join(root, historicalSessionLayout.directory, finished, historicalSessionLayout.transcript))).entries);
-    // The shell's complete output, by the path its result names.
-    const output = transcript.page.entries.flatMap(fileBodies).find(path => path.startsWith('shell/'))!;
-    expect(output).toBe('shell/001.log');
-    expect(await ok(origin, protocolPaths.standaloneFile(finished, output), sessionBodyResponseSchema)).toEqual({ content: 'checking\n', bytes: 9, truncated: false });
-    expect(await refused(origin, protocolPaths.standaloneFile(finished, historicalSessionLayout.session))).toEqual([404, 'not-found']);
-    const systemPrompt = transcript.page.entries[0] as Extract<TranscriptEntry, { type: 'started' }>;
-    const blob = systemPrompt.systemPrompt as Extract<TranscriptBody, { stored: 'blob' }>;
-    expect((await ok(origin, protocolPaths.standaloneBody(finished, blob.hash), sessionBodyResponseSchema)).bytes).toBe(blob.bytes);
 
     // A transcript whose file is missing is answered as missing; a complete
     // line that is not JSON is skipped and reported by its line number.

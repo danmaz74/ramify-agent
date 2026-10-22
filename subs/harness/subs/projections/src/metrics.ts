@@ -37,11 +37,18 @@ async function baselineOf(view: RunView): Promise<MetricsResponse['baseline']> {
   const path = runLayout.measurement(reference.measurement.id);
   const text = await readRunFile(view, path);
   if (text === null) return { state: 'unavailable', reason: `${path} is missing`, subtotal: null };
+  let document: unknown;
+  try { document = JSON.parse(text) as unknown; }
+  catch (error) { return { state: 'unavailable', reason: `${path} cannot be read: ${error instanceof Error ? error.message : String(error)}`, subtotal: null }; }
+  if (document === null || typeof document !== 'object' || Array.isArray(document)) {
+    return { state: 'unavailable', reason: `${path} cannot be read: expected a measurement object`, subtotal: null };
+  }
+  const fields = document as { schema?: unknown; policy?: unknown };
+  const expected = unsupportedVersion(fields.schema);
+  if (expected !== null) return { state: 'unavailable', reason: `${path} declares ${String(fields.schema)}; this harness reads ${expected}`, subtotal: null };
+  if (fields.policy !== undefined && fields.policy !== 'scope-size/2') throw new Error(`${path} run measurement: expected scope-size/2`);
   let snapshot: MeasurementSnapshot;
   try {
-    const document = JSON.parse(text) as { schema?: unknown };
-    const expected = unsupportedVersion(document.schema);
-    if (expected !== null) return { state: 'unavailable', reason: `${path} declares ${String(document.schema)}; this harness reads ${expected}`, subtotal: null };
     snapshot = measurementSnapshotSchema.parse(document);
   } catch (error) {
     return { state: 'unavailable', reason: `${path} cannot be read: ${error instanceof Error ? error.message : String(error)}`, subtotal: null };
@@ -61,28 +68,43 @@ async function baselineOf(view: RunView): Promise<MetricsResponse['baseline']> {
  * directory.
  */
 export async function readObservationLog(path: string, shown: string): Promise<readonly Observation[] | { unavailable: string }> {
+  let bytes: Buffer;
   try {
-    const bytes = await readFile(path);
-    const lines: Observation[] = [];
-    let invalid = 0;
-    const completeBytes = bytes.lastIndexOf(10) + 1;
-    const complete = completeBytes === bytes.length;
-    let start = 0;
-    for (let index = 0; index < completeBytes; index++) if (bytes[index] === 10) {
-      try {
-        const parsed = observationSchema.safeParse(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(start, index))));
-        if (parsed.success) lines.push(parsed.data);
-        else invalid += 1;
-      } catch { invalid += 1; }
-      start = index + 1;
-    }
-    if (invalid > 0 || (!complete && bytes.length > 0)) lines.push({ n: lines.reduce((maximum, row) => Math.max(maximum, row.n), 0) + 1,
-      at: lines.at(-1)?.at ?? '1970-01-01T00:00:00.000Z', type: 'coverage-gap', data: { kind: 'observation-truncated',
-        detail: `${shown}: ${invalid} unreadable rows; trailing partial=${!complete}; known observations retained` } });
-    return lines;
+    bytes = await readFile(path);
   } catch (error) {
     return { unavailable: `${shown} cannot be read: ${error instanceof Error ? error.message : String(error)}` };
   }
+  const lines: Observation[] = [];
+  let invalid = 0;
+  const completeBytes = bytes.lastIndexOf(10) + 1;
+  const complete = completeBytes === bytes.length;
+  let start = 0;
+  for (let index = 0; index < completeBytes; index++) if (bytes[index] === 10) {
+    let row: unknown;
+    try { row = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(start, index))); }
+    catch { invalid += 1; start = index + 1; continue; }
+    if (hasUnsupportedNativeSource(row)) throw new Error(`${shown} observation record: expected pi@1.3.0:SettingsManager`);
+    const parsed = observationSchema.safeParse(row);
+    if (parsed.success) lines.push(parsed.data);
+    else invalid += 1;
+    start = index + 1;
+  }
+  if (invalid > 0 || (!complete && bytes.length > 0)) lines.push({ n: lines.reduce((maximum, row) => Math.max(maximum, row.n), 0) + 1,
+    at: lines.at(-1)?.at ?? '1970-01-01T00:00:00.000Z', type: 'coverage-gap', data: { kind: 'observation-truncated',
+      detail: `${shown}: ${invalid} unreadable rows; trailing partial=${!complete}; known observations retained` } });
+  return lines;
+}
+
+function hasUnsupportedNativeSource(value: unknown): boolean {
+  if (value === null || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  if (row['type'] !== 'context' && row['type'] !== 'compaction') return false;
+  const data = row['data'];
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return false;
+  const native = (data as Record<string, unknown>)['native'];
+  if (native === null || typeof native !== 'object' || Array.isArray(native)) return false;
+  const source = (native as Record<string, unknown>)['source'];
+  return typeof source === 'string' && source !== 'pi@1.3.0:SettingsManager';
 }
 
 function observationsOf(view: RunView, id: string): Promise<readonly Observation[] | { unavailable: string }> {
@@ -552,6 +574,12 @@ function efficiencyOf({ invocation, outcome, observations }: EvaluationInputs): 
   const manifest = deliveredManifestViewSchema.safeParse(invocation.prompt?.manifest);
   const declared = scopeSizeViewSchema.safeParse(invocation.scope?.size);
   const readScope = scopeSizeViewSchema.safeParse(invocation.scope?.readSize);
+  const recordedManifest = invocation.prompt?.manifest;
+  if (recordedManifest && typeof recordedManifest === 'object' && 'schema' in recordedManifest && recordedManifest.schema !== 'ramify-agent.delivered-inputs/2')
+    throw new Error(`Delivered manifest for invocation ${invocation.id}: expected ramify-agent.delivered-inputs/2`);
+  for (const size of [invocation.scope?.size, invocation.scope?.readSize]) {
+    if (size && size.policy !== 'scope-size/2') throw new Error(`Run measurement for invocation ${invocation.id}: expected scope-size/2`);
+  }
   const operation = operationIdentitySchema.safeParse({ ...invocation.sessionOperation, ...(outcome?.sessionOperation?.point === undefined ? {} : { point: outcome.sessionOperation.point }) });
   if (!manifest.success) coverage.add('Actual delivered input manifest unavailable');
   if (!declared.success) coverage.add('Declared scope size unavailable');

@@ -15,7 +15,6 @@ const required = [
   'ProjectionError', 'currentModuleTree', 'ExecutionPageError', 'ExecutionCoreIndex',
   'CheckFindingListQuery', 'readConsultations', 'consultationText',
   'ConsultationInspectionOptions', 'ConsultationInspection', 'Usage', 'UsageTotal', 'Category',
-  'historicalSessionLayout', 'HistoricalSessionLayout',
 ] as const;
 
 async function contents(path: string): Promise<string> { return readFile(join(root, path), 'utf8'); }

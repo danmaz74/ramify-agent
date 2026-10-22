@@ -10,6 +10,4 @@ expose-src ExecutionPageError from "execution-pages.ts" to parent
 expose-src ExecutionCoreIndex from "execution-map.ts" to parent
 expose-src CheckFindingListQuery from "check-findings.ts" to parent
 
-// Historical fixture installation only; private decoding stays child-owned.
-expose-test historicalSessionLayout, HistoricalSessionLayout from "helpers/historical-session-layout.ts" to parent
 expose-src readConsultations, consultationText, ConsultationInspectionOptions, ConsultationInspection, Usage, UsageTotal, Category from "consultations.ts" to parent

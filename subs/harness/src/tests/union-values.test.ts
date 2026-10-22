@@ -298,7 +298,7 @@ describe('the record unions', () => {
 
     const unavailable = await store.roundTrip(runLayout.measurement('ms-0002'), {
       schema: 'ramify-agent.measurement-snapshot/1',
-      id: 'ms-0002', policy: 'scope-size/1', head: 'abc',
+      id: 'ms-0002', policy: 'scope-size/2', head: 'abc',
       measure: { unavailable: 'the producer could not be run' },
       view: { status: 'placeholder' },
       supplementary: [],
@@ -310,7 +310,7 @@ describe('the record unions', () => {
     const store = await ledger();
     await store.roundTrip(runLayout.measurement('ms-0003'), {
       schema: 'ramify-agent.measurement-snapshot/1',
-      id: 'ms-0003', policy: 'scope-size/1', head: '', measure: { unavailable: 'x' }, view: null, supplementary: [],
+      id: 'ms-0003', policy: 'scope-size/2', head: '', measure: { unavailable: 'x' }, view: null, supplementary: [],
     }, runSchemas.measurement);
     const read = await readCommitted(store.log, runLayout.measurement('ms-0003'), runSchemas.readiness);
     expect(read.kind).toBe('unsupported-version');
@@ -958,8 +958,9 @@ describe('the protocol vocabulary', () => {
   });
 
   test('every measurement snapshot and scope component state is representable', () => {
-    // An earlier run's snapshot stays readable; its sizes are refused by the KPIs.
-    expect(measurementSnapshotSchema.shape.policy.options).toEqual(['scope-size/1', 'scope-size/2']);
+    expect(measurementSnapshotSchema.shape.policy.value).toBe('scope-size/2');
+    const retired = measurementSnapshotSchema.shape.policy.value.replace(/2$/, '1');
+    expect(measurementSnapshotSchema.shape.policy.safeParse(retired).success).toBe(false);
   });
 });
 

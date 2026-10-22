@@ -1,6 +1,5 @@
 import { roleLabel } from './execution-map-tokens.js';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { InvocationEvaluation } from '../../harness/src/interfaces/protocol/runs.js';
 import type {
   RunSessionView, SessionInvocation, SessionRef, ShownSessionState,
 } from '../../harness/src/interfaces/protocol/sessions.js';
@@ -69,7 +68,7 @@ function workText(work: RunSessionView['work']): string {
 
 function SessionLink({ from, session, sessions }: { readonly from: SessionRef; readonly session: string; readonly sessions: ReadonlyMap<string, RunSessionView> }) {
   const role = sessions.get(session)?.role;
-  const ref: SessionRef = from.source === 'run' ? { ...from, session } : from;
+  const ref: SessionRef = { ...from, session };
   return <a href={sessionHref(ref)}>{session}{role ? ` (${roleLabel(role)})` : ''}</a>;
 }
 
@@ -79,25 +78,6 @@ function joined(items: readonly ReactNode[]): ReactNode {
 
 /** The session's own facts and its relations to other sessions. */
 function SessionFacts({ at: ref, detail }: { readonly at: SessionRef; readonly detail: SessionDetail }) {
-  if (detail.source === 'standalone') {
-    const { session, prompt, outcome } = detail.standalone;
-    return (
-      <dl className="facts">
-        <div><dt>Role</dt><dd>{roleLabel(session.role)}</dd></div>
-        <div><dt>Reaches</dt><dd>{reachText(session.reaches)}</dd></div>
-        <div><dt>Executor</dt><dd>{session.executor}{session.model ? `, model ${session.model}` : ', the executor\'s own model'}</dd></div>
-        <div><dt>Started</dt><dd>{session.startedAt}</dd></div>
-        <div><dt>Last change</dt><dd>{session.changedAt}</dd></div>
-        <div>
-          <dt>Outcome</dt>
-          <dd>{outcome === null
-            ? 'none recorded: the session was interrupted before it ended'
-            : `${outcome.ended}${outcome.interruption ? `, interrupted: ${outcome.interruption}` : ''}${outcome.error ? `, error: ${outcome.error}` : ''}, at ${outcome.finishedAt}`}</dd>
-        </div>
-        <div><dt>Prompt</dt><dd className="prompt-line">{prompt}</dd></div>
-      </dl>
-    );
-  }
   const { session, sessions } = detail;
   const { lineage } = session;
   const relations: ReactNode[] = [];
@@ -109,7 +89,7 @@ function SessionFacts({ at: ref, detail }: { readonly at: SessionRef; readonly d
   if (lineage.requestedBy) {
     const by = lineage.requestedBy;
     relations.push(<>Requested by {by.session
-      ? <a href={chapterHref({ ...ref, session: by.session } as SessionRef, by.invocation)}>{by.invocation} in {by.session}</a>
+      ? <a href={chapterHref({ ...ref, session: by.session }, by.invocation)}>{by.invocation} in {by.session}</a>
       : by.invocation} ({by.reason})</>);
   }
   if (lineage.requested.length > 0) relations.push(<>Requested {joined(lineage.requested.map(id => <SessionLink key={id} from={ref} session={id} sessions={sessions} />))}</>);
@@ -199,7 +179,7 @@ function ChapterView({ chapter, context, detail, anchor }: {
   const run = detail.source === 'run' ? detail : undefined;
   const invocation = run?.session.invocations.find(candidate => candidate.invocation === chapter.invocation);
   const started = chapter.entries.find((entry): entry is TranscriptEntryOf<'started'> => entry.type === 'started');
-  const evaluation: InvocationEvaluation | null | undefined = run ? invocation?.evaluation : detail.source === 'standalone' ? detail.standalone.evaluation : undefined;
+  const evaluation = invocation?.evaluation;
   const headingId = `chapter-${chapter.invocation}${chapter.first ? '' : `-${chapter.entries[0]?.n ?? 0}`}`;
   const selected = anchor?.kind === 'chapter' && anchor.invocation === chapter.invocation && chapter.first;
   const awaited = run?.session.state === 'live' && run.session.awaiting === chapter.invocation;
@@ -269,18 +249,17 @@ export function SessionReading({ client, session: ref, anchor, anchorNonce = 0, 
   readonly compact?: boolean;
 }) {
   const { detail, entries, file, unreadable, following, error } = reading;
-  const state = detail === undefined ? undefined : detail.source === 'run' ? detail.session.state : detail.standalone.session.state;
+  const state = detail?.session.state;
   const firstState = useRef<ShownSessionState | undefined>(undefined);
   if (firstState.current === undefined && state !== undefined) firstState.current = state;
 
-  const sessions = useMemo(() => detail?.source === 'run' ? detail.sessions : new Map<string, RunSessionView>(), [detail]);
+  const sessions = useMemo(() => detail?.sessions ?? new Map<string, RunSessionView>(), [detail]);
   const { calls, results } = useMemo(() => transcriptCalls(entries), [entries]);
   const context: TranscriptContext = useMemo(() => ({
     session: ref, live: state === 'live', calls, results, sessions,
   // The session's route names it; its object is new on every render.
   }), [JSON.stringify(ref), state, calls, results, sessions]);
-  const invocations = useMemo(() => detail?.source === 'run' ? detail.session.invocations.map(invocation => invocation.invocation)
-    : detail?.source === 'standalone' ? [detail.standalone.session.ref.session] : [], [detail]);
+  const invocations = useMemo(() => detail?.session.invocations.map(invocation => invocation.invocation) ?? [], [detail]);
   const chapters = useMemo(() => chaptersOf(entries, invocations), [entries, invocations]);
 
   // Following: keep to the bottom while the reader is there, else count what arrived below.
@@ -330,9 +309,7 @@ export function SessionReading({ client, session: ref, anchor, anchorNonce = 0, 
     target.focus({ preventScroll: true });
   }, [anchor, anchorKey, detail, chapters, ref.session]);
 
-  const back = ref.source === 'run'
-    ? <a href={routeHref({ page: 'run', planId: ref.planId, runId: ref.runId })}>← The run</a>
-    : <a href={routeHref({ page: 'sessions' })}>← Sessions</a>;
+  const back = <a href={routeHref({ page: 'run', planId: ref.planId, runId: ref.runId })}>← The run</a>;
   const notFound = error instanceof ClientError && error.kind === 'protocol';
   const changed = state !== undefined && firstState.current !== undefined && firstState.current !== state;
 
@@ -340,7 +317,7 @@ export function SessionReading({ client, session: ref, anchor, anchorNonce = 0, 
     <section className={compact ? 'session-reading session-reading-compact' : 'page session-page'}>
       {!compact && <><p className="page-links">{back} · <a href={routeHref({ page: 'sessions' })}>All sessions</a></p>
         <header className="page-header"><h1>Session <code>{ref.session}</code></h1>{state && <SessionState state={state} />}</header>
-        {ref.source === 'run' && <p className="muted">Of run <code>{ref.runId}</code> of plan <code>{ref.planId}</code>.</p>}</>}
+        <p className="muted">Of run <code>{ref.runId}</code> of plan <code>{ref.planId}</code>.</p></>}
       <p className={`connection-line${error ? ' connection-line-lost' : ''}`} role="status" aria-label="Following">
         {error
           ? detail
@@ -350,7 +327,7 @@ export function SessionReading({ client, session: ref, anchor, anchorNonce = 0, 
             : `${changed ? `It became ${state} while this page was open. ` : ''}The session is ${stateSentence(state, detail)}. ${following ? 'Following its transcript as it grows.' : 'Its transcript is complete as read.'}`}
       </p>
       {notFound && !detail && <p className="failure" role="alert">{error.message}</p>}
-      {detail?.source === 'run' && <DegradedStartsNotice at={ref} session={detail.session} />}
+      {detail && <DegradedStartsNotice at={ref} session={detail.session} />}
       {detail && <SessionFacts at={ref} detail={detail} />}
       {file === 'missing' && (
         <p className="warn transcript-missing" role="alert">

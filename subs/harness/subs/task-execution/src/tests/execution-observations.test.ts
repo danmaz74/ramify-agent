@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
@@ -6,7 +6,8 @@ import { ObservationLog } from '../observations.js';
 import { PortEventRecorder } from '../port-events.js';
 import { ExcursionWatcher } from '../excursions.js';
 
-test.each(['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'] as const)('%s context settings and compaction failure remain honest evidence without a harness threshold', async source => {
+test('current Pi context settings and compaction failure remain honest evidence without a harness threshold', async () => {
+  const source = 'pi@1.3.0:SettingsManager' as const;
   const directory = await mkdtemp(join(tmpdir(), 'ramify-context-observation-'));
   try {
     const observations = await ObservationLog.open(join(directory, 'observations.jsonl'));
@@ -27,5 +28,26 @@ test.each(['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'] as const)('%
     ]);
     const reopened = await ObservationLog.open(join(directory, 'observations.jsonl'));
     expect(reopened.observations).toEqual(observations.observations);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('reopening a complete observation with a retired native source refuses the log', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ramify-context-replay-'));
+  const path = join(directory, 'observations.jsonl');
+  try {
+    const log = await ObservationLog.open(path);
+    await log.record({ type: 'context', data: { tokens: 10, window: 100, threshold: null,
+      native: { source: 'pi@1.3.0:SettingsManager', compaction: { enabled: true, reserveTokens: 16, keepRecentTokens: 20 },
+        occupancy: 'current', projectedTokens: null, coverage: [] } } });
+    const current = JSON.parse((await readFile(path, 'utf8')).trim()) as { data: { native: { source: string } } };
+    const retired = { ...current, data: { ...current.data, native: { ...current.data.native, source: current.data.native.source.replace('1.3.0', [0, 87, 1].join('.')) } } };
+    await writeFile(path, `${JSON.stringify(current)}\n${JSON.stringify(retired)}\n`);
+    await expect(ObservationLog.open(path)).rejects.toThrow(`${path} observation record: expected pi@1.3.0:SettingsManager`);
+    const nullSource = { ...current, n: 2, data: { ...current.data, native: { ...current.data.native, source: null } } };
+    const numericSource = { n: 3, at: '2026-10-22T00:00:00.000Z', type: 'compaction', data: { native: { source: 87 } } };
+    await writeFile(path, `${JSON.stringify(current)}\n${JSON.stringify(nullSource)}\n${JSON.stringify(numericSource)}\n{malformed}\npartial`);
+    const recovered = await ObservationLog.open(path);
+    expect(recovered.observations.map(row => row.type)).toEqual(['context', 'coverage-gap']);
+    expect(recovered.observations[1]).toMatchObject({ data: { kind: 'observation-truncated', detail: expect.stringContaining('3 unreadable rows') } });
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

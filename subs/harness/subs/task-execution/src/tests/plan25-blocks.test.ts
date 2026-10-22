@@ -10,25 +10,20 @@ const setA = '# Block procedure:engineer:main\nCurrent value; replaces any earli
 const firstA = '# Block procedure:engineer:main\nA\n';
 const removed = '# Block procedure:engineer:main\nWithdrawn; this block no longer applies.\n';
 const aHash = '98644b57ccbb86b9611ac54ce76dc962b6068103d39aec62452cb258a8659d3e';
-const oldHash = '06f961b802bc46ee168555f066d28f4f0e9afdf3f88174c1ee6f9de004fc30a0';
 const block = (body = 'A\n', source = 'procedure.md'): InstructionBlock => ({ key, body, source, revision: 'pkg-1', kind: 'procedure' });
 const delivered = (body = 'A\n', source = 'procedure.md'): DeliveredInput => ({ key: 'physical:add-1', kind: 'procedure', text: renderBlockSet(key, body), source, revision: 'pkg-1', block: { key, effect: 'set' } });
 
-// Hand-authored wire expectations; their literal digests are frozen independently
-// of the writer and the reader under test. Legacy ordering/hash representation stays intact.
-const legacyWire = `{"schema":"ramify-agent.delivered-inputs/1","inheritedPoint":null,"entries":[{"key":"legacy:a","kind":"brief","source":"plan.md","revision":"r1","hash":"${oldHash}","bytes":2,"delivery":"appended","sources":[]}],"currentMessage":{"hash":"${oldHash}","bytes":2},"hash":"339988bc877555406651b38f3de01b8fc4fb1387226efe9594da7eb7304dbb80"}`;
+// Hand-authored wire expectations keep current physical identity independent of the writer.
 const newWire = `{"schema":"ramify-agent.delivered-inputs/2","inheritedPoint":null,"entries":[{"key":"physical:add-1","kind":"procedure","source":"procedure.md","revision":"pkg-1","hash":"${aHash}","bytes":90,"delivery":"appended","sources":[],"block":{"key":"procedure:engineer:main","effect":"set"}}],"currentMessage":{"hash":"${aHash}","bytes":90},"hash":"fd3f6e7d60f24d3a094ee853ff0703c414f26f0f383b427d46461f920fa45f90"}`;
 
-function wireIntent(version: 1 | 2): unknown {
-  const input = version === 1 ? { key: 'legacy:a', kind: 'brief', text: 'A\n', source: 'plan.md', revision: 'r1' }
-    : { key: 'physical:add-1', kind: 'procedure', text: setA, source: 'procedure.md', revision: 'pkg-1', block: { key, effect: 'set' } };
+function wireIntent(): unknown {
+  const input = { key: 'physical:add-1', kind: 'procedure', text: setA, source: 'procedure.md', revision: 'pkg-1', block: { key, effect: 'set' } };
   return {
-    schema: `ramify-agent.harness-operation/${version}`, runId: 'run-1', operationId: 'op-1', session: 'engineer-1', source: null, mode: 'fresh',
+    schema: 'ramify-agent.harness-operation/2', requestHash: exactInputHash('request'), runId: 'run-1', operationId: 'op-1', session: 'engineer-1', source: null, mode: 'fresh',
     packet: { roleInstructions: 'Pinned role\n', message: input.text, submissionTool: 'submit_engineer',
       declaration: { name: 'submit_engineer', description: 'Original schema bytes', inputSchema: { type: 'object' }, mutating: false },
-      additions: [input], manifest: JSON.parse(version === 1 ? legacyWire : newWire) },
-    context: version === 1 ? { inherited: [input], history: [{ revision: 'r1', sections: [{ key: 'goal', text: '# Goal\nG' }] }], revision: 'r1' }
-      : { inherited: [input], history: [{ revision: '00db9fec6aedc86b9a26553446e24e5a2db2217a5d81fee4f1641653848ede22', contentHash: '7340de0304b7af91359688b6422dc6d867501bb60fcd352bd6477c6e4657a9bf',
+      additions: [input], manifest: JSON.parse(newWire) },
+    context: { inherited: [input], history: [{ revision: '00db9fec6aedc86b9a26553446e24e5a2db2217a5d81fee4f1641653848ede22', contentHash: '7340de0304b7af91359688b6422dc6d867501bb60fcd352bd6477c6e4657a9bf',
         sections: [{ key: 'goal', text: '# Goal\nG' }, { key: 'requirements', text: '# Requirements\n- R' }, { key: 'starting-points', text: 'A', source: 'assignment.json' }] }], revision: '00db9fec6aedc86b9a26553446e24e5a2db2217a5d81fee4f1641653848ede22' },
     policy: { context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 }, authority: { writes: [] }, validator: { schema: 'original/1' }, destination: { iteration: '1' } },
     task: { role: 'engineer', message: input.text, submissionTool: 'submit_engineer', environment: { workingDirectory: '/project', candidate: null, snapshot: null, limits: { stopSettleMs: 100 } }, policyIdentity: 'policy', validatorIdentity: 'validator', destinationIdentity: 'destination' },
@@ -92,44 +87,39 @@ describe('Plan 25 D01–D03: ordered exact block effects', () => {
   });
 });
 
-describe('Plan 25 D04: compatible retained wire readers', () => {
-  test('legacy manifest bytes, hashes and writer representation are unchanged', () => {
-    const old = JSON.parse(legacyWire);
-    expect(deliveredManifestViewSchema.parse(old)).toEqual(old);
-    expect(JSON.stringify(old)).toBe(legacyWire);
-    expect(buildDeliveredManifest({ inheritedPoint: null, inherited: [], appended: [{ key: 'legacy:a', kind: 'brief', text: 'A\n', source: 'plan.md', revision: 'r1' }], currentMessage: 'A\n' })).toEqual(old);
-  });
+describe('Plan 25 D04: current retained wire readers', () => {
   test('new manifest retains physical identity and optional logical effects', () => {
     const current = JSON.parse(newWire);
     expect(deliveredManifestViewSchema.parse(current)).toEqual(current);
-    expect(buildDeliveredManifest({ schema: 'ramify-agent.delivered-inputs/2', inheritedPoint: null, inherited: [], appended: [delivered()], currentMessage: setA })).toEqual(current);
-    const withdrawal = buildDeliveredManifest({ schema: 'ramify-agent.delivered-inputs/2', inheritedPoint: 'P:T1', inherited: [delivered()], appended: [{ key: 'physical:remove-2', kind: 'procedure', text: removed, source: null, revision: null, block: { key, effect: 'remove' } }] });
+    expect(buildDeliveredManifest({ inheritedPoint: null, inherited: [], appended: [delivered()], currentMessage: setA })).toEqual(current);
+    const withdrawal = buildDeliveredManifest({ inheritedPoint: 'P:T1', inherited: [delivered()], appended: [{ key: 'physical:remove-2', kind: 'procedure', text: removed, source: null, revision: null, block: { key, effect: 'remove' } }] });
     expect(deliveredManifestViewSchema.parse(withdrawal).entries.map(entry => entry.delivery)).toEqual(['inherited', 'appended']);
     expect(withdrawal.entries[1]).toMatchObject({ bytes: 73, hash: '880a890692956c28edb94da5bfccfac6eb1528cbe6cbc1495dc68bb232725385' });
-    expect(() => buildDeliveredManifest({ inheritedPoint: null, inherited: [], appended: [delivered()] })).toThrow('requires delivered-inputs/2');
+    expect(buildDeliveredManifest({ inheritedPoint: null, inherited: [], appended: [delivered()] }).schema).toBe('ramify-agent.delivered-inputs/2');
   });
-  test('strict manifests reject unknown versions, fields, malformed effects and annotations on /1', () => {
-    const old = JSON.parse(legacyWire); const current = JSON.parse(newWire);
-    expect(deliveredManifestViewSchema.safeParse({ ...old, schema: 'ramify-agent.delivered-inputs/3' }).success).toBe(false);
+  test('strict manifests reject unknown versions, fields and malformed effects', () => {
+    const current = JSON.parse(newWire);
+    const retired = current.schema.replace(/2$/, '1');
+    expect(deliveredManifestViewSchema.safeParse({ ...current, schema: retired }).success).toBe(false);
+    expect(deliveredManifestViewSchema.safeParse({ ...current, schema: 'ramify-agent.delivered-inputs/3' }).success).toBe(false);
     expect(deliveredManifestViewSchema.safeParse({ ...current, hiddenEffectiveMap: {} }).success).toBe(false);
-    expect(deliveredManifestViewSchema.safeParse({ ...old, entries: current.entries }).success).toBe(false);
     expect(deliveredManifestViewSchema.safeParse({ ...current, entries: [{ ...current.entries[0], block: { key, effect: 'activate' } }] }).success).toBe(false);
     expect(deliveredManifestViewSchema.safeParse({ ...current, entries: [{ ...current.entries[0], block: { key, effect: 'set', inferred: true } }] }).success).toBe(false);
   });
-  test.each([1, 2] as const)('intent /%i accepts original packet without mutating retry bytes, schema or provenance', version => {
-    const original = wireIntent(version); const bytes = JSON.stringify(original);
+  test('intent accepts original packet without mutating retry bytes, schema or provenance', () => {
+    const original = wireIntent(); const bytes = JSON.stringify(original);
     expect(readHarnessOperationIntent(original)).toBe(original);
     expect(JSON.stringify(original)).toBe(bytes);
     expect(readHarnessOperationIntent(JSON.parse(bytes)).packet.declaration.description).toBe('Original schema bytes');
-    expect(readHarnessOperationIntent(original).context.history[0]?.contentHash).toBe(version === 1 ? undefined : '7340de0304b7af91359688b6422dc6d867501bb60fcd352bd6477c6e4657a9bf');
+    expect(readHarnessOperationIntent(original).context.history[0]?.contentHash).toBe('7340de0304b7af91359688b6422dc6d867501bb60fcd352bd6477c6e4657a9bf');
   });
   test('strict intent readers reject unknown fields, versions and malformed nested retained inputs', () => {
-    const old = readHarnessOperationIntent(wireIntent(1));
-    const current = readHarnessOperationIntent(wireIntent(2));
-    expect(() => readHarnessOperationIntent({ ...old, schema: 'ramify-agent.harness-operation/3' })).toThrow();
+    const current = readHarnessOperationIntent(wireIntent());
+    expect(() => readHarnessOperationIntent({ ...current, schema: current.schema.replace(/2$/, '1') })).toThrow('expected ramify-agent.harness-operation/2');
+    expect(() => readHarnessOperationIntent({ ...current, schema: 'ramify-agent.harness-operation/3' })).toThrow('expected ramify-agent.harness-operation/2');
     expect(() => readHarnessOperationIntent({ ...current, recompute: true })).toThrow();
-    expect(() => readHarnessOperationIntent({ ...old, context: { ...old.context, inherited: current.context.inherited } })).toThrow();
-    expect(() => readHarnessOperationIntent({ ...old, packet: { ...old.packet, manifest: current.packet.manifest } })).toThrow('legacy manifest');
+    expect(() => readHarnessOperationIntent({ ...current, requestHash: undefined })).toThrow('requestHash');
+    expect(() => readHarnessOperationIntent({ ...current, packet: { ...current.packet, manifest: { ...current.packet.manifest, schema: 'ramify-agent.delivered-inputs/3' } } })).toThrow('expected ramify-agent.harness-operation/2');
     expect(() => readHarnessOperationIntent({ ...current, context: { ...current.context, history: [{ revision: 'r1', sections: [], counter: 1 }] } })).toThrow();
   });
 });

@@ -3,7 +3,7 @@ import { nativeRequestArtifact, readPiNativeRequestArtifact } from '../preservat
 
 // Independently authored wire fields and their duplicate native snapshot. No
 // serializer, SDK request builder or transcript decoder supplies expectations.
-const golden = '{"schema":"ramify.pi-native-request/1","packageVersion":"0.87.1","transport":"sse","maxRetries":0,"model":"openai-codex/gpt-5.6-sol","instructions":"Role A\\nPreserve exactly.","tools":[{"type":"function","name":"submit_A","description":"Submit A","parameters":{"type":"object","required":["answer"],"properties":{"answer":{"type":"string"}}}}],"input":[{"type":"reasoning","id":"opaque-r1","encrypted_content":"opaque-signed-blob","summary":[]},{"type":"function_call","call_id":"call_7","name":"read","arguments":"{\\"path\\":\\"a.ts\\"}"},{"type":"function_call_output","call_id":"call_7","output":"exact\\nfile"}],"request":{"model":"gpt-5.6-sol","instructions":"Role A\\nPreserve exactly.","tools":[{"type":"function","name":"submit_A","description":"Submit A","parameters":{"type":"object","required":["answer"],"properties":{"answer":{"type":"string"}}}}],"input":[{"type":"reasoning","id":"opaque-r1","encrypted_content":"opaque-signed-blob","summary":[]},{"type":"function_call","call_id":"call_7","name":"read","arguments":"{\\"path\\":\\"a.ts\\"}"},{"type":"function_call_output","call_id":"call_7","output":"exact\\nfile"}],"prompt_cache_key":"child-L","stream":true,"reasoning":{"effort":"high","summary":"auto"},"unknown_future_option":{"z":1,"a":2}}}';
+const golden = '{"schema":"ramify.pi-native-request/1","packageVersion":"1.3.0","transport":"sse","maxRetries":0,"model":"openai-codex/gpt-5.6-sol","instructions":"Role A\\nPreserve exactly.","tools":[{"type":"function","name":"submit_A","description":"Submit A","parameters":{"type":"object","required":["answer"],"properties":{"answer":{"type":"string"}}}}],"input":[{"type":"reasoning","id":"opaque-r1","encrypted_content":"opaque-signed-blob","summary":[]},{"type":"function_call","call_id":"call_7","name":"read","arguments":"{\\"path\\":\\"a.ts\\"}"},{"type":"function_call_output","call_id":"call_7","output":"exact\\nfile"}],"request":{"model":"gpt-5.6-sol","instructions":"Role A\\nPreserve exactly.","tools":[{"type":"function","name":"submit_A","description":"Submit A","parameters":{"type":"object","required":["answer"],"properties":{"answer":{"type":"string"}}}}],"input":[{"type":"reasoning","id":"opaque-r1","encrypted_content":"opaque-signed-blob","summary":[]},{"type":"function_call","call_id":"call_7","name":"read","arguments":"{\\"path\\":\\"a.ts\\"}"},{"type":"function_call_output","call_id":"call_7","output":"exact\\nfile"}],"prompt_cache_key":"child-L","stream":true,"reasoning":{"effort":"high","summary":"auto"},"unknown_future_option":{"z":1,"a":2}}}';
 const encode = (text: string) => new TextEncoder().encode(text);
 const changed = (mutate: (value: Record<string, unknown>) => void) => {
   const value = JSON.parse(golden) as Record<string, unknown>; mutate(value); return encode(JSON.stringify(value));
@@ -13,8 +13,8 @@ describe('Pi native request artifact builder', () => {
   const parsed = JSON.parse(golden) as { instructions: string; tools: unknown[]; input: unknown[]; request: Record<string, unknown> };
   const native = { instructions: parsed.instructions, tools: parsed.tools, input: parsed.input };
   it('records the stream options actually handed over and the given package version, in the golden field order', () => {
-    const artifact = nativeRequestArtifact({ transport: 'sse', maxRetries: 0 }, '0.87.1', 'openai-codex/gpt-5.6-sol', native, parsed.request);
-    expect(artifact.transport).toBe('sse'); expect(artifact.maxRetries).toBe(0); expect(artifact.packageVersion).toBe('0.87.1');
+    const artifact = nativeRequestArtifact({ transport: 'sse', maxRetries: 0 }, '1.3.0', 'openai-codex/gpt-5.6-sol', native, parsed.request);
+    expect(artifact.transport).toBe('sse'); expect(artifact.maxRetries).toBe(0); expect(artifact.packageVersion).toBe('1.3.0');
     expect(JSON.stringify(artifact)).toBe(golden);
   });
   it('records different forced options and package version as they were, so the artifact can disagree with the qualified values', () => {
@@ -22,7 +22,7 @@ describe('Pi native request artifact builder', () => {
     const fake = { transport: 'websocket', maxRetries: 2, onPayload: async () => undefined, signal: new AbortController().signal };
     const artifact = nativeRequestArtifact(fake, '0.88.0', 'openai-codex/gpt-5.6-sol', native, parsed.request);
     expect(artifact.transport).toBe('websocket'); expect(artifact.maxRetries).toBe(2); expect(artifact.packageVersion).toBe('0.88.0');
-    expect(JSON.stringify(artifact)).toBe(golden.replace('"packageVersion":"0.87.1","transport":"sse","maxRetries":0', '"packageVersion":"0.88.0","transport":"websocket","maxRetries":2'));
+    expect(JSON.stringify(artifact)).toBe(golden.replace('"packageVersion":"1.3.0","transport":"sse","maxRetries":0', '"packageVersion":"0.88.0","transport":"websocket","maxRetries":2'));
     expect(Object.keys(artifact)).not.toContain('onPayload'); expect(Object.keys(artifact)).not.toContain('signal');
     const reread = readPiNativeRequestArtifact(encode(JSON.stringify(artifact)))!;
     expect([reread.transport, reread.maxRetries, reread.packageVersion]).toEqual(['websocket', 2, '0.88.0']);
@@ -36,7 +36,7 @@ describe('Pi native request artifact public accessor', () => {
     expect(artifact.schema).toBe('ramify.pi-native-request/1');
     expect(artifact.instructions).toBe('Role A\nPreserve exactly.');
     expect(artifact.model).toBe('openai-codex/gpt-5.6-sol');
-    expect(artifact.packageVersion).toBe('0.87.1'); expect(artifact.transport).toBe('sse'); expect(artifact.maxRetries).toBe(0);
+    expect(artifact.packageVersion).toBe('1.3.0'); expect(artifact.transport).toBe('sse'); expect(artifact.maxRetries).toBe(0);
     expect(JSON.stringify(artifact)).toBe(golden);
     expect(Object.keys(artifact.request)).toEqual(['model', 'instructions', 'tools', 'input', 'prompt_cache_key', 'stream', 'reasoning', 'unknown_future_option']);
     expect(JSON.stringify(artifact.request['unknown_future_option'])).toBe('{"z":1,"a":2}');

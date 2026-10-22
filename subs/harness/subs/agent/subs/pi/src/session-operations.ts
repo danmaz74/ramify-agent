@@ -123,9 +123,8 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
   const restoredMessageCount = state?.messages.length ?? 0;
   const modelIdentity = `${chosen.model.provider}/${chosen.model.id}`;
   if (state && state.model !== modelIdentity) throw new SessionDriverUnavailableError('Preserved pi model identity differs');
-  // Forks copy the original creation entry, even before the first provider
-  // request. Its durable operation identity also upgrades older transcripts
-  // without walking mutable parent sessions or changing logical session IDs.
+  // A fresh session derives its provider identity from its creation entry;
+  // resumed and forked sessions retain the identity in their transcript.
   let providerSessionId = state?.providerSessionId;
   if (providerSessionId === undefined) {
     const creation = input.session.transcript.find(entry => entry.kind === 'agent' && entry.key.startsWith('create:'));

@@ -86,9 +86,9 @@ export function readPiNativeRequestArtifact(bytes: Uint8Array): PiNativeRequestA
   return artifact as unknown as PiNativeRequestArtifact;
 }
 export interface PreservedPiTranscript {
-  readonly schema: 'ramify.pi-transcript/1'; readonly packageVersion: '0.87.1' | '1.3.0'; readonly transport: 'sse'; readonly model: string;
-  /** Shared provider routing identity; absent only in transcripts written before its adoption. */
-  readonly providerSessionId?: string;
+  readonly schema: 'ramify.pi-transcript/1'; readonly packageVersion: '1.3.0'; readonly transport: 'sse'; readonly model: string;
+  /** Shared provider routing identity. */
+  readonly providerSessionId: string;
   readonly messages: readonly PiTranscriptMessage[]; readonly appliedAgentKeys: readonly string[];
   readonly declarations: readonly PiTranscriptTool[]; readonly additionKeys: readonly string[]; readonly activeTools: readonly string[];
   /** Native entries retain compaction/context edits for reconstruction without losing boundary meaning. */
@@ -185,6 +185,6 @@ export function validateNativeRequest(payload: unknown, expected: NativePrefix, 
 }
 export function decodePreservedTranscript(bytes: Uint8Array): PreservedPiTranscript {
   const value = JSON.parse(new TextDecoder().decode(bytes)) as PreservedPiTranscript;
-  if (value.schema !== 'ramify.pi-transcript/1' || (value.packageVersion !== '0.87.1' && value.packageVersion !== '1.3.0') || value.transport !== 'sse' || !Array.isArray(value.messages) || !Array.isArray(value.appliedAgentKeys) || !Array.isArray(value.declarations) || !value.native || !Array.isArray(value.native.input) || (value.providerSessionId !== undefined && (typeof value.providerSessionId !== 'string' || value.providerSessionId.trim().length === 0))) throw new Error('Unsupported or corrupt opaque pi transcript');
+  if (value.schema !== 'ramify.pi-transcript/1' || value.packageVersion !== '1.3.0' || value.transport !== 'sse' || !Array.isArray(value.messages) || !Array.isArray(value.appliedAgentKeys) || !Array.isArray(value.declarations) || !value.native || !Array.isArray(value.native.input) || typeof value.providerSessionId !== 'string' || value.providerSessionId.trim().length === 0) throw new Error('Invalid Pi transcript; expected package 1.3.0');
   return value;
 }

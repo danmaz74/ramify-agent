@@ -6,8 +6,7 @@ const text = z.string().min(1);
 export const measurementSnapshotSchema = z.object({
   schema: z.literal('ramify-agent.measurement-snapshot/1'),
   id: text,
-  /** `scope-size/1` snapshots of earlier runs stay readable; their sizes are not comparable with `scope-size/2`. */
-  policy: z.enum(['scope-size/1', 'scope-size/2']),
+  policy: z.literal('scope-size/2'),
   /** The run branch's head when it was taken. */
   head: z.string(),
   /** The captured `ramify.measure/2` document, verbatim, with its revision. */

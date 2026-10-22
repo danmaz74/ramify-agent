@@ -44,7 +44,7 @@ export interface PreparedOperationInput {
 }
 type Context = PointContext;
 interface Intent {
-  readonly schema: 'ramify-agent.harness-operation/1' | 'ramify-agent.harness-operation/2';
+  readonly schema: 'ramify-agent.harness-operation/2';
   readonly runId: string;
   readonly operationId: string;
   readonly session: string;
@@ -55,17 +55,15 @@ interface Intent {
   readonly policy: SessionExecutionPolicy;
   readonly task: SessionTaskInput;
   readonly declarations: readonly SessionToolDeclaration[];
-  readonly requestHash?: string;
+  readonly requestHash: string;
 }
 
 const retainedText = z.string().min(1);
 const pointSchema = z.object({ sessionId: retainedText, kind: z.enum(['turn', 'checkpoint']), turn: z.int().nonnegative(), checkpoint: z.string() }).strict();
 const retainedSource = z.object({ path: retainedText, hash: retainedText, bytes: z.int().nonnegative(), kind: z.string().optional() }).strict();
-const inputSchema = z.object({ key: retainedText, kind: z.enum(['role-instructions', 'procedure', 'brief', 'environment', 'task', 'tool-declaration', 'skill']),
-  text: z.string(), source: z.string().nullable(), revision: z.string().nullable(), sources: z.array(retainedSource).optional() }).strict();
-const annotatedInputSchema = inputSchema.extend({ block: z.object({ key: retainedText, effect: z.enum(['set', 'remove']) }).strict().optional() }).strict();
-const revisionSchema = z.object({ revision: retainedText, sections: z.array(z.object({ key: retainedText, text: z.string(), source: z.string().nullable().optional() }).strict()) }).strict();
-const occurrenceSchema = revisionSchema.extend({ contentHash: retainedText.optional(), sections: z.array(z.object({ key: retainedText, text: z.string(), source: z.string().nullable().optional(), effect: z.enum(['set', 'remove']).optional() }).strict()) }).strict();
+const annotatedInputSchema = z.object({ key: retainedText, kind: z.enum(['role-instructions', 'procedure', 'brief', 'environment', 'task', 'tool-declaration', 'skill']),
+  text: z.string(), source: z.string().nullable(), revision: z.string().nullable(), sources: z.array(retainedSource).optional(), block: z.object({ key: retainedText, effect: z.enum(['set', 'remove']) }).strict().optional() }).strict();
+const occurrenceSchema = z.object({ revision: retainedText, contentHash: retainedText.optional(), sections: z.array(z.object({ key: retainedText, text: z.string(), source: z.string().nullable().optional(), effect: z.enum(['set', 'remove']).optional() }).strict()) }).strict();
 const jsonRecord = z.record(z.string(), z.unknown());
 const declarationSchema = z.object({ name: retainedText, description: z.string(), inputSchema: jsonRecord, mutating: z.boolean() }).strict();
 const packetFields = { roleInstructions: z.string(), message: z.string(), submissionTool: retainedText,
@@ -77,23 +75,17 @@ const intentFields = { runId: retainedText, operationId: retainedText, session: 
   task: z.object({ role: retainedText, message: z.string(), submissionTool: retainedText, policyIdentity: retainedText, validatorIdentity: retainedText, destinationIdentity: retainedText,
     environment: z.object({ workingDirectory: retainedText, candidate: z.string().nullable(), snapshot: z.string().nullable(), limits: jsonRecord }).strict() }).strict(),
   declarations: z.array(declarationSchema) };
-const intentSchema = z.discriminatedUnion('schema', [
-  z.object({ schema: z.literal('ramify-agent.harness-operation/1'), ...intentFields,
-    packet: z.object({ ...packetFields, additions: z.array(inputSchema) }).strict(),
-    context: z.object({ inherited: z.array(inputSchema), history: z.array(revisionSchema), revision: retainedText }).strict(),
-  }).strict(),
-  z.object({ schema: z.literal('ramify-agent.harness-operation/2'), ...intentFields, requestHash: retainedText.optional(),
+const intentSchema =
+  z.object({ schema: z.literal('ramify-agent.harness-operation/2'), ...intentFields, requestHash: z.string().regex(/^[0-9a-f]{64}$/),
     packet: z.object({ ...packetFields, additions: z.array(annotatedInputSchema) }).strict(),
     context: z.object({ inherited: z.array(annotatedInputSchema), history: z.array(occurrenceSchema), revision: retainedText }).strict(),
-  }).strict(),
-]);
+  }).strict();
 
-/** Validate both retained wire forms without normalizing or rewriting any original bytes. */
+/** Validate the current immutable operation intent. */
 export function readHarnessOperationIntent(value: unknown): Intent {
-  intentSchema.parse(value);
-  const intent = value as Intent;
-  if (intent.schema === 'ramify-agent.harness-operation/1' && intent.packet.manifest.schema !== 'ramify-agent.delivered-inputs/1') throw new Error('Legacy harness intent requires its legacy manifest');
-  return intent;
+  const parsed = intentSchema.safeParse(value);
+  if (!parsed.success) throw new Error('Invalid harness operation intent; expected ramify-agent.harness-operation/2 with ramify-agent.delivered-inputs/2 manifest and requestHash');
+  return value as Intent;
 }
 /** Only unavailable reusable context licenses a new ordinary fresh invocation. */
 export class ReusableSessionUnavailableError extends Error {}
@@ -210,7 +202,7 @@ export function composeOperationPacket(input: {
   const message = ordinary.message + (input.callerText === undefined ? '' : `\n\n${input.callerText}`);
   const packet = { ...ordinary, message, additions,
     manifest: buildDeliveredManifest({ inheritedPoint: ordinary.manifest.inheritedPoint, inherited: prior?.inherited ?? [],
-      appended: additions, currentMessage: message, schema: 'ramify-agent.delivered-inputs/2' }) };
+      appended: additions, currentMessage: message }) };
   return { packet, current, history };
 }
 
@@ -387,17 +379,14 @@ export class TaskSessionOperations {
     if (sourceRef && sourceRef.runId !== runId) throw new Error('The requested point belongs to another run');
     if (spec.session.mode !== 'fresh' && !sourceRef) throw new ReusableSessionUnavailableError('The requested session point is unavailable');
     const prior = sourceRef ? await this.context(runId, sourceRef.point) : null;
-    // Retried packets and occurrences are immutable, including the legacy wire form.
-    if (previous?.requestHash && !input.restore && previous.requestHash !== exactInputHash(JSON.stringify(input.callerText === undefined ? input.brief : { brief: input.brief, callerText: input.callerText }))) throw new Error('Conflicting harness session correlation');
+    // Retried packets and occurrences are immutable.
+    if (previous && !input.restore && previous.requestHash !== exactInputHash(JSON.stringify(input.callerText === undefined ? input.brief : { brief: input.brief, callerText: input.callerText }))) throw new Error('Conflicting harness session correlation');
     if (previous && !input.restore) {
       const requestedSource = input.spec.session.mode === 'fresh' ? null : readSessionPointReference(input.spec.session.mode === 'continue' ? input.spec.session.ref : input.spec.session.from)?.point;
       if (input.session !== previous.session || input.spec.session.mode !== previous.mode || input.spec.scope.workingDirectory !== previous.task.environment.workingDirectory ||
         JSON.stringify(requestedSource) !== JSON.stringify(previous.source)) throw new Error('Conflicting harness session correlation');
       const retained = previous.context.history.find(entry => entry.revision === previous.context.revision);
       const canonical = taskBriefingRevision({ revision: 'validation', goal: input.brief.goal, requirements: input.brief.requirements, sections: [] });
-      const originalTask = previous.packet.additions.find(item => item.key === 'task' && item.kind === 'task');
-      const legacyTask = [`# Current task: ${input.brief.kind}`, input.brief.objective, '', 'Submit only through `' + previous.packet.submissionTool + '`. Only an accepted submission completes this task.'].join('\n');
-      if (previous.schema === 'ramify-agent.harness-operation/1' && originalTask?.text !== legacyTask) throw new Error('Conflicting harness session correlation');
       if (!retained || canonical.sections.some(section => !retained.sections.some(old => old.key === section.key && old.text === section.text)) ||
         !previous.packet.message.includes(input.brief.objective) || input.brief.sections.some(section => !retained.sections.some(old => old.key === section.key && old.text === section.text && (old.source ?? null) === (section.source ?? null)))) throw new Error('Conflicting harness session correlation');
     }

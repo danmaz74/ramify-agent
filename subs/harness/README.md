@@ -689,7 +689,8 @@ hiding or measured complexity justifies it.
 - `http/query-source.ts`: HTTP composition constructs one frozen, explicit
   reading-only RunSource for both query providers; commands and recovery/restart
   inspection retain the RunService separately. Preparation inventory and focused
-  compatibility limitations are recorded in `query-composition-baseline.md`.
+  compatibility limitations are recorded in the
+  [historical query composition baseline](../../docs/historical-evidence/projections-extraction/query-composition-baseline.md).
 - `subs/projections/src/` (child module, not a parent source directory): the
   production HTTP run/session queries, module tree and consultation readers.
   `http/app.ts` and `consultations/command.ts` import its public entries directly;
@@ -914,10 +915,9 @@ hiding or measured complexity justifies it.
     root receives it with the progress, result, summary and gate types and the
     named types the summary mentions; the agent port, the Ramify command line
     and the run policy stay internal.
-  - `plans/.harness/sessions/` is retired. Nothing writes it any more, and
-    existing directories are left in place.
-    `subs/projections/src/standalone-records.ts` reads them for the session
-    queries. Remaining parent compatibility fixtures still need old-tree import retirement.
+  - `plans/.harness/sessions/` is not read. Nothing writes it any more, and
+    existing directories are left in place. Session queries read manual runs
+    under `plans/sessions/.harness/jobs/`.
 - `steps/`: one harness step at a time, from files, for an agent or a person
   implementing a plan; the root's `step` command runs it. The root
   [README](../../README.md#steps) describes the workflow, the command

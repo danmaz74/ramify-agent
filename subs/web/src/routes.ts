@@ -42,16 +42,10 @@ function anchorOf(kind: string | undefined, value: string | undefined): SessionA
  * The route of a fragment such as `#/plans/review-notes`,
  * `#/plans/review-notes/runs/<run-id>`, `#/sessions`,
  * `#/plans/review-notes/runs/<run-id>/sessions/ses-0002/chapters/inv-0004` or
- * `#/sessions/standalone/<session-id>`; anything else is the plan list.
+ * anything else is the plan list.
  */
 export function parseRoute(hash: string): Route {
   if (/^#\/sessions\/?$/.test(hash)) return { page: 'sessions' };
-  const standalone = new RegExp(`^#/sessions/standalone/([^/]+)${anchorPattern}/?$`).exec(hash);
-  if (standalone) {
-    const session = decoded(standalone[1]!);
-    const anchor = anchorOf(standalone[2], standalone[3]);
-    return session === undefined || anchor === undefined ? { page: 'plans' } : { page: 'session', session: { source: 'standalone', session }, anchor };
-  }
   const runSession = new RegExp(`^#/plans/([^/]+)/runs/([^/]+)/sessions/([^/]+)${anchorPattern}/?$`).exec(hash);
   if (runSession) {
     const [planId, runId, session] = [decoded(runSession[1]!), decoded(runSession[2]!), decoded(runSession[3]!)];
@@ -90,9 +84,7 @@ export function routeHref(route: Route): string {
     case 'sessions': return '#/sessions';
     case 'session': {
       const { session, anchor } = route;
-      const base = session.source === 'run'
-        ? `${routeHref({ page: 'run', planId: session.planId, runId: session.runId })}/sessions/${encodeURIComponent(session.session)}`
-        : `#/sessions/standalone/${encodeURIComponent(session.session)}`;
+      const base = `${routeHref({ page: 'run', planId: session.planId, runId: session.runId })}/sessions/${encodeURIComponent(session.session)}`;
       return `${base}${anchorSuffix(anchor)}`;
     }
   }
@@ -110,14 +102,14 @@ export function chapterHref(session: SessionRef, invocation: string): string {
 
 /**
  * The fragment of a point, which names its session: in a run, a session of
- * the same run as `from`; a standalone session's point is its own.
+ * the same run as `from`.
  */
 export function pointHref(from: SessionRef, point: TranscriptPoint): string {
-  const session: SessionRef = from.source === 'run' ? { ...from, session: point.session } : from;
+  const session: SessionRef = { ...from, session: point.session };
   return sessionHref(session, 'invocation' in point ? { kind: 'point', invocation: point.invocation } : { kind: 'append', append: point.append });
 }
 
 /** A key that names a session wherever it is. */
 export function sessionKey(session: SessionRef): string {
-  return session.source === 'run' ? `run/${session.planId}/${session.runId}/${session.session}` : `standalone/${session.session}`;
+  return `run/${session.planId}/${session.runId}/${session.session}`;
 }

@@ -50,7 +50,7 @@ const observation = <T extends string, D extends z.ZodType>(type: T, data: D) =>
 
 /** Native provider settings and missing estimates stay distinct from harness history. */
 const nativeContextSchema = z.object({
-  source: z.enum(['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager']),
+  source: z.literal('pi@1.3.0:SettingsManager'),
   compaction: z.object({ enabled: z.boolean(), reserveTokens: z.number(), keepRecentTokens: z.number() }).strict(),
   occupancy: z.literal('current'),
   projectedTokens: z.number().nullable(),
@@ -149,6 +149,19 @@ export type ObservationType = Observation['type'];
 export type ObservationOf<T extends ObservationType> = Extract<Observation, { type: T }>;
 export type CoverageGapKind = ObservationOf<'coverage-gap'>['data']['kind'];
 
+/** A complete parsed row that names a native identity this harness does not read. */
+function hasUnsupportedNativeSource(value: unknown): boolean {
+  if (value === null || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  if (row['type'] !== 'context' && row['type'] !== 'compaction') return false;
+  const data = row['data'];
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return false;
+  const native = (data as Record<string, unknown>)['native'];
+  if (native === null || typeof native !== 'object' || Array.isArray(native)) return false;
+  const source = (native as Record<string, unknown>)['source'];
+  return typeof source === 'string' && source !== 'pi@1.3.0:SettingsManager';
+}
+
 /**
  * The gap kinds that name missing raw output rather than missing
  * observations. The invocation's observations are complete, so these do not
@@ -198,6 +211,7 @@ export class ObservationLog {
     const list: Observation[] = [];
     const seen = new Set<string>();
     for (const line of loaded.records) {
+      if (hasUnsupportedNativeSource(line)) throw new Error(`${path} observation record: expected pi@1.3.0:SettingsManager`);
       const parsed = observationSchema.safeParse(line);
       if (!parsed.success) continue;
       list.push(parsed.data);

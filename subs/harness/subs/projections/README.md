@@ -7,7 +7,7 @@ files, and the unresolved out-of-scope KPI test comparator failures. This
 candidate has focused passes, not a passing structural check or audit acceptance.
 
 Read-only Node query provider, a direct untagged child of harness. This owner
-contains all 23 baseline query implementations formerly owned at
+contains the retained query implementations formerly owned at
 `subs/harness/src/projections/`. That old directory is removed without
 forwarders or duplicate query bodies. Public-query parent integration uses
 this real child, including native audit/recovery, persisted execution maps and
@@ -28,13 +28,11 @@ Repair presentation uses harness `authenticateRepairHistory` and
 
 The exact explicit parent surface and owned companions are in `module.ramify`.
 No browser tags, descendant exports or private production projector exports are added.
-The selected historicalSessionLayout testing seam exposes only retained fixture
-location metadata and its explicit HistoricalSessionLayout type companion.
 Parent-owned public/durable return/parameter types and sibling reading port
 companions already belong to/are received by harness; they are not copied or
 redefined here. Reading dependencies resolve to parent `../../../src/` and
 sibling `../../<owner>/src/`, never generated views. See
-`notes/extraction-inventory.md` for file and resolved dependency inventory and
+[historical extraction inventory](../../../../docs/historical-evidence/projections-extraction/extraction-inventory.md) for file and resolved dependency inventory and
 `notes/verification.md` for diagnostics and evidence limitations.
 
 ## Owned tests
@@ -68,10 +66,8 @@ is retired; this owner retains all four cases. See
 `notes/retirement-progress.md` for current progress and historical old-tree
 inventories. Focused test health is not scenario completion. Configured Node discovery
 includes `subs/**/src/**/*.test.ts`; ordinary tests retain root process guarding
-and receive no new exemptions. The standalone outcome/null-state case and private
-Plan36 attribution witnesses are child-owned; lifecycle, recorded-file metrics /
-work-item and session HTTP integration stay parent-owned. Historical fixtures use
-the narrow child testing metadata seam rather than production-private imports.
+and receive no new exemptions. Private Plan36 attribution witnesses are child-owned; lifecycle, recorded-file
+metrics, work-item and session HTTP integration stay parent-owned.
 The four exact Plan23 setup-attribution cases and four private union event
 reference/summary witnesses are also child-owned, with unchanged fixture identities
 and expectations. Public capability-task, restart-event and decision assertions

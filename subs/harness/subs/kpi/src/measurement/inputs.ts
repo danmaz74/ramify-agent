@@ -2,7 +2,6 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { deliveredScopeInputs as collectDelivered, type DeclaredScope, type DeliveredScopeInputs, type DeliveredSupportEntry } from '../capture.js';
 import type { ArchitectIndex } from '../../../evidence/src/views.js';
-import type { LoadedPackage } from '../../../../src/prompts/packages.js';
 import type { DeliveredManifest } from '../../../task-execution/src/delivery/delivered-manifest.js';
 import type { WriteScope } from '../../../../src/work/scope.js';
 
@@ -39,9 +38,9 @@ export function planSupportPath(planId: string): string {
   return `plans/${planId}/plan.md`;
 }
 
-/** Acquire extra-location facts when execution starts; retain legacy package fallback. */
+/** Acquire extra-location facts when execution starts. */
 export async function invocationScope(
-  projectRoot: string, planId: string, declared: DeclaredScope, loaded: LoadedPackage, brief: string, delivered?: DeliveredManifest,
+  projectRoot: string, declared: DeclaredScope, delivered: DeliveredManifest,
 ): Promise<DeclaredScope> {
   const locations: NonNullable<DeclaredScope['locations']>[number][] = [];
   for (const location of declared.locations ?? []) {
@@ -56,8 +55,7 @@ export async function invocationScope(
       locations.push({ path: location.path, bytes: null, files: [], unreadable: error instanceof Error ? error.message : String(error) });
     }
   }
-  if (delivered !== undefined) return deliveredManifestScopeInputs({ ...declared, locations }, delivered).scope;
-  return { ...declared, locations, supportDocuments: [planSupportPath(planId), ...loaded.files.map(file => file.path)], brief: Buffer.byteLength(brief, 'utf8') };
+  return deliveredManifestScopeInputs({ ...declared, locations }, delivered).scope;
 }
 
 async function locationFiles(root: string, path: string): Promise<readonly { path: string; bytes: number }[]> {

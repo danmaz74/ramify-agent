@@ -156,7 +156,7 @@ expose-sub TranscriptHarnessDecision, transcriptEntrySchema, TranscriptEntry fro
 expose-sub TranscriptEntryType, TranscriptEntryOf from harness to descendants
 
 // protocol/sessions.ts
-expose-sub sessionQueryLimits, runSessionIdSchema, standaloneSessionIdSchema from harness to descendants
+expose-sub sessionQueryLimits, runSessionIdSchema from harness to descendants
 expose-sub sessionRefSchema, SessionRef, sessionStateSchema, ShownSessionState from harness to descendants
 expose-sub sessionFinishReasonSchema, SessionFinishReasonView, sessionReachSchema from harness to descendants
 expose-sub SessionReach, sessionListEntrySchema, SessionListEntry from harness to descendants
@@ -171,8 +171,7 @@ expose-sub runSessionResponseSchema, RunSessionResponse from harness to descenda
 expose-sub TranscriptPage, sessionTranscriptResponseSchema, SessionTranscriptResponse from harness to descendants
 expose-sub sessionCursorSchema, SessionCursor, sessionUpdatesResponseSchema from harness to descendants
 expose-sub SessionUpdatesResponse, sessionBodyResponseSchema, SessionBodyResponse from harness to descendants
-expose-sub sessionBodyHashSchema, standaloneSessionResponseSchema from harness to descendants
-expose-sub StandaloneSessionResponse from harness to descendants
+expose-sub sessionBodyHashSchema from harness to descendants
 
 // Automatic ordinary-test boundary and isolated recorder controls.
 expose-test SpawnAttempt, ProcessSpawnGuardError, ChildProcess, ProcessGuardRecorder, createProcessGuard from "helpers/process-guard.ts" to descendants

@@ -167,7 +167,7 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
         environment: { workingDirectory: project, candidate: C, snapshot: C, limits: input.brief.environment.limits },
         policyIdentity: hash(policy), validatorIdentity: hash(input.validator), destinationIdentity: hash(input.destination) };
       const declarations = [...input.spec.tools.map(({ name, description, inputSchema, mutating }) => ({ name, description, inputSchema, mutating: mutating ?? false })), declaration];
-      const intent = { schema: 'ramify-agent.harness-operation/1', runId: input.runId, operationId: input.operationId, session: input.session,
+      const intent = { schema: 'ramify-agent.harness-operation/2', requestHash: hash(input.brief), runId: input.runId, operationId: input.operationId, session: input.session,
         source: null, mode: 'fresh', packet, context: { inherited: additions, history: [{ revision: 'old-nfr-revision', sections }], revision: 'old-nfr-revision' }, policy, task, declarations };
       legacyIntentPath = join(project, 'plans/.harness/session-operations/correlations/operations', `${hash([input.runId, input.operationId])}.json`);
       legacyIntentBytes = JSON.stringify(intent); await mkdir(dirname(legacyIntentPath), { recursive: true }); await writeFile(legacyIntentPath, legacyIntentBytes);

@@ -1,36 +1,29 @@
-import { open, readdir, readFile, stat } from 'node:fs/promises';
+import { open, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import type { z } from 'zod';
 import type { InvocationEvaluation } from '../../../src/interfaces/protocol/runs.js';
 import {
-  sessionBodyHashSchema, sessionQueryLimits, standaloneSessionIdSchema,
+  sessionBodyHashSchema, sessionQueryLimits,
   type RunSessionView, type RunSessionResponse, type RunSessionsResponse, type SessionBodyResponse, type SessionCursor, type SessionListResponse,
-  type SessionRef, type SessionListEntry, type SessionTranscriptResponse, type SessionUpdatesResponse, type StandaloneSessionResponse,
+  type SessionRef, type SessionListEntry, type SessionTranscriptResponse, type SessionUpdatesResponse,
   type TranscriptPage, type UnservedSessionSource,
 } from '../../../src/interfaces/protocol/sessions.js';
 import { runLayout } from '../../autonomous/src/run/records.js';
-import {
-  sessionLayout, sessionOutcomeSchema, sessionRecordSchema, sessionsDirectory,
-  type SessionOutcomeRecord, type SessionRecord,
-} from './standalone-records.js';
 import { TranscriptPages, type PageBounds, type TranscriptPageRead } from '../../task-execution/src/transcripts/pages.js';
 import { readTranscript } from '../../task-execution/src/transcripts/writer.js';
 import { ProjectionError, runView, type RunView } from './inputs.js';
-import { evaluationOf, invocationEvaluation, readObservationLog } from './metrics.js';
+import { invocationEvaluation } from './metrics.js';
 import { servedRun, type RunSource } from './queries.js';
-import { orderSessions, runSessionEntry, runSessionViews, standaloneEntry } from './sessions.js';
+import { orderSessions, runSessionEntry, runSessionViews } from './sessions.js';
 
 /*
  * The session queries. Every answer is a projection of a run's log and
- * records, of a standalone session's records, or of a transcript; nothing
- * here writes.
+ * records or of a transcript; nothing here writes.
  *
  * A run's sessions are derived once per run version and kept: the project's
  * list and every poll compare each run's version with the one they were
  * derived at, and derive again only the runs that changed. An ended
  * invocation's evaluation is final, so it is read once; the evaluation of an
- * invocation still awaited is read by every query. A finished standalone
- * session never changes, so its records are read once. Transcripts are read
+ * invocation still awaited is read by every query. Transcripts are read
  * through `TranscriptPages`, which reads only what was appended since.
  */
 
@@ -41,19 +34,11 @@ interface RunSessionsAt {
   readonly sessions: readonly RunSessionView[];
 }
 
-/** A standalone session's records, as a reader finds them. */
-interface StandaloneRead {
-  readonly directory: string;
-  readonly record: SessionRecord;
-  readonly outcome: SessionOutcomeRecord | null;
-}
-
 const runKey = (planId: string, runId: string): string => `${planId}\u0000${runId}`;
 
 export class SessionQueries {
   private readonly runs = new Map<string, RunSessionsAt>();
   private readonly evaluations = new Map<string, InvocationEvaluation>();
-  private readonly finishedStandalone = new Map<string, StandaloneRead>();
   private readonly pages = new TranscriptPages();
 
   constructor(private readonly source: RunSource) {}
@@ -70,14 +55,6 @@ export class SessionQueries {
         if (!(error instanceof ProjectionError)) throw error;
         unserved.push({ source: 'run', path: join('plans', planId, '.harness', 'jobs', runId), message: error.message });
       }
-    }
-    for (const found of await this.standaloneSessions()) {
-      if ('error' in found) {
-        unserved.push({ source: 'standalone', path: join(sessionsDirectory, found.id), message: found.error.message });
-        continue;
-      }
-      const last = found.outcome === null ? await this.pages.last(join(found.directory, sessionLayout.transcript)) : null;
-      entries.push(standaloneEntry(found.record, found.outcome, last?.at ?? null));
     }
     const ordered = orderSessions(entries);
     const page = ordered.slice(offset, offset + sessionQueryLimits.sessions);
@@ -102,9 +79,7 @@ export class SessionQueries {
 
   /** The entries of one session after `after`. */
   async transcript(ref: SessionRef, after: number): Promise<SessionTranscriptResponse> {
-    const path = ref.source === 'run'
-      ? this.transcriptOf(await this.at(ref.planId, ref.runId), ref.runId, ref.session)
-      : join((await this.standalone(ref.session)).directory, sessionLayout.transcript);
+    const path = this.transcriptOf(await this.at(ref.planId, ref.runId), ref.runId, ref.session);
     return { session: ref, page: pageOf(await this.pages.page(path, after, { entries: sessionQueryLimits.entries, bytes: sessionQueryLimits.pageBytes })) };
   }
 
@@ -145,39 +120,6 @@ export class SessionQueries {
   async runFile(planId: string, runId: string, session: string, path: string): Promise<SessionBodyResponse> {
     const at = await this.at(planId, runId);
     return namedFile(at.view.directory, this.transcriptOf(at, runId, session), path);
-  }
-
-  /** One standalone session: its summary, prompt, outcome and evaluation. */
-  async standaloneSession(id: string): Promise<StandaloneSessionResponse> {
-    const found = await this.standalone(id);
-    const { record, outcome } = found;
-    const last = outcome === null ? await this.pages.last(join(found.directory, sessionLayout.transcript)) : null;
-    return {
-      session: standaloneEntry(record, outcome, last?.at ?? null),
-      prompt: record.prompt,
-      outcome: outcome === null
-        ? null
-        : { ended: outcome.ended, interruption: outcome.interruption ?? null, error: outcome.error ?? null, finishedAt: outcome.finishedAt },
-      // The session is its own one invocation, and a writer. It records no
-      // line events, which its lines say rather than showing none.
-      evaluation: evaluationOf({
-        invocation: { id: record.id, role: record.role, work: {}, writer: true, startedAt: record.startedAt,
-          sessionOperation: record.sessionOperation, prompt: { ...record.prompts }, scope: { write: record.authority.revision, measurement: null, size: record.scopeSize ?? null } },
-        outcome,
-        observations: await readObservationLog(join(found.directory, sessionLayout.observations), sessionLayout.observations),
-        lines: { unavailable: 'a standalone session records no line events' },
-      }),
-    };
-  }
-
-  async standaloneBody(id: string, hash: string): Promise<SessionBodyResponse> {
-    return blobOf(join((await this.standalone(id)).directory, sessionLayout.blobs), hash);
-  }
-
-  /** A file the standalone session's transcript names, relative to its directory. */
-  async standaloneFile(id: string, path: string): Promise<SessionBodyResponse> {
-    const { directory } = await this.standalone(id);
-    return namedFile(directory, join(directory, sessionLayout.transcript), path);
   }
 
   /**
@@ -228,55 +170,6 @@ export class SessionQueries {
     return join(at.view.directory, runLayout.transcript(session));
   }
 
-  /** Every standalone session directory of the project, read, or with why it cannot be. */
-  private async standaloneSessions(): Promise<Array<StandaloneRead | { readonly id: string; readonly error: ProjectionError }>> {
-    let names: string[];
-    try {
-      names = (await readdir(join(this.source.projectRoot, sessionsDirectory), { withFileTypes: true }))
-        .filter(entry => entry.isDirectory() && entry.name !== 'session-operations' && standaloneSessionIdSchema.safeParse(entry.name).success)
-        .map(entry => entry.name)
-        .sort();
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT' || code === 'ENOTDIR') return [];
-      throw error;
-    }
-    const found: Array<StandaloneRead | { id: string; error: ProjectionError }> = [];
-    for (const id of names) {
-      try {
-        found.push(await this.standalone(id));
-      } catch (error) {
-        if (!(error instanceof ProjectionError)) throw error;
-        found.push({ id, error });
-      }
-    }
-    return found;
-  }
-
-  /** One standalone session's records. A finished one is kept, since nothing changes it again. */
-  private async standalone(id: string): Promise<StandaloneRead> {
-    const kept = this.finishedStandalone.get(id);
-    if (kept !== undefined) return kept;
-    if (!standaloneSessionIdSchema.safeParse(id).success) throw new ProjectionError('not-found', `No standalone session "${id}"`);
-    const directory = join(this.source.projectRoot, sessionsDirectory, id);
-    const shown = (name: string): string => join(sessionsDirectory, id, name);
-    const rawText = await readFile(join(directory, sessionLayout.session), 'utf8').catch(error => {
-      if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) return null;
-      throw error;
-    });
-    let raw: { policy?: { version?: unknown } } | null = null;
-    if (rawText !== null) {
-      try { raw = JSON.parse(rawText) as { policy?: { version?: unknown } } | null; } catch { throw new ProjectionError('unreadable', `${shown(sessionLayout.session)} is not JSON`, [shown(sessionLayout.session)]); }
-    }
-    if (raw !== null && !['run-policy/7', 'run-policy/8'].includes(String(raw.policy?.version))) throw new ProjectionError('unsupported-version', `Run policy ${String(raw.policy?.version ?? '(missing policy)')} is refused by run-policy/8; a fresh run is required`);
-    const record = await readRecord(join(directory, sessionLayout.session), shown(sessionLayout.session), sessionRecordSchema, 'ramify-agent.session/2');
-    if (record === null) throw new ProjectionError('not-found', `No standalone session "${id}"`);
-    if (record.id !== id) throw new ProjectionError('unreadable', `${shown(sessionLayout.session)} names another session, ${record.id}`, [shown(sessionLayout.session)]);
-    const outcome = await readRecord(join(directory, sessionLayout.outcome), shown(sessionLayout.outcome), sessionOutcomeSchema, 'ramify-agent.session-outcome/1');
-    const read = { directory, record, outcome };
-    if (outcome !== null && outcome.ended !== 'resource-pending' && outcome.ended !== 'checkpoint-pending') this.finishedStandalone.set(id, read);
-    return read;
-  }
 }
 
 /** A page as the protocol states it. */
@@ -289,32 +182,6 @@ function pageOf(read: TranscriptPageRead): TranscriptPage {
     partial: read.partial,
     unreadable: [...read.unreadable],
   };
-}
-
-/** A record of one schema version, or null where the file is not there. */
-async function readRecord<T>(path: string, shown: string, schema: z.ZodType<T>, version: string): Promise<T | null> {
-  let text: string;
-  try {
-    text = await readFile(path, 'utf8');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw error;
-  }
-  let document: unknown;
-  try {
-    document = JSON.parse(text);
-  } catch {
-    throw new ProjectionError('unreadable', `${shown} is not JSON`, [shown]);
-  }
-  const declared = (document as { schema?: unknown } | null)?.schema;
-  if (declared !== version) {
-    throw new ProjectionError('unsupported-version', `${shown} declares ${typeof declared === 'string' ? declared : 'no schema'}; this harness reads ${version}`, [shown]);
-  }
-  const parsed = schema.safeParse(document);
-  if (parsed.success) return parsed.data;
-  throw new ProjectionError('unreadable', `${shown} does not satisfy ${version}`, [
-    shown, ...parsed.error.issues.map(issue => `${issue.path.map(String).join('.') || '<root>'}: ${issue.message}`),
-  ]);
 }
 
 /** One blob of a content store, by its hash. */

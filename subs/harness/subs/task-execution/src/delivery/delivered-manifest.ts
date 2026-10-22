@@ -26,7 +26,7 @@ export interface DeliveredManifestEntry {
 }
 
 export interface DeliveredManifest {
-  readonly schema: 'ramify-agent.delivered-inputs/1' | 'ramify-agent.delivered-inputs/2';
+  readonly schema: 'ramify-agent.delivered-inputs/2';
   readonly inheritedPoint: string | null;
   readonly entries: readonly DeliveredManifestEntry[];
   readonly currentMessage: { readonly hash: string; readonly bytes: number } | null;
@@ -43,18 +43,14 @@ export function buildDeliveredManifest(input: {
   readonly inherited: readonly DeliveredInput[];
   readonly appended: readonly DeliveredInput[];
   readonly currentMessage?: string;
-  /** Explicit adoption by a writer; existing callers retain the legacy wire form. */
-  readonly schema?: DeliveredManifest['schema'];
 }): DeliveredManifest {
   if (input.inherited.length > 0 && !input.inheritedPoint) throw new Error('Inherited delivery requires its exact session point');
-  const schema = input.schema ?? 'ramify-agent.delivered-inputs/1';
-  if (schema === 'ramify-agent.delivered-inputs/1' && [...input.inherited, ...input.appended].some(item => item.block)) throw new Error('Block metadata requires delivered-inputs/2');
   const entries = (['inherited', 'appended'] as const).flatMap(delivery => input[delivery].map(item => ({
     key: item.key, kind: item.kind, source: item.source, revision: item.revision,
     hash: exactInputHash(item.text), bytes: Buffer.byteLength(item.text), delivery, sources: item.sources ?? [],
     ...(item.block ? { block: item.block } : {}),
   })));
   const currentMessage = input.currentMessage === undefined ? null : { hash: exactInputHash(input.currentMessage), bytes: Buffer.byteLength(input.currentMessage) };
-  return { schema, inheritedPoint: input.inheritedPoint, entries, currentMessage,
+  return { schema: 'ramify-agent.delivered-inputs/2', inheritedPoint: input.inheritedPoint, entries, currentMessage,
     hash: exactInputHash(JSON.stringify({ inheritedPoint: input.inheritedPoint, entries, currentMessage })) };
 }

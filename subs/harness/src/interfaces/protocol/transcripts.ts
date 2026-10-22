@@ -4,8 +4,7 @@ import { nativeContextObservationSchema, roleSchema } from './runs.js';
 
 /*
  * The transcript of one session, as the harness writes it: one JSON line per
- * entry, `transcripts/<session>.jsonl` in a run's directory and
- * `transcript.jsonl` in a standalone session's.
+ * entry, `transcripts/<session>.jsonl` in the run's directory.
  *
  * Every entry has `n`, its number in the transcript, `at` and `type`, and
  * names the invocation it belongs to, or null for what the harness did

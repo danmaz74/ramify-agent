@@ -149,14 +149,14 @@ export function scopeSize(snapshot: MeasurementSnapshot, scope: DeclaredScope): 
   }
   components.push(architectView(snapshot, scope));
   components.push(supportDocuments(snapshot, document, scope));
-  const mismatch = snapshot.policy !== scopeSizePolicy ? `snapshot policy ${snapshot.policy} is not comparable with ${scopeSizePolicy}` : revisionMismatch(snapshot);
+  const mismatch = revisionMismatch(snapshot);
   if (mismatch !== null) {
     const selectsNothing = scope.exactOwners.length === 0 && scope.subtrees.length === 0 && (scope.locations ?? []).length === 0 && (scope.nestedProjects ?? []).length === 0;
     for (const [index, component] of components.entries()) {
-      if (snapshot.policy === scopeSizePolicy && component.component === 'support-documents') continue;
-      if (snapshot.policy === scopeSizePolicy && component.component === 'architect-view' && !scope.architectView) continue;
-      if (snapshot.policy === scopeSizePolicy && component.component === 'api-views' && !scope.apiViews) continue;
-      if (snapshot.policy === scopeSizePolicy && component.component === 'owned-source' && selectsNothing && component.state === 'measured') continue;
+      if (component.component === 'support-documents') continue;
+      if (component.component === 'architect-view' && !scope.architectView) continue;
+      if (component.component === 'api-views' && !scope.apiViews) continue;
+      if (component.component === 'owned-source' && selectsNothing && component.state === 'measured') continue;
       components[index] = { ...component, bytes: null, buckets: {}, state: 'unavailable', reason: mismatch };
     }
   }

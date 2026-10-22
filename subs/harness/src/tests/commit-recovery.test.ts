@@ -27,7 +27,7 @@ const planned = (note = '') => commitEventSchema.parse({ type: 'plan-accepted', 
 const accepted = (note = '') => commitEventSchema.parse({ type: 'iteration-accepted', note });
 
 /** The three record kinds one transition each commits, as a run's layout holds them. */
-const runRecord = recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/1' });
+const runRecord = recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/2' });
 const planRecord = recordRef('analysis/01/analysis.json', 'an-0001', 1, { entries: 2 });
 const iterationRecord = recordRef('iterations/01/assignment.json', 'it-0001', 1, { scope: 'harness' });
 

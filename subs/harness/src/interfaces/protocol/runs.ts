@@ -1608,14 +1608,12 @@ const deliveredManifestEntrySchema = z.object({ key: text, kind: z.enum(['role-i
 const deliveredManifestFields = { inheritedPoint: z.string().nullable(), hash: text,
   currentMessage: z.object({ hash: text, bytes: count }).strict().nullable(),
 };
-export const deliveredManifestViewSchema = z.discriminatedUnion('schema', [
-  z.object({ schema: z.literal('ramify-agent.delivered-inputs/1'), ...deliveredManifestFields, entries: z.array(deliveredManifestEntrySchema) }).strict(),
+export const deliveredManifestViewSchema =
   z.object({ schema: z.literal('ramify-agent.delivered-inputs/2'), ...deliveredManifestFields, entries: z.array(deliveredManifestEntrySchema.extend({
     block: z.object({ key: text, effect: z.enum(['set', 'remove']) }).strict().optional(),
-  }).strict()) }).strict(),
-]);
+  }).strict()) }).strict();
 export type DeliveredManifestView = z.infer<typeof deliveredManifestViewSchema>;
-export const scopeSizeViewSchema = z.object({ policy: z.enum(['scope-size/1', 'scope-size/2']), snapshot: text,
+export const scopeSizeViewSchema = z.object({ policy: z.literal('scope-size/2'), snapshot: text,
   components: z.array(z.object({ component: z.enum(['owned-source', 'api-views', 'architect-view', 'support-documents']), detail: z.string(), bytes: count.nullable(), state: z.enum(['measured', 'unavailable', 'unknown']), reason: z.string().optional(), buckets: z.record(z.string(), count).optional() }).strict()),
   bytes: count.nullable(), subtotal: count, coverage: z.enum(['complete', 'partial']),
 }).strict();
@@ -1655,7 +1653,7 @@ export const scopeComparisonSchema = z.object({ mean: metricSchema, ratio: metri
 export type ScopeComparisonView = z.infer<typeof scopeComparisonSchema>;
 
 /** Effective Pi settings and context estimates; absent provider facts remain unknown. */
-export const nativeContextObservationSchema = z.object({ source: z.enum(['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager']),
+export const nativeContextObservationSchema = z.object({ source: z.literal('pi@1.3.0:SettingsManager'),
   compaction: z.object({ enabled: z.boolean(), reserveTokens: z.number(), keepRecentTokens: z.number() }).strict(),
   occupancy: z.literal('current'), projectedTokens: z.number().nullable(), coverage: z.array(z.string()) }).strict();
 export const contextObservationViewSchema = z.object({ observations: z.array(z.object({ at: z.string(), tokens: z.number().nullable(),

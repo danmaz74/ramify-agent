@@ -65,7 +65,7 @@ describe('a transition already in the log is not appended again', () => {
 
   test('a repeat rewrites a record file that differs from its body in the log', async () => {
     const log = await openCommitLog(directory.path);
-    const record = recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/1' });
+    const record = recordRef('run/run.json', 'run-0001', 1, { policy: 'scope-size/2' });
     await commitRecord(log, { event: started(), records: [record] });
 
     const { writeFile } = await import('node:fs/promises');

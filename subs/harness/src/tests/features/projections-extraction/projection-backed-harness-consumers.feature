@@ -41,15 +41,6 @@ Feature: projection-backed-harness-consumers
     And stale versions and invalid cursors retain their existing refusals
     And finished-session caching preserves the same answers
 
-  @ramify-sc-004 @ramify-pending
-  Scenario: Reopening preserves compatibility and explicit failures
-    Given supported run and historical standalone-session records
-    And records with unsupported versions or malformed required content
-    When the harness reopens and the extracted readers answer queries
-    Then supported records yield the baseline answers
-    And unsupported or unreadable records retain their errors and evidence
-    And no record is rewritten to make a query succeed
-
   @ramify-sc-005 @ramify-pending
   Scenario: Progress retains authority and provenance
     Given recorded architect judgments, failed and passing audits, and partial metric evidence

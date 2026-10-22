@@ -1,22 +1,20 @@
 import { useEffect, useState } from 'react';
 import type {
-  RunSessionView, SessionRef, ShownSessionState, StandaloneSessionResponse, TranscriptPage,
+  RunSessionView, SessionRef, ShownSessionState, TranscriptPage,
 } from '../../harness/src/interfaces/protocol/sessions.js';
 import type { TranscriptEntry } from '../../harness/src/interfaces/protocol/transcripts.js';
 import { ClientError, type ProtocolClient } from './client.js';
 import { sessionKey } from './routes.js';
 
-/** What the harness says of the session itself: one of a run's, with the run's other sessions, or a standalone one. */
-export type SessionDetail =
-  | {
+/** A run session with the other sessions read so far. */
+export type SessionDetail = {
     readonly source: 'run';
     /** The run version the sessions were last derived at. */
     readonly version: number;
     readonly session: RunSessionView;
     /** Every session of the run read so far, by ID, for the links between them. */
     readonly sessions: ReadonlyMap<string, RunSessionView>;
-  }
-  | { readonly source: 'standalone'; readonly standalone: StandaloneSessionResponse };
+  };
 
 export interface SessionTranscript {
   readonly detail: SessionDetail | undefined;
@@ -52,8 +50,7 @@ const quietPolls = 2;
  * and a page that says `more` is followed at once. The page stops asking once
  * the session is finished or interrupted and its entries are complete: the
  * last is an invocation's end or point, or two polls brought nothing, since
- * an end's entries can follow its state by one poll. A standalone session is
- * never followed: the server never sees one running.
+ * an end's entries can follow its state by one poll.
  */
 export function useSessionTranscript(client: ProtocolClient, ref: SessionRef, interval = 1000): SessionTranscript {
   const key = sessionKey(ref);
@@ -69,13 +66,12 @@ export function useSessionTranscript(client: ProtocolClient, ref: SessionRef, in
     let quiet = 0;
 
     const shownState = (): ShownSessionState | undefined =>
-      detail === undefined ? undefined : detail.source === 'run' ? detail.session.state : detail.standalone.session.state;
+      detail?.session.state;
     const complete = (): boolean => {
       const last = entries.at(-1);
       return file === 'missing' || last?.type === 'point' || last?.type === 'ended' || quiet >= quietPolls;
     };
     const settled = (more: boolean): boolean => {
-      if (detail?.source === 'standalone') return true;
       const current = shownState();
       return current !== undefined && isFinal(current) && !more && complete();
     };
@@ -97,7 +93,7 @@ export function useSessionTranscript(client: ProtocolClient, ref: SessionRef, in
     };
 
     const poll = async (): Promise<void> => {
-      if (detail?.source !== 'run' || ref.source !== 'run') return;
+      if (detail === undefined) return;
       let more = false;
       try {
         const answer = await client.pollSessions(ref.planId, ref.runId, detail.version, [{ session: ref.session, after: cursor }]);
@@ -127,24 +123,20 @@ export function useSessionTranscript(client: ProtocolClient, ref: SessionRef, in
 
     const start = async (): Promise<void> => {
       try {
-        if (ref.source === 'run') {
-          const answer = await client.getRunSessions(ref.planId, ref.runId);
+        const answer = await client.getRunSessions(ref.planId, ref.runId);
           const sessions = new Map(answer.sessions.map(session => [session.session, session] as const));
-          let session = sessions.get(ref.session);
-          if (session === undefined) {
-            try { session = (await client.getRunSession(ref.planId, ref.runId, ref.session)).session; }
-            catch (error) {
-              if (error instanceof ClientError && error.code === 'not-found')
-                throw new ClientError('protocol', `The run has no session ${ref.session}`, 'not-found');
-              throw error;
-            }
+        let session = sessions.get(ref.session);
+        if (session === undefined) {
+          try { session = (await client.getRunSession(ref.planId, ref.runId, ref.session)).session; }
+          catch (error) {
+            if (error instanceof ClientError && error.code === 'not-found')
+              throw new ClientError('protocol', `The run has no session ${ref.session}`, 'not-found');
+            throw error;
           }
-          if (session === undefined) throw new ClientError('protocol', `The run has no session ${ref.session}`, 'not-found');
-          sessions.set(ref.session, session);
-          detail = { source: 'run', version: answer.version, session, sessions };
-        } else {
-          detail = { source: 'standalone', standalone: await client.getStandaloneSession(ref.session) };
         }
+        if (session === undefined) throw new ClientError('protocol', `The run has no session ${ref.session}`, 'not-found');
+        sessions.set(ref.session, session);
+        detail = { source: 'run', version: answer.version, session, sessions };
         for (;;) {
           const { page } = await client.getTranscript(ref, cursor);
           if (cancelled) return;

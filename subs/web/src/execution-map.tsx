@@ -63,7 +63,7 @@ function moduleText(node: ExecutionNode, byKey: ReadonlyMap<string, ExecutionNod
     const item = byKey.get(node.subject.workItem);
     return item?.kind === 'work-item' && item.module !== null ? item.module : moduleNotRecorded;
   }
-  if (node.kind === 'session' && (node.reach.kind === 'work-item' || node.reach.kind === 'module' || node.reach.kind === 'capability-task')) return node.reach.module ?? moduleNotRecorded;
+  if (node.kind === 'session' && (node.reach.kind === 'work-item' || node.reach.kind === 'capability-task')) return node.reach.module ?? moduleNotRecorded;
   if (node.modules.length) return node.modules.map(relation => `${relation.module} (${roleLabel(relation.role)})`).join(', ');
   if ((node.kind === 'gate' && node.subject.workItem === null) || (node.kind === 'session' && node.reach.kind === 'run')) return 'Run-wide';
   return moduleNotRecorded;

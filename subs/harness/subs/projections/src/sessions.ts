@@ -6,21 +6,17 @@ import { terminalRunEvents } from '../../autonomous/src/run/log.js';
 import { operationIdentitySchema } from '../../../src/interfaces/protocol/runs.js';
 import type { SessionId } from '../../task-execution/src/records.js';
 import { InvalidSessionTransitionError, reduceSessions, type RunSession } from '../../autonomous/src/run/sessions.js';
-import { standaloneSessionState, type SessionOutcomeRecord, type SessionRecord } from './standalone-records.js';
 import { ProjectionError, type RunView } from './inputs.js';
 import { capabilityOfItem } from './work.js';
 
 /*
  * The sessions of a run and of the project, as a reader shows them. Each is
- * a pure function of the run's log and records, or of a standalone
- * session's records.
+ * a pure function of the run's log and records.
  *
  * Interrupted is what a reader shows for a session whose log says live and
  * whose harness is gone. The server holds the project lock, so it drives
  * every run it serves that has not ended: a live session of a run that has
- * ended, such as one whose stop's grace expired, is interrupted. A
- * standalone session holds the lock too, so the server never sees one
- * running: without its outcome it was interrupted.
+ * ended, such as one whose stop's grace expired, is interrupted.
  */
 
 const terminal = new Set<string>(terminalRunEvents);
@@ -189,38 +185,13 @@ export function runSessionEntry(planId: string, runId: string, session: RunSessi
 }
 
 /**
- * A standalone session, as the project's list shows it. Its record names
- * the executor `agent`; the list names it `executor`, as the run log does.
- * It changed last when it finished, or, interrupted, at its transcript's
- * last entry, where there is one.
- */
-export function standaloneEntry(record: SessionRecord, outcome: SessionOutcomeRecord | null, lastEntryAt: string | null): SessionListEntry {
-  return {
-    ref: { source: 'standalone', session: record.id },
-    state: standaloneSessionState(outcome),
-    finished: null,
-    role: record.role,
-    work: {},
-    executor: record.agent,
-    model: record.model,
-    invocations: 1,
-    degradedStarts: 0,
-    reaches: { kind: 'module', module: record.module },
-    startedAt: record.startedAt,
-    changedAt: outcome?.finishedAt ?? lastEntryAt ?? record.startedAt,
-  };
-}
-
-/**
  * The project's order: live and suspended sessions first, by start, then
  * finished and interrupted ones, by last change; newest first in each.
  */
 export function orderSessions(sessions: readonly SessionListEntry[]): SessionListEntry[] {
   const active = (session: SessionListEntry): boolean => session.state === 'live' || session.state === 'suspended';
   const time = (session: SessionListEntry): number => Date.parse(active(session) ? session.startedAt : session.changedAt);
-  const key = (session: SessionListEntry): string => (session.ref.source === 'run'
-    ? `run/${session.ref.planId}/${session.ref.runId}/${session.ref.session}`
-    : `standalone/${session.ref.session}`);
+  const key = (session: SessionListEntry): string => `run/${session.ref.planId}/${session.ref.runId}/${session.ref.session}`;
   return [...sessions].sort((left, right) => {
     if (active(left) !== active(right)) return active(left) ? -1 : 1;
     const difference = time(right) - time(left);

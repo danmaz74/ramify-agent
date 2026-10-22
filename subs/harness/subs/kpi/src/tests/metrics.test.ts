@@ -82,14 +82,6 @@ describe('M4: every metric keeps its numerator, denominator, version and coverag
     expect(find(unknown, 'scope-bytes-per-changed-line')).toMatchObject({ state: 'unavailable', value: null, subtotal: null, denominator: null, evidence: [expect.stringContaining('git exited 128')] });
     expect(find(unknown, 'reduction-factor')).toMatchObject({ state: 'unavailable', value: null });
   });
-  test('a size taken under another measurement policy is refused, never mixed with the current one', () => {
-    const old = { ...size(1000), policy: 'scope-size/1' as const };
-    const metrics = computed(inputs([writer('inv-0002'), writer('inv-0003', { size: old })]));
-    const perLine = find(metrics, 'scope-bytes-per-changed-line');
-    expect(perLine).toMatchObject({ state: 'unavailable', value: null, subtotal: 10_000, denominator: 10 });
-    expect(perLine.evidence.join('\n')).toContain('inv-0003: w_e = 10 lines, S_e unknown: its size was taken under scope-size/1, which is not comparable with scope-size/2');
-    expect(find(metrics, 'session-weighted-total')).toMatchObject({ state: 'unavailable', value: null, coverage: { covered: 1, total: 2 } });
-  });
   test('an unavailable baseline makes every ratio over B unavailable, with the reason', () => {
     const metrics = computed(inputs([writer('inv-0002')], { baseline: { unavailable: 'ramify measure could not be run' } }));
     expect(find(metrics, 'scope-bytes-per-changed-line').state).toBe('measured');
@@ -179,7 +171,6 @@ describe('Plan23 F6 corresponding scope components and weighted partial evidence
     expect(comparableScopeMetrics({ ...args, baseline: { unavailable: 'missing baseline' } }).total.ratio).toMatchObject({ state: 'unavailable', value: null, subtotal: 90 });
     expect(comparableScopeMetrics({ ...args, baseline: splitSize(0, 0, 0, 0) }).total.ratio).toMatchObject({ state: 'not-applicable', value: null, denominator: 0 });
     expect(comparableScopeMetrics({ ...args, baseline, delivered: delivered([]) }).total.mean).toMatchObject({ state: 'not-applicable', numerator: 0, denominator: 0 });
-    expect(comparableScopeMetrics({ ...args, baseline: { ...baseline, policy: 'scope-size/1' } }).total.ratio).toMatchObject({ state: 'unavailable' });
     const mismatch = comparableScopeMetrics({ ...args, baseline, writers: new Map([['one', { ...one, snapshot: 'ms-0002' }]]) });
     expect(mismatch.total).toMatchObject({ unknownSizeWeight: 1, mean: { state: 'partial', subtotal: 0 } });
     const zero = comparableScopeMetrics({ baseline, writers: new Map([['one', splitSize(0, 0, 0, 0)]]), delivered: delivered([['one', 1]]) });

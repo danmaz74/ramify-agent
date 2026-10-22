@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AgentSessionPoint, SessionExecutionBindings, SessionExecutionPolicy, SessionStore, SessionStoreCommit, SessionStoreRecord, SessionTaskInput, SessionToolDeclaration } from '../../../../src/interfaces/session-operations.js';
 import { createPiAgentOn, type PiRuntimeSource } from '../pi-agent.js';
 import { piBuiltinDeclarations } from '../session-operations.js';
-import { readPiNativeRequestArtifact, validateNativeRequest } from '../preservation.js';
+import { decodePreservedTranscript, readPiNativeRequestArtifact, validateNativeRequest } from '../preservation.js';
 import { nativeCodexRuntime, type NativeCodexRuntime } from './helpers/scripted-provider.js';
 import { workspace } from './helpers/session.js';
 
@@ -211,31 +211,6 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     expect(f.native.wireHeaders).toEqual(expected.map(sessionId => ({ sessionId, clientRequestId: sessionId })));
     f.native.verify();
   });
-  it('continues 0.87.1 child transcripts with their original prefix and creation identity through a further fork', async () => {
-    const f = await fixture([[text('Parent.')], [text('Child.')], [text('Restored child.')], [text('Grandchild.')]]);
-    const parent = await (await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'parent'))).receipt;
-    const child = await f.operations.fork({ runId: 'run-A', operationId: 'child', sourcePoint: parent.point! });
-    const first = await (await f.operations.continue(f.next(child.sessionId, child.point!, 'child-first'))).receipt;
-    // Independent legacy fixture bypasses content addressing, as corruption fixtures do below.
-    for (const [id, bytes] of f.payloads) {
-      const value = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
-      if (value['schema'] === 'ramify.pi-transcript/1') { value['packageVersion'] = '0.87.1'; delete value['providerSessionId']; f.payloads.set(id, new TextEncoder().encode(JSON.stringify(value))); }
-    }
-    const restored = createPiAgentOn(f.source).bindSessionStore!(f.store);
-    const second = await (await restored.continue(f.next(child.sessionId, first.point!, 'child-restored'))).receipt;
-    expect(second.status).toBe('completed');
-    const before = prefix(f.native, 1); const after = prefix(f.native, 2);
-    expect(after.instructions).toEqual(before.instructions); expect(after.tools).toEqual(before.tools);
-    expect(after.input.slice(0, before.input.length)).toEqual(before.input);
-    const snapshot = await restored.inspect('run-A', child.sessionId);
-    const entry = snapshot!.transcript.filter(item => item.kind === 'provider' && item.key.includes(':pi-state:')).at(-1)!;
-    expect(JSON.parse(new TextDecoder().decode(f.payloads.get(entry.payloadId)!))).toMatchObject({ packageVersion: '1.3.0', providerSessionId: f.P.sessionId });
-    const grandchild = await restored.fork({ runId: 'run-A', operationId: 'grandchild', sourcePoint: second.point! });
-    expect((await (await restored.continue(f.next(grandchild.sessionId, grandchild.point!, 'grandchild-first'))).receipt).status).toBe('completed');
-    expect(f.native.wireRequests.map(body => body['prompt_cache_key'])).toEqual(Array(4).fill(f.P.sessionId));
-    expect(f.native.wireHeaders).toEqual(Array(4).fill({ sessionId: f.P.sessionId, clientRequestId: f.P.sessionId }));
-    f.native.verify();
-  });
   it('S08 rebinds an identical tool and reports incompatible optional context unavailable before dispatch', async () => {
     const f = await fixture([[call('read', {}, 'first')], [call('submit_orientation', { orientation: 'A' }, 'first-submit')], [call('read', {}, 'second')], [call('submit_orientation', { orientation: 'A' }, 'second-submit')]]);
     const one = await (await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'one'))).receipt;
@@ -346,7 +321,10 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     if (corruption === 'provider-identity-type') value['providerSessionId'] = 7;
     if (corruption === 'model') value['model'] = 'Different/model';
     if (corruption === 'transport') value['transport'] = 'websocket-cached';
-    if (corruption === 'package-version') value['packageVersion'] = 'unqualified';
+    if (corruption === 'package-version') {
+      value['packageVersion'] = [0, 87, 1].join('.');
+      expect(() => decodePreservedTranscript(new TextEncoder().encode(JSON.stringify(value)))).toThrow('Pi transcript; expected package 1.3.0');
+    }
     // Independent corruption fixture bypasses content-addressing to exercise the decoder.
     f.payloads.set(entry.payloadId, new TextEncoder().encode(corruption === 'encoding' ? '{' : JSON.stringify(value)));
     const result = await (await f.operations.continue(f.next(f.P.sessionId, T1.point!, 'corrupt'))).receipt;

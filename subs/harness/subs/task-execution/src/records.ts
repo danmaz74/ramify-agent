@@ -43,8 +43,7 @@ export const scopeComponentSchema = z.object({
 export type ScopeComponent = z.infer<typeof scopeComponentSchema>;
 
 export const scopeSizeSchema = z.object({
-  /** A size of another policy than the current one is refused by the KPIs, never mixed with it. */
-  policy: z.enum(['scope-size/1', 'scope-size/2']),
+  policy: z.literal('scope-size/2'),
   snapshot: text,
   components: z.array(scopeComponentSchema),
   /** The deduplicated union in bytes, or null when a component is unavailable. */
