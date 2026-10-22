@@ -31,7 +31,7 @@ than additional module engineer identities.
 
 Initial analysis and later placement decisions are tasks of the plan architect.
 Current prompts and UI labels use these role names. Stored protocol values and
-CLI role selectors remain compatible with existing runs:
+CLI role selectors map to them:
 
 | Stored role | Role name |
 | --- | --- |
@@ -205,8 +205,7 @@ consumer feature evidence beyond provider source write scope; selection changes
 no write permission, generated feature protection or acceptance authority.
 
 Explicit files and files of assigned scenario obligations form the exact
-selection. Scenario pointers and filenames in prose select nothing. Legacy
-assignments using scenario obligations keep their behavior. A capability-only
+selection. Scenario pointers and filenames in prose select nothing. A capability-only
 obligation can carry explicit files without registering another obligation or
 completing a consumer's scenarios. Live preparation, captured inputs and
 standalone rendering/execution use this meaning. Authored standalone assignments
@@ -386,7 +385,6 @@ construction as hosted work. Retain partial source and relevant assignment input
 An explicit continuation command preserves a stable command identity across a
 lost reply. A session names its retained run with `--resume-run`; a step already
 names its run. Both accept `--command-id` without recovery occurrence or revision.
-Legacy occurrence/revision fields remain readable for existing callers.
 Ordinary repeated step execution retains its existing new-invocation behavior;
 an explicit continuation delivers an already accepted result once.
 
@@ -399,9 +397,8 @@ prerequisite obstruction exposes the pending task, retained work and concrete
 reason; after that prerequisite changes, ordinary continuation retries the task.
 There is no additional approval for an attempt group or repair declaration.
 
-The legacy `recovery resume` command is an adapter for task continuation. It takes
-plan, run and stable command identity. Old occurrence, revision and repair fields
-remain accepted as compatibility input, not new execution authority. Identical
+The `recovery resume` command continues the pending task. It takes plan, run
+and stable command identity. Identical
 commands recover their existing receipt; conflicting command content is refused.
 Concurrency protection permits only one executing attempt for a task.
 
@@ -422,12 +419,11 @@ itself may still be pending; unfinished engineering, nested capabilities,
 nonfunctional work and automatic repair are ordinary tasks rather than unsupported
 restart boundaries.
 
-The legacy `restart prepare` command performs this continuation in one operation;
+The `restart prepare` command performs this continuation in one operation;
 it returns the same run's receipt. It does not create a successor or require a
 second resume command. Its expected version prevents a stale new request, while
 stable command identity recovers a lost acknowledgement. `restart inspect` is
-read-only and reports actual prerequisites. Previously created linked successors
-remain readable through a legacy reader; new continuation writes no synthetic
+read-only and reports actual prerequisites. Continuation writes no synthetic
 history, copied inventory or runtime transition allowlist.
 
 ```sh
@@ -483,8 +479,8 @@ no stage duration is inferred from the preceding stage's completion.
 ### Execution Breakpoints Suspend The Whole Run
 
 A start-run command may select `before-agent:engineer`. Unsupported selectors
-are refused before starting. Absence preserves ordinary execution and legacy
-record readability. This selector matches ordinary and capability-task
+are refused before starting. Absence preserves ordinary execution. This
+selector matches ordinary and capability-task
 `engineer` invocations, repair continuations, `contract-engineer` invocations
 and `nonfunctional-repair-engineer` invocations. Each prepared workflow request
 has one occurrence; internal context-loss fallback does not create a new one.
@@ -564,8 +560,7 @@ Unconfirmed writer settlement blocks a resumed model invocation, another writer
 and gates. Resume may return an already held terminal outcome to ordinary
 failure handling without a new model call; it does not clear that barrier.
 An exchange's `settled` status describes completed control-command handling.
-Its `settlementConfirmed` flag separately reports actual tool/session settlement;
-legacy exchange records may omit this flag.
+Its `settlementConfirmed` flag separately reports actual tool/session settlement.
 
 Message admission is serialized before model execution using the occurrence
 revision and stable command ledger. Exact retries return the same admission
@@ -672,12 +667,10 @@ occurrence. Named accepted appends use the same history; ad hoc prose is not
 parsed into blocks. A fork inherits only its named point, never a later parent
 or sibling. Prepared-only or uncommitted failures establish no delivery.
 
-New task manifests and harness operation intents use `/2`; readers accept `/1`
-and `/2`. Manifests retain ordered physical inherited/appended entries with exact
-bytes, hashes and actual source provenance. Legacy normalization interprets known
-components without changing their physical bytes or manufacturing separately
-delivered environment fields. Retry uses the original admitted packet, schema,
-declarations, context and destination exactly, including legacy `/1` operations.
+Task manifests and harness operation intents use `/2`. Manifests retain ordered
+physical inherited/appended entries with exact bytes, hashes and actual source
+provenance. Retry uses the original admitted packet, schema, declarations,
+context and destination exactly.
 Historical hashes and evidence are not rewritten.
 
 ### Optional Discovery Handoffs and NFR Comparisons

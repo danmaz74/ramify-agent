@@ -51,8 +51,11 @@ document; add companions only for substantial contracts or acceptance material.
   including necessary failure cases. Preserve the conditions and examples that
   determine their meaning. Exact interfaces belong here when already decided
   or required for compatibility; leave implementation choices open otherwise.
-- **Constraints:** state architectural boundaries, compatibility guarantees,
-  authorized breaking changes and relevant nonfunctional requirements. Explain
+- **Constraints:** state architectural boundaries, authorized breaking changes
+  and relevant nonfunctional requirements. For ramify-agent, recorded run state
+  carries no compatibility guarantee unless the plan names one; name only
+  long-lived committed files, and prefer a deletable run-once conversion script
+  over code that reads two formats. Explain
   how important qualitative constraints can be assessed; do not invent numeric
   thresholds or performance experiments. Separate excluded deliverables from
   guarantees: “authentication is out of scope” does not mean “existing access
@@ -64,10 +67,11 @@ document; add companions only for substantial contracts or acceptance material.
   pointers, likely seams and design options. Label suggestions as optional.
   A forecast must not silently become required work or a prescribed sequence.
 
-Retain a genuine ordering constraint, such as compatibility during a migration,
-as a requirement with its reason. Let the module and capability architects decide
-how to achieve it. They can adapt to discoveries and coordinate real provider
-and consumer integration without a prewritten iteration for every owner.
+Retain a genuine ordering constraint, such as a configuration conversion before
+its readers change, as a requirement with its reason. Let the module and
+capability architects decide how to achieve it. They can adapt to discoveries
+and coordinate real provider and consumer integration without a prewritten
+iteration for every owner.
 
 ## Make acceptance usable
 

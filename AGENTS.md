@@ -58,6 +58,23 @@ toolkit repository's `ramify-agent/` directory until Plan 32 extracted it.
   search or cite it unless the user names it. Current design starts at
   [docs/README.md](docs/README.md).
 
+## Run state and compatibility
+
+- Run state is disposable. Task records, events, sessions and run evidence
+  written by an earlier harness version are not a compatibility target. A
+  finished run stays finished; an unfinished run restarts from its plan on the
+  current code or is abandoned.
+- Do not add legacy readers, dual-format parsing, policy adoption, "remains
+  readable" obligations or acceptance scenarios for earlier runs. A plan for
+  this project states this default in its constraints and names any exception.
+- Compatibility applies only to long-lived committed files: `ramify-agent.json`,
+  `ramify-audit.json`, `src/tests/test-boundaries.json`, retained evidence
+  documents and published audit refs.
+- When such a file must change shape, convert it with a run-once script under
+  `scripts/one-off/<plan-id>-<purpose>.ts`, record the run in the plan's
+  implementation results, and delete the script when the plan closes. Source
+  code reads only the current format.
+
 ## Writing conventions
 
 These apply to every document, page and comment, including agent-written

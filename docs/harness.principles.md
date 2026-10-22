@@ -227,8 +227,9 @@ the relevant source and evidence, revises the design as findings develop, and
 handles the task's decisions through verified handback. A separate contract
 iteration or fake integration before provider work is not required.
 
-Existing consumer contracts and behavioral guarantees remain binding. The
-architect seeks a compatible design first. A change that must break a
+Existing consumer contracts and behavioral guarantees remain binding. Recorded
+run state is not such a guarantee unless the plan names it. The architect seeks
+a compatible design first. A change that must break a
 guarantee needs the existing explicit breaking-change authority and migration
 work in affected owners. Passing checks against a revised API cannot silently
 remove an earlier guarantee.

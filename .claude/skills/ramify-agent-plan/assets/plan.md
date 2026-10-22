@@ -12,6 +12,8 @@
 ## Constraints and scope
 
 - [Existing guarantee or architectural boundary the change must preserve.]
+- Run state from earlier harness versions is not a compatibility target.
+  Long-lived files this plan must keep readable: [none].
 - [Required nonfunctional property and how it can be assessed.]
 - [Excluded deliverables, if useful to bound the work.]
 
