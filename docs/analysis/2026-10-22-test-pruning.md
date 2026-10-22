@@ -129,18 +129,19 @@ sweep used to delay the run enough to hide it; `runToEnd` now holds the run
 at the stopping write until the stop is accepted (49cc7f95). The production
 ordering is recorded in `docs/todo.md` §5.
 
-## Left for a decision
+## Decisions taken after the audit
 
-- `workspace-preparation.boundary` registers schema 4 while the fixture is
-  schema 6; three assertions fail when the boundary runs for real. A patch
-  that moves the fixture to schema 6 is saved beside the slice B notes.
-- `fixture-trials.test.ts` is env-gated and never runs in the audit, but
-  `docs/testing.spec.md` retains it as the opt-in trial runner. Deleting it
-  changes that sentence.
-- Production leftovers the tests exposed: `capabilityRecoveryBoundaries`
-  names `capability-gate-recorded`, which is never emitted; the
-  `recoveryRuntime` option and `policy.recovery.baseDelayMs/maxDelayMs` are
-  never read; `contextBudgetReached` may be dead.
+- `workspace-preparation.boundary` relabels its retained schema-4 receipts
+  to the current schema, admits the full receipt against its own commit's
+  definition, and asserts the named refusal for the partial mode, the
+  schema-4 copy, a widened mode and a wrong blob. Before, the schema
+  mismatch alone refused every case.
+- `fixture-trials.test.ts` stays: `docs/testing.spec.md` retains it as the
+  opt-in trial runner, and it costs the audit nothing.
+- The three process-host witnesses over 30 s stay as they are; their time
+  is real process work, not waiting.
+- The policy fields and event names production never reads are recorded in
+  `docs/todo.md` rather than changed inside this merge.
 - Deferred mechanics, not pruning: one Git double in place of six,
   whole-journal cloning in `coordination-history.ts`, session record
   re-parsing, `createScriptedAgent`'s home, the unused `runDependencyDecision`

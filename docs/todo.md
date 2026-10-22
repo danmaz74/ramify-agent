@@ -189,3 +189,17 @@ the execution map's badge).
 - [ ] Replace the design review's fixed guidance selection (principles files
       and the READMEs on the way to a changed path) with a relevance
       judgment, once the live-model trial says what the fixed selection costs.
+
+## 9. Policy fields and names production never reads
+
+- [ ] `policy.recovery.baseDelayMs` and `maxDelayMs` are declared in
+      `subs/harness/subs/autonomous/src/run/records.ts` and set in
+      `subs/harness/src/run/policy.ts`, but `taskRetryDelay` in
+      `subs/harness/subs/recovery/src/reentry.ts` hardcodes 250 ms doubling.
+      Either read the fields or delete them from the schema.
+- [ ] The `recoveryRuntime` option of the run service
+      (`subs/harness/subs/autonomous/src/run/service.ts`) is accepted and
+      never read.
+- [ ] `capabilityRecoveryBoundaries` names `capability-gate-recorded`, an
+      event type the run log declares but nothing emits.
+- [ ] `contextBudgetReached` in the agent port has no production caller.

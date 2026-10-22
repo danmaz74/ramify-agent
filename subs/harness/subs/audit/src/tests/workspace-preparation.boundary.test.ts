@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
 
 import { childEnvironment } from '../../../evidence/src/run-command.js';
-import { configuredFullResultMatches, readCommittedAuditConfiguration } from '../check-execution.js';
+import { configuredFullResultMatches, configuredResultRefusal, readCommittedAuditConfiguration } from '../check-execution.js';
 
 /*
  * The workspace preparation every audit request names comes from the
@@ -112,8 +112,12 @@ it('binds the F2 configured discovery reports and rejects partial or mismatched 
   const root = join(parent, 'f2');
   try {
     execFileSync('git', ['clone', '--quiet', join(evidence, 'f2.bundle'), root]);
-    const full = JSON.parse(await readFile(join(evidence, 'f2-full.json'), 'utf8'));
-    const partial = JSON.parse(await readFile(join(evidence, 'f2-partial.json'), 'utf8'));
+    // The retained receipts are schema 4. Relabeled to the current schema, the
+    // full receipt is admitted against its own commit's definition, and each
+    // refusal below rests on the one field it names.
+    const current = <T extends { summary: { evidenceSchemaVersion: number } }>(result: T): T => { const copy = structuredClone(result); copy.summary.evidenceSchemaVersion = 6; return copy; };
+    const full = current(JSON.parse(await readFile(join(evidence, 'f2-full.json'), 'utf8')));
+    const partial = current(JSON.parse(await readFile(join(evidence, 'f2-partial.json'), 'utf8')));
     const source = partial.summary.sourceCommit as string;
     const captured = await readCommittedAuditConfiguration(root, source);
     expect(captured.blob).toBe(partial.summary.coverage.claim.configuration.blob);
@@ -123,15 +127,18 @@ it('binds the F2 configured discovery reports and rejects partial or mismatched 
     expect(sourceFiles).toContain('src/tests/new-root.check.ts');
     expect(sourceFiles).not.toContain('src/tests/excluded.check.ts');
     expect(sourceFiles).not.toContain('src/tests/excluded.test.ts');
-    // These retained provider receipts are schema 4; the current gate requires schema 6.
-    expect(full.summary.evidenceSchemaVersion).toBe(4);
-    expect(configuredFullResultMatches(full, captured)).toBe(false);
-    expect(configuredFullResultMatches(partial, captured)).toBe(false);
     const fullCaptured = await readCommittedAuditConfiguration(root, full.summary.sourceCommit);
-    expect(configuredFullResultMatches(full, fullCaptured)).toBe(false);
+    const refusal = (result: typeof full, configuration: typeof fullCaptured) => configuredResultRefusal(result, configuration, 'full', result.summary.sourceCommit);
+    expect(refusal(full, fullCaptured)).toBeNull();
+    expect(configuredFullResultMatches(full, fullCaptured)).toBe(true);
+    expect(refusal(partial, captured)).toBe('a full request was answered by evidence that is not an executed full audit');
+    const retained = structuredClone(full);
+    retained.summary.evidenceSchemaVersion = 4;
+    expect(refusal(retained, fullCaptured)).toBe('the result is not schema-6 ramify-audit evidence');
     const widened = structuredClone(full);
     widened.summary.mode.requestedMode = 'ramify-partial';
-    expect(configuredFullResultMatches(widened, fullCaptured)).toBe(false);
-    expect(configuredFullResultMatches(full, { ...fullCaptured, blob: 'wrong-definition' })).toBe(false);
+    widened.summary.mode.executedMode = 'ramify-partial';
+    expect(refusal(widened, fullCaptured)).toBe('a full request was answered by evidence that is not an executed full audit');
+    expect(refusal(full, { ...fullCaptured, blob: 'wrong-definition' })).toMatch(/^the result was not produced under the captured definition /);
   } finally { await rm(parent, { recursive: true, force: true }); }
 }, 30_000);
