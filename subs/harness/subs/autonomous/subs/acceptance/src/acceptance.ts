@@ -1736,6 +1736,10 @@ export class Acceptance {
       }
       const state = replay.value;
       const decision = decideNonfunctionalRound(state.input);
+      // A retained assessment may advance directly to a source-changing NFR
+      // repair. Settle every earlier final audit's warning questions first.
+      if (decision.action !== 'assess' && decision.action !== 'prepare-candidate'
+        && !await this.reconcileRetainedFinalInstability(agent, packages)) return null;
       if (decision.action === 'stop') {
         if (state.final === null) {
           await this.ports.fail('recovery-exhausted', 'The closed non-functional phase has no final assessment');
@@ -1793,6 +1797,41 @@ export class Acceptance {
         continue;
       }
     }
+  }
+
+  private async reconcileRetainedFinalInstability(
+    agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>,
+  ): Promise<boolean> {
+    for (const event of this.events('gate-attempted').filter(entry => entry.data.checkpoint === 'final')) {
+      const recorded = await this.ports.readRecord(runLayout.gate(event.data.gate), runSchemas.gate);
+      if (recorded.kind !== 'valid') {
+        await this.ports.fail('recovery-exhausted', `Retained final gate ${event.data.gate} is unavailable`, [runLayout.gate(event.data.gate)]);
+        return false;
+      }
+      const gate = recorded.value;
+      const observations = configuredAuditInstabilityObservations(gate.provider?.result);
+      if (observations.length === 0) continue;
+      await this.ports.gateHost.reportInstability?.(gate);
+      if (this.events('final-instability-reconciled').some(prior => prior.data.gate === gate.id)) continue;
+      const operation = await this.ports.readRecord(runLayout.gateOperation(gate.id), runSchemas.gateOperation);
+      const candidateId = operation.kind === 'valid'
+        ? operation.value.finalCandidate?.candidate ?? operation.value.finalAssessment?.candidate
+        : this.events('candidate-bound-to-gate').find(bound => bound.data.gate === gate.id)?.data.candidate;
+      const assessed = this.events('nonfunctional-assessed').find(prior => prior.data.candidate === candidateId);
+      if (candidateId === undefined || assessed === undefined) {
+        await this.ports.fail('recovery-exhausted', `Final gate ${gate.id} has instability without a retained candidate assessment`,
+          [runLayout.gate(gate.id)]);
+        return false;
+      }
+      const assessment = assessmentSchema.parse(this.ports.committedBody(runLayout.assessment(assessed.data.assessment)));
+      const result = await this.reconcileFinalInstability(agent, packages, gate, { candidateId, assessment });
+      if (result === null) return false;
+      if (result === 'unresolved' || result === 'await-user') {
+        await this.ports.fail('acceptance-incomplete', `Final audit instability remains unresolved on ${gate.id}`, [runLayout.gate(gate.id)]);
+        return false;
+      }
+    }
+    return true;
   }
 
   private async recordNonfunctionalDeviations(
@@ -2660,7 +2699,8 @@ export class Acceptance {
     if (beforeGate.tree !== binding.assessment.candidate.tree) {
       throw new CandidateReassessmentRequired('The current candidate needs fresh assessment');
     }
-    const latestQualificationChange = Math.max(
+    const latestQualificationChange = this.events('candidate-prepared').find(event =>
+      event.data.candidate === binding.candidateId)?.sequence ?? Math.max(
       this.events('final-correction-planned').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY,
       this.events('nonfunctional-final-invalidated').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY,
     );

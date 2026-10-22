@@ -124,7 +124,13 @@ export class CommittingGates {
       throw new Error('Gate admission stopped before any commit or check effect');
     }
     const entries = this.observe().history.lines;
-    const logicalSince = request.checkpoint === 'final' ? entries.filter(entry => entry.transaction.event.type === 'nonfunctional-final-invalidated').at(-1)?.sequence ?? 0 : 0;
+    const preparedSince = binding === undefined ? undefined : entries.find(entry =>
+      entry.transaction.event.type === 'candidate-prepared' && entry.transaction.event.data.candidate === binding.candidateId)?.sequence;
+    const logicalSince = request.checkpoint === 'final'
+      ? preparedSince ?? Math.max(
+        entries.filter(entry => entry.transaction.event.type === 'nonfunctional-final-invalidated').at(-1)?.sequence ?? 0,
+        entries.filter(entry => entry.transaction.event.type === 'final-correction-planned').at(-1)?.sequence ?? 0)
+      : 0;
     const prior = entries.filter(entry => entry.sequence > logicalSince).flatMap(entry => entry.transaction.records.flatMap(record => {
       const parsed = gateAttemptSchema.safeParse(record.body);
       if (!parsed.success) return [];

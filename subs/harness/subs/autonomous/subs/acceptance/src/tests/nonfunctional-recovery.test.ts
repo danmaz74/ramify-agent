@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { createScriptedAgent } from '../../../../../agent/src/scripted.js';
+import type { ConfiguredAuditPort } from '../../../../../audit/src/check-execution.js';
 import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
 import { intakeToolName } from '../../../planning/src/extraction.js';
 import { withDefaultTurns } from '../../../../../../src/tests/helpers/declarations.js';
@@ -16,6 +17,7 @@ import { type Invocation } from '../../../../../task-execution/src/records.js';
 import type { RunWrite } from '../../../../src/run/log.js';
 
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
+import { disposition, reconcile, submission } from '../../../../../../src/tests/helpers/check-findings-composition.js';
 import { resetSpawnAttempts, spawnAttempts } from '../../../../../../src/tests/helpers/process-guard.js';
 vi.mock('node:child_process', async importOriginal => {
   const { guardedChildProcess } = await import('../../../../../../src/tests/helpers/process-guard.js');
@@ -95,8 +97,17 @@ function intake(obligation: string) {
   ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } };
 }
 
-function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnType<typeof nfrBoundaries>, noResult: false | 'end' | 'checkpoint' = false) {
+function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnType<typeof nfrBoundaries>, noResult: false | 'end' | 'checkpoint' = false,
+  judgeWarnings = false) {
   return createScriptedAgent(withDefaultTurns(spec => {
+    if (judgeWarnings && spec.submission.name === 'submit_reconciliation' && spec.prompt.includes('# Reconciliation final-instability-'))
+      return reconcile({ ...submission([
+        disposition('cf-0001', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+        disposition('cf-0002', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+      ], { kind: 'complete' }), testOrigins: [
+        { checkFinding: 'cf-0001', origin: 'existing', basis: 'The original execution baseline contains this test.' },
+        { checkFinding: 'cf-0002', origin: 'existing', basis: 'The original execution baseline contains this test.' },
+      ] });
     if (spec.submission.name === 'submit_compaction_review') return submit({ action: 'handoff', reason: 'Return the retained repair to the coordinator.' });
     if (spec.submission.name === intakeToolName) return submit(intake(obligation));
     if (spec.role === 'initial-architect') return submit(analysis([]));
@@ -117,6 +128,84 @@ function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnTy
     return [];
   }));
 }
+
+test.each(['before-ingestion', 'between-observations'] as const)(
+  'a retained unsatisfied assessment cannot repair source before %s final warning reports are reconciled', async cut => {
+    const fixture = await copyFixture(); cleanups.push(fixture.remove);
+    const obligation = 'The review must retain an audit record.';
+    const planPath = join(fixture.root, 'plans/review-notes/plan.md');
+    await writeFile(planPath, `${await readFile(planPath, 'utf8')}\n${obligation}\n`);
+    const boundaryAnswers = nfrBoundaries(fixture.root, { repair: 'one-module' });
+    answers.push(boundaryAnswers);
+    const baseAudit = boundaryAnswers.options.configuredAudit;
+    const calls: string[] = [];
+    const warningAudit = { read: baseAudit.read, async run(input: Parameters<typeof baseAudit.run>[0]) {
+      calls.push(input.attemptId);
+      const result = await baseAudit.run(input);
+      if (input.attemptId !== 'ga-0002') return result;
+      const provider = result.provider as { summary: Record<string, unknown> };
+      return { ...result, provider: { ...provider, summary: { ...provider.summary,
+        warningDispositions: ['first', 'second'].map(testId => ({ entry: {
+          checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+          path: 'src/tests/retained-coverage.test.ts', kind: 'test', testId,
+        }, basis: 'retained-instability' })), flakinessPolicy: { onFailure: 'warning' },
+      } } };
+    } } satisfies ConfiguredAuditPort;
+    let frozen = false;
+    const firstAgent = repairAgent(fixture.root, obligation, boundaryAnswers, false, true);
+    const first = await openRuns(fixture.root, { ...boundaryAnswers.options, configuredAudit: warningAudit, agent: firstAgent });
+    const service = first.service;
+    if (cut === 'before-ingestion') {
+      const reporter = service as unknown as { reportGateInstability: (run: { record: { jobId: string } }, gate: { id: string }) => Promise<void> };
+      const original = reporter.reportGateInstability.bind(service);
+      reporter.reportGateInstability = async (run, gate) => {
+        if (gate.id === 'ga-0002') {
+          await until(() => service.events('review-notes', run.record.jobId)!.some(event => event.type === 'nonfunctional-assessed'));
+          frozen = true; await freeze();
+        }
+        return original(run, gate);
+      };
+    } else {
+      const owner = service as unknown as { commitCheckFindings: (run: { record: { jobId: string } }, build: unknown) => Promise<unknown> };
+      const original = owner.commitCheckFindings.bind(service);
+      owner.commitCheckFindings = async (run, build) => {
+        const result = await original(run, build);
+        const reports = service.events('review-notes', run.record.jobId)!.filter(event => event.type === 'check-findings-recorded'
+          && event.data.cause.kind === 'producer' && event.data.cause.producer === 'check:audit-instability');
+        if (reports.length === 1) {
+          await until(() => service.events('review-notes', run.record.jobId)!.some(event => event.type === 'nonfunctional-assessed'));
+          frozen = true; await freeze();
+        }
+        return result;
+      };
+    }
+    const receipt = await service.execute(startRun('review-notes'));
+    await until(() => frozen, 30_000);
+    const before = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
+    expect(before.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(1);
+    expect(before.filter(event => event.type === 'check-findings-recorded')).toHaveLength(cut === 'before-ingestion' ? 0 : 1);
+    expect(before.filter(event => event.type === 'nonfunctional-repair-assigned')).toHaveLength(0);
+    await staleCrashLock(fixture.root);
+    const resumedAgent = repairAgent(fixture.root, obligation, boundaryAnswers, false, true);
+    const reopened = await openRuns(fixture.root, { ...boundaryAnswers.options, configuredAudit: warningAudit, agent: resumedAgent });
+    cleanups.push(() => reopened.service.close());
+    await reopened.service.settled('review-notes', receipt.jobId);
+    const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
+    expect(onlyRun(reopened.service, 'review-notes').state, JSON.stringify(onlyRun(reopened.service, 'review-notes').failure)).toBe('completed');
+    expect(calls.filter(id => id === 'ga-0002')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'check-findings-recorded')).toHaveLength(2);
+    const reconciled = events.find(event => event.type === 'final-instability-reconciled');
+    const repair = events.find(event => event.type === 'nonfunctional-repair-assigned');
+    expect(reconciled?.type).toBe('final-instability-reconciled');
+    expect(repair?.type).toBe('nonfunctional-repair-assigned');
+    expect(reconciled!.sequence).toBeLessThan(repair!.sequence);
+    if (reconciled?.type === 'final-instability-reconciled') {
+      expect(reconciled.data.checkFindings.map(change => change.type === 'check-finding-decided'
+        ? change.data.checkFinding : null)).toEqual(['cf-0001', 'cf-0002']);
+    }
+    expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
+    expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(2);
+  }, 90_000);
 
 const repairCrashes = [
   { boundary: 'nonfunctional-repair-assigned' },

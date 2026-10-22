@@ -570,7 +570,7 @@ describe('the gate audit and the run mutex', () => {
     await staleCrashLock(root);
   }, 60_000);
 
-  test('an added unstable test closes only after reliable coverage on a newly audited final candidate', async () => {
+  test.each([false, true] as const)('an added unstable test closes after reliable coverage on a new final candidate (retry replacement: %s)', async retryReplacement => {
     const root = await reviewTarget(cleanups);
     const testPath = `${notesDirectory}/src/tests/added-note-limit.test.ts`;
     await expect(readFile(join(root, testPath), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
@@ -587,9 +587,15 @@ describe('the gate audit and the run mutex', () => {
     };
     const passing = passingAudit();
     const auditCalls: string[] = [];
+    const replacementGate = retryReplacement ? 'ga-0011' : 'ga-0009';
     const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
       auditCalls.push(input.attemptId);
       const result = await passing.run(input);
+      if (retryReplacement && (input.attemptId === 'ga-0009' || input.attemptId === 'ga-0010')) return {
+        ...result, status: 'failed' as const, auditedSourceCommit: null, verdict: null,
+        reportCommit: null, runRef: null, treeRef: null,
+        provider: { status: 'failed', error: { code: 'timeout', message: 'Temporary final audit timeout', retryable: true } }, checks: {},
+      };
       if (input.attemptId !== 'ga-0006') return result;
       const provider = result.provider as { summary: Record<string, unknown> };
       return { ...result, provider: { ...provider, summary: { ...provider.summary,
@@ -598,13 +604,22 @@ describe('the gate audit and the run mutex', () => {
         flakinessPolicy: { onFailure: 'warning' },
       } } };
     } };
-    const previews = Array.from({ length: 9 }, (_, index) => ({ repositoryRoot: root,
+    const previews = Array.from({ length: retryReplacement ? 11 : 9 }, (_, index) => ({ repositoryRoot: root,
       head: index >= 4 ? 'revision-04' : 'revision-03', tree: index >= 4 ? repairedTree : finalReviewTree }));
-    const run = await reviewRun(root, cleanups, {
-      configuredAudit: warningAudit, commits, previews,
+    const frozen = gate();
+    const scenario = {
+      configuredAudit: warningAudit, commits, previews, recovery: retryReplacement, detached: retryReplacement,
+      ...(retryReplacement ? { afterWrite: async (write: string, runId: string) => {
+        if (write !== 'gate-committed') return;
+        const events = await runEventsOnDisk(root, plan, runId);
+        if (events.some(event => event.type === 'gate-attempted' && event.data.gate === 'ga-0009')) {
+          frozen.open(); await freeze();
+        }
+      } } : {}),
       gates: [revisionGates[0]!, revisionGates[1]!, { ...revisionGates[2]!, changes: [...revisionGates[2]!.changes!, { status: 'A', path: testPath }] },
         { commit: null }, { commit: null },
-        { commit: 'revision-04', changes: [{ status: 'M', path: testPath }] }, { commit: null }, { commit: null }],
+        { commit: 'revision-04', changes: [{ status: 'M', path: testPath }] }, { commit: null }, { commit: null },
+        ...(retryReplacement ? [{ commit: null }, { commit: null }] : [])],
       engineer: [...engineers().slice(0, 2), submit(completionProposed('Exported the store and added note-limit coverage.'),
         write(store, 'export const store = new Map(); // v3\n'),
         write(`${notesDirectory}/src/index.ts`, "export * from './store.js';\n"), write(testPath, unstableTest)),
@@ -624,14 +639,29 @@ describe('the gate audit and the run mutex', () => {
           disposition('cf-0001', { action: 'repair' }),
         ], { kind: 'correct', goal: 'Replace the unstable added test with reliable coverage.' }),
         testOrigins: [{ checkFinding: 'cf-0001', origin: 'added', basis: 'The test was introduced by this plan.' }] }),
-        'final-instability-ga-0009': [tool(snapshotToolNames.read, { path: testPath }), ...reconcile({ ...submission([
+        [`final-instability-${replacementGate}`]: [tool(snapshotToolNames.read, { path: testPath }), ...reconcile({ ...submission([
           disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
         ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'added',
           basis: 'The test was introduced by this plan.', coverageEvidence: 'Snapshot read of the repaired candidate verifies both deterministic note-limit assertions in the replacement test.' }] })],
       },
       globalFork: [submit({ module: notes, goal: 'Replace the unstable test while retaining coverage.',
         rationale: 'The first final candidate established instability in a test introduced by the plan.' })],
-    });
+    };
+    let run = await reviewRun(root, cleanups, scenario);
+    if (retryReplacement) {
+      await frozen.opened;
+      const before = await runEventsOnDisk(root, plan, run.runId);
+      expect(eventsOf(before, 'gate-attempted').find(event => event.data.gate === 'ga-0009')?.data.verdict).toBe('not-verified');
+      expect(eventsOf(before, 'nonfunctional-assessed')).toHaveLength(2);
+      await staleCrashLock(root);
+      const resumed = await openRuns(root, { git: run.git.git, candidates: run.source,
+        configuredAudit: warningAudit, script: reviewScript(scenario),
+        policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy(), recovery: true }),
+      });
+      cleanups.push(() => resumed.service.close());
+      await resumed.service.settled(plan, run.runId);
+      run = { ...run, service: resumed.service, events: await runEventsOnDisk(root, plan, run.runId) };
+    }
     expect(onlyRun(run.service, plan).state, JSON.stringify(eventsOf(run.events, 'job-failed'))).toBe('completed');
     expect(eventsOf(run.events, 'candidate-prepared')).toMatchObject([
       { data: { candidate: 'cand-001', tree: finalReviewTree } },
@@ -639,16 +669,16 @@ describe('the gate audit and the run mutex', () => {
     ]);
     expect(eventsOf(run.events, 'candidate-bound-to-gate')).toMatchObject([
       { data: { candidate: 'cand-001', gate: 'ga-0006', tree: finalReviewTree } },
-      { data: { candidate: 'cand-002', gate: 'ga-0009', tree: repairedTree } },
+      { data: { candidate: 'cand-002', gate: replacementGate, tree: repairedTree } },
     ]);
     expect(eventsOf(run.events, 'final-instability-reconciled')).toMatchObject([
       { data: { next: 'correct', gate: 'ga-0006' } },
-      { data: { next: 'complete', gate: 'ga-0009' } },
+      { data: { next: 'complete', gate: replacementGate } },
     ]);
     expect(eventsOf(run.events, 'nonfunctional-assessed')).toHaveLength(2);
     expect(eventsOf(run.events, 'final-correction-planned')).toHaveLength(1);
     const first = JSON.parse(await readFile(runPath(root, plan, run.runId, runLayout.gate('ga-0006')), 'utf8')) as { verdict: string; audited: string };
-    const second = JSON.parse(await readFile(runPath(root, plan, run.runId, runLayout.gate('ga-0009')), 'utf8')) as { verdict: string; audited: string };
+    const second = JSON.parse(await readFile(runPath(root, plan, run.runId, runLayout.gate(replacementGate)), 'utf8')) as { verdict: string; audited: string };
     expect(first.verdict).toBe('passed');
     expect(second.verdict).toBe('passed');
     expect(first.audited).toBe('revision-03');
@@ -659,6 +689,18 @@ describe('the gate audit and the run mutex', () => {
     expect(run.source.calls).toContain(`readBlob revision-04 ${testPath}`);
     expect(auditCalls).toContain('ga-0006');
     expect(auditCalls).toContain('ga-0009');
+    if (retryReplacement) {
+      expect(auditCalls).toContain('ga-0010'); expect(auditCalls).toContain('ga-0011');
+      expect(eventsOf(run.events, 'operation-recovery-paused')).toHaveLength(0);
+      expect(eventsOf(run.events, 'nonfunctional-assessed')).toHaveLength(2);
+      const attempts = await Promise.all(['ga-0009', 'ga-0010', 'ga-0011'].map(async id =>
+        JSON.parse(await readFile(runPath(root, plan, run.runId, runLayout.gate(id)), 'utf8')) as {
+          infrastructureAttempt: number; head: string; verdict: string;
+        }));
+      expect(attempts.map(attempt => attempt.infrastructureAttempt)).toEqual([0, 1, 2]);
+      expect(attempts.map(attempt => attempt.verdict)).toEqual(['not-verified', 'not-verified', 'passed']);
+      expect(attempts.every(attempt => attempt.head === 'revision-04')).toBe(true);
+    }
     expect(eventsOf(run.events, 'job-completed')).toHaveLength(1);
     expect(eventsOf(run.events, 'job-completed')[0]!.sequence).toBeGreaterThan(eventsOf(run.events, 'final-instability-reconciled')[1]!.sequence);
     run.git.assertComplete();
@@ -677,7 +719,7 @@ describe('the gate audit and the run mutex', () => {
         flakinessPolicy: { onFailure: 'warning' },
       } } };
     } };
-    const run = await reviewRun(root, cleanups, { configuredAudit: warningAudit, engineer: engineers(), previewCount: 4,
+    const run = await reviewRun(root, cleanups, { configuredAudit: warningAudit, engineer: engineers(), previewCount: 3,
       reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
       reconcilers: { 'final-instability-ga-0006': reconcile({ ...submission([
         disposition('cf-0001', { action: 'leave' }),
