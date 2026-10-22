@@ -116,6 +116,8 @@ export const checkFindingSettlementSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('fixed-by-check'), decision: checkFindingDecisionWireIdSchema, by: checkFindingActorViewSchema, witness: checkFindingWitnessViewSchema }).strict(),
   z.object({ kind: z.literal('fixed-by-assessment'), decision: checkFindingDecisionWireIdSchema, by: checkFindingActorViewSchema, rationale: text }).strict(),
   z.object({ kind: z.literal('superseded'), decision: checkFindingDecisionWireIdSchema, by: checkFindingActorViewSchema, replacement: text }).strict(),
+  z.object({ kind: z.literal('superseded-protection-request'), decision: checkFindingDecisionWireIdSchema,
+    by: checkFindingActorViewSchema, request: checkFindingDecisionWireIdSchema, assessment: text, paths: z.array(text).min(1) }).strict(),
   z.object({
     kind: z.literal('waived'), decision: checkFindingDecisionWireIdSchema, by: checkFindingActorViewSchema, reason: text,
     acceptedRisk: checkFindingRiskViewSchema, uncertainty: text,
@@ -354,6 +356,8 @@ export const checkFindingDecisionViewSchema = z.object({
     z.object({ action: z.literal('fix-by-check'), witness: checkFindingWitnessViewSchema }).strict(),
     z.object({ action: z.literal('fix-by-assessment'), reassessed: z.array(text) }).strict(),
     z.object({ action: z.literal('supersede'), reassessed: z.array(text), replacement: text }).strict(),
+    z.object({ action: z.literal('supersede-protection-request'), request: checkFindingDecisionWireIdSchema,
+      assessment: text, paths: z.array(text).min(1) }).strict(),
     z.object({ action: z.literal('waive'), authority: text, acceptedRisk: checkFindingRiskViewSchema, uncertainty: text }).strict(),
     z.object({ action: z.literal('revoke-waiver'), reason: text }).strict(),
     z.object({ action: z.literal('defer'), authority: text, revisit: text }).strict(),

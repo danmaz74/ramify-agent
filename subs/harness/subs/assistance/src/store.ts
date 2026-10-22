@@ -20,6 +20,8 @@ export const assistedEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('coordinator-decision-recorded'), assessmentId: z.string(), reviewRationale: z.string().optional(), finalization: approvalFinalizationSchema.nullable().optional(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
   z.object({ type: z.literal('finding-answer-recorded'), assessmentId: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
   z.object({ type: z.literal('protection-accepted'), assessmentId: z.string(), path: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField, finalization: approvalFinalizationSchema.nullable().optional() }).strict(),
+  z.object({ type: z.literal('protection-request-superseded'), assessmentId: z.string(), command: acceptedCommandSchema,
+    checkFindings: checkFindingEventsField, finalization: approvalFinalizationSchema.nullable().optional() }).strict(),
 ]);
 export type AssistedEvent = z.infer<typeof assistedEventSchema>;
 
