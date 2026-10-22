@@ -29,8 +29,8 @@ Records in a retired form stop being readable.
 The inventory's other five layers, the earlier session layout, `/1` delivery
 manifests and intents, inline-body session-store transactions, `scope-size/1`
 and Pi `0.87.1`, are removed by the separate plan
-`plans/compatibility-layer-removal-records/plan.md`, which runs first. This
-plan does not depend on it.
+`plans/compatibility-layer-removal-records/plan.md`, which ran first and is
+merged into `main`. This plan does not depend on it.
 
 The beneficiaries are the harness maintainers and the architects and engineers
 the harness runs on this project: fewer formats to understand, fewer branches
@@ -375,10 +375,12 @@ Optional suggestions, not requirements:
 
 ## Prerequisites and unresolved decisions
 
-- The descriptive-identifier work (plan `42-descriptive-identifiers`, branch
-  `feat/plan42-assisted-20261021`) is merged into `main` before this plan is
-  registered. It edits the run records, service, log, projections, assistance
-  assessment, judge and task-workflow files this plan removes from; running
-  both at once would make one of them conflict throughout.
-- Before removing a finding, re-verify it against the checkout at start. The
-  inventory predates that merge, and line references in the report have moved.
+- The descriptive-identifier work (plan `42-descriptive-identifiers`) and the
+  records plan are both merged into `main` (`c4dc1f77`), the checkout this
+  plan starts from. Re-verified on that commit: every identifier in the
+  constraints still appears in the owner the module-impact table names, the
+  `restart-import` module and exposure, the `continuity-policy-adopted` event
+  in `autonomous` and `projections`, the `exhausted` judge accessor and the
+  three `recovery resume` CLI fields are all present, and `task-workflow` no
+  longer holds `adoptContinuity` or `effectivePolicy`. Line references in the
+  inventory report predate the merges; locate each finding by identifier.
