@@ -64,28 +64,42 @@ async function baselineOf(view: RunView): Promise<MetricsResponse['baseline']> {
  * directory.
  */
 export async function readObservationLog(path: string, shown: string): Promise<readonly Observation[] | { unavailable: string }> {
+  let bytes: Buffer;
   try {
-    const bytes = await readFile(path);
-    const lines: Observation[] = [];
-    let invalid = 0;
-    const completeBytes = bytes.lastIndexOf(10) + 1;
-    const complete = completeBytes === bytes.length;
-    let start = 0;
-    for (let index = 0; index < completeBytes; index++) if (bytes[index] === 10) {
-      try {
-        const parsed = observationSchema.safeParse(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(start, index))));
-        if (parsed.success) lines.push(parsed.data);
-        else invalid += 1;
-      } catch { invalid += 1; }
-      start = index + 1;
-    }
-    if (invalid > 0 || (!complete && bytes.length > 0)) lines.push({ n: lines.reduce((maximum, row) => Math.max(maximum, row.n), 0) + 1,
-      at: lines.at(-1)?.at ?? '1970-01-01T00:00:00.000Z', type: 'coverage-gap', data: { kind: 'observation-truncated',
-        detail: `${shown}: ${invalid} unreadable rows; trailing partial=${!complete}; known observations retained` } });
-    return lines;
+    bytes = await readFile(path);
   } catch (error) {
     return { unavailable: `${shown} cannot be read: ${error instanceof Error ? error.message : String(error)}` };
   }
+  const lines: Observation[] = [];
+  let invalid = 0;
+  const completeBytes = bytes.lastIndexOf(10) + 1;
+  const complete = completeBytes === bytes.length;
+  let start = 0;
+  for (let index = 0; index < completeBytes; index++) if (bytes[index] === 10) {
+    let row: unknown;
+    try { row = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(start, index))); }
+    catch { invalid += 1; start = index + 1; continue; }
+    if (hasUnsupportedNativeSource(row)) throw new Error(`${shown} observation record: expected pi@1.3.0:SettingsManager`);
+    const parsed = observationSchema.safeParse(row);
+    if (parsed.success) lines.push(parsed.data);
+    else invalid += 1;
+    start = index + 1;
+  }
+  if (invalid > 0 || (!complete && bytes.length > 0)) lines.push({ n: lines.reduce((maximum, row) => Math.max(maximum, row.n), 0) + 1,
+    at: lines.at(-1)?.at ?? '1970-01-01T00:00:00.000Z', type: 'coverage-gap', data: { kind: 'observation-truncated',
+      detail: `${shown}: ${invalid} unreadable rows; trailing partial=${!complete}; known observations retained` } });
+  return lines;
+}
+
+function hasUnsupportedNativeSource(value: unknown): boolean {
+  if (value === null || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  if (row['type'] !== 'context' && row['type'] !== 'compaction') return false;
+  const data = row['data'];
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return false;
+  const native = (data as Record<string, unknown>)['native'];
+  if (native === null || typeof native !== 'object' || Array.isArray(native)) return false;
+  return 'source' in native && (native as Record<string, unknown>)['source'] !== 'pi@1.3.0:SettingsManager';
 }
 
 function observationsOf(view: RunView, id: string): Promise<readonly Observation[] | { unavailable: string }> {

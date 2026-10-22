@@ -149,6 +149,18 @@ export type ObservationType = Observation['type'];
 export type ObservationOf<T extends ObservationType> = Extract<Observation, { type: T }>;
 export type CoverageGapKind = ObservationOf<'coverage-gap'>['data']['kind'];
 
+/** A complete parsed row that names a native identity this harness does not read. */
+function hasUnsupportedNativeSource(value: unknown): boolean {
+  if (value === null || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  if (row['type'] !== 'context' && row['type'] !== 'compaction') return false;
+  const data = row['data'];
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return false;
+  const native = (data as Record<string, unknown>)['native'];
+  if (native === null || typeof native !== 'object' || Array.isArray(native)) return false;
+  return 'source' in native && (native as Record<string, unknown>)['source'] !== 'pi@1.3.0:SettingsManager';
+}
+
 /**
  * The gap kinds that name missing raw output rather than missing
  * observations. The invocation's observations are complete, so these do not
@@ -198,6 +210,7 @@ export class ObservationLog {
     const list: Observation[] = [];
     const seen = new Set<string>();
     for (const line of loaded.records) {
+      if (hasUnsupportedNativeSource(line)) throw new Error(`${path} observation record: expected pi@1.3.0:SettingsManager`);
       const parsed = observationSchema.safeParse(line);
       if (!parsed.success) continue;
       list.push(parsed.data);

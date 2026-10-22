@@ -1,7 +1,10 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import { invocationEvaluationSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { transcriptEntrySchema } from '../../../../src/interfaces/protocol/transcripts.js';
-import { evaluationOf } from '../metrics.js';
+import { evaluationOf, readObservationLog } from '../metrics.js';
 import { observationSchema } from '../../../task-execution/src/observations.js';
 import { invocationSchema } from '../../../task-execution/src/records.js';
 const at = '2026-10-13T06:00:00.000Z';
@@ -10,6 +13,20 @@ const nativeSettings = { source: 'pi@1.3.0:SettingsManager' as const, compaction
 const invocation = invocationSchema.parse({ schema: 'ramify-agent.invocation/1', id: 'inv-0001', role: 'reviewer', work: { request: 'review-frozen' },
   attempt: 1, session: { requested: 'fresh', actual: 'fresh', ref: '' }, prompt: { package: 'reviewer', hash: 'a'.repeat(64), inputsHash: 'a'.repeat(64) },
   scope: { write: null, measurement: null, size: null }, writer: false, base: 'frozen', startedAt: at });
+
+test('projection refuses a complete retired-source observation while preserving malformed-row coverage', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ramify-context-projection-'));
+  const path = join(directory, 'observations.jsonl');
+  try {
+    const current = observationSchema.parse({ n: 1, at, type: 'context', data: { tokens: 10, window: 100, threshold: null, native: nativeSettings } });
+    const retired = { ...current, n: 2, data: { ...current.data, native: { ...nativeSettings, source: nativeSettings.source.replace('1.3.0', [0, 87, 1].join('.')) } } };
+    await writeFile(path, `${JSON.stringify(current)}\n${JSON.stringify(retired)}\n`);
+    await expect(readObservationLog(path, 'observations.jsonl')).rejects.toThrow('observations.jsonl observation record: expected pi@1.3.0:SettingsManager');
+    await writeFile(path, `${JSON.stringify(current)}\n{malformed}\npartial`);
+    const recovered = await readObservationLog(path, 'observations.jsonl');
+    expect(Array.isArray(recovered) ? recovered.map(row => row.type) : recovered).toEqual(['context', 'coverage-gap']);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
 
 test('context projection preserves Pi settings, missing estimates and failed compaction without manufacturing usage', () => {
   const source = 'pi@1.3.0:SettingsManager' as const;
