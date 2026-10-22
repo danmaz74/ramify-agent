@@ -2,6 +2,10 @@
 
 Design documents for the separate agent harness:
 
+- [Removable compatibility layers](analysis/2026-10-22-removable-compatibility-layers.md),
+  Sol's verified inventory across ramify-agent, ramify and ramify-audit under the
+  run-state-is-disposable rule: about 7,200 lines in the harness, 105 in the
+  toolkit and 30 in the auditor, with one evidence conversion required
 - [Independent audit and semantic review](../plans/parallel-audit-review/plan.md),
   three proposed assisted implementation iterations for concurrent checks in
   assisted and automated execution, deterministic audit outcomes and existing
