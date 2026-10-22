@@ -7,6 +7,8 @@ import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { commitRecord } from '../jobs/commit.js';
 import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
+import { runEventPageSchema, runResponseSchema } from '../interfaces/protocol/runs.js';
+import { runSessionsResponseSchema, sessionTranscriptResponseSchema } from '../interfaces/protocol/sessions.js';
 import { runId } from './helpers/constructed.js';
 import { captureProjectionFiles, recordedProjectionConsumers } from './helpers/projection-consumers.js';
 
@@ -15,7 +17,7 @@ const failures = [
   { run: '20260921T080000Z-000002', code: 'unreadable', schema: '1' },
 ] as const;
 
-test('committed malformed and unsupported current run records are refused after reopening without query writes', async () => {
+test('reopening keeps supported run answers and refuses malformed and unsupported records without query writes', async () => {
   const warnings: string[] = [];
   const fixture = await recordedProjectionConsumers(false, async (_root, directory) => {
     for (const failure of failures) {
@@ -39,9 +41,30 @@ test('committed malformed and unsupported current run records are refused after 
   });
   try {
     assert.equal(warnings.length, 1);
+    const supported = async () => {
+      const run = runResponseSchema.parse(await fixture.queries.run('review-notes', runId));
+      const events = runEventPageSchema.parse(await fixture.queries.events('review-notes', runId, 0));
+      const sessions = runSessionsResponseSchema.parse(await fixture.sessions.runSessions('review-notes', runId));
+      const transcript = sessionTranscriptResponseSchema.parse(await fixture.sessions.transcript({
+        source: 'run', planId: 'review-notes', runId, session: 'ses-0001',
+      }, 0));
+      assert.equal(run.run.state, 'completed');
+      assert.equal(events.events.length, 11);
+      assert.deepEqual(sessions.sessions.map(session => [session.session, session.state, session.finished]), [['ses-0001', 'finished', 'work-closed']]);
+      assert.equal(transcript.page.entries.length, 1);
+      assert.deepEqual(await fixture.get(protocolPaths.run('review-notes', runId)), run);
+      assert.deepEqual(await fixture.get(protocolPaths.runEvents('review-notes', runId, 0)), events);
+      assert.deepEqual(await fixture.get(protocolPaths.runSessions('review-notes', runId)), sessions);
+      assert.deepEqual(await fixture.get(protocolPaths.runSessionTranscript('review-notes', runId, 'ses-0001', 0)), transcript);
+      return { run, events, sessions, transcript };
+    };
+    const prior = await captureProjectionFiles(fixture.root);
+    const first = await supported();
+    assert.deepEqual(await captureProjectionFiles(fixture.root), prior);
     await fixture.reopen();
     assert.equal(warnings.length, 2);
     const before = await captureProjectionFiles(fixture.root);
+    assert.deepEqual(await supported(), first);
     for (const failure of failures) {
       let caught: unknown;
       try { await fixture.queries.run('review-notes', failure.run); } catch (error) { caught = error; }

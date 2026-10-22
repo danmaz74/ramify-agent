@@ -76,7 +76,6 @@ export const sessionReachSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('request'), request: text, workItem: text.nullable(), capability: text.nullable() }).strict(),
   z.object({ kind: z.literal('capability-task'), task: text, request: text.nullable(),
     assignment: text.nullable(), module: text.nullable() }).strict(),
-  z.object({ kind: z.literal('module'), module: text }).strict(),
 ]);
 export type SessionReach = z.infer<typeof sessionReachSchema>;
 

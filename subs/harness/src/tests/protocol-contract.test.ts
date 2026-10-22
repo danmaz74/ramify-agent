@@ -443,9 +443,12 @@ describe('sessions', () => {
     for (const state of ['live', 'suspended', 'finished', 'interrupted']) expect(sessionListEntrySchema.safeParse({ ...entry, state }).success).toBe(true);
     expect(sessionListEntrySchema.safeParse({ ...entry, state: 'running' }).success).toBe(false);
     expect(sessionListEntrySchema.safeParse({ ...entry, agent: 'scripted' }).success).toBe(false);
-    for (const reaches of [{ kind: 'run' }, { kind: 'request', request: 'pr-001', workItem: 'wi-001', capability: null }, { kind: 'module', module: 'app/notes' }]) {
+    for (const reaches of [{ kind: 'run' }, { kind: 'request', request: 'pr-001', workItem: 'wi-001', capability: null },
+      { kind: 'work-item', workItem: 'wi-001', capability: 'notes', module: 'app/notes' },
+      { kind: 'capability-task', task: 'ct-001', request: null, assignment: null, module: 'app/notes' }]) {
       expect(sessionListEntrySchema.safeParse({ ...entry, reaches }).success).toBe(true);
     }
+    expect(sessionListEntrySchema.safeParse({ ...entry, reaches: { kind: 'module', module: 'app/notes' } }).success).toBe(false);
     expect(sessionListEntrySchema.safeParse({ ...entry, reaches: { kind: 'run', module: 'app' } }).success).toBe(false);
   });
 

@@ -25,7 +25,7 @@ const list = sessionListResponseSchema.parse({
   sessions: [
     entry({ ref: { source: 'run', planId, runId, session: 'ses-0002' }, state: 'live' }),
     entry({ ref: { source: 'run', planId, runId, session: 'ses-0004' }, state: 'suspended', role: 'local-architect' }),
-    entry({ ref: { source: 'run', planId, runId, session: 'ses-0003' }, state: 'interrupted', work: {}, invocations: 1, reaches: { kind: 'module', module: 'shop/reviews' } }),
+    entry({ ref: { source: 'run', planId, runId, session: 'ses-0003' }, state: 'interrupted', work: {}, invocations: 1, reaches: { kind: 'work-item', workItem: 'wi-001', capability: null, module: 'shop/reviews' } }),
     entry({ ref: { source: 'run', planId, runId, session: 'ses-0001' }, state: 'finished', finished: 'work-closed', role: 'initial-architect', work: {}, reaches: { kind: 'run' } }),
   ],
   total: 4, offset: 0, next: null, unserved: [{ source: 'run', path: 'plans/old/runs/x', message: 'The run log is ramify-agent.job/2, which is not served' }],
