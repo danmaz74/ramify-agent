@@ -249,10 +249,16 @@ describe('the delivered change of a run view, read through a scripted history', 
 
   test.each([null, 42, true, 'not a measurement', []])('malformed measurement root %j leaves the baseline unavailable', async document => {
     const run = await weightedRun();
+    const control = await metricsOf(runView(run));
     const path = runLayout.measurement(size(1000).snapshot);
     await writeFile(join(run.directory, path), JSON.stringify(document));
     const response = await metricsOf(runView(run));
+    expect(control.baseline).toMatchObject({ state: 'measured', bytes: 10000 });
     expect(response.baseline).toEqual({ state: 'unavailable', reason: `${path} cannot be read: expected a measurement object`, subtotal: null });
+    for (const [id, value] of [['session-count', 2], ['usage-tokens.input', 200]] as const) {
+      expect(find(control.metrics, id)).toMatchObject({ state: 'measured', value });
+      expect(find(response.metrics, id)).toEqual(find(control.metrics, id));
+    }
   });
 
   test('retired measurement policy still names the expected form', async () => {
