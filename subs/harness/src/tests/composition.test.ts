@@ -1108,6 +1108,10 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'The NFR deviation adapter asks for a user decision. Other disposition actions remain legal CheckFinding variants, but this event carrier does not emit them.',
   },
   {
+    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['supersede-protection-request'],
+    reason: 'The NFR deviation run-log carrier cannot emit the assisted protection supersession action. The assisted producer is exercised by assistance-protection-authorization.test.ts: retires only an earlier linked protection request after current exact authority, and replays the clear gate.',
+  },
+  {
     union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[plan-repair].repair.kind', values: ['assignment'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
