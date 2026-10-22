@@ -22,7 +22,7 @@ import { compareProtection, type ProtectionComparison } from './protection.js';
 import { captureAssistanceDocuments, readCandidateDocument, requireCurrentAssistanceDocuments, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
-import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, predecessorAssessment, retainedRequirementAnswers, substantiveGaps, reportReviewConcerns, reportAuditInstability, knownFindingSummary, unverifiedSemanticClosures } from './findings.js';
+import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, predecessorAssessment, retainedRequirementAnswers, requireCurrentReviewEvidence, substantiveGaps, reportReviewConcerns, reportAuditInstability, knownFindingSummary, unverifiedSemanticClosures } from './findings.js';
 
 const digest = (value: unknown): string => `sha256:${createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex')}`;
 const errorText = (error: unknown): string => error instanceof Error ? error.message : String(error);
@@ -177,6 +177,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     while (reviewBasis && reviewBasis.request.kind === request.kind && !seen.has(reviewBasis.id)) {
       seen.add(reviewBasis.id);
       const retained = (reviewBasis.stages.find(stage => stage.name === 'review-accepted') ?? reviewBasis.stages.find(stage => stage.name === 'review'))?.evidence as ReviewEvidence | undefined;
+      if (retained) requireCurrentReviewEvidence(retained);
       if (retained?.result.status === 'submitted') break;
       reviewBasis = predecessorAssessment(reviewBasis, context.assessments());
     }
@@ -477,11 +478,6 @@ async function verifyRetainedReview(review: ReviewEvidence, input: {
     if ((!held.ok || held.kind !== 'file') && !input.snapshot.changes.some(change => change.path === path && change.status === 'D'))
       throw new Error(`Retained candidate evidence ${path} is unavailable`);
   }
-}
-
-function requireCurrentReviewEvidence(review: ReviewEvidence): void {
-  if (review.sourceVerification !== 'candidate-inspection/1')
-    throw new Error('Assisted review requires sourceVerification candidate-inspection/1');
 }
 
 async function verifyReconciliationSource(reconciliation: ReconciliationEvidence & { status: 'submitted' }, input: {

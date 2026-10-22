@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { canonicalJson } from '../../../src/jobs/commands.js';
 import type { CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
 import { assistedOutcomeSchema, type AssistedAssessment, type AssistedJob, type AssistedOutcome, type AssessmentStage } from './contracts.js';
-import { acceptedProtectionExceptions, authorizedProtectionFinding, findingDetails, remainingBriefs, retainedRequirementAnswers } from './findings.js';
+import { acceptedProtectionExceptions, authorizedProtectionFinding, findingDetails, remainingBriefs, retainedRequirementAnswers, requireCurrentReviewEvidence } from './findings.js';
 import { authorizeProtection, type ProtectionComparison } from './protection.js';
 import type { AssistedAuditOutcome } from './audit.js';
 import type { AssistedReviewSubmission } from '../../reviews/src/assisted.js';
@@ -61,14 +61,20 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
     || !matchesRequest(assessment.request, readiness.requestHash) || !matchesStages(assessment.stages, readiness.stagesHash)) return null;
   const audit = assessment.stages.find(stage => stage.name === 'audit')?.evidence as AssistedAuditOutcome | undefined;
   const review = (assessment.stages.find(stage => stage.name === 'review-accepted') ?? assessment.stages.find(stage => stage.name === 'review'))?.evidence as {
+    sourceVerification?: unknown;
     result?: { status: string; value?: AssistedReviewSubmission };
   } | undefined;
+  if (review) requireCurrentReviewEvidence(review);
   const reviewPolicy = assessment.stages.find(stage => stage.name === 'review-policy')?.evidence as { mode?: string; previousAssessment?: string } | undefined;
   const deliberatelySkipped = reviewPolicy?.mode === 'not-run' && assessment.request.kind === 'iteration'
-    && input.assessments.some(item => item.id === reviewPolicy.previousAssessment && item.status === 'completed'
-      && ((item.stages.find(stage => stage.name === 'review-accepted') ?? item.stages.find(stage => stage.name === 'review'))?.evidence as {
-        result?: { status: string };
-      } | undefined)?.result?.status === 'submitted');
+    && input.assessments.some(item => {
+      if (item.id !== reviewPolicy.previousAssessment || item.status !== 'completed') return false;
+      const retained = (item.stages.find(stage => stage.name === 'review-accepted') ?? item.stages.find(stage => stage.name === 'review'))?.evidence as {
+        sourceVerification?: unknown; result?: { status: string };
+      } | undefined;
+      if (retained) requireCurrentReviewEvidence(retained);
+      return retained?.result?.status === 'submitted';
+    });
   const heldProtection = assessment.stages.find(stage => stage.name === 'protection')?.evidence as ProtectionComparison | undefined;
   if (audit?.state !== 'passed' || audit.requestedSourceCommit !== assessment.request.candidate
     || audit.auditedSourceCommit === null || (!input.reviewContinued && !deliberatelySkipped && (review?.result?.status !== 'submitted' || !review.result.value))

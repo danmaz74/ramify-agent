@@ -15,7 +15,7 @@ import { readPlan } from '../../../src/plans/discover.js';
 import { acquireProjectLock, type ProjectLock } from '../../../src/store/lock.js';
 import { ensureStateDirectory } from '../../../src/store/state-directory.js';
 import { assistedDirectory, AssistedStore, type AssistedEvent } from './store.js';
-import { acceptedProtectionExceptions } from './findings.js';
+import { acceptedProtectionExceptions, requireCurrentReviewEvidence } from './findings.js';
 import { finalizeApproval, type ApprovalFinalization } from './approval.js';
 import { authorizeProtection, defaultProtectionRules, inspectProtectedInputs, type ProtectionComparison } from './protection.js';
 import {
@@ -679,8 +679,10 @@ const events = store.ledger.replay().flatMap(line => line.transaction.event.type
         throw new CommandRejection('conflict', 'Supersession requires the latest completed final assessment');
       const readiness = assessment.stages.find(stage => stage.name === 'approval-readiness')?.evidence as { tree?: unknown } | undefined;
       const review = (assessment.stages.find(stage => stage.name === 'review-accepted') ?? assessment.stages.find(stage => stage.name === 'review'))?.evidence as {
+        sourceVerification?: unknown;
         result?: { status?: string; value?: { concerns?: unknown[]; missing?: unknown[]; requirements?: Array<{ outcome: string }> } };
       } | undefined;
+      if (review) requireCurrentReviewEvidence(review);
       if (typeof readiness?.tree !== 'string' || review?.result?.status !== 'submitted' || !review.result.value
         || review.result.value.concerns?.length !== 0 || review.result.value.missing?.length !== 0
         || !Array.isArray(review.result.value.requirements) || review.result.value.requirements.some(answer => answer.outcome !== 'met')

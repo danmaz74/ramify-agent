@@ -10,7 +10,7 @@ import { scriptedCandidates, type ScriptedCommit } from '../../../autonomous/sub
 import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';
 import { validateReconciliationForExecution } from '../../../reviews/src/reconciliation.js';
 import type { AssistedReviewSubmission } from '../../../reviews/src/assisted.js';
-import { factualFindingKey, findingDetails, reportReviewConcerns } from '../findings.js';
+import { factualFindingKey, findingDetails, reportReviewConcerns, retainedRequirementAnswers } from '../findings.js';
 import { AssistanceService } from '../service.js';
 import { finalizeApproval } from '../approval.js';
 import { emptyCheckFindingState } from '../../../check-findings/src/replay.js';
@@ -88,7 +88,7 @@ describe('assisted assessment pipeline with real service records', () => {
         if (kind === 'documents') await context.checkpoint('documents', { storage: 'inline', documents: [] });
         else await context.checkpoint('review-accepted', { result: { status: 'submitted', value: reviewReport(first),
           operationId: 'review', sessionId: 'review-session', eventCount: 1 }, bindings: [], read: [], inspected: [],
-          sourceVerification: 'retired-review' });
+          sourceVerification: ['git', 'exact', 'text/1'].join('-') });
         throw new Error('Stopped after checkpoint');
       } }); services.push(old);
     const job = await old.planStart({ planId: 'sample', commandId: 'start' });
@@ -109,6 +109,42 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(revision);
     expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).error).toContain(
       kind === 'documents' ? 'git-references document reference' : 'candidate-inspection/1');
+  });
+
+  it('refuses a completed predecessor review before selecting focused or skipped review', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'assistance-retired-predecessor-')); roots.push(root);
+    await mkdir(join(root, 'plans/sample'), { recursive: true });
+    await writeFile(join(root, 'plans/sample/plan.md'), '# Plan\nThe feature returns 2.\n');
+    const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
+      resolveCommit: async (_root, revision) => revision, assessor: async context => {
+        await context.checkpoint('review-accepted', { result: { status: 'submitted', value: reviewReport(first),
+          operationId: 'review', sessionId: 'review-session', eventCount: 1 }, bindings: [], read: [], inspected: [],
+          sourceVerification: ['git', 'exact', 'text/1'].join('-') });
+        return { gate: 'clear', summary: 'Retained predecessor.', gaps: [], repairs: [], decisions: [], evidence: [] };
+      } }); services.push(old);
+    const job = await old.planStart({ planId: 'sample', commandId: 'start' });
+    const prior = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'prior' });
+    expect((await outcome(old, job.jobId, prior.assessmentId)).gate).toBe('clear');
+    await old.close();
+    const candidates = scriptedCandidates(root, { [baseline]: source('0', baseline), [first]: source('2', baseline),
+      [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) });
+    let reviewCalls = 0;
+    const resumed = await AssistanceService.open({ projectRoot: root, resolveCommit: async (_root, revision) => revision,
+      assessor: createAssessor({ candidates,
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async () => { reviewCalls++; throw new Error('Predecessor evidence must be refused before review'); } }) }); services.push(resumed);
+    const previous = resumed.assessmentDetail('sample', job.jobId, prior.assessmentId);
+    expect(() => retainedRequirementAnswers(previous, [previous])).toThrow('candidate-inspection/1');
+    const admitted = await resumed.iterationAssess({ planId: 'sample', jobId: job.jobId, base: first, candidate: repaired,
+      kind: 'iteration', brief: 'Verify the repair.', acceptance: ['The feature returns 2.'], requirementDocuments: [],
+      previousAssessment: prior.assessmentId, commandId: 'follow-up' });
+    await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId)).toMatchObject({
+      status: 'interrupted', error: expect.stringContaining('candidate-inspection/1'),
+    }));
+    const detail = resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId);
+    expect(detail.stages.some(stage => stage.name === 'review-policy')).toBe(false);
+    expect(reviewCalls).toBe(0);
   });
 
   it.each(['audit-first', 'review-first'] as const)('starts independent checks and retains the %s result while its sibling is pending', async order => {

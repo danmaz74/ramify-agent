@@ -193,6 +193,12 @@ export function authorizedProtectionFinding(entry: Pick<import('../../check-find
 
 export { knownFindingSummary } from '../../check-findings/src/queries.js';
 
+/** A retained review can inform a later decision only in the current capture form. */
+export function requireCurrentReviewEvidence(review: { sourceVerification?: unknown }): void {
+  if (review.sourceVerification !== 'candidate-inspection/1')
+    throw new Error('Assisted review requires sourceVerification candidate-inspection/1');
+}
+
 /** Read the existing predecessor chain; unavailable invocations cannot replace an acceptance judgment. */
 export function predecessorAssessment(assessment: AssistedAssessment, assessments: readonly AssistedAssessment[]): AssistedAssessment | undefined {
   if (assessment.request.previousAssessment !== undefined) return assessments.find(item => item.id === assessment.request.previousAssessment);
@@ -208,8 +214,10 @@ export function retainedRequirementAnswers(assessment: AssistedAssessment, asses
   while (current && !seen.has(current.id)) {
     seen.add(current.id);
     const review = (current.stages.find(stage => stage.name === 'review-accepted') ?? current.stages.find(stage => stage.name === 'review'))?.evidence as {
+      sourceVerification?: unknown;
       result?: { status: string; value?: AssistedReviewSubmission };
     } | undefined;
+    if (review) requireCurrentReviewEvidence(review);
     if (review?.result?.status === 'submitted' && review.result.value) return review.result.value.requirements;
     current = predecessorAssessment(current, assessments);
   }
