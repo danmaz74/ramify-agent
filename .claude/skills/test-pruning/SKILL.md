@@ -70,10 +70,30 @@ on fakes beats a recovery row beats a composed run beats a boundary witness.
 
 Act autonomously where the owner is verified. List for the user only the
 cases where the two candidates differ in substance, where a native claim has
-no cheaper witness, or where a scenario is pending and its Vitest twin is the
-only running check.
+no cheaper witness, where a scenario is pending and its Vitest twin is the
+only running check, or where the testing spec retains the file (an opt-in
+trial runner). Before the prune, have the decision list reviewed against the
+source once more: in the first pass the review found a canary listed for
+deletion, a live policy limit called retired, an owner that did not exist,
+two behavior tests filed as double tests, and a retained file called dead.
 
 ## 4. Prune
+
+Run a suite-wide prune in parallel, one subagent per slice, each in its own
+worktree and branch (`git worktree add ../worktrees/<slice> -b <slice>
+<integration-branch>`, then `npm ci` in it; never share `node_modules`).
+Partition by file ownership so no two slices edit one file: boundary
+wrappers and the registry; module boundaries and other-tool tests; the
+harness-root node files; the autonomous subtree; scenario twins, scripts,
+web and docs. Shared files (`src/tests/test-boundaries.json`,
+`vitest.config.ts`) are edited only for a slice's own entries, with
+formatting elsewhere unchanged, so the merge stays clean. A helper whose
+callers two slices own keeps its signature until the merge (the
+`realBoundary` flag of `acceptance-flow.ts`); the slice that strands it
+lists a handoff. Each subagent verifies owners before deleting, runs only
+filtered tests and the type check, commits on its branch, and never runs the
+whole suite or an audit. Merge every branch into the integration branch,
+resolve the registry and config conflicts, then qualify once.
 
 - Delete whole files with `git rm`; delete cases by editing; for sweeps,
   create `<name>.stress.ts` beside the file and keep the counterexample set.
@@ -83,8 +103,8 @@ only running check.
 - Scenario twins: delete the Vitest file, fold the helper into the step
   file, keep the feature, step and `agent-scenarios` check. Never edit a
   feature file or a scenario's state by hand.
-- Shared flows run many times: keep one run per file and attach the other
-  files' inspections to it, rather than deleting their assertions.
+- Shared flows run many times: keep one run and attach the other files'
+  inspections to it, rather than deleting their assertions.
 - Delete dead policy fields, export hooks and helpers that the removed tests
   were the last users of. `grep` for each removed helper export.
 - Do not touch `docs/.superseded/`, fixtures under `subs/harness/fixtures/`,
@@ -98,9 +118,11 @@ only running check.
    `npm run test:boundaries -- <files>`; a new stress file with
    `npm run test:stress -- <file>`.
 2. `npm run type-check` and `npm run check:self`.
-3. Commit, then from the clean checkout run the audit in default mode:
+3. Commit, then from the clean checkout run ONE audit after every slice has
+   merged, never an audit of a partial removal:
    `node_modules/.bin/ramify-audit audit --cwd . --json`. Add `--full` only
-   when the user asked for full qualification, and say why before running.
+   when the user asked for whole-suite qualification, and say why before
+   running.
 4. Rerun `suite-durations.py` on the new report and compare the tier table
    with step 1.
 

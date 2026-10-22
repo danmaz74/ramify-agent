@@ -42,11 +42,15 @@ FLAGS = {
 
 
 def newest_report_ref():
+    """The newest report commit that retains the agent-tests text (a partial audit may not)."""
     out = subprocess.run(['git', 'for-each-ref', '--sort=-committerdate', '--format=%(objectname)', 'refs/audited/by-tree'],
                          capture_output=True, text=True, check=True).stdout.split()
     if not out:
         sys.exit('no refs/audited/by-tree refs; pass --ref or --text')
-    return out[0]
+    for ref in out[:50]:
+        if subprocess.run(['git', 'cat-file', '-e', f'{ref}:reports/audit/agent-tests.txt'], capture_output=True).returncode == 0:
+            return ref
+    sys.exit('none of the newest 50 report commits retains reports/audit/agent-tests.txt; pass --ref or --text')
 
 
 def report_text(args):
@@ -56,7 +60,8 @@ def report_text(args):
     res = subprocess.run(['git', 'show', f'{ref}:reports/audit/agent-tests.txt'], capture_output=True, text=True)
     if res.returncode:
         sys.exit(f'cannot read reports/audit/agent-tests.txt from {ref}: {res.stderr.strip()}')
-    print(f'report commit {ref[:12]}', file=sys.stderr)
+    audited = subprocess.run(['git', 'log', '-1', '--format=%cd', '--date=short', ref], capture_output=True, text=True).stdout.strip()
+    print(f'report commit {ref[:12]} ({audited}); file-seconds scale with the worker count that run used', file=sys.stderr)
     return res.stdout
 
 

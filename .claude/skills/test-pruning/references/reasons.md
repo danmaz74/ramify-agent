@@ -54,17 +54,24 @@ in front of the native call belongs to the node project, where it already is.
 
 Rule: this repository never asserts the behavior of ramify-audit, Ramify,
 Cucumber, Vitest, Node, the kernel or an SDK. One named canary file per
-dependency is the only exception, and it says so in its header.
+dependency is the only exception, and it says so in its header. The canaries
+are `subs/harness/subs/audit/src/tests/audit-conformance.test.ts` (ramify-audit,
+sixteen numbered facts against the pinned SDK), `subs/harness/subs/ledger/src/tests/killed-writer.test.ts`
+(the kernel: a write that has entered the kernel survives SIGKILL, which
+`torn-line` replay depends on) and the `pi-agent` file (the Pi SDK). A
+canary is never an R3 deletion; a second file proving the same tool fact is.
 
-- Delete: "conformance" suites against a published SDK version; partial
-  selection or report layout of ramify-audit; Vitest launched inside Vitest
-  to observe worker reuse; `execFile` timeout or env passing; SIGKILL
-  semantics; V8 or `JSON.stringify` error text; SDK defaults such as
-  `reserveTokens`; raw CLI exit codes and output text inside otherwise useful
-  cases.
+- Delete: a second conformance or partial-selection suite beside the canary;
+  Vitest launched inside Vitest to observe worker reuse; `execFile` timeout
+  or env passing; V8 or `JSON.stringify` error text; SDK defaults such as
+  `reserveTokens` asserted outside the canary; raw CLI exit codes and output
+  text inside otherwise useful cases.
 - Owner: the tool's own suite (ramify-audit and Ramify have checkouts beside
   this one). For a fact this code depends on, keep one assertion in the
   canary file.
+- Trap: `reserveTokens` and similar names also appear as fixture data in
+  files that never touch the SDK; a hit outside the SDK's own module is
+  usually data, not an assertion about the tool.
 - Detect: R3 greps titles and bodies. Also look for many `tsx src/main.ts`
   spawns in one file: the spawn is 1.2 s each and usually proves the CLI
   parses arguments, which `cli.test.ts` does in process.
@@ -97,6 +104,15 @@ Shapes seen:
 - Trap: twins with the same name and different behavior exist (a
   `before-ingestion` pair that tests warning replay in one file and blocked
   repair in the other). Compare assertions, not titles.
+- Trap: a matching acceptance tag is not an owner. `review-lifecycle` CF04
+  had no CF04 in `check-findings-composition`; its CF06 and CF07 matched by
+  tag while the titles differed. The owner must contain the assertion, and
+  when the owner's case is itself being reduced (a sweep moving to stress), a
+  boundary only the sweep covered has no owner and stays.
+- Move, then assess: run-driving describes that live in a module other than
+  the engine they exercise (task-workflow tests that run work-coordination)
+  may have no owner at all. Move them beside the engine's run tests first;
+  delete only what an existing run test there already proves.
 
 ## R5. Exhaustive sweeps in the ordinary suite
 
@@ -119,11 +135,20 @@ Rule: [run state is disposable](../../../../AGENTS.md#run-state-and-compatibilit
 No legacy readers, dual formats or "remains readable" obligations.
 
 - Delete: cases titled legacy, compatible, earlier-run, "left behind", and
-  cases that only check a retired limit no longer fires. Delete the dead
-  policy fields with them.
+  cases that only check a limit the production code no longer reads. Delete
+  the dead policy fields with them.
 - Detect: R6. Read before deleting: "legacy" is also a product term in some
   modules (a legacy context return is a protocol branch, not run-state
   compatibility).
+- Trap: "former allowance" in a title does not mean the limit is retired.
+  `grep` the policy field in production first. `invocationAbsoluteMs` is
+  still the command hold, and the tests saying a reached allowance never
+  refuses pending work guard the continuity principle in
+  `docs/harness-recovery.principles.md`. Such a behavior keeps one owner, the
+  fake-timer unit test (`run-bounds` "a healthy held command is not
+  interrupted by the former absolute allowance"); only its full-run copies go.
+- Trap: a test that the decoder refuses an earlier run policy rather than
+  adapting it (`plan-evidence-compatibility`) enforces this rule and stays.
 
 ## R7. Tests of test doubles
 
@@ -141,6 +166,13 @@ test files.
   files with five or more double-state reads.
 - Guard: remove state readers from the double's public surface; one Git
   double, not six.
+- Trap: classify by what the assertions are about, never by the file name.
+  `audit-check-execution.test.ts` is the fake-backed twin of a boundary case,
+  not a double test; `*-compatibility` may enforce a rule (see R6). A mixed
+  file (`direct-check-execution`: four script-exhaustion cases, three
+  executor cancellation and abort cases) is split, not deleted.
+- Trap: a registered boundary file that spawns the CLI has no production
+  import either; it is R2 or R3 material, never R7.
 
 ## R8. Enum, constant, schema-shape and prose locks
 
@@ -163,6 +195,11 @@ a serialized blob unless a consumer's behavior depends on it. TypeScript
   own fixture script emits; manual scripts pointing at moved test files.
 - Detect: R9, then run the file: a vacuous case passes with its subject
   removed.
+- Trap: an env-gated file is not dead when the testing spec retains it.
+  `fixture-trials.test.ts` is the opt-in trial runner `docs/testing.spec.md`
+  says keeps its setup and optional skips, and it is registered. Deleting it
+  is a decision for the user that also changes that spec sentence; list it,
+  do not prune it.
 
 ## Not a reason
 

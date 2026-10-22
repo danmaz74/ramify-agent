@@ -29,7 +29,7 @@ from collections import defaultdict
 
 TEST_GLOB = re.compile(r'\.test\.tsx?$')
 SKIP_DIRS = {'node_modules', 'fixtures', '.ramify', 'tmp', 'dist', '.superseded'}
-TITLE = re.compile(r'''^\s*(?:test|it)(?:\.each\([^)]*\))?\(\s*(['"`])(.*?)\1''', re.M)
+TITLE = re.compile(r'''^\s*(?:test|it)(?:\.\w+(?:\((?:[^()]|\([^()]*\))*\))?)*\(\s*(['"`])((?:\\.|(?!\1).)*)\1''', re.M)
 TAG = re.compile(r'\b((?:CA|CF|PB3-[A-Z]|AS|CM|ST|[BCDHIPRSUV])\d{1,2})\b')
 RUN_HELPERS = re.compile(r'\b(startRun|openRuns|runToEnd|runAcceptedHandback|runDependencyGate|reviewRun|verifyRow|crashAt)\(')
 DOUBLE_STATE = re.compile(r'\b(git|scripted|fake|mock)\w*\.(commits|operations|minted|branch|head|answers|calls)\(\)')
@@ -39,7 +39,8 @@ SWEEP_TITLE = re.compile(r'\b(every \w+(,| over| of| ×| x) every|each prefix|ea
 SWEEP_CODE = re.compile(r'\.length\)\.toBeGreaterThan\(\s*\d{2,}|for \(let \w+ = 0; \w+ <= [^;]*(lines|length)[^;]*\+ 1|\.options\.flatMap\(')
 LEGACY = re.compile(r'\b(legacy|compatib|backward|no longer (fires|applies|limits|bounds)|left behind|earlier (harness|run|version))\b', re.I)
 OTHER_TOOL = re.compile(r'ramify-audit \d|vitest\.mjs|--project boundaries|toThrow\([^)]*(circular|BigInt)|SIGKILL cannot|reserveTokens: \d|execFile\(\{[^}]*timeout|worktree prune')
-SPAWN = re.compile(r"src/main\.ts")
+SPAWN = re.compile(r"src/main\.ts|main\.ts'|\bexecFile\(|\bspawn\(")
+CANARY = re.compile(r'\bcanary\b', re.I)
 ENV_GATE = re.compile(r'\b(describe|test|it)\.(skip|skipIf|runIf)\(|process\.env\.[A-Z_]+\s*\?\s*(test|describe|it)\b')
 
 
@@ -60,6 +61,15 @@ def read(path):
 
 def line_of(src, pos):
     return src.count('\n', 0, pos) + 1
+
+
+def title_text(raw):
+    """A test title as Vitest reports it: source escapes removed."""
+    return re.sub(r"\\(['\"`\\])", r'\1', raw).strip()
+
+
+def is_canary(src):
+    return bool(CANARY.search('\n'.join(src.splitlines()[:25])))
 
 
 def stem(path):
@@ -144,16 +154,20 @@ def main():
     if wanted('R3'):
         items = []
         for f, src in sources.items():
+            if is_canary(src):
+                continue  # the one named witness per dependency stays
             for m in OTHER_TOOL.finditer(src):
+                if m.group(0).startswith('reserveTokens') and '/subs/pi/' not in f:
+                    continue  # fixture data outside the SDK's module
                 items.append(f'`{f}:{line_of(src, m.start())}` {m.group(0)[:40]}')
-        section('R3 assertions about another tool', items[:120])
+        section('R3 assertions about another tool (canary files skipped)', items[:120])
 
     if wanted('R4'):
         by_title = defaultdict(list)
         by_tag = defaultdict(set)
         for f, src in sources.items():
             for m in TITLE.finditer(src):
-                title = m.group(2).strip()
+                title = title_text(m.group(2))
                 by_title[title].append(f'{f}:{line_of(src, m.start())}')
                 for t in TAG.findall(title):
                     by_tag[t].add(f)
@@ -190,11 +204,13 @@ def main():
         for f, src in sources.items():
             if stem(f) in step_names:
                 continue  # an R1 scenario twin, not a double test
+            if f in registry:
+                continue  # a native witness has no production import either; that is R2/R3 material
             imports = re.findall(r'''from\s+['"]([^'"]+)['"]''', src)
             prod = [i for i in imports if i.startswith('.') and '/tests/' not in i and not re.search(r'(scripted|mock|fake|helpers)', i) and not i.startswith('./helpers')]
             n_state = len(DOUBLE_STATE.findall(src))
             double_signal = any(re.search(r'(scripted|mock|fake|guard|boundaries|transports)', i) for i in imports) or bool(
-                re.search(r'(unstated|unused answer|exhausted|refus)', src, re.I))
+                re.search(r'(unstated answer|unused answer|exhausted (answer|script)|assertComplete|assertAnswered|refused (launch|process))', src, re.I))
             if imports and not prod and not RUN_HELPERS.search(src) and not SPAWN.search(src) and double_signal:
                 items.append(f'`{f}`: no production import and the subject is a helper or double')
             elif n_state >= 5:
@@ -217,7 +233,7 @@ def main():
             if src is None:
                 items.append(f'registry file missing: `{f}`')
                 continue
-            titles = [m.group(2).strip() for m in TITLE.finditer(src)]
+            titles = [title_text(m.group(2)) for m in TITLE.finditer(src)]
             if re.search(r'\b(test|it)\.each\(', src) or re.search(r'\b(test|it)\(\s*(?:`[^`]*\$\{|[A-Za-z_])', src):
                 items.append(f'`{f}`: parameterized titles; compare its owningCases by hand')
                 continue
