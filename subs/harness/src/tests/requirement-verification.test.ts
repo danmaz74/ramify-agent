@@ -235,9 +235,11 @@ const seam = {
   note: `${consumerDirectory}/src/limit-note.ts`,
 };
 
-async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly CommitResponse[], finalHead: string) {
+async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly CommitResponse[], finalHead: string, preparationHead?: string) {
   const final = finalCandidate(root, finalHead);
-  const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits], previews: final.previews });
+  const previews = preparationHead === undefined ? final.previews
+    : [{ ...final.previews[0]!, head: preparationHead }, ...final.previews];
+  const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits], previews });
   const opened = await openRuns(root, {
     script: byRole({ 'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })], ...plan }), inputs: treeInputs(), git, candidates: final.candidates,
 
@@ -294,7 +296,7 @@ describe('a requirement whose fake is still injected is not verified', () => {
       accepted('work-item:review-notes.i04', 'revision-04', modified(seam.consumer)),
       unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
-    ], 'revision-04');
+    ], 'revision-04', 'revision-01');
 
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
     const log = await runEventsOnDisk(root, 'review-notes', runId);
@@ -413,7 +415,7 @@ describe('P2: the contract gate rejects a fake under a production-looking name',
       accepted('work-item:review-notes.i03', 'revision-02', modified(seam.consumer)),
       unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
-    ], 'revision-02');
+    ], 'revision-02', 'revision-01');
 
     // The run finishes: the agreement was refused, and the caller carried
     // the work itself.

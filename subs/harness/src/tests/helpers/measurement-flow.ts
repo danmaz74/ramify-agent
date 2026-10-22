@@ -12,7 +12,7 @@ import { RunQueries } from '../../../subs/projections/src/queries.js';
 import { createQuerySource } from '../../http/query-source.js';
 import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
 import { temporaryDirectory } from './fixture.js';
-import { emptyAnalysis, onlyRun, runPath, startRun, type OpenRunsOptions, type openRuns } from './runs.js';
+import { emptyAnalysis, onlyRun, runPath, startRun, stopRun, until, type OpenRunsOptions, type openRuns } from './runs.js';
 
 export interface MeasurementEnvironment {
   readonly cleanups: Array<() => Promise<void>>;
@@ -145,6 +145,9 @@ export function measurementCase(environment: MeasurementEnvironment, number: num
     });
     environment.cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
+    await until(() => service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
+    expect(onlyRun(service, 'review-notes')).toMatchObject({ state: 'running', recovery: { state: 'paused' } });
+    await service.execute(stopRun('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version));
     await service.settled('review-notes', receipt.jobId);
 
     const record = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.record), 'utf8')) as RunRecord;
@@ -156,10 +159,9 @@ export function measurementCase(environment: MeasurementEnvironment, number: num
     expect(invocation.scope.measurement).toBeNull();
     expect(invocation.scope.size!.bytes).toBeNull();
 
-    // The run itself still fails, because the Ramify check readiness runs is
-    // that same command line: an unavailable measurement is a coverage gap,
-    // and a check that did not run is never a pass.
-    expect(onlyRun(service, 'review-notes').state).toBe('failed');
+    // The missing command also obstructs readiness, leaving recovery paused
+    // until an operator corrects it or stops the run.
+    expect(onlyRun(service, 'review-notes').state).toBe('stopped');
   }, 180_000);
 }
 

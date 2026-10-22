@@ -90,6 +90,7 @@ async function fixtureWith(...modules: ReadonlyArray<'notes' | 'tags'>): Promise
 
 interface RunOptions {
   readonly checkScript?: DirectCheckScript | undefined;
+  readonly previewHeads?: readonly string[] | undefined;
   /** Wraps the scenario's Git, for a double that observes or interrupts one answer. */
   readonly git?: ((git: AnsweredGit) => AnsweredGit) | undefined;
 }
@@ -100,7 +101,7 @@ async function run(root: string, script: Parameters<typeof byRole>[0], commits: 
   const before = commits.slice(0, -1).flatMap(commit => commit.commit ?? []).at(-1) ?? 'scenarios-00';
   const final = hasFinal ? finalCandidate(root, before, commits.at(-1)?.commit ?? before) : null;
   const answered = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted(plan, 'scenarios-00'), ...commits],
-    ...(final === null ? {} : { previews: final.previews }) });
+    ...(final === null ? {} : { previews: options.previewHeads?.map(head => ({ ...final.previews[0]!, head })) ?? final.previews }) });
   const git = options.git?.(answered) ?? answered;
   const baseCandidates = treeCandidates(root);
   const candidates = final === null ? baseCandidates : {
@@ -420,6 +421,7 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
       unchanged('work-item:review-note'),
       unchanged(finalSubject),
     ], {
+      previewHeads: Array(5).fill('revision-02'),
       checkScript: ({ check, context }) => {
         if (check.kind !== 'scenarios') return {};
         if (context.checkpoint !== 'iteration') return { scenarios: runnableScenarios(root) };
@@ -559,7 +561,7 @@ describe('PB3-D11: a completion proposal binds every assigned obligation', () =>
     }, [
       accepted('work-item:review-note', 'revision-01', modified(feature)),
       unchanged(finalSubject),
-    ]);
+    ], { previewHeads: ['scenarios-00', ...Array(4).fill('revision-01')] });
 
     expect(onlyRun(service, plan).state).toBe('completed');
     const engineer = agent!.sessions.find(session => session.spec.role === 'engineer')!;

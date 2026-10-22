@@ -19,7 +19,7 @@ import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { qualificationActionSchema } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
 
 import { copyFixture } from './helpers/fixture.js';
-import { emptyAnalysis, freeze, installTestRunner, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, until } from './helpers/runs.js';
+import { emptyAnalysis, freeze, installTestRunner, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, until } from './helpers/runs.js';
 import { scenarioGit } from './helpers/recovery-git.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
 import type { OpenRunsOptions } from './helpers/runs.js';
@@ -32,6 +32,14 @@ afterEach(async () => {
   for (const adapter of adapters.splice(0)) await adapter.close();
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
 });
+async function settleAfterControlledFailure(service: Awaited<ReturnType<typeof openRuns>>['service'], runId: string) {
+  await until(() => service.events('review-notes', runId)!.some(event => event.type === 'operation-recovery-paused')
+    || service.getRun('review-notes', runId)?.state !== 'running');
+  if (service.getRun('review-notes', runId)?.recovery?.state === 'paused') {
+    await service.execute(stopRun('review-notes', runId, service.getRun('review-notes', runId)!.version));
+  }
+  await service.settled('review-notes', runId);
+}
 async function expectOriginalTranscript(root: string, runId: string, operation: string, session: string) {
   const directory = runPath(root, 'review-notes', runId);
   const transcript = await readTranscript(join(directory, runLayout.transcript(session)));
@@ -325,7 +333,7 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
       ? [{ kind: 'fail', error: 'Controlled stop after restored intake' }] : []));
     const second = await openRuns(fixture.root, { git, agent: resumed });
     try {
-      await second.service.settled('review-notes', receipt.jobId);
+      await settleAfterControlledFailure(second.service, receipt.jobId);
       const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
       expect(events.filter(event => event.type === 'invocation-started' && event.data.invocation === 'inv-0001')).toHaveLength(1);
       expect(events.filter(event => event.type === 'invocation-ended' && event.data.invocation === 'inv-0001')).toEqual([expect.objectContaining({ data: expect.objectContaining({ ended: phase === 'accepted' ? 'submitted' : 'failed' }) })]);
@@ -368,7 +376,7 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
     }
     const second = await openRuns(fixture.root, { git, agent: resumed });
     try {
-      await second.service.settled('review-notes', receipt.jobId);
+      await settleAfterControlledFailure(second.service, receipt.jobId);
       const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
       expect(resumed.sessions.filter(record => record.spec.role === 'catalog-extractor')).toHaveLength(0);
       expect(events.filter(event => event.type === 'invocation-started' && event.data.invocation === 'inv-0001')).toHaveLength(1);

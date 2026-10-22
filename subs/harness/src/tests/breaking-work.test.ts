@@ -30,7 +30,8 @@ describe('the broad scope is a planned exception', () => {
     const blank = assign(core, { kind: 'breaking', stage: 1, goal: 'Make the break.', scope: broadScope('   ') }, stagedOutline());
     // The module engineer finishes nothing and the architect stops the run, so no
     // gate of this scenario's own reaches a commit boundary.
-    const scripted = gateGit(root, { head: base, commits: [scenarios] });
+    const scripted = gateGit(root, { head: base, commits: [scenarios],
+      previews: [{ repositoryRoot: root, head: materialized, tree: 'a'.repeat(40) }] });
     const { service, runId, agent } = await openRuns(root, {
       inputs: treeInputs(),
       git: scripted.git,

@@ -185,7 +185,7 @@ export async function runSessionScenario(options: SessionScenarioOptions): Promi
   const final = finalCandidate(root, 'revision-03');
   const git = answeredGit(root, {
     head: 'revision-00',
-    previews: final.previews,
+    previews: [{ ...final.previews[0]!, head: 'revision-01' }, ...final.previews],
     commits: [
       // The run's feature files, committed once readiness has passed.
       scenariosCommitted('review-notes'),

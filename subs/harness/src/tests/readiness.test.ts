@@ -105,10 +105,15 @@ async function attempt(fixture: { root: string; head: string }, config: Committe
 }
 
 async function readinessLifecycle(root: string, configuredAudit: ConfiguredAuditPort,
-  options: Partial<Parameters<typeof openRuns>[1]> = {}) {
+  options: Partial<Parameters<typeof openRuns>[1]> = {}, expectPause = false) {
   const { service } = await openRuns(root, { ...boundaries.get(root)!.options, script: [{ kind: 'submit', input: emptyAnalysis() }], configuredAudit, ...options });
   cleanups.push(() => service.close());
   const receipt = await service.execute(startRun('review-notes'));
+  if (expectPause) {
+    await until(() => service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
+    expect(onlyRun(service, 'review-notes')).toMatchObject({ state: 'running', recovery: { state: 'paused' } });
+    await service.execute(stopRun('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version));
+  }
   await service.settled('review-notes', receipt.jobId);
   const events = await runEventsOnDisk(root, 'review-notes', receipt.jobId);
   const failures = events.flatMap(event => event.type === 'readiness-failed' ? [event.data] : []);
@@ -377,7 +382,7 @@ describe('declared preparation and default configured readiness', () => {
     expect(Object.values(result.outcomes)).toEqual([{ schema: 'ramify-agent.gate-audit-outcome/1', gate: expect.any(String), overall: 'pass', audited: fixture.head }]);
   }, 120_000);
 
-  test('RunService stops immediately when a declared installation repair is ineffective', async () => {
+  test('RunService pauses for recovery when a declared installation repair is ineffective', async () => {
     const directory = 'subs/workspace/subs/catalog/tools';
     const fixture = await project(async root => {
       await mkdir(join(root, directory), { recursive: true });
@@ -388,9 +393,8 @@ describe('declared preparation and default configured readiness', () => {
     const repair = strictReadinessCommand(fixture.root, { argv: ['npm', 'ci'], cwd: directory, env: {}, timeoutMs: 900_000 }, 1); checks.push(repair.assertComplete);
     const result = await readinessLifecycle(fixture.root, port(config, undefined, 0).adapter, {
       commandExecution: repair.run,
-    });
-    expect(result.snapshot.state).toBe('failed');
-    expect(result.snapshot.failure?.reason).toBe('readiness-failed');
+    }, true);
+    expect(result.snapshot.state).toBe('stopped');
     expect(result.failures).toHaveLength(1);
     expect(result.failures[0]).toMatchObject({ step: 'declared-packages', recovery: 'rec-0001', final: true });
     expect(result.recoveries).toMatchObject([{ action: 'reinstall-nested', outcome: 'failed', attempt: 1 }]);
@@ -438,14 +442,14 @@ describe('declared preparation and default configured readiness', () => {
     expect(failed.recoveries).toEqual([]);
   }, 120_000);
 
-  test('RunService records a failed Ramify restart and performs no audit', async () => {
+  test('RunService pauses after a failed Ramify restart and performs no audit', async () => {
     const fixture = await project();
     boundaries.get(fixture.root)!.lifecycle(false); boundaries.get(fixture.root)!.expectBranches(0);
     boundaries.get(fixture.root)!.failRestart();
     const config = configuration(fixture);
     const configured = port(config, undefined, 0);
-    const result = await readinessLifecycle(fixture.root, configured.adapter);
-    expect(result.snapshot.state).toBe('failed');
+    const result = await readinessLifecycle(fixture.root, configured.adapter, {}, true);
+    expect(result.snapshot.state).toBe('stopped');
     expect(result.failures).toMatchObject([{ step: 'ramify-daemon', recovery: 'rec-0001', final: true }]);
     expect(result.recoveries).toMatchObject([{ cause: 'daemon-unavailable', action: 'restart-daemon', outcome: 'failed', attempt: 1 }]);
     expect(configured.calls).not.toContain(`project-default:${fixture.head}`);

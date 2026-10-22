@@ -264,7 +264,8 @@ describe('every query of a completed run, over HTTP', () => {
     const unknownItem = await get(server, protocolPaths.runWorkItem(plan, runId, 'work-item:unknown'));
     expect(unknownItem.status).toBe(404);
     expect(errorResponseSchema.parse(unknownItem.body).error.code).toBe('not-found');
-    expect(detail.iterations[0]!.result?.outcome).toBe('partial');
+    expect(detail.iterations[0]!.result?.outcome).toBe('accepted');
+    expect(detail.iterations[0]!.gates.map(gate => [gate.verdict, gate.next])).toEqual([['failed', 'repair'], ['passed', 'accept']]);
     expect(detail.iterations[1]!.result?.outcome).toBe('accepted');
     const engineer = detail.iterations[0]!.invocations.find(invocation => invocation.role === 'engineer')!;
     expect(engineer.outsideScope).toContain(outsidePath);

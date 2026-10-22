@@ -109,7 +109,7 @@ describe('D1–D3: optional explicit discovery records', () => {
     const agent = createScriptedAgent(spec => spec.submission.name === 'submit_work_orientation'
       ? submit({ ...orientation, startingPoints: points }) : (typeof wrapped === 'function' ? wrapped(spec) : wrapped));
     const opened = await openUnchangedRuns(fixture.root, {
-      unchangedCheckpoints: checks, previewCount: crash === 'passed-gate' ? 5 : 4, inputs: treeInputs(), candidates, agent,
+      unchangedCheckpoints: checks, previewCount: crash === 'passed-gate' || kind === 'partial' ? 5 : 4, inputs: treeInputs(), candidates, agent,
       afterWrite: async (event, runId) => {
         const events = await runEventsOnDisk(fixture.root, 'review-notes', runId);
         const engineer = events.find(e => e.type === 'invocation-started' && e.data.role === 'engineer' && e.data.work.iteration === 'work-item:review-note.i01');
