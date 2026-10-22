@@ -689,7 +689,8 @@ hiding or measured complexity justifies it.
 - `http/query-source.ts`: HTTP composition constructs one frozen, explicit
   reading-only RunSource for both query providers; commands and recovery/restart
   inspection retain the RunService separately. Preparation inventory and focused
-  compatibility limitations are recorded in `query-composition-baseline.md`.
+  compatibility limitations are recorded in the
+  [historical query composition baseline](../../docs/historical-evidence/projections-extraction/query-composition-baseline.md).
 - `subs/projections/src/` (child module, not a parent source directory): the
   production HTTP run/session queries, module tree and consultation readers.
   `http/app.ts` and `consultations/command.ts` import its public entries directly;

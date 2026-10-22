@@ -32,7 +32,7 @@ Parent-owned public/durable return/parameter types and sibling reading port
 companions already belong to/are received by harness; they are not copied or
 redefined here. Reading dependencies resolve to parent `../../../src/` and
 sibling `../../<owner>/src/`, never generated views. See
-`notes/extraction-inventory.md` for file and resolved dependency inventory and
+[historical extraction inventory](../../../../docs/historical-evidence/projections-extraction/extraction-inventory.md) for file and resolved dependency inventory and
 `notes/verification.md` for diagnostics and evidence limitations.
 
 ## Owned tests

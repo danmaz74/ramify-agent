@@ -467,6 +467,9 @@ comparison. They are not current and are read only on request; its
 
 ## Historical links
 
+[Retained projections extraction evidence](historical-evidence/projections-extraction/README.md)
+includes the byte-preserved notes moved from the harness source subtree.
+
 Until Plan 32, this project was the `ramify-agent/` directory of the Ramify
 toolkit repository. Historical analyses, reviews, spikes, results, receipts
 and completed plans keep their original commands, paths, hashes and relative
