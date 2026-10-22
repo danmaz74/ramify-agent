@@ -51,7 +51,7 @@ const entrySchema = z.object({
   citations: z.array(citationSchema),
   nonBehavioralAcceptance: z.array(nonBehavioralAcceptanceSchema.extend({
     ref: nonBehavioralAcceptanceSchema.shape.ref.describe(
-      'The submission-local key of a functional acceptance element in this submission. Never an accepted intake nfr-... ID; '
+      'The submission-local key of a functional acceptance element in this submission. An accepted intake non-functional-requirement:<name> ID is not a functional citation; '
       + 'intake non-functional elements retain their classification, coverage and identity. The harness converts this key '
       + 'to its catalog ID after acceptance; the named test must already be registered.',
     ),
@@ -160,7 +160,7 @@ export function scenarioFormOf(submission: ResolvedAnalysis, evidence: AnalysisE
   );
 }
 
-/** The plan scenarios of the incorporated plan documents, numbered `ps-NN` across them in captured order. */
+/** The plan scenarios of the incorporated plan documents, with captured origins. */
 export function incorporatedScenarios(evidence: Pick<AnalysisEvidence, 'incorporation' | 'documents' | 'planScenarios'>): readonly PlanScenario[] {
   return incorporatedExtraction(evidence).scenarios;
 }
@@ -168,19 +168,16 @@ export function incorporatedScenarios(evidence: Pick<AnalysisEvidence, 'incorpor
 /** The same scenarios, with the blocks of the incorporated documents that did not parse. */
 export function incorporatedExtraction(evidence: Pick<AnalysisEvidence, 'incorporation' | 'documents' | 'planScenarios'>): PlanScenarioExtraction {
   const { documents, incorporation } = evidence;
-  if (documents === undefined || incorporation === undefined) return { scenarios: [...evidence.planScenarios ?? []], limitations: [] };
+  if (documents === undefined || incorporation === undefined) return { schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: [...evidence.planScenarios ?? []], limitations: [] };
   const selected = new Set(incorporation.documents.filter(choice => choice.scenarios).map(choice => choice.document));
-  const descriptive = documents.manifest.schema.endsWith('/2');
   const extracted = extractDocumentScenarios(documents.manifest.documents
-    .filter(document => document.kind === 'plan' && (descriptive || selected.has(document.id)))
-    .map(document => ({ id: document.id, text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(documents.bytes.get(document.id)!) })),
-    descriptive ? 'descriptive' : 'legacy');
-  if (!descriptive) return extracted;
+    .filter(document => document.kind === 'plan')
+    .map(document => ({ id: document.id, text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(documents.bytes.get(document.id)!) })));
   // A root origin was already named in job.json before incorporation. Keep
   // that immutable identity even when a companion later repeats its name.
   // Other plan origins are named against the whole captured document set, so
   // selecting fewer documents never changes their source discriminator.
-  const originKey = (scenario: PlanScenario) => `${scenario.document ?? documents.manifest.root}:${scenario.lines.join(':')}:${scenario.source.join('\n')}`;
+  const originKey = (scenario: PlanScenario) => `${scenario.document}:${scenario.lines.join(':')}:${scenario.source.join('\n')}`;
   const captured = new Map((evidence.planScenarios ?? []).map(scenario => [originKey(scenario), scenario.id]));
   return { schema: 'ramify-agent.plan-scenario-extraction/2',
     scenarios: extracted.scenarios.filter(scenario => selected.has(scenario.document!))

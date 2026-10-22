@@ -3,7 +3,7 @@ import { z } from 'zod';
 const text = z.string().min(1);
 const gitTree = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 /** A non-functional requirement of the plan or a fixed requirement: both are assessed. */
-const nfrId = z.string().regex(/^(?:(?:nfr|fix)-\d{3,}|(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/);
+const nfrId = z.string().regex(/^(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
 
 /** A Git tree OID identifies all source bytes, including dirty changes; HEAD is context only. */
 export const candidateSchema = z.object({
@@ -31,10 +31,7 @@ const assessmentFields = {
   /** Results omitted from reviewed retain the named assessment's judgment and evidence. */
   followUp: z.object({ assessment: text, reviewed: z.array(nfrId) }).strict().optional(),
 };
-export const assessmentSchema = z.discriminatedUnion('schema', [
-  z.object({ schema: z.literal('ramify-agent.nonfunctional-assessment/1'), ...assessmentFields }).strict(),
-  z.object({ schema: z.literal('ramify-agent.nonfunctional-assessment/2'), ...assessmentFields }).strict(),
-]);
+export const assessmentSchema = z.object({ schema: z.literal('ramify-agent.nonfunctional-assessment/2'), ...assessmentFields }).strict();
 export type Assessment = z.infer<typeof assessmentSchema>;
 
 /** Every accepted assessment covers the complete fixed NFR set exactly once. */

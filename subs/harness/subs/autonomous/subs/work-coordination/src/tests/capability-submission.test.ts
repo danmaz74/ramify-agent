@@ -5,14 +5,14 @@ import {
   buildCapabilityPlanRevision, unreportedByHandback, validateCapabilityAction, validateCapabilityPlanUpdate, type CapabilityActionBasis,
 } from '../capability/submission.js';
 import { copyCapabilityFixture, fixturePlan, openCapabilityRuns } from './helpers/capability.js';
-import { capabilityPlanSchema } from '../capability/records.js';
+import { capabilityLayout, capabilityPlanSchema } from '../capability/records.js';
 import type { Script } from '../../../../../agent/src/scripted.js';
-import { analysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
 import { assign, edit, outline, submit, treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
 import { runEventsOnDisk, startRun, until } from '../../../../../../src/tests/helpers/runs.js';
 import { capabilityContext, line, registered, reported, submissionHash } from './helpers/obligations.js';
 import { validateEngineer } from '../work/engineer.js';
-import { obligationEventsToRecord, outstandingReports } from '../work/obligations.js';
+import { caseObligationId, obligationEventsToRecord, outstandingReports } from '../work/obligations.js';
 import type { RunEvent } from '../../../../src/run/log.js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -39,9 +39,11 @@ afterEach(async () => {
 });
 
 const basis: CapabilityActionBasis = {
-  task: 'cap-001', planRevision: 2, coordinatorInvocation: 'inv-0003', state: 'coordinating',
+  task: 'capability-task:mail-delivery', planRevision: 2, coordinatorInvocation: 'inv-0003', state: 'coordinating',
   openAssignment: null, openChild: null,
 };
+const registeredCase = caseObligationId('capability-task:mail-delivery', 'capability-example:mail-delivery');
+const retryCase = caseObligationId('capability-task:mail-delivery', 'capability-case:derived-retry');
 
 it('descriptive request and example collisions return the author to the exact draft fields', () => {
   const request = { requestKey: 'draft:capability-request:render-source', need: 'Render a source',
@@ -50,7 +52,7 @@ it('descriptive request and example collisions return the author to the exact dr
       { key: 'draft:capability-example:source', title: 'Source appears', code: 'expect(source).toBeDefined()', designation: 'pseudocode' },
       { key: 'draft:capability-example:source', title: 'Source remains', code: 'expect(source).toBeTruthy()', designation: 'pseudocode' },
     ] };
-  const evidence = { identityContract: 'descriptive' as const, capabilityWorkflow: true,
+  const evidence = { capabilityWorkflow: true,
     occupiedCapabilityNames: { requests: new Set(['capability-request:render-source']),
       examples: new Set(['capability-example:source']) } };
   const collision = validateEngineer({ kind: 'capability-needed', summary: 'Need source', request }, evidence);
@@ -69,7 +71,7 @@ it('descriptive request and example collisions return the author to the exact dr
 
 describe('capability submission', () => {
   it('CA16 returns structural field errors and keeps preview pure', () => {
-    const malformed = { task: 'cap-001', planRevision: 2, invocation: 'inv-0003', kind: 'assign',
+    const malformed = { task: 'capability-task:mail-delivery', planRevision: 2, invocation: 'inv-0003', kind: 'assign',
       owner: 'bad module', purpose: '', approach: 'Implement', requirementRefs: [], intendedEvidence: [],
     };
     const before = structuredClone(basis);
@@ -83,7 +85,8 @@ describe('capability submission', () => {
   });
 
   it('CA16 final validation rejects a preview made before state and authority changed', () => {
-    const action = { task: 'cap-001', planRevision: 2, invocation: 'inv-0003', kind: 'consult-consumer',
+    const action = { task: 'capability-task:mail-delivery', planRevision: 2, invocation: 'inv-0003', kind: 'consult-consumer',
+      exchangeKey: 'draft:capability-exchange:caller-contract',
       question: 'What does the caller expect?', sections: ['useCases'], references: ['src/caller.ts'],
     };
     expect(validateCapabilityAction(action, basis).valid).toBe(true);
@@ -91,11 +94,11 @@ describe('capability submission', () => {
     const result = validateCapabilityAction(action, changed);
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.issues.map(issue => issue.path)).toEqual([['planRevision'], ['invocation']]);
-    expect(validateCapabilityAction(action, { ...basis, state: 'implementing', openAssignment: 'cap-001.i01' }).valid).toBe(false);
+    expect(validateCapabilityAction(action, { ...basis, state: 'implementing', openAssignment: 'capability-task:mail-delivery.i01' }).valid).toBe(false);
   });
 
   it('plan updates use the same basis check and do not judge semantic wording', () => {
-    const update = { task: 'cap-001', basedOn: 2, invocation: 'inv-0003', reason: 'New evidence', changes: { proposedInterface: 'B exposes the field reader' } };
+    const update = { task: 'capability-task:mail-delivery', basedOn: 2, invocation: 'inv-0003', reason: 'New evidence', changes: { proposedInterface: 'B exposes the field reader' } };
     expect(validateCapabilityPlanUpdate(update, basis).valid).toBe(true);
     expect(validateCapabilityPlanUpdate(update, { ...basis, planRevision: 3 }).valid).toBe(false);
     expect(validateCapabilityPlanUpdate({ ...update, reason: '' }, basis).valid).toBe(false);
@@ -105,15 +108,15 @@ describe('capability submission', () => {
     const previous = fixturePlan();
     const correction = { task: previous.task, basedOn: 1, invocation: 'inv-0002', reason: 'Independent test corrected the oracle',
       changes: { useCases: [{ ...previous.useCases[0]!, expectedBehavior: 'Corrected value' },
-        { id: 'derived-retry', expectedBehavior: 'A retries once', derivedFrom: [previous.originalExamples[0]!] }] },
+        { id: 'capability-case:derived-retry', expectedBehavior: 'A retries once', derivedFrom: [previous.originalExamples[0]!] }] },
     };
     const next = buildCapabilityPlanRevision(previous, correction);
     expect(next.originalExamples).toEqual(previous.originalExamples);
-    expect(next.useCases.map(item => item.id)).toEqual([previous.useCases[0]!.id, 'derived-retry']);
+    expect(next.useCases.map(item => item.id)).toEqual([previous.useCases[0]!.id, 'capability-case:derived-retry']);
     expect(previous.useCases[0]).toEqual({ id: previous.originalExamples[0], expectedBehavior: 'A formats the fact', derivedFrom: previous.originalExamples });
     expect(() => buildCapabilityPlanRevision(previous, { ...correction, changes: { useCases: [] } })).toThrow();
     // An added case registers nothing: the delegated outcome is still the task's only obligation.
-    expect([...capabilityContext().projection.obligations.values()].filter(obligation => obligation.responsible.id === 'cap-001').map(obligation => obligation.id)).toEqual(['cap-001']);
+    expect([...capabilityContext().projection.obligations.values()].filter(obligation => obligation.responsible.id === 'capability-task:mail-delivery').map(obligation => obligation.id)).toEqual(['capability-task:mail-delivery']);
   });
 
   it('PB3-D08 a case carries no coverage and a handback cites no evidence: both old fields are refused by the schemas', () => {
@@ -123,50 +126,50 @@ describe('capability submission', () => {
       reason: 'Real consumer case executed', changes: { useCases: [covered] } };
     expect(validateCapabilityPlanUpdate(update, basis).valid).toBe(false);
     expect(capabilityPlanSchema.safeParse({ ...previous, useCases: [covered] }).success).toBe(false);
-    const handback = { task: 'cap-001', planRevision: 2, invocation: 'inv-0003', kind: 'request-handback',
+    const handback = { task: 'capability-task:mail-delivery', planRevision: 2, invocation: 'inv-0003', kind: 'request-handback',
       summary: 'A renders the B fact; the original example holds as asked',
       interfaces: [{ path: 'subs/b/src/fact.ts', symbols: ['readFactWithSource'], use: 'A renders it' }], limitations: [] };
     expect(validateCapabilityAction(handback, basis).valid).toBe(true);
-    const cited = validateCapabilityAction({ ...handback, coverage: [{ case: 'need-001.ex01', evidence: ['subs/a/src/tests/use.test.ts'] }] }, basis);
+    const cited = validateCapabilityAction({ ...handback, coverage: [{ case: 'capability-example:mail-delivery', evidence: ['subs/a/src/tests/use.test.ts'] }] }, basis);
     expect(cited.valid).toBe(false);
     if (!cited.valid) expect(cited.issues.every(issue => issue.kind === 'structure')).toBe(true);
   });
 });
 
 describe('PB3-D01 PB3-D02 PB3-D04: capability registrations and reports', () => {
-  const partial = { task: 'cap-001', planRevision: 2, invocation: 'inv-0003', kind: 'partial', progress: 'B is half done', unfinished: ['A integration'] };
+  const partial = { task: 'capability-task:mail-delivery', planRevision: 2, invocation: 'inv-0003', kind: 'partial', progress: 'B is half done', unfinished: ['A integration'] };
   const judged = (extra: Record<string, unknown>, context = capabilityContext()) => {
     const result = validateCapabilityAction({ ...partial, ...extra }, { ...basis, obligations: context });
     return result.valid ? [] : result.issues.map(issue => [issue.path.join('.'), issue.message]);
   };
 
   it('tracks the delegated outcome by default and registers a case or test only on the architect\'s explicit choice', () => {
-    expect(capabilityContext().projection.obligations.get('cap-001')).toMatchObject({ kind: 'outcome', status: 'pending', revision: 0,
-      responsible: { kind: 'capability-task', id: 'cap-001' }, registeredBy: null });
+    expect(capabilityContext().projection.obligations.get('capability-task:mail-delivery')).toMatchObject({ kind: 'outcome', status: 'pending', revision: 0,
+      responsible: { kind: 'capability-task', id: 'capability-task:mail-delivery' }, registeredBy: null });
     // Preserving original examples registers nothing on its own.
-    expect([...capabilityContext().projection.obligations.keys()].filter(id => id.startsWith('cap-001'))).toEqual(['cap-001']);
-    expect(judged({ registrations: [{ kind: 'scenario', case: 'need-001.ex01' }, { kind: 'test', description: 'B returns its source' }] })).toEqual([]);
-    expect(judged({ registrations: [{ kind: 'scenario', case: 'need-009.ex01' }] })).toEqual([
-      ['registrations.0.case', '"need-009.ex01" is no use case of cap-001\'s current plan revision; add it through a plan update first'],
+    expect([...capabilityContext().projection.obligations.keys()].filter(id => id.startsWith('capability-task:mail-delivery'))).toEqual(['capability-task:mail-delivery']);
+    expect(judged({ registrations: [{ kind: 'scenario', case: 'capability-example:mail-delivery' }, { kind: 'test', testKey: 'draft:test:source-preserved', description: 'B returns its source' }] })).toEqual([]);
+    expect(judged({ registrations: [{ kind: 'scenario', case: 'capability-example:unknown-delivery' }] })).toEqual([
+      ['registrations.0.case', '"capability-example:unknown-delivery" is no use case of capability-task:mail-delivery\'s current plan revision; add it through a plan update first'],
     ]);
-    const existing = registered({ id: 'cap-001.case.need-001.ex01', kind: 'scenario', responsible: { kind: 'capability-task', id: 'cap-001' },
-      by: 'inv-0003', submission: submissionHash('c'), case: 'need-001.ex01' });
-    expect(judged({ registrations: [{ kind: 'scenario', case: 'need-001.ex01' }] }, capabilityContext([existing]))).toEqual([
-      ['registrations.0.case', 'cap-001.case.need-001.ex01 is already registered'],
+    const existing = registered({ id: registeredCase, kind: 'scenario', responsible: { kind: 'capability-task', id: 'capability-task:mail-delivery' },
+      by: 'inv-0003', submission: submissionHash('c'), case: 'capability-example:mail-delivery' });
+    expect(judged({ registrations: [{ kind: 'scenario', case: 'capability-example:mail-delivery' }] }, capabilityContext([existing]))).toEqual([
+      ['registrations.0.case', `${registeredCase} is already registered`],
     ]);
   });
 
   it('accepts the task architect\'s done report with or without where, during coordination, and refuses another owner\'s ID', () => {
-    expect(judged({ reports: [{ id: 'cap-001', judgment: 'done', basedOnRevision: 0, where: 'subs/b/src/fact.ts — readFactWithSource' }] })).toEqual([]);
-    expect(judged({ reports: [{ id: 'cap-001', judgment: 'done', basedOnRevision: 0 }] })).toEqual([]);
-    expect(judged({ registrations: [{ kind: 'scenario', case: 'derived-retry' }],
-      reports: [{ id: 'cap-001.case.derived-retry', judgment: 'done', basedOnRevision: 0 }] })).toEqual([]);
-    expect(judged({ reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }, { id: 'cap-002', judgment: 'done', basedOnRevision: 0 }] })).toEqual([
-      ['reports.0.id', 'sc-001 is reported by the module architect of wi-001, not by the capability architect of cap-001'],
-      ['reports.1.id', '"cap-002" is no registered obligation of this run'],
+    expect(judged({ reports: [{ id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0, where: 'subs/b/src/fact.ts — readFactWithSource' }] })).toEqual([]);
+    expect(judged({ reports: [{ id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0 }] })).toEqual([]);
+    expect(judged({ registrations: [{ kind: 'scenario', case: 'capability-case:derived-retry' }],
+      reports: [{ id: retryCase, judgment: 'done', basedOnRevision: 0 }] }, capabilityContext([], ['capability-example:mail-delivery', 'capability-case:derived-retry']))).toEqual([]);
+    expect(judged({ reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0 }, { id: 'capability-task:other-delivery', judgment: 'done', basedOnRevision: 0 }] })).toEqual([
+      ['reports.0.id', 'scenario:send-email-is-used is reported by the module architect of work-item:send-email, not by the capability architect of capability-task:mail-delivery'],
+      ['reports.1.id', '"capability-task:other-delivery" is no registered obligation of this run'],
     ]);
     // The basis check still applies: a stale invocation cannot report.
-    const stale = validateCapabilityAction({ ...partial, invocation: 'inv-0009', reports: [{ id: 'cap-001', judgment: 'done', basedOnRevision: 0 }] },
+    const stale = validateCapabilityAction({ ...partial, invocation: 'inv-0009', reports: [{ id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0 }] },
       { ...basis, obligations: capabilityContext() });
     expect(stale.valid).toBe(false);
     if (!stale.valid) expect(stale.issues.map(issue => issue.path)).toEqual([['invocation']]);
@@ -174,78 +177,79 @@ describe('PB3-D01 PB3-D02 PB3-D04: capability registrations and reports', () => 
 
   it('an engineer reports work only: its completion proposal has no report field, and its declaration moves no obligation', () => {
     const engineer = validateEngineer({ kind: 'completion-proposed', summary: 'B returns its source', findings: [],
-      reports: [{ id: 'cap-001', judgment: 'done', basedOnRevision: 0 }] });
+      reports: [{ id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0 }] });
     expect(engineer.ok).toBe(false);
     if (!engineer.ok) expect(engineer.errors.map(error => error.message).join(' ')).toContain('reports');
   });
 
   it('a replayed accepted submission records nothing twice; a resumed partial write records only what is missing', () => {
     const submission = {
-      registrations: [{ kind: 'test' as const, description: 'B returns its source' }],
-      reports: [{ id: 'cap-001', judgment: 'done' as const, basedOnRevision: 0, where: 'subs/b/src/fact.ts' }],
+      registrations: [{ kind: 'test' as const, testKey: 'draft:test:source-preserved', description: 'B returns its source' }],
+      reports: [{ id: 'capability-task:mail-delivery', judgment: 'done' as const, basedOnRevision: 0, where: 'subs/b/src/fact.ts' }],
     };
     const identity = { by: 'inv-0003', submission: submissionHash('d') };
     const context = capabilityContext();
     const all = obligationEventsToRecord(submission, context.actor, identity, context.projection, []);
-    expect(all.map(event => [event.type, event.data.id])).toEqual([['obligation-registered', 'test-001'], ['obligation-reported', 'cap-001']]);
+    expect(all.map(event => [event.type, event.data.id])).toEqual([['obligation-registered', 'test:source-preserved'], ['obligation-reported', 'capability-task:mail-delivery']]);
     const first = registered(all[0]!.data as never);
     const resumed = capabilityContext([first]);
-    expect(obligationEventsToRecord(submission, resumed.actor, identity, resumed.projection, [first]).map(event => event.data.id)).toEqual(['cap-001']);
+    expect(obligationEventsToRecord(submission, resumed.actor, identity, resumed.projection, [first]).map(event => event.data.id)).toEqual(['capability-task:mail-delivery']);
     const both = [first, reported(all[1]!.data as never)];
     const replayed = capabilityContext(both);
     expect(obligationEventsToRecord(submission, replayed.actor, identity, replayed.projection, both)).toEqual([]);
-    // The same report in a distinct accepted submission is a new judgment, which validation holds to the current revision.
-    expect(obligationEventsToRecord(submission, replayed.actor, { ...identity, submission: submissionHash('e') }, replayed.projection, both)
-      .map(event => event.data.id)).toEqual(['test-002', 'cap-001']);
-    expect(replayed.projection.obligations.get('cap-001')).toMatchObject({ status: 'done', revision: 1, report: { where: 'subs/b/src/fact.ts', by: 'inv-0003' } });
+    // A distinct accepted report is a new judgment at the current revision; the registered test keeps its identity.
+    expect(obligationEventsToRecord({ registrations: [], reports: [{ ...submission.reports[0]!, basedOnRevision: 1 }] }, replayed.actor,
+      { ...identity, submission: submissionHash('e') }, replayed.projection, both).map(event => event.data.id))
+      .toEqual(['capability-task:mail-delivery']);
+    expect(replayed.projection.obligations.get('capability-task:mail-delivery')).toMatchObject({ status: 'done', revision: 1, report: { where: 'subs/b/src/fact.ts', by: 'inv-0003' } });
   });
 
   it('PB3-D08 PB3-D09 a handback owes a done report for each registered obligation of its task, outcome-only or separately tracked, and none for an example', () => {
     const owed = (events: Parameters<typeof capabilityContext>[0], reports: ReadonlyArray<{ id: string; judgment: 'done' | 'bound'; basedOnRevision: number }> = []) =>
       outstandingReports({ registrations: [], reports }, capabilityContext(events));
     // Outcome-only tracking: the delegated outcome is the one report owed.
-    expect(owed([])).toEqual(['cap-001']);
-    const doneOutcome = reported({ id: 'cap-001', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0003', submission: submissionHash('a') });
+    expect(owed([])).toEqual(['capability-task:mail-delivery']);
+    const doneOutcome = reported({ id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0003', submission: submissionHash('a') });
     expect(owed([doneOutcome])).toEqual([]);
     // Separate tracking: a registered case and test are owed beside it, bound
-    // or not; the consumer's sc-001 is not the task's to report, and the
+    // or not; the consumer's scenario:send-email-is-used is not the task's to report, and the
     // plan's other examples and cases, registered by nobody, owe nothing.
     const separate = [
-      registered({ id: 'cap-001.case.need-001.ex01', kind: 'scenario', responsible: { kind: 'capability-task', id: 'cap-001' },
-        by: 'inv-0003', submission: submissionHash('b'), case: 'need-001.ex01' }),
-      registered({ id: 'test-001', kind: 'test', responsible: { kind: 'capability-task', id: 'cap-001' },
+      registered({ id: registeredCase, kind: 'scenario', responsible: { kind: 'capability-task', id: 'capability-task:mail-delivery' },
+        by: 'inv-0003', submission: submissionHash('b'), case: 'capability-example:mail-delivery' }),
+      registered({ id: 'test:source-preserved', kind: 'test', responsible: { kind: 'capability-task', id: 'capability-task:mail-delivery' },
         by: 'inv-0003', submission: submissionHash('b'), description: 'B keeps the old text for D' }),
       doneOutcome,
-      line('obligation-bound', { id: 'test-001', fakes: ['FactSourceFake'], by: 'inv-0005', submission: submissionHash('c') }),
+      line('obligation-bound', { id: 'test:source-preserved', fakes: ['FactSourceFake'], by: 'inv-0005', submission: submissionHash('c') }),
     ];
-    expect(owed(separate)).toEqual(['cap-001.case.need-001.ex01', 'test-001']);
-    // The request's own reports count: a done report resolves one, a revision to bound leaves cap-001 owed again.
-    expect(owed(separate, [{ id: 'cap-001.case.need-001.ex01', judgment: 'done', basedOnRevision: 0 }, { id: 'test-001', judgment: 'done', basedOnRevision: 0 }])).toEqual([]);
-    expect(owed(separate, [{ id: 'cap-001', judgment: 'bound', basedOnRevision: 1 }])).toEqual(['cap-001', 'cap-001.case.need-001.ex01', 'test-001']);
+    expect(owed(separate)).toEqual([registeredCase, 'test:source-preserved']);
+    // The request's own reports count: a done report resolves one, a revision to bound leaves capability-task:mail-delivery owed again.
+    expect(owed(separate, [{ id: registeredCase, judgment: 'done', basedOnRevision: 0 }, { id: 'test:source-preserved', judgment: 'done', basedOnRevision: 0 }])).toEqual([]);
+    expect(owed(separate, [{ id: 'capability-task:mail-delivery', judgment: 'bound', basedOnRevision: 1 }])).toEqual(['capability-task:mail-delivery', registeredCase, 'test:source-preserved']);
     // A case or test registered by the request itself is owed by that same request.
-    expect(outstandingReports({ registrations: [{ kind: 'test', description: 'B keeps its source' }], reports: [{ id: 'cap-001', judgment: 'done', basedOnRevision: 0 }] },
-      capabilityContext())).toEqual(['test-001']);
+    expect(outstandingReports({ registrations: [{ kind: 'test', testKey: 'draft:test:source-preserved', description: 'B keeps its source' }], reports: [{ id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0 }] },
+      capabilityContext())).toEqual(['test:source-preserved']);
   });
 
   it('PB3-C01 a handback request missing a report is a rejected submission naming the IDs; the same request with the report, and no where, is accepted', () => {
-    const handback = { task: 'cap-001', planRevision: 2, invocation: 'inv-0003', kind: 'request-handback', summary: 'B returns its source',
+    const handback = { task: 'capability-task:mail-delivery', planRevision: 2, invocation: 'inv-0003', kind: 'request-handback', summary: 'B returns its source',
       interfaces: [{ path: 'subs/b/src/fact.ts', symbols: ['readFact'], use: 'Call from A' }], limitations: [] };
     const current = { ...basis, obligations: capabilityContext() };
     const missing = validateCapabilityAction(handback, current);
-    expect(missing).toEqual({ valid: false, issues: [{ kind: 'state', path: ['reports'], message: 'This handback request leaves cap-001 without a done report. '
+    expect(missing).toEqual({ valid: false, issues: [{ kind: 'state', path: ['reports'], message: 'This handback request leaves capability-task:mail-delivery without a done report. '
       + 'Report each one done in `reports` where, in your judgment, it is correctly implemented and passing; where work remains, assign it, or submit `unresolved` with what blocks it' }] });
-    expect(unreportedByHandback(handback, current.obligations)).toEqual(['cap-001']);
+    expect(unreportedByHandback(handback, current.obligations)).toEqual(['capability-task:mail-delivery']);
     // The forgotten report in the same request resolves it; `where` is optional and never read.
-    const reportedHandback = { ...handback, reports: [{ id: 'cap-001', judgment: 'done', basedOnRevision: 0 }] };
+    const reportedHandback = { ...handback, reports: [{ id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0 }] };
     expect(validateCapabilityAction(reportedHandback, current).valid).toBe(true);
     expect(unreportedByHandback(reportedHandback, current.obligations)).toEqual([]);
     // Unfinished work continues through ordinary coordination: no other action owes a report.
-    expect(validateCapabilityAction({ task: 'cap-001', planRevision: 2, invocation: 'inv-0003', kind: 'partial', progress: 'B is half done',
+    expect(validateCapabilityAction({ task: 'capability-task:mail-delivery', planRevision: 2, invocation: 'inv-0003', kind: 'partial', progress: 'B is half done',
       unfinished: ['the B source'] }, current).valid).toBe(true);
-    expect(validateCapabilityAction({ task: 'cap-001', planRevision: 2, invocation: 'inv-0003', kind: 'unresolved', problem: 'B cannot know the source',
+    expect(validateCapabilityAction({ task: 'capability-task:mail-delivery', planRevision: 2, invocation: 'inv-0003', kind: 'unresolved', unresolvedRequestKey: 'draft:unresolved-request:source-unknown', problem: 'B cannot know the source',
       evidence: ['subs/b/src/fact.ts'] }, current).valid).toBe(true);
     // An invalid report is judged as such; the missing-report rejection is not added on top of it.
-    const stale = validateCapabilityAction({ ...handback, reports: [{ id: 'cap-001', judgment: 'done', basedOnRevision: 3 }] }, current);
+    const stale = validateCapabilityAction({ ...handback, reports: [{ id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 3 }] }, current);
     expect(stale.valid ? [] : stale.issues.map(issue => issue.path.join('.'))).toEqual(['reports.0.basedOnRevision']);
   });
 });
@@ -258,11 +262,11 @@ function reportingScript(prompts: string[]): Script {
   let engineerTurns = 0;
   let capabilityTurns = 0;
   return spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', a), entry('b-entry', b)]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('richer-a-fact', a), entry('b-entry', b)]), 'document:need-plan'));
     if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, { goal: 'Render the richer B fact in A.' }, outline()));
     if (spec.submission.name === 'submit_capability_qualification') {
-      const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+      const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
+      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:mail-delivery', provider: b,
         placementReason: 'B owns the fact and A owns integration', constraints: [], requirementRefs: [] });
     }
     if (spec.role === 'engineer') {
@@ -271,26 +275,27 @@ function reportingScript(prompts: string[]): Script {
       return [
         edit('caller.ts', "return `Fact: ${value}`;", "return `Fresh fact: ${value}`;"),
         ...submit({ kind: 'capability-needed', summary: 'A has a provisional caller', request: {
+          requestKey: 'draft:capability-request:mail-delivery',
           need: 'Read B fact with its source for A',
           usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Render the richer result', prospective: false }],
           constraints: [], knownInterface: { kind: 'none-known' },
-          examples: [{ title: 'A shows source', code: "expect(renderA(readFactWithSource())).toBe('Fresh fact: old from B')", designation: 'pseudocode' }],
+          examples: [{ key: 'draft:capability-example:mail-delivery', title: 'A shows source', code: "expect(renderA(readFactWithSource())).toBe('Fresh fact: old from B')", designation: 'pseudocode' }],
         } }),
       ];
     }
     if (spec.role === 'capability-architect') {
       capabilityTurns += 1;
       prompts.push(spec.prompt);
-      const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+      const ids = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
       const basis = { task: ids[1], planRevision: Number(ids[2]), invocation: ids[3] };
       if (capabilityTurns === 1) {
         const progress = { kind: 'partial', ...basis, progress: 'Read A and B', unfinished: ['Assign B'] };
         return [
           // Another owner's scenario and a case the plan does not have: refused, nothing recorded.
-          { kind: 'submit', input: { ...progress, registrations: [{ kind: 'scenario', case: 'need-001.ex09' }],
-            reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] } },
+          { kind: 'submit', input: { ...progress, registrations: [{ kind: 'scenario', case: 'capability-example:unknown-delivery' }],
+            reports: [{ id: 'scenario:send-email-is-used', judgment: 'done', basedOnRevision: 0 }] } },
           { kind: 'submit', input: { ...progress,
-            registrations: [{ kind: 'scenario', case: 'need-001.ex01' }, { kind: 'test', description: 'B keeps the old text for D' }],
+            registrations: [{ kind: 'scenario', case: 'capability-example:mail-delivery' }, { kind: 'test', testKey: 'draft:test:source-preserved', description: 'B keeps the old text for D' }],
             reports: [{ id: basis.task, judgment: 'done', basedOnRevision: 0, where: 'subs/b/src/never-written.ts — readFactWithSource' }] } },
         ];
       }
@@ -340,7 +345,7 @@ it('Plan 36: preflight is stateless and only empty final submission counts as a 
   const previews = coordinator.results.filter(result => result.tool === 'validate_capability_action');
   expect(previews.map(result => JSON.parse(result.text).valid)).toEqual([false, true]);
   const finalInput = JSON.parse(await readFile(join(runPath(fixture.root, 'need', receipt.jobId), runLayout.submission(start.data.invocation)), 'utf8'));
-  expect(finalInput).toMatchObject({ kind: 'partial', task: 'cap-001', registrations: expect.any(Array), reports: expect.any(Array) });
+  expect(finalInput).toMatchObject({ kind: 'partial', task: 'capability-task:mail-delivery', registrations: expect.any(Array), reports: expect.any(Array) });
 }, 300_000);
 
 it('Plan 36: a wrong prospective caller is repaired in the engineer turn before one immutable request is accepted', async () => {
@@ -378,7 +383,7 @@ it('Plan 36: a wrong prospective caller is repaired in the engineer turn before 
   const path = runPath(fixture.root, 'need', receipt.jobId);
   const outcome = JSON.parse(await readFile(join(path, runLayout.outcome(first.data.invocation)), 'utf8'));
   expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 1 });
-  const recorded = JSON.parse(await readFile(join(path, 'capabilities/requests/need-001.json'), 'utf8'));
+  const recorded = JSON.parse(await readFile(join(path, capabilityLayout.request('capability-request:mail-delivery')), 'utf8'));
   expect(recorded.original.usage).toEqual([{ path: 'subs/a/src/tests/steps/future.steps.ts', use: 'Observe preview', prospective: true, module: a }]);
 }, 300_000);
 
@@ -404,19 +409,19 @@ it('PB3-D01 PB3-D02 PB3-D04: a capability architect registers a case and a test 
   const hashOf = (invocation: string) => (logged.find(event => event.type === 'invocation-ended' && event.data.invocation === invocation)!.data as { submission: string }).submission;
   const [first, second] = starts as [string, string];
   expect(recorded.map(event => [event.type, event.data])).toEqual([
-    ['obligation-registered', { id: 'cap-001.case.need-001.ex01', kind: 'scenario', responsible: { kind: 'capability-task', id: 'cap-001' },
-      by: first, submission: hashOf(first), case: 'need-001.ex01' }],
-    ['obligation-registered', { id: 'test-001', kind: 'test', responsible: { kind: 'capability-task', id: 'cap-001' },
+    ['obligation-registered', { id: registeredCase, kind: 'scenario', responsible: { kind: 'capability-task', id: 'capability-task:mail-delivery' },
+      by: first, submission: hashOf(first), case: 'capability-example:mail-delivery' }],
+    ['obligation-registered', { id: 'test:source-preserved', kind: 'test', responsible: { kind: 'capability-task', id: 'capability-task:mail-delivery' },
       by: first, submission: hashOf(first), description: 'B keeps the old text for D' }],
-    ['obligation-reported', { id: 'cap-001', judgment: 'done', basedOnRevision: 0, revision: 1,
+    ['obligation-reported', { id: 'capability-task:mail-delivery', judgment: 'done', basedOnRevision: 0, revision: 1,
       where: 'subs/b/src/never-written.ts — readFactWithSource', by: first, submission: hashOf(first) }],
-    ['obligation-reported', { id: 'cap-001', judgment: 'bound', basedOnRevision: 1, revision: 2, by: second, submission: hashOf(second) }],
+    ['obligation-reported', { id: 'capability-task:mail-delivery', judgment: 'bound', basedOnRevision: 1, revision: 2, by: second, submission: hashOf(second) }],
   ]);
   // The revision rode on an assignment that proceeded; the consumer's own scenario was never reported.
   expect(logged.some(event => event.type === 'capability-assigned')).toBe(true);
-  expect(recorded.some(event => event.data.id === 'sc-001')).toBe(false);
+  expect(recorded.some(event => event.data.id === 'scenario:send-email-is-used')).toBe(false);
   // The next turn's briefing forwards the earlier judgment and its where text as written.
-  expect(prompts[0]).toContain('- cap-001 (delegated outcome): pending, revision 0; not bound; no report yet');
-  expect(prompts[1]).toContain(`- cap-001 (delegated outcome): done, revision 1; not bound; last report done by ${first}, where: subs/b/src/never-written.ts — readFactWithSource`);
-  expect(prompts[1]).toContain('- test-001 (registered test: B keeps the old text for D): pending, revision 0; not bound; no report yet');
+  expect(prompts[0]).toContain('- capability-task:mail-delivery (delegated outcome): pending, revision 0; not bound; no report yet');
+  expect(prompts[1]).toContain(`- capability-task:mail-delivery (delegated outcome): done, revision 1; not bound; last report done by ${first}, where: subs/b/src/never-written.ts — readFactWithSource`);
+  expect(prompts[1]).toContain('- test:source-preserved (registered test: B keeps the old text for D): pending, revision 0; not bound; no report yet');
 }, 300_000);

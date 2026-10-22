@@ -159,7 +159,7 @@ describe('a driven run', () => {
       most = Math.max(most, live);
     }
     expect(most).toBe(1);
-    const third = eventsOf(events, 'invocation-started').find(event => event.data.role === 'engineer' && event.data.work.iteration === 'wi-001.i03')!;
+    const third = eventsOf(events, 'invocation-started').find(event => event.data.role === 'engineer' && event.data.work.iteration === 'work-item:review-notes.i03')!;
     const firstReader = eventsOf(events, 'review-attempt-started')[0]!.data.invocation;
     const firstEnd = eventsOf(events, 'invocation-ended').find(event => event.data.invocation === firstReader)!;
     expect(third.sequence).toBeLessThan(firstEnd.sequence);

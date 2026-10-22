@@ -8,13 +8,13 @@ Feature: email-history
   every email a user sent to a customer, newest first, with its recipient and
   the time of sending, as a | table | row.
 
-  @ramify-sc-002 @ramify-pending
+  @ramify-scenario-sent-emails-appear-in-the-history @ramify-pending
   Scenario: Sent emails appear in the history
     Given an email to ada@example.com was sent
     When the user opens the email history
     Then the history lists one email to ada@example.com
 
-  @ramify-sc-003
+  @ramify-scenario-the-history-lists-emails-newest-first
   Scenario Outline: The history lists emails newest first
     Given emails to <first> and <second> were sent in that order
     When the user opens the email history

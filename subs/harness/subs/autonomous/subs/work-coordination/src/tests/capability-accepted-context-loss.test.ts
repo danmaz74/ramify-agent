@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../../../../agent/src/scripted.js';
 import type { AgentPort } from '../../../../../agent/src/interfaces/port.js';
 import { declaringScenarios } from '../../../../../../src/tests/helpers/declarations.js';
-import { analysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
 import { RunLog } from '../../../../src/run/log.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { type InvocationOutcome } from '../../../../../task-execution/src/records.js';
@@ -46,26 +46,26 @@ for (const boundary of ['accepted-no-point'] as const) {
     let closeFirst: (() => Promise<void>) | undefined;
     let architectTurns = 0;
     const script: Script = spec => {
-      if (spec.role === 'initial-architect') return submit(analysis([entry('a-reads-b', a)]));
+      if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('a-reads-b', a)]), 'document:need-plan'));
       if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, {}, outline()));
       if (spec.submission.name === 'submit_capability_qualification') {
-        const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-        return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+        const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
+        return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:source-fact', provider: b,
           placementReason: 'B owns the fact', constraints: [], requirementRefs: [] });
       }
       if (spec.submission.name === 'answer_capability_consultation') return submit({
         answer: 'A calls B and needs its original source', objections: [],
       });
-      if (spec.role === 'engineer') return submit({ kind: 'capability-needed', summary: 'A needs source', request: {
+      if (spec.role === 'engineer') return submit({ kind: 'capability-needed', summary: 'A needs source', request: { requestKey: 'draft:capability-request:source-fact',
         need: 'B fact with source for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Display source', prospective: false }],
         constraints: [], knownInterface: { kind: 'none-known' },
-        examples: [{ title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
+        examples: [{ key: 'draft:capability-example:source-shown', title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
       } });
       if (spec.role === 'capability-architect') {
         architectTurns += 1;
-        const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+        const ids = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
         return architectTurns === 1 ? submit({ task: ids[1], planRevision: Number(ids[2]), invocation: ids[3],
-          kind: 'consult-consumer', question: 'How will A render the source?', sections: ['calling code'], references: [] })
+          kind: 'consult-consumer', exchangeKey: 'draft:capability-exchange:source-consumer', question: 'How will A render the source?', sections: ['calling code'], references: [] })
           : [{ kind: 'wait', ms: 60_000 }];
       }
       return [];
@@ -105,7 +105,7 @@ for (const boundary of ['accepted-no-point'] as const) {
     cleanups.push(() => second.service.close());
     await until(() => (second.service.events('need', receipt.jobId) ?? []).filter(event =>
       event.type === 'invocation-started' && event.data.role === 'capability-architect' &&
-      event.data.work.capabilityTask === 'cap-001').length >= 2 ||
+      event.data.work.capabilityTask === 'capability-task:source-fact').length >= 2 ||
       (second.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
     const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
     expect(events.filter(event => event.type === 'job-failed'), JSON.stringify(events.slice(-12))).toHaveLength(0);
@@ -124,8 +124,8 @@ for (const boundary of ['accepted-no-point'] as const) {
     const path = runPath(fixture.root, 'need', receipt.jobId, runLayout.events);
     const settledBytes = await readFile(path);
     const records = committedRecords((await RunLog.open(path, receipt.jobId)).ledger.replay());
-    expect(records.capabilityExchanges.get('cap-001-ex01')).toHaveLength(2);
-    expect(records.capabilityExchanges.get('cap-001-ex01')?.[1]?.answer?.text).toContain('original source');
+    expect(records.capabilityExchanges.get('capability-exchange:source-consumer')).toHaveLength(2);
+    expect(records.capabilityExchanges.get('capability-exchange:source-consumer')?.[1]?.answer?.text).toContain('original source');
     expect(await readFile(path)).toEqual(settledBytes);
   }, 60_000);
 }

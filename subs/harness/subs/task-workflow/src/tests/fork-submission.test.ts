@@ -24,30 +24,30 @@ const index: ArchitectIndex = architectIndex([
 ]);
 
 const registered: RegistryEntry = {
-  schema: 'ramify-agent.capability/1',
-  capability: 'send-email', revision: 1, behavior: 'Sends the customer an email.',
+  schema: 'ramify-agent.capability/2',
+  capability: 'capability:send-email', revision: 1, behavior: 'Sends the customer an email.',
   owner: 'shop/orders', origin: 'entry', decision: null, consumers: [],
 };
 
 const proposedEntry: RegistryEntry = {
-  schema: 'ramify-agent.capability/1',
-  capability: 'notify', revision: 1, behavior: 'Tells a person that something happened.',
-  owner: 'shop/notifications', origin: 'global-decision', decision: 'gd-001', consumers: [],
+  schema: 'ramify-agent.capability/2',
+  capability: 'capability:notify', revision: 1, behavior: 'Tells a person that something happened.',
+  owner: 'shop/notifications', origin: 'global-decision', decision: 'placement-decision:send-email', consumers: [],
   proposed: { parent: 'shop', directory: 'subs/notifications', purpose: 'Tells a person that something happened.', tags: [] },
 };
 
 const forecast: Hypothesis = {
-  schema: 'ramify-agent.hypothesis/1',
-  id: 'email-delivery', revision: 1, standing: 'tentative', capability: 'send-email', change: 'reuse',
+  schema: 'ramify-agent.hypothesis/2',
+  id: 'hypothesis:email-delivery', revision: 1, standing: 'tentative', capability: 'capability:send-email', change: 'reuse',
   changesExistingSymbols: false, suggestedOwner: 'shop/orders', anticipatedConsumers: [], involvedModules: ['shop/orders'], dependsOn: [],
   confidence: 'medium', rationale: 'Orders already sends confirmations.', assumptions: [], uncertainties: [],
   citations: [], cause: { initial: 'inv-0001' },
 };
 
 const earlier: PlacementDecision = {
-  schema: 'ramify-agent.placement-decision/1',
-  id: 'gd-001', authority: 'global', request: 'pr-001', workItem: 'wi-001', invocation: 'inv-0003',
-  question: 'Where does sending an email belong?', outcome: 'reuse', capability: 'send-email',
+  schema: 'ramify-agent.placement-decision/2',
+  id: 'placement-decision:send-email', authority: 'global', request: 'placement-request:send-email', workItem: 'work-item:send-email', invocation: 'inv-0003',
+  question: 'Where does sending an email belong?', outcome: 'reuse', capability: 'capability:send-email',
   changesExistingSymbols: false, owner: 'shop/orders',
   rationale: 'Orders already owns it.', constraints: [], uncertainties: [],
   evidence: { view: { status: 'placeholder' }, citations: [], gaps: [] },
@@ -56,16 +56,16 @@ const earlier: PlacementDecision = {
 
 const evidence: PlacementEvidence = {
   index,
-  registry: new Map([['send-email', registered]]),
-  hypotheses: new Map([['email-delivery', forecast]]),
-  decisions: new Map([['gd-001', earlier]]),
-  workItems: new Set(['wi-001', 'wi-002']),
+  registry: new Map([['capability:send-email', registered]]),
+  hypotheses: new Map([['hypothesis:email-delivery', forecast]]),
+  decisions: new Map([['placement-decision:send-email', earlier]]),
+  workItems: new Set(['work-item:send-email', 'work-item:notify']),
 };
 
 /** The same evidence with the accepted proposal of a module that does not exist yet. */
 const withProposal: PlacementEvidence = {
   ...evidence,
-  registry: new Map([['send-email', registered], ['notify', proposedEntry]]),
+  registry: new Map([['capability:send-email', registered], ['capability:notify', proposedEntry]]),
 };
 
 function paths(result: ReturnType<typeof validateFork>): string[] {
@@ -123,8 +123,8 @@ describe('the fork submission schema', () => {
 describe('the rules the fork schema cannot hold', () => {
   test('an owner absent from the refreshed view, with no valid proposal, is refused', () => {
     const absent = validateFork(forkDecision({
-      decision: decision({ outcome: 'create', capability: 'notify', owner: 'shop/notifications' }),
-      registry: [registryChange({ capability: 'notify', owner: 'shop/notifications' })],
+      decision: decision({ outcome: 'create', capability: 'capability:notify', owner: 'shop/notifications' }),
+      registry: [registryChange({ capability: 'capability:notify', owner: 'shop/notifications' })],
     }), evidence);
     expect(absent.ok).toBe(false);
     expect(paths(absent)).toContain('decision.proposed');
@@ -133,8 +133,8 @@ describe('the rules the fork schema cannot hold', () => {
     // The same decision, with the proposal that creates the owner, is accepted.
     const proposal = { parent: 'shop', directory: 'subs/notifications', purpose: 'Tells a person that something happened.', tags: [] };
     const accepted = validateFork(forkDecision({
-      decision: decision({ outcome: 'create', capability: 'notify', owner: 'shop/notifications', proposed: proposal }),
-      registry: [registryChange({ capability: 'notify', owner: 'shop/notifications', proposed: proposal })],
+      decision: decision({ outcome: 'create', capability: 'capability:notify', owner: 'shop/notifications', proposed: proposal }),
+      registry: [registryChange({ capability: 'capability:notify', owner: 'shop/notifications', proposed: proposal })],
     }), evidence);
     expect(accepted.ok).toBe(true);
   });
@@ -142,7 +142,7 @@ describe('the rules the fork schema cannot hold', () => {
   test('a proposal whose parent is absent, or whose directory is taken, is refused', () => {
     const parent = validateFork(forkDecision({
       decision: decision({
-        outcome: 'create', capability: 'notify', owner: 'shop/nowhere/notifications',
+        outcome: 'create', capability: 'capability:notify', owner: 'shop/nowhere/notifications',
         proposed: { parent: 'shop/nowhere', directory: 'subs/nowhere/subs/notifications', purpose: 'p', tags: [] },
       }),
       registry: [],
@@ -151,7 +151,7 @@ describe('the rules the fork schema cannot hold', () => {
 
     const taken = validateFork(forkDecision({
       decision: decision({
-        outcome: 'create', capability: 'notify', owner: 'shop/notifications',
+        outcome: 'create', capability: 'capability:notify', owner: 'shop/notifications',
         proposed: { parent: 'shop', directory: 'subs/orders', purpose: 'p', tags: [] },
       }),
       registry: [],
@@ -160,7 +160,7 @@ describe('the rules the fork schema cannot hold', () => {
 
     const nested = validateFork(forkDecision({
       decision: decision({
-        outcome: 'create', capability: 'notify', owner: 'shop/notifications',
+        outcome: 'create', capability: 'capability:notify', owner: 'shop/notifications',
         proposed: { parent: 'shop', directory: 'subs/orders/subs/notifications', purpose: 'p', tags: [] },
       }),
       registry: [],
@@ -169,7 +169,7 @@ describe('the rules the fork schema cannot hold', () => {
 
     const already = validateFork(forkDecision({
       decision: decision({
-        outcome: 'create', capability: 'invoice', owner: 'shop/invoices',
+        outcome: 'create', capability: 'capability:invoice', owner: 'shop/invoices',
         proposed: { parent: 'shop', directory: 'subs/notifications', purpose: 'p', tags: [] },
       }),
       registry: [],
@@ -180,15 +180,15 @@ describe('the rules the fork schema cannot hold', () => {
   test('the decision and its registry entry carry the same proposal', () => {
     const proposal = { parent: 'shop', directory: 'subs/notifications', purpose: 'Tells a person.', tags: [] };
     const missing = validateFork(forkDecision({
-      decision: decision({ outcome: 'create', capability: 'notify', owner: 'shop/notifications', proposed: proposal }),
+      decision: decision({ outcome: 'create', capability: 'capability:notify', owner: 'shop/notifications', proposed: proposal }),
       registry: [],
     }), evidence);
     expect(paths(missing)).toContain('decision.proposed');
 
     const different = validateFork(forkDecision({
-      decision: decision({ outcome: 'create', capability: 'notify', owner: 'shop/notifications', proposed: proposal }),
+      decision: decision({ outcome: 'create', capability: 'capability:notify', owner: 'shop/notifications', proposed: proposal }),
       registry: [registryChange({
-        capability: 'notify', owner: 'shop/notifications',
+        capability: 'capability:notify', owner: 'shop/notifications',
         proposed: { ...proposal, purpose: 'Something else.' },
       })],
     }), evidence);
@@ -198,7 +198,7 @@ describe('the rules the fork schema cannot hold', () => {
   test('reuse of an absent owner needs an accepted proposal, and never introduces one', () => {
     const introduced = validateFork(forkDecision({
       decision: decision({
-        outcome: 'reuse', capability: 'notify', owner: 'shop/notifications',
+        outcome: 'reuse', capability: 'capability:notify', owner: 'shop/notifications',
         proposed: { parent: 'shop', directory: 'subs/notifications', purpose: 'p', tags: [] },
       }),
       registry: [],
@@ -206,7 +206,7 @@ describe('the rules the fork schema cannot hold', () => {
     expect(paths(introduced)).toContain('decision.proposed');
 
     const absent = validateFork(forkDecision({
-      decision: decision({ outcome: 'reuse', capability: 'notify', owner: 'shop/notifications' }),
+      decision: decision({ outcome: 'reuse', capability: 'capability:notify', owner: 'shop/notifications' }),
       registry: [],
     }), evidence);
     expect(paths(absent)).toContain('decision.owner');
@@ -214,7 +214,7 @@ describe('the rules the fork schema cannot hold', () => {
     // With the proposal already accepted in the registry, reuse preserves
     // the capability identity of an owner that is not implemented yet.
     const preserved = validateFork(forkDecision({
-      decision: decision({ outcome: 'reuse', capability: 'notify', owner: 'shop/notifications' }),
+      decision: decision({ outcome: 'reuse', capability: 'capability:notify', owner: 'shop/notifications' }),
       registry: [],
     }), withProposal);
     expect(preserved.ok).toBe(true);
@@ -222,26 +222,26 @@ describe('the rules the fork schema cannot hold', () => {
 
   test('a decision that places a registered capability elsewhere names what it replaces', () => {
     const silent = validateFork(forkDecision({
-      decision: decision({ outcome: 'extract', capability: 'send-email', owner: 'shop/billing' }),
-      registry: [registryChange({ capability: 'send-email', owner: 'shop/billing' })],
+      decision: decision({ outcome: 'extract', capability: 'capability:send-email', owner: 'shop/billing' }),
+      registry: [registryChange({ capability: 'capability:send-email', owner: 'shop/billing' })],
     }), evidence);
     expect(paths(silent)).toContain('decision.revises');
 
     const named = validateFork(forkDecision({
       decision: decision({
-        outcome: 'extract', capability: 'send-email', owner: 'shop/billing',
-        revises: { decision: 'gd-001', affected: [{ workItem: 'wi-001', consequence: 'Its consumer moves to billing.' }] },
+        outcome: 'extract', capability: 'capability:send-email', owner: 'shop/billing',
+        revises: { decision: 'placement-decision:send-email', affected: [{ workItem: 'work-item:send-email', consequence: 'Its consumer moves to billing.' }] },
       }),
-      registry: [registryChange({ capability: 'send-email', owner: 'shop/billing' })],
+      registry: [registryChange({ capability: 'capability:send-email', owner: 'shop/billing' })],
     }), evidence);
     expect(named.ok).toBe(true);
 
     const unknown = validateFork(forkDecision({
       decision: decision({
-        outcome: 'extract', capability: 'send-email', owner: 'shop/billing',
-        revises: { decision: 'gd-009', affected: [{ workItem: 'wi-404', consequence: 'x' }] },
+        outcome: 'extract', capability: 'capability:send-email', owner: 'shop/billing',
+        revises: { decision: 'placement-decision:other-owner', affected: [{ workItem: 'work-item:missing', consequence: 'x' }] },
       }),
-      registry: [registryChange({ capability: 'send-email', owner: 'shop/billing' })],
+      registry: [registryChange({ capability: 'capability:send-email', owner: 'shop/billing' })],
     }), evidence);
     expect(paths(unknown)).toContain('decision.revises.decision');
     expect(paths(unknown)).toContain('decision.revises.affected.0.workItem');
@@ -249,25 +249,25 @@ describe('the rules the fork schema cannot hold', () => {
 
   test('only an external capability has no owner, and it is registered with none', () => {
     const owned = validateFork(forkDecision({
-      decision: decision({ outcome: 'external', capability: 'notify', owner: 'shop/orders' }),
+      decision: decision({ outcome: 'external', capability: 'capability:notify', owner: 'shop/orders' }),
       registry: [],
     }), evidence);
     expect(paths(owned)).toContain('decision.owner');
 
     const ownerless = validateFork(forkDecision({
-      decision: decision({ outcome: 'create', capability: 'notify', owner: null }),
+      decision: decision({ outcome: 'create', capability: 'capability:notify', owner: null }),
       registry: [],
     }), evidence);
     expect(paths(ownerless)).toContain('decision.owner');
 
     const registeredExternal = validateFork(forkDecision({
-      decision: decision({ outcome: 'external', capability: 'notify', owner: null }),
-      registry: [registryChange({ capability: 'notify', owner: 'shop/orders' })],
+      decision: decision({ outcome: 'external', capability: 'capability:notify', owner: null }),
+      registry: [registryChange({ capability: 'capability:notify', owner: 'shop/orders' })],
     }), evidence);
     expect(paths(registeredExternal)).toContain('decision.outcome');
 
     expect(validateFork(forkDecision({
-      decision: decision({ outcome: 'external', capability: 'notify', owner: null }),
+      decision: decision({ outcome: 'external', capability: 'capability:notify', owner: null }),
       registry: [],
     }), evidence).ok).toBe(true);
   });
@@ -275,7 +275,7 @@ describe('the rules the fork schema cannot hold', () => {
   test('an extension submitted as the retired "extend" outcome is refused, and told to register a new capability', () => {
     const extended = validateFork({
       ...forkDecision(),
-      decision: { ...decision({ capability: 'send-email', owner: 'shop/orders' }), outcome: 'extend' },
+      decision: { ...decision({ capability: 'capability:send-email', owner: 'shop/orders' }), outcome: 'extend' },
     }, evidence);
     expect(paths(extended)).toEqual(['decision.outcome']);
     expect(messages(extended)[0]).toBe(extensionIsANewCapability);
@@ -286,26 +286,26 @@ describe('the rules the fork schema cannot hold', () => {
     // own, owned by the module that already holds the behavior.
     expect(validateFork(forkDecision({
       decision: decision({
-        outcome: 'create', capability: 'send-email-with-attachment', changesExistingSymbols: true, owner: 'shop/orders',
+        outcome: 'create', capability: 'capability:send-email-with-attachment', changesExistingSymbols: true, owner: 'shop/orders',
       }),
-      registry: [registryChange({ capability: 'send-email-with-attachment', owner: 'shop/orders' })],
+      registry: [registryChange({ capability: 'capability:send-email-with-attachment', owner: 'shop/orders' })],
     }), evidence).ok).toBe(true);
   });
 
   test('only a module the view already has can change symbols that already have consumers', () => {
     const external = validateFork(forkDecision({
-      decision: decision({ outcome: 'external', capability: 'notify', changesExistingSymbols: true, owner: null }),
+      decision: decision({ outcome: 'external', capability: 'capability:notify', changesExistingSymbols: true, owner: null }),
       registry: [],
     }), evidence);
     expect(paths(external)).toContain('decision.changesExistingSymbols');
 
     const proposing = validateFork(forkDecision({
       decision: decision({
-        outcome: 'create', capability: 'notify', changesExistingSymbols: true, owner: 'shop/notifications',
+        outcome: 'create', capability: 'capability:notify', changesExistingSymbols: true, owner: 'shop/notifications',
         proposed: { parent: 'shop', directory: 'subs/notifications', purpose: 'Tells a person that something happened.', tags: [] },
       }),
       registry: [registryChange({
-        capability: 'notify', owner: 'shop/notifications',
+        capability: 'capability:notify', owner: 'shop/notifications',
         proposed: { parent: 'shop', directory: 'subs/notifications', purpose: 'Tells a person that something happened.', tags: [] },
       })],
     }), evidence);
@@ -314,26 +314,26 @@ describe('the rules the fork schema cannot hold', () => {
 
   test('a revision of a hypothesis nothing committed, and a consumer of a work item nothing committed, are refused', () => {
     const unknown = validateFork(forkDecision({
-      hypothesisRevisions: [{ hypothesis: 'no-such-forecast', standing: 'superseded', reason: 'it was wrong' }],
+      hypothesisRevisions: [{ hypothesis: 'hypothesis:no-such-forecast', standing: 'superseded', reason: 'it was wrong' }],
     }), evidence);
     expect(paths(unknown)).toContain('hypothesisRevisions.0.hypothesis');
 
     const twice = validateFork(forkDecision({
       hypothesisRevisions: [
-        { hypothesis: 'email-delivery', standing: 'confirmed', reason: 'orders owns it' },
-        { hypothesis: 'email-delivery', standing: 'superseded', reason: 'and also not' },
+        { hypothesis: 'hypothesis:email-delivery', standing: 'confirmed', reason: 'orders owns it' },
+        { hypothesis: 'hypothesis:email-delivery', standing: 'superseded', reason: 'and also not' },
       ],
     }), evidence);
     expect(paths(twice)).toContain('hypothesisRevisions.1.hypothesis');
 
     const consumer = validateFork(forkDecision({
-      registry: [registryChange({ capability: 'send-email', owner: 'shop/orders', consumers: [{ capability: 'send-email', workItem: 'wi-404' }] })],
+      registry: [registryChange({ capability: 'capability:send-email', owner: 'shop/orders', consumers: [{ capability: 'capability:send-email', workItem: 'work-item:missing' }] })],
     }), evidence);
     expect(paths(consumer)).toContain('registry.0.consumers.0.workItem');
 
     expect(validateFork(forkDecision({
-      hypothesisRevisions: [{ hypothesis: 'email-delivery', standing: 'confirmed', reason: 'orders owns it' }],
-      registry: [registryChange({ capability: 'send-email', owner: 'shop/orders', consumers: [{ capability: 'send-email', workItem: 'wi-002' }] })],
+      hypothesisRevisions: [{ hypothesis: 'hypothesis:email-delivery', standing: 'confirmed', reason: 'orders owns it' }],
+      registry: [registryChange({ capability: 'capability:send-email', owner: 'shop/orders', consumers: [{ capability: 'capability:send-email', workItem: 'work-item:notify' }] })],
     }), evidence).ok).toBe(true);
   });
 });
@@ -355,16 +355,16 @@ describe('the rules a placement request must satisfy', () => {
   test('a request names a registered capability, a known hypothesis and its own local decisions', () => {
     const unregistered = validateLocalArchitect({
       kind: 'request-placement',
-      request: placementRequest({ forCapability: 'no-such-capability' }),
+      request: placementRequest({ forCapability: 'capability:no-such-capability' }),
     }, evidence);
     expect(unregistered.ok === false && unregistered.errors.map(error => error.path)).toContain('request.forCapability');
 
     const unknown = validateLocalArchitect({
       kind: 'request-placement',
       request: placementRequest({
-        hypotheses: [{ hypothesis: 'no-such-forecast', stance: 'contradicts', evidence: 'nothing there' }],
-        localDecisions: ['ld-wi-001-09'],
-        candidates: [{ capability: 'no-such-capability', note: 'maybe' }, { owner: 'shop/nowhere', note: 'or here' }],
+        hypotheses: [{ hypothesis: 'hypothesis:no-such-forecast', stance: 'contradicts', evidence: 'nothing there' }],
+        localDecisions: ['placement-decision:local-send-email'],
+        candidates: [{ capability: 'capability:no-such-capability', note: 'maybe' }, { owner: 'shop/nowhere', note: 'or here' }],
       }),
     }, evidence);
     const reported = unknown.ok === false ? unknown.errors.map(error => error.path) : [];

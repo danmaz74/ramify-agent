@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { findModule, type ArchitectIndex } from '../../../../../evidence/src/views.js';
 import type { JsonSchema } from '../../../../../agent/src/interfaces/port.js';
 import { modulePathSchema } from '../../../../../../src/interfaces/protocol/evidence.js';
-import { slugSchema } from '../../../planning/src/records.js';
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
 import { injectionSiteRule, moduleOwning } from '../../../../../../src/work/scope.js';
 import { isFakeFile } from './naming.js';
@@ -30,7 +29,7 @@ const text = z.string().min(1);
 /** A need stated as behavior, which the contract iteration designs an interface for. */
 export const needAsBehaviorSchema = z.object({
   /** The capability the need is for, as the registry names it or would name it. */
-  capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]),
+  capability: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   useCases: z.array(text).min(1),
   inputs: z.array(text),
   outputs: z.array(text),
@@ -47,7 +46,7 @@ const artifactBody = z.object({ path: text, exports: z.array(text) }).strict();
 /** A fake file, and the real provider export each of its exported names stands for. */
 const fakeBody = artifactBody.extend({ standsFor: z.array(standsForSchema) }).strict();
 
-export const contractSubmissionSchema = z.discriminatedUnion('kind', [
+const contractSubmissionBaseSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('established'),
     mode: contractModeSchema,
@@ -77,13 +76,13 @@ const draftKey = (family: string) => z.string().regex(new RegExp(`^draft:${famil
 
 const acceptedId = (family: string) => z.string().regex(new RegExp(`^${family}:${name}$`))
   .describe(`An accepted ${family}:<descriptive-name> ID from this run; a draft key or another namespace is invalid.`);
-const establishedBody = contractSubmissionSchema.options[0];
-const incompleteBody = contractSubmissionSchema.options[1];
+const establishedBody = contractSubmissionBaseSchema.options[0];
+const incompleteBody = contractSubmissionBaseSchema.options[1];
 const fakeBacked = establishedBody.extend({ mode: z.literal('fake-backed') });
 const accessOnly = establishedBody.extend({ mode: z.literal('access-only') });
 
 /** Access-only agreements publish only the contract; fake-backed ones publish three identities. */
-export const descriptiveContractSubmissionSchema = z.union([
+export const contractSubmissionSchema = z.union([
   fakeBacked.extend({ contractKey: draftKey('contract'), providerObligationKey: draftKey('provider-obligation'),
     consumerRequirementKey: draftKey('consumer-requirement') }).strict(),
   accessOnly.extend({ contractKey: draftKey('contract') }).strict(),
@@ -91,7 +90,7 @@ export const descriptiveContractSubmissionSchema = z.union([
 ]);
 
 /** An agreement already in force is cited by accepted ID when another consumer attaches. */
-export const descriptiveAttachedContractSubmissionSchema = z.union([
+export const attachedContractSubmissionSchema = z.union([
   fakeBacked.extend({ contractId: acceptedId('contract'), providerObligationId: acceptedId('provider-obligation'),
     consumerRequirementKey: draftKey('consumer-requirement') }).strict(),
   accessOnly.extend({ contractId: acceptedId('contract') }).strict(),
@@ -160,7 +159,7 @@ const changeToAccess = accessOnly.extend({
       ctx.addIssue({ code: 'custom', path: ['retirements', index, 'replacementKeys'], message: 'each old identity must name the access-only contract replacement key' });
   });
 });
-export const descriptiveRevisedContractSubmissionSchema = (existingRequirement: boolean, mode: 'fake-backed' | 'access-only' = 'fake-backed') =>
+export const revisedContractSubmissionSchema = (existingRequirement: boolean, mode: 'fake-backed' | 'access-only' = 'fake-backed') =>
   mode === 'access-only' ? z.union([revisedAccess, incompleteBody])
     : existingRequirement
       ? z.union([revisedAgreement.extend({ consumerRequirementId: acceptedId('consumer-requirement') }).strict(), splitRequirement,
@@ -175,9 +174,9 @@ export type ContractIdentityContext =
     readonly consumerWorkItem?: string; readonly mode?: 'fake-backed' | 'access-only'; readonly provider?: string;
     readonly conversionBlockers?: readonly string[] };
 
-export type ContractSubmission = z.infer<typeof contractSubmissionSchema> | z.infer<typeof descriptiveContractSubmissionSchema>
-  | z.infer<typeof descriptiveAttachedContractSubmissionSchema>
-  | z.infer<ReturnType<typeof descriptiveRevisedContractSubmissionSchema>>;
+export type ContractSubmission = z.infer<typeof contractSubmissionSchema>
+  | z.infer<typeof attachedContractSubmissionSchema>
+  | z.infer<ReturnType<typeof revisedContractSubmissionSchema>>;
 export type EstablishedContract = Extract<ContractSubmission, { kind: 'established' }>;
 
 /** The members this iteration's package offers the role. */
@@ -185,23 +184,19 @@ export const contractSubmissionKinds = ['established', 'incomplete'] as const;
 
 /** The schema the agent's tool is given, taken from the same definition that validates. */
 export const contractJsonSchema = z.toJSONSchema(contractSubmissionSchema) as JsonSchema;
-export const descriptiveContractJsonSchema = z.toJSONSchema(descriptiveContractSubmissionSchema) as JsonSchema;
-export function contractAuthorSchema(identityContract: 'legacy' | 'descriptive', context: ContractIdentityContext = { kind: 'fresh' }) {
-  if (identityContract === 'legacy') return contractSubmissionSchema;
-  if (context.kind === 'attach') return descriptiveAttachedContractSubmissionSchema;
-  if (context.kind === 'revise') return descriptiveRevisedContractSubmissionSchema(context.consumerRequirementId !== null,
+export function contractAuthorSchema(context: ContractIdentityContext = { kind: 'fresh' }) {
+  if (context.kind === 'attach') return attachedContractSubmissionSchema;
+  if (context.kind === 'revise') return revisedContractSubmissionSchema(context.consumerRequirementId !== null,
     context.mode ?? (context.providerObligationId === null ? 'access-only' : 'fake-backed'));
-  return descriptiveContractSubmissionSchema;
+  return contractSubmissionSchema;
 }
-export const contractAuthorJsonSchema = (identityContract: 'legacy' | 'descriptive', context: ContractIdentityContext = { kind: 'fresh' }): JsonSchema =>
-  z.toJSONSchema(contractAuthorSchema(identityContract, context)) as JsonSchema;
+export const contractAuthorJsonSchema = (context: ContractIdentityContext = { kind: 'fresh' }): JsonSchema =>
+  z.toJSONSchema(contractAuthorSchema(context)) as JsonSchema;
 
 /** Resolve draft proposals against every accepted and retired name. Retained identities use accepted-ID fields. */
-export function descriptiveContractIdentityErrors(
+export function contractIdentityErrors(
   submission: EstablishedContract,
   occupied: ReadonlyMap<string, string>,
-  /** Retained for older callers; an occupied draft name is never exempt. */
-  _retained: ReadonlySet<string> = new Set(),
 ): SubmissionError[] {
   if (!('contractKey' in submission) && !('consumerRequirementKey' in submission) && !('consumerRequirementKeys' in submission)) return [];
   const proposals = 'contractKey' in submission ? [
@@ -243,9 +238,13 @@ const trailerLine = /^\s*Ramify-[A-Za-z-]*\s*:/m;
  * schema cannot hold. Nothing changes on a failure and every error names its
  * path.
  */
-export async function validateContract(input: unknown, evidence: ContractEvidence, identityContract: 'legacy' | 'descriptive' = 'legacy',
+export async function validateContract(input: unknown, evidence: ContractEvidence,
   identity: ContractIdentityContext = { kind: 'fresh' }): Promise<SubmissionValidation<ContractSubmission>> {
-  const shape = validateAgainst(contractAuthorSchema(identityContract, identity), input);
+  if (typeof input === 'object' && input !== null && 'kind' in input
+    && input.kind !== 'established' && input.kind !== 'incomplete') {
+    return { ok: false, errors: [{ path: 'kind', message: 'Expected established or incomplete' }] };
+  }
+  const shape = validateAgainst<ContractSubmission>(contractAuthorSchema(identity) as unknown as z.ZodType<ContractSubmission>, input);
   if (!shape.ok) return shape;
   if (shape.value.kind === 'incomplete') return shape;
   const errors = [...identityErrors(shape.value, identity), ...await establishedErrors(shape.value, evidence)];

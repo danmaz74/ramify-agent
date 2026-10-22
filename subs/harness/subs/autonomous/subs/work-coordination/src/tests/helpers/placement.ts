@@ -12,7 +12,7 @@ export function decision(extra: Partial<DecisionBody> = {}): DecisionBody {
   return {
     question: 'Where does this behavior belong?',
     outcome: 'reuse',
-    capability: 'send-email',
+    capability: 'capability:send-email',
     changesExistingSymbols: false,
     owner: 'shop/orders',
     rationale: 'The behavior the request needs is what this module already owns.',
@@ -52,7 +52,8 @@ export function forkPartial(findings: readonly string[] = ['two modules could ow
 /** The request body a module architect submits. */
 export function placementRequest(extra: Partial<PlacementRequestBody> = {}): PlacementRequestBody {
   return {
-    forCapability: 'send-email',
+    requestKey: 'draft:placement-request:send-email',
+    forCapability: 'capability:send-email',
     question: 'Where does sending an email belong?',
     requiredBehavior: 'One message per completed order, with the order reference in it.',
     findings: [],
@@ -71,7 +72,7 @@ export function requestPlacement(extra: Partial<PlacementRequestBody> = {}): Loc
 
 /** One placement a module architect decided within its own authority. */
 export function localDecision(body: Partial<DecisionBody>, registry: readonly RegistryChange[] = []): LocalDecisionBody {
-  return { decision: decision(body), registry: [...registry] };
+  return { decisionKey: 'draft:placement-decision:send-email', decision: decision(body), registry: [...registry] };
 }
 
 /** A module architect reporting that its request cannot be met as stated. */
@@ -79,7 +80,7 @@ export function unresolved(
   conflict = 'The comparison cannot be served as an MCP tool: the project has no MCP surface to serve it from.',
   evidence: readonly string[] = ['plans/revision-diff/plan.md, lines 11–12, ask for an MCP tool `catalog.compare`.'],
 ): LocalArchitectSubmissionInput {
-  return { kind: 'unresolved', conflict, evidence: [...evidence] };
+  return { kind: 'unresolved', requestKey: 'draft:unresolved-request:missing-mcp', conflict, evidence: [...evidence] };
 }
 
 /** The plan architect's answer to an unresolved request: a plan deviation, keeping what the conflict allows. */
@@ -87,7 +88,8 @@ export function forkDeviation(extra: Partial<Extract<ForkSubmission, { kind: 'de
   return {
     kind: 'deviation',
     deviation: {
-      amends: ['fr-001'],
+      deviationKey: 'draft:plan-deviation:mcp-query', findingKey: 'draft:finding:mcp-query',
+      amends: ['functional-requirement:compare-revisions-request'],
       instead: 'Serve the comparison through the tRPC query `catalog.compare` only; the MCP tool is not built.',
       why: 'No module of the project serves MCP, and adding a protocol surface is beyond this plan.',
       rejected: [{ alternative: 'Create an MCP module under the workspace', reason: 'It would be a new protocol surface no requirement of the plan describes.' }],
@@ -109,7 +111,8 @@ export function forkEnvironment(
   diagnosis = 'The work-item gate runs `npm test`, whose tests import `dist/src`; nothing builds `dist` in the gate\'s worktree, so every attempt fails before a test runs.',
   suggestion = 'Declare a build step in `ramify-agent.json` that runs before the gate\'s tests.',
 ): ForkSubmission {
-  return { kind: 'environment', diagnosis, suggestion };
+  return { kind: 'environment', problemKey: 'draft:environment-problem:missing-build',
+    findingKey: 'draft:finding:missing-build', diagnosis, suggestion };
 }
 
 export { decision as placementDecisionFixture };

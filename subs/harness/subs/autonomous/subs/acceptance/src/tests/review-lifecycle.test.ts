@@ -46,7 +46,7 @@ const never = (): ScriptStep => ({ kind: 'await', until: () => new Promise(() =>
 /** A reader's turn that reads the path's patch through its tool, then submits a clean review of it. */
 const clean = (inspected: string): ScriptStep[] => [tool(snapshotToolNames.diff, { path: inspected }), { kind: 'submit', input: { inspected: [inspected], missing: [], concerns: [] } }];
 const concern = (path: string, summary: string): ScriptStep[] => [tool(snapshotToolNames.diff, { path }), { kind: 'submit', input: { inspected: [path], missing: [], concerns: [{
-  summary, consequence: `${summary}, so the behavior differs from the goal`, rationale: 'read the candidate', uncertainty: 'low',
+  findingKey: 'draft:finding:case-0001', summary, consequence: `${summary}, so the behavior differs from the goal`, rationale: 'read the candidate', uncertainty: 'low',
   remedy: 'a bounded change in the named file', locations: [{ path, startLine: 1, endLine: 1 }], suggests: null, risk: 'low', ground: null,
 }] } }];
 
@@ -107,7 +107,7 @@ describe('CF07: a stop owns every live reader, and a late result is fenced', () 
     // The third iteration's writer is live beside both readers: its session
     // has started, not only its invocation. A stop between the two ends the
     // invocation before any session exists, and there is none to stop.
-    await until(async () => (await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'invocation-started' && event.data.work.iteration === 'wi-001.i03')
+    await until(async () => (await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'invocation-started' && event.data.work.iteration === 'work-item:review-notes.i03')
       && run.agent!.sessions.filter(session => session.spec.role === 'engineer').length === 3);
     // Readers may still be writing, so the stop is sent at the version it finds.
     for (;;) {
@@ -202,7 +202,7 @@ describe('CF04: an unscheduled review', () => {
         'rq-0001': [{ kind: 'await', until: () => until(async () => {
           const events = await runEventsOnDisk(root, plan, runIdOf());
           return events.some(event => event.type === 'review-attempt-finished' && event.data.reason === 'queue-overflow')
-            && events.some(event => event.type === 'outline-revised' && event.data.workItem === 'wi-001' && event.data.architectRef !== undefined);
+            && events.some(event => event.type === 'outline-revised' && event.data.workItem === 'work-item:review-notes' && event.data.architectRef !== undefined);
         }) }, ...clean(store)],
         'rq-0002': clean(limit),
       },
@@ -236,7 +236,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     });
     await crashed.opened;
     const before = await settledLog(root, run.runId);
-    expect(before.at(-1)).toMatchObject({ type: 'iteration-closed', data: { iteration: 'wi-001.i01', outcome: 'accepted' } });
+    expect(before.at(-1)).toMatchObject({ type: 'iteration-closed', data: { iteration: 'work-item:review-notes.i01', outcome: 'accepted' } });
     expect(before.some(event => event.type === 'review-request-recorded')).toBe(false);
     await staleCrashLock(root);
 
@@ -245,7 +245,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     expect(restarted.recovery.reviews).toEqual([]);
     const after = await runEventsOnDisk(root, plan, run.runId);
     expect(after).toEqual(before);
-    expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'wi-001.i01', outcome: 'accepted' });
+    expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'work-item:review-notes.i01', outcome: 'accepted' });
     expect(eventsOf(after, 'review-request-recorded')).toEqual([]);
     expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 0 });
 
@@ -304,7 +304,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     const run = await reviewRun(root, cleanups, {
       engineer: engineers(),
       reviewers: { 'rq-0001': clean(store), 'rq-0002': concern(limit, 'The limit counts UTF-16 units'), 'rq-0003': clean(store) },
-      reconcilers: { 'wi-001.rc01': reconcile(submission([disposition('cf-0001', { action: 'leave' })], { kind: 'unresolved' })) },
+      reconcilers: { 'work-item:review-notes.rc01': reconcile(submission([disposition('finding:case-0001', { action: 'leave' })], { kind: 'unresolved' })) },
     });
     const { service, runId } = run;
     const coverage = service.reviews(plan, runId)!;

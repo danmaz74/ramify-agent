@@ -21,7 +21,7 @@ export const hash: string = 'a'.repeat(64);
 /** The record of a constructed run: only what the projections read of it. */
 export function constructedRecord(extra: Partial<RunRecord> = {}): RunRecord {
   return {
-    schema: 'ramify-agent.job/3',
+    schema: 'ramify-agent.job/4',
     jobId: runId,
     planId: 'review-notes',
     kind: 'implementation',
@@ -36,7 +36,7 @@ export function constructedRecord(extra: Partial<RunRecord> = {}): RunRecord {
     policy: defaultRunPolicy({ projectRoot: '/nonexistent' }),
     projectConfig: { path: 'ramify-agent.json', hash, config: minimalProjectConfig },
     baseline: { unavailable: 'constructed' },
-    planScenarios: { scenarios: [], limitations: [] },
+    planScenarios: { schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: [], limitations: [] },
     reviewStop: false,
     ...extra,
   };
@@ -68,14 +68,14 @@ export function constructedRun(lines: readonly Line[], record: RunRecord = const
 
 export function registered(capability: string, extra: Partial<RegistryEntry> = {}): RegistryEntry {
   return registryEntrySchema.parse({
-    schema: 'ramify-agent.capability/1', capability, revision: 1, behavior: `The behavior of ${capability}.`,
+    schema: 'ramify-agent.capability/2', capability, revision: 1, behavior: `The behavior of ${capability}.`,
     owner: reviews, origin: 'entry', decision: null, consumers: [], ...extra,
   });
 }
 
 export function forecast(id: string, capability: string, extra: Partial<Hypothesis> = {}): Hypothesis {
   return hypothesisSchema.parse({
-    schema: 'ramify-agent.hypothesis/1', id, revision: 1, standing: 'tentative', capability,
+    schema: 'ramify-agent.hypothesis/2', id, revision: 1, standing: 'tentative', capability,
     change: 'create', changesExistingSymbols: false, suggestedOwner: reviews, anticipatedConsumers: [], involvedModules: [],
     dependsOn: [], confidence: 'low', rationale: 'It may be needed.', assumptions: [], uncertainties: [],
     citations: [], cause: { initial: 'inv-0001' }, ...extra,
@@ -84,14 +84,14 @@ export function forecast(id: string, capability: string, extra: Partial<Hypothes
 
 export function item(id: string, origin: WorkItem['origin'], extra: Partial<WorkItem> = {}): WorkItem {
   return workItemSchema.parse({
-    schema: 'ramify-agent.work-item/1', id, module: reviews, origin,
-    goal: `The goal of ${id}.`, requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null, ...extra,
+    schema: 'ramify-agent.work-item/2', id, module: reviews, origin,
+    goal: `The goal of ${id}.`, functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null, ...extra,
   });
 }
 
 export function obligation(contract: string, capability: string, revision: number = 1): ProviderObligation {
   return providerObligationSchema.parse({
-    schema: 'ramify-agent.provider-obligation/1', id: `ob-${contract}`, revision,
+    schema: 'ramify-agent.provider-obligation/2', id: `provider-obligation:${contract.replace(/^contract:/, '')}`, revision,
     contract: { id: contract, revision, hash }, capability, provider: reviews, behavior: `The provider of ${capability}.`,
     evidence: { conformance: ['subs/x/src/tests/conformance.test.ts'], against: 'real' },
   });
@@ -99,8 +99,8 @@ export function obligation(contract: string, capability: string, revision: numbe
 
 export function requirement(id: string, workItem: string, forCapability: string, contract: string, revision: number = 1): ConsumerRequirement {
   return consumerRequirementSchema.parse({
-    schema: 'ramify-agent.consumer-requirement/1', id, revision, workItem, consumer: reviews, forCapability,
-    obligation: `ob-${contract}`, contractRevision: revision, behavior: `What ${forCapability} needs.`,
+    schema: 'ramify-agent.consumer-requirement/2', id, revision, workItem, consumer: reviews, forCapability,
+    obligation: `provider-obligation:${contract.replace(/^contract:/, '')}`, contractRevision: revision, behavior: `What ${forCapability} needs.`,
     evidence: { tests: { policy: 'owned-by-scope', exactOwners: [reviews], subtrees: [], extraSuites: [] }, fakeInjections: [] },
   });
 }

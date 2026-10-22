@@ -129,7 +129,7 @@ describe('the capability graph', () => {
 });
 
 const comparison: ModuleCapabilityComparisonResponse = moduleCapabilityComparisonResponseSchema.parse({
-  identityPolicy: 'exact-capability-slug/1',
+  identityPolicy: 'exact-accepted-capability-id/2',
   runVersion: 12,
   initialView: { status: 'placeholder' },
   tree: {

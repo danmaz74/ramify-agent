@@ -16,10 +16,9 @@ import { type CapturedProjectConfig } from './project-records.js';
  * own settings, built again at the moment of the spawn.
  */
 
-/** New runs capture execution continuity; compatible legacy recovery records its policy transition. */
 export const runPolicyVersion = 'run-policy/8';
 
-/** The policy table. Legacy count fields remain for replay of captured runs;
+/** The policy table. Historical count fields remain for replay of captured runs;
  * their values do not decide whether semantic work may continue. */
 export const defaultLimits: RunPolicy['limits'] = {
   repairRoundsPerIteration: 3,
@@ -154,8 +153,6 @@ function npmCommand(cwd: string, args: readonly string[], timeoutMs: number): Ch
 
 export interface RunPolicyOptions {
   readonly projectRoot: string;
-  /** A descriptive capability run may accept a contract agreement task. */
-  readonly identityContract?: 'legacy' | 'descriptive' | undefined;
   /** The `ramify` executable, for a test that supplies its own. */
   readonly ramify?: string | undefined;
   /** An endpoint directory for the harness's own Ramify daemon, where it has one. */
@@ -172,7 +169,7 @@ export function defaultRunPolicy(options: RunPolicyOptions): RunPolicy {
   const { projectRoot } = options;
   const ramify = options.ramify ?? ramifyExecutable;
   const ramifySettings: Record<string, string> = options.endpointDirectory === undefined ? {} : { RAMIFY_ENDPOINT_DIR: options.endpointDirectory };
-  const context = Object.fromEntries(roles.filter(role => role !== 'contract-engineer' || options.identityContract === 'descriptive')
+  const context = Object.fromEntries(roles
     .map(role => [role, defaultContextPolicies[role]])) as RunPolicy['context'];
   return runPolicySchema.parse({
     version: runPolicyVersion,

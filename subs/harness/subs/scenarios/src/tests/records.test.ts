@@ -1,25 +1,25 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import type { AcceptedScenarioForm } from '../form.js';
-import { assignScenarioIds, lowestCommonAncestor, scenarioIdOf, scenarioRecordSchema, scenarioSourceHash, type ScenarioIdContext } from '../records.js';
+import { assignScenarioIds, lowestCommonAncestor, scenarioRecordSchema, scenarioSourceHash, type ScenarioIdContext } from '../records.js';
 
 const form: AcceptedScenarioForm = {
   scenarios: [
-    { key: 'send-email', entry: 'send-customer-email', origin: { kind: 'plan', planScenario: 'ps-01', lines: [4, 7] }, partOf: 'ps-02', name: 'A customer receives the email', source: ['Scenario: A customer receives the email', '  Given a customer'] },
-    { key: 'history', entry: 'email-history', origin: { kind: 'architect', refs: ['fr-003'] }, partOf: 'ps-02', name: 'Sent emails appear', source: ['Scenario: Sent emails appear', '  When the user opens the history'] },
-    { key: 'audit', entry: 'audit-trail', origin: { kind: 'architect', refs: [] }, partOf: null, name: 'Audited', source: ['Scenario: Audited', '  Then an audit line is written'] },
+    { key: 'send-email', entry: 'capability:send-customer-email', origin: { kind: 'plan', planScenario: 'plan-scenario:a-customer-receives-the-email', document: 'document:email-plan', lines: [4, 7] }, partOf: 'plan-scenario:a-sent-email-is-listed', name: 'A customer receives the email', source: ['Scenario: A customer receives the email', '  Given a customer'] },
+    { key: 'history', entry: 'capability:email-history', origin: { kind: 'architect', refs: ['functional-requirement:record-email-history'] }, partOf: 'plan-scenario:a-sent-email-is-listed', name: 'Sent emails appear', source: ['Scenario: Sent emails appear', '  When the user opens the history'] },
+    { key: 'audit', entry: 'capability:audit-trail', origin: { kind: 'architect', refs: [] }, partOf: null, name: 'Audited', source: ['Scenario: Audited', '  Then an audit line is written'] },
   ],
   integrations: [
-    { planScenario: 'ps-02', lines: [9, 13], subScenarios: ['send-email', 'history'], name: 'A sent email is listed', source: ['Scenario: A sent email is listed', '  Given a customer', '  When the user opens the history'] },
+    { planScenario: 'plan-scenario:a-sent-email-is-listed', document: 'document:email-plan', lines: [9, 13], subScenarios: ['send-email', 'history'], name: 'A sent email is listed', source: ['Scenario: A sent email is listed', '  Given a customer', '  When the user opens the history'] },
   ],
 };
 
 const context: ScenarioIdContext = {
   planId: 'send-customer-email',
   entries: [
-    { capability: 'send-customer-email', owner: 'shop/customers/mail' },
-    { capability: 'email-history', owner: 'shop/customers/history' },
-    { capability: 'audit-trail', owner: 'shop/audit-checks' },
+    { capability: 'capability:send-customer-email', owner: 'shop/customers/mail' },
+    { capability: 'capability:email-history', owner: 'shop/customers/history' },
+    { capability: 'capability:audit-trail', owner: 'shop/audit-checks' },
   ],
   modules: [
     { module: 'shop', dir: '', testing: false },
@@ -35,32 +35,32 @@ describe('assigning scenario IDs', () => {
 
   test('entry scenarios in submission order, then integration scenarios', () => {
     expect(assigned.records.map((record) => [record.id, record.kind, record.entry])).toEqual([
-      ['sc-001', 'entry', 'send-customer-email'],
-      ['sc-002', 'entry', 'email-history'],
-      ['sc-003', 'entry', 'audit-trail'],
-      ['sc-004', 'integration', null],
+      ['scenario:a-customer-receives-the-email', 'entry', 'capability:send-customer-email'],
+      ['scenario:sent-emails-appear', 'entry', 'capability:email-history'],
+      ['scenario:audited', 'entry', 'capability:audit-trail'],
+      ['scenario:a-sent-email-is-listed', 'integration', null],
     ]);
-    expect([...assigned.idsByKey]).toEqual([['send-email', 'sc-001'], ['history', 'sc-002'], ['audit', 'sc-003']]);
-    expect([...assigned.idsByPlanScenario]).toEqual([['ps-02', 'sc-004']]);
+    expect([...assigned.idsByKey]).toEqual([['send-email', 'scenario:a-customer-receives-the-email'], ['history', 'scenario:sent-emails-appear'], ['audit', 'scenario:audited']]);
+    expect([...assigned.idsByPlanScenario]).toEqual([['plan-scenario:a-sent-email-is-listed', 'scenario:a-sent-email-is-listed']]);
     for (const record of assigned.records) expect(scenarioRecordSchema.parse(record)).toEqual(record);
   });
 
-  test('historical records retain original bytes; additive accepted citations keep their distinct identities', () => {
-    const legacy = assigned.records[0]!;
-    const bytes = JSON.stringify(legacy);
-    expect(scenarioRecordSchema.parse(JSON.parse(bytes))).toEqual(legacy);
-    expect(JSON.stringify(scenarioRecordSchema.parse(legacy))).toBe(bytes);
-    expect(legacy).not.toHaveProperty('citedElements');
-    const current = { ...legacy, citedElements: ['fr-001', 'fr-002'] };
-    expect(scenarioRecordSchema.parse(current).citedElements).toEqual(['fr-001', 'fr-002']);
-    expect(JSON.stringify(legacy)).toBe(bytes);
+  test('current records serialize exactly and preserve accepted citations', () => {
+    const current = assigned.records[0]!;
+    const bytes = JSON.stringify(current);
+    expect(scenarioRecordSchema.parse(JSON.parse(bytes))).toEqual(current);
+    expect(JSON.stringify(scenarioRecordSchema.parse(current))).toBe(bytes);
+    expect(current.citedElements).toEqual([]);
+    const cited = { ...current, citedElements: ['functional-requirement:send-email', 'functional-requirement:show-email-history'] };
+    expect(scenarioRecordSchema.parse(cited).citedElements).toEqual(cited.citedElements);
+    expect(JSON.stringify(current)).toBe(bytes);
   });
 
   test('an entry scenario\'s owner is its entry\'s, and its file is in the owner\'s test area', () => {
     const [mail, history, audit] = assigned.records;
-    expect(mail).toMatchObject({ owner: 'shop/customers/mail', file: 'subs/customers/subs/mail/src/tests/features/send-customer-email/send-customer-email.feature' });
-    expect(history).toMatchObject({ owner: 'shop/customers/history', file: 'subs/customers/subs/history/src/tests/features/send-customer-email/email-history.feature' });
-    expect(audit).toMatchObject({ owner: 'shop/audit-checks', file: 'subs/audit-checks/src/features/send-customer-email/audit-trail.feature' });
+    expect(mail).toMatchObject({ owner: 'shop/customers/mail', file: 'subs/customers/subs/mail/src/tests/features/send-customer-email/capability%3Asend-customer-email.feature' });
+    expect(history).toMatchObject({ owner: 'shop/customers/history', file: 'subs/customers/subs/history/src/tests/features/send-customer-email/capability%3Aemail-history.feature' });
+    expect(audit).toMatchObject({ owner: 'shop/audit-checks', file: 'subs/audit-checks/src/features/send-customer-email/capability%3Aaudit-trail.feature' });
   });
 
   test('an integration scenario is owned by the lowest common ancestor of its sub-scenarios\' owners', () => {
@@ -68,18 +68,18 @@ describe('assigning scenario IDs', () => {
     expect(integration).toMatchObject({
       owner: 'shop/customers',
       file: 'subs/customers/src/tests/features/send-customer-email/integration.feature',
-      subScenarios: ['sc-001', 'sc-002'],
+      subScenarios: ['scenario:a-customer-receives-the-email', 'scenario:sent-emails-appear'],
       partOf: null,
-      origin: { kind: 'plan', planScenario: 'ps-02', ref: { lines: [9, 13] } },
+      origin: { kind: 'plan', planScenario: 'plan-scenario:a-sent-email-is-listed', ref: { document: 'document:email-plan', lines: [9, 13] } },
     });
-    expect(assigned.records[0]!.partOf).toBe('sc-004');
-    expect(assigned.records[1]!.partOf).toBe('sc-004');
+    expect(assigned.records[0]!.partOf).toBe('scenario:a-sent-email-is-listed');
+    expect(assigned.records[1]!.partOf).toBe('scenario:a-sent-email-is-listed');
     expect(assigned.records[2]!.partOf).toBeNull();
   });
 
   test('origins, sources and their hashes', () => {
-    expect(assigned.records[0]!.origin).toEqual({ kind: 'plan', planScenario: 'ps-01', ref: { lines: [4, 7] } });
-    expect(assigned.records[1]!.origin).toEqual({ kind: 'architect', refs: ['fr-003'] });
+    expect(assigned.records[0]!.origin).toEqual({ kind: 'plan', planScenario: 'plan-scenario:a-customer-receives-the-email', ref: { document: 'document:email-plan', lines: [4, 7] } });
+    expect(assigned.records[1]!.origin).toEqual({ kind: 'architect', refs: ['functional-requirement:record-email-history'] });
     const expected = createHash('sha256').update('Scenario: Audited\n  Then an audit line is written').digest('hex');
     expect(assigned.records[2]!.hash).toBe(`sha256:${expected}`);
     expect(scenarioSourceHash(assigned.records[2]!.source)).toBe(assigned.records[2]!.hash);
@@ -88,9 +88,9 @@ describe('assigning scenario IDs', () => {
   test('the root module\'s files sit in its own src/tests', () => {
     const rooted = assignScenarioIds({ scenarios: [form.scenarios[2]!], integrations: [] }, {
       ...context,
-      entries: [{ capability: 'audit-trail', owner: 'shop' }],
+      entries: [{ capability: 'capability:audit-trail', owner: 'shop' }],
     });
-    expect(rooted.records[0]!.file).toBe('src/tests/features/send-customer-email/audit-trail.feature');
+    expect(rooted.records[0]!.file).toBe('src/tests/features/send-customer-email/capability%3Aaudit-trail.feature');
   });
 
   test('a module not given is a caller\'s error', () => {
@@ -115,8 +115,4 @@ describe('the lowest common ancestor', () => {
     expect(() => lowestCommonAncestor([])).toThrow();
     expect(() => lowestCommonAncestor(['a/x', 'b/x'])).toThrow('share no root');
   });
-});
-
-test('IDs have three digits and grow past them', () => {
-  expect([scenarioIdOf(1), scenarioIdOf(42), scenarioIdOf(1000)]).toEqual(['sc-001', 'sc-042', 'sc-1000']);
 });

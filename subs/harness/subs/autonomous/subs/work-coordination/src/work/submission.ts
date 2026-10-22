@@ -126,6 +126,7 @@ const yieldMemberSchema = z.object({
 }).strict();
 const unresolvedMemberSchema = z.object({
   kind: z.literal('unresolved'),
+  requestKey: z.string().regex(/^draft:unresolved-request:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   conflict: text,
   evidence: z.array(text),
   ...obligationSubmissionFields,
@@ -161,18 +162,8 @@ type LocalArchitectInput = z.infer<typeof localArchitectInputSchema>;
 /** The members this iteration's package offers the role. */
 export const localArchitectSubmissionKinds = ['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved'] as const;
 
-/**
- * The schema the historical package's tool is given. It keeps the outline
- * required on a completion request, as that package's procedure states.
- */
-export const localArchitectJsonSchema = z.toJSONSchema(localArchitectSubmissionSchema) as JsonSchema;
-/** Descriptive new-run tool surface: every author input, including provider yield and outline reuse. */
-export const descriptiveLocalArchitectJsonSchema = z.toJSONSchema(localArchitectInputSchema) as JsonSchema;
-/** New-run tool surface: the input shape, without the historical provider-yield action. */
-export const capabilityLocalArchitectJsonSchema = z.toJSONSchema(z.discriminatedUnion('kind', [
-  localArchitectInputSchema.options[0]!, localArchitectInputSchema.options[1]!,
-  localArchitectInputSchema.options[2]!, localArchitectInputSchema.options[4]!,
-])) as JsonSchema;
+/** The author tool receives the current input shape, including valid outline reuse. */
+export const localArchitectJsonSchema = z.toJSONSchema(localArchitectInputSchema) as JsonSchema;
 
 export const localArchitectToolName = 'submit_work_item_result';
 
@@ -390,9 +381,6 @@ function outlineErrors(
     known(entry.owner, `outline.reuse.${index}.owner`);
     const registered = registryReferences.get(entry.capability);
     if (registered === undefined) {
-      // Historical runs could validate reuse without an architect view or a
-      // registry snapshot. Descriptive accepted IDs still need a real entry.
-      if (evidence.index === null && !entry.capability.startsWith('capability:')) return;
       errors.push({ path: `outline.reuse.${index}.capability`, message: `The registry has no entry for "${entry.capability}"`,
         expected: 'an accepted capability of this run or a registration in this submission' });
       return;

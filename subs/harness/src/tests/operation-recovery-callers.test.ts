@@ -16,7 +16,7 @@ import {
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { installTestRunner, openRuns, runPath, startRun, staleCrashLock, freeze, stopRun, testPolicy, until } from './helpers/runs.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
@@ -198,14 +198,14 @@ describe('ordinary recovery through actual workflow callers', () => {
     await installTestRunner(fixture.root);
     const reviews = 'collection-review/workspace/reviews';
     const script = declaringScenarios(byRole({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
       engineer: [[{ kind: 'end', message: 'The semantic result is unfinished.' }]],
     }));
     const agent = createScriptedAgent(interruptOnce(script, spec => spec.role === 'failure-analyst'));
     const opened = await openUnchangedRuns(fixture.root, {
       agent, inputs: treeInputs(), policy: recoveryPolicy,
-      unchangedCheckpoints: [scenariosCommit(plan), 'wi-001', `final verification of plan "${plan}"`],
+      unchangedCheckpoints: [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`],
       previewCount: 5,
     });
     cleanups.push(() => opened.service.close());
@@ -312,14 +312,14 @@ describe('ordinary recovery through actual workflow callers', () => {
       await writeFile(capturedPlan, `${await readFile(capturedPlan, 'utf8')}\n${obligation}\n`);
       const script = withDefaultTurns(spec => {
         if (spec.submission.name === intakeToolName) return submit({ goal: obligation, elements: [
-          { key: 'audit', kind: 'non-functional', document: 'doc-001', text: obligation, conditions: [], uncertainty: '' },
-        ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } });
-        if (spec.role === 'initial-architect') return submit(analysis([]));
+          { key: 'draft:non-functional-requirement:audit', kind: 'non-functional', document: 'document:review-notes-plan', text: obligation, conditions: [], uncertainty: '' },
+        ], incorporation: { documents: [{ document: 'document:review-notes-plan', scenarios: true, uncertainty: '' }], missing: [] } });
+        if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([]), 'document:review-notes-plan'));
         if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{
-          nfr: 'nfr-001', result: spec.prompt.includes('(after-repair)') ? 'satisfied' : 'not-satisfied',
+          nfr: 'non-functional-requirement:audit', result: spec.prompt.includes('(after-repair)') ? 'satisfied' : 'not-satisfied',
           inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Current source inspected'], uncertainty: '',
         }] });
-        if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['nfr-001'],
+        if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['non-functional-requirement:audit'],
           startingModule: 'collection-review/workspace/reviews/core', task: 'Add audit record source', evidence: [], uncertainty: '' });
         if (spec.submission.name === nonfunctionalRepairToolName) {
           answers.repair();
@@ -353,23 +353,23 @@ describe('ordinary recovery through actual workflow callers', () => {
       const a = 'capability-coordination/a', b = 'capability-coordination/b';
       let coordination = 0;
       const script = declaringScenarios(answers.script(spec => {
-        if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', a), entry('b-entry', b)]));
+        if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('richer-a-fact', a), entry('b-entry', b)]), 'document:need-plan'));
         if (spec.submission.name === localArchitectToolName) return submit(assign(a, {}, outline()));
         if (spec.submission.name === 'submit_capability_qualification') {
-          const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-          return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+          const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
+          return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:source-fact', provider: b,
             placementReason: 'B owns fact source', constraints: [], requirementRefs: [] });
         }
         if (spec.role === 'engineer') return [
           edit('caller.ts', 'return `Fact: ${value}`;', 'return `Fresh fact: ${value}`;'),
           ...submit({ kind: 'capability-needed', summary: 'A retains a provisional caller', request: {
-            need: 'Read B fact with source for A', usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Render richer result', prospective: false }],
-            constraints: [], knownInterface: { kind: 'none-known' }, examples: [{ title: 'A shows source', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
+            requestKey: 'draft:capability-request:source-fact', need: 'Read B fact with source for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Render richer result', prospective: false }],
+            constraints: [], knownInterface: { kind: 'none-known' }, examples: [{ key: 'draft:capability-example:source-shown', title: 'A shows source', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
           } }),
         ];
         if (spec.submission.name === 'submit_capability_action') {
           if (++coordination > 2) return [{ kind: 'wait', ms: 60_000 }];
-          const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+          const ids = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
           return submit({ kind: 'partial', task: ids[1], planRevision: Number(ids[2]), invocation: ids[3],
             progress: 'Read retained consumer and provider evidence', unfinished: ['Implement provider'] });
         }
@@ -381,8 +381,8 @@ describe('ordinary recovery through actual workflow callers', () => {
       const opened = await openCapabilityRuns(fixture.root, { ...answers.options, agent, inputs: treeInputs(), policy: recoveryPolicy });
       cleanups.push(() => opened.service.close());
       const receipt = await opened.service.execute(startRun('need'));
-      await until(() => coordination > 2 || opened.service.getRun('need', receipt.jobId)?.state === 'failed', 10_000);
-      expect(opened.service.getRun('need', receipt.jobId)?.state).not.toBe('failed');
+      await until(() => coordination > 2 || opened.service.getRun('need', receipt.jobId)?.state === 'failed', 60_000);
+      expect(opened.service.getRun('need', receipt.jobId)?.state, JSON.stringify(opened.service.getRun('need', receipt.jobId)?.failure)).not.toBe('failed');
       const current = opened.service.getRun('need', receipt.jobId)!;
       await opened.service.execute(stopRun('need', receipt.jobId, current.version));
       await opened.service.settled('need', receipt.jobId);

@@ -12,3 +12,4 @@ expose-src acceptAnalysis, AcceptedAnalysis, AnalysisAcceptanceContext from "acc
 expose-src acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis, AnalysisEvidence, InitialAnalysisSubmission, ResolvedAnalysis, initialAnalysisSubmissionSchema from "submission.ts" to parent
 expose-src planningRecords, PlanningRecords from "committed.ts" to parent
 expose-src documentChanges, readCapturedDocuments from "documents.ts" to parent
+expose-src DescriptiveInitialAnalysisSubmission, descriptiveInitialAnalysisSubmissionSchema, descriptiveInitialAnalysisJsonSchema, normalizeDescriptiveAnalysis, validateDescriptiveInitialAnalysis from "descriptive.ts" to parent

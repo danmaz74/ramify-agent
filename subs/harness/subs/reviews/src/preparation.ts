@@ -13,7 +13,6 @@ export interface ReviewPreparation {
   readonly briefing: Omit<ReviewBriefing, 'diffPayload'>;
   readonly maxConcerns: number;
   readonly signal?: AbortSignal;
-  readonly identityContract?: 'legacy' | 'descriptive';
 }
 
 /** One preparation binds its delivered patches and observed tool answers to its validator. */
@@ -69,6 +68,6 @@ export async function prepareReview(input: ReviewPreparation): Promise<PreparedR
     source: input.source, projectRoot: input.projectRoot, snapshot: input.briefing.snapshot,
     maxConcerns: input.maxConcerns, signal: input.signal,
     message: diffPayload => reviewMessage({ ...input.briefing, diffPayload }),
-    validate: (value, evidence) => validateReview(value, evidence, input.identityContract),
+    validate: (value, evidence) => validateReview(value, evidence),
   });
 }

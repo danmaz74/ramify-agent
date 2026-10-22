@@ -12,8 +12,8 @@ describe('descriptive scenario identities', () => {
       { id: 'document:plan', text: plan },
       { id: 'document:companion', text: plan },
     ];
-    const first = extractDocumentScenarios(documents, 'descriptive');
-    const retry = extractDocumentScenarios(documents, 'descriptive');
+    const first = extractDocumentScenarios(documents);
+    const retry = extractDocumentScenarios(documents);
     expect(first.schema).toBe('ramify-agent.plan-scenario-extraction/2');
     expect(planScenarioExtractionSchema.parse(first)).toEqual(first);
     expect(first).toEqual(retry);
@@ -23,7 +23,7 @@ describe('descriptive scenario identities', () => {
   });
 
   it('accepts explicit draft scenario and capability keys, then renders a reversible identity tag', () => {
-    const captured = extractDocumentScenarios([{ id: 'document:plan', text: plan }], 'descriptive').scenarios[0]!;
+    const captured = extractDocumentScenarios([{ id: 'document:plan', text: plan }]).scenarios[0]!;
     const submission = descriptiveScenarioFormSubmissionSchema.parse({
       scenarios: [{ scenarioKey: 'draft:scenario:reject-missing-predecessor', entryCapabilityKey: 'draft:capability:add-preview',
         origin: { kind: 'plan', planScenarioId: captured.id }, functionalAcceptanceKeys: ['draft:functional-requirement:reject-missing-predecessor'] }],
@@ -33,13 +33,14 @@ describe('descriptive scenario identities', () => {
     const form = validateScenarioForm(normalized, [captured], [{ capability: 'draft:capability:add-preview', acceptanceRefs: ['draft:functional-requirement:reject-missing-predecessor'] }]);
     expect(form.ok).toBe(true);
     if (!form.ok) return;
-    const assigned = assignScenarioIds(form.form, { identityContract: 'descriptive', planId: 'preview',
-      entries: [{ capability: 'draft:capability:add-preview', owner: 'app' }],
+    const accepted = { ...form.form, scenarios: form.form.scenarios.map(scenario => ({ ...scenario, entry: 'capability:add-preview' })) };
+    const assigned = assignScenarioIds(accepted, { planId: 'preview',
+      entries: [{ capability: 'capability:add-preview', owner: 'app' }],
       modules: [{ module: 'app', dir: '', testing: false }],
     });
     expect(assigned.records[0]).toMatchObject({ schema: 'ramify-agent.scenario/2', id: 'scenario:reject-missing-predecessor',
       origin: { kind: 'plan', planScenario: captured.id } });
-    expect(assigned.records[0]!.file).toBe('src/tests/features/preview/draft%3Acapability%3Aadd-preview.feature');
+    expect(assigned.records[0]!.file).toBe('src/tests/features/preview/capability%3Aadd-preview.feature');
     expect(scenarioRecordSchema.parse(assigned.records[0])).toEqual(assigned.records[0]);
     expect(scenarioIdOfTag(identityTagOf(assigned.records[0]!.id))).toBe(assigned.records[0]!.id);
   });

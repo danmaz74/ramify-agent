@@ -18,7 +18,7 @@ import { RunLog } from '../run/log.js';
 import { runLayout } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
 import type { RunService } from '../../../../src/run/lifecycle.js';
-import { analysis, entry } from '../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../src/tests/helpers/analysis.js';
 
 import { FakeRamifyCli } from '../../../../src/tests/helpers/fake-ramify.js';
 import { copyFixture } from '../../../../src/tests/helpers/fixture.js';
@@ -232,15 +232,15 @@ describe('a run started with the review stop', () => {
     const correction: CheckSubmission = {
       corrections: [
         { action: 'rewrite', reason: 'The reading made the request stronger than the plan states it.',
-          element: { id: 'fr-001', text: 'A reviewer can attach a note to a completed review run.', conditions: [{ text: 'a completed review run', source: 'stated' }], uncertainty: '' } },
+          element: { id: 'functional-requirement:reviewer-note-request', text: 'A reviewer can attach a note to a completed review run.', conditions: [{ text: 'a completed review run', source: 'stated' }], uncertainty: '' } },
         { action: 'add', reason: 'The plan bounds a note, and no reading kept it.',
-          elements: [{ key: 'note-bound', kind: 'non-functional', document: 'doc-001', text: 'A note holds at most 500 characters.', conditions: [], uncertainty: '' }] },
+          elements: [{ key: 'draft:non-functional-requirement:note-bound', kind: 'non-functional', document: 'document:review-notes-plan', text: 'A note holds at most 500 characters.', conditions: [], uncertainty: '' }] },
       ],
       entries: [], scenarios: [],
     };
     const { service } = await openRuns(root, {
       script: spec => spec.submission.name === checkToolName ? [{ kind: 'submit', input: correction }]
-        : spec.role === 'initial-architect' ? submit(analysis([entry('reviewer-note', reviews)])) : [],
+        : spec.role === 'initial-architect' ? submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan')) : [],
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun(plan, 'scripted', undefined, true));
@@ -251,16 +251,16 @@ describe('a run started with the review stop', () => {
     expect(accepted.data.catalog).toEqual({ context: 0, functional: 2, nonFunctional: 1, fixed: 0, recommendation: 0 });
     // inv-0003 is the plan's checker, after the intake and the plan architect.
     expect(accepted.data.findings?.map(finding => [finding.invocation, finding.action, finding.elements])).toEqual([
-      ['inv-0003', 'rewrite', ['fr-001']], ['inv-0003', 'add', ['nfr-001']],
+      ['inv-0003', 'rewrite', ['functional-requirement:reviewer-note-request']], ['inv-0003', 'add', ['non-functional-requirement:note-bound']],
     ]);
     const projection = await new RunQueries(createQuerySource(service)).analysis(plan, receipt.jobId);
     if (projection.analysis.status !== 'accepted' || projection.analysis.planEvidence?.status !== 'available') throw new Error('no accepted plan evidence');
     const evidence = projection.analysis.planEvidence;
-    expect(evidence.elements.map(element => [element.id, element.kind])).toEqual([['fr-001', 'functional'], ['fr-002', 'functional'], ['nfr-001', 'non-functional']]);
+    expect(evidence.elements.map(element => [element.id, element.kind])).toEqual([['functional-requirement:reviewer-note-request', 'functional'], ['functional-requirement:reviewer-note-acceptance', 'functional'], ['non-functional-requirement:note-bound', 'non-functional']]);
     expect(evidence.elements[0]).toMatchObject({ text: 'A reviewer can attach a note to a completed review run.', conditions: [{ text: 'a completed review run', source: 'stated' }] });
     expect(evidence.findings).toEqual([
-      { document: 'doc-001', path: `plans/${plan}/plan.md`, action: 'rewrite', reason: 'The reading made the request stronger than the plan states it.', elements: ['fr-001'], retired: [] },
-      { document: 'doc-001', path: `plans/${plan}/plan.md`, action: 'add', reason: 'The plan bounds a note, and no reading kept it.', elements: ['nfr-001'], retired: [] },
+      { document: 'document:review-notes-plan', path: `plans/${plan}/plan.md`, action: 'rewrite', reason: 'The reading made the request stronger than the plan states it.', elements: ['functional-requirement:reviewer-note-request'], retired: [] },
+      { document: 'document:review-notes-plan', path: `plans/${plan}/plan.md`, action: 'add', reason: 'The plan bounds a note, and no reading kept it.', elements: ['non-functional-requirement:note-bound'], retired: [] },
     ]);
     expect(evidence.retired).toEqual([]);
     await service.execute(stopRun(plan, receipt.jobId, version(service, receipt.jobId)));
@@ -321,7 +321,7 @@ describe('approve-analysis in a run without the stop', () => {
     const root = await target();
     const { service, agent } = await openRuns(root, {
       script: byRole({
-        'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
         'local-architect': [[{ kind: 'wait', ms: 60_000 }]],
       }),
       inputs: treeInputs(),
@@ -442,7 +442,7 @@ describe('elapsed run age', () => {
     const root = await target();
     let current = new Date('2026-09-23T12:00:00.000Z');
     const scripted = createScriptedAgent(withDefaultTurns(byRole({
-      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [[{ kind: 'wait', ms: 60_000 }]],
     })));
     const timed: AgentPort = {

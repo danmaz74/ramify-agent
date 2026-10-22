@@ -44,8 +44,7 @@ export function moduleCapabilityComparisonOf(
   analysisLimits: AnalysisCoverageLimits,
 ): ModuleCapabilityComparisonResponse {
   const runVersion = view.entries.at(-1)?.sequence ?? 0;
-  const base = { identityPolicy: view.record.identityContract === 'descriptive'
-    ? 'exact-accepted-capability-id/2' as const : 'exact-capability-slug/1' as const, runVersion, tree };
+  const base = { identityPolicy: 'exact-accepted-capability-id/2' as const, runVersion, tree };
   const assignments = view.entryAssignments;
   if (assignments === null) {
     const accepted = view.events.some(event => event.type === 'analysis-accepted');

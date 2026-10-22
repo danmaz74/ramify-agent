@@ -125,7 +125,7 @@ function planDeviationsOf(view: RunView): PackageDeviation[] {
   const deviations: PackageDeviation[] = [];
   for (const line of view.entries) {
     for (const record of line.transaction.records) {
-      if (!['ramify-agent.plan-deviation/1', 'ramify-agent.plan-deviation/2'].includes(String((record.body as { schema?: unknown } | null)?.schema))) continue;
+      if ((record.body as { schema?: unknown } | null)?.schema !== 'ramify-agent.plan-deviation/2') continue;
       const parsed = planDeviationSchema.safeParse(record.body);
       if (parsed.success) deviations.push(packageDeviation(parsed.data));
     }
@@ -171,10 +171,10 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
 
   return {
     workItem: summaryOf(view, item, states),
-    ...(item.schema === 'ramify-agent.work-item/2' ? { acceptedReferences: (() => {
-      const functionalRequirementIds = [...item.functionalRequirementIds!];
-      const functionalAcceptanceIds = [...item.functionalAcceptanceIds!];
-      const contextIds = [...item.contextIds!];
+    acceptedReferences: (() => {
+      const functionalRequirementIds = [...item.functionalRequirementIds];
+      const functionalAcceptanceIds = [...item.functionalAcceptanceIds];
+      const contextIds = [...item.contextIds];
       if (evidence.status === 'unavailable') return { functionalRequirementIds, functionalAcceptanceIds, contextIds, elements: [], unavailable: evidence.reason };
       const cited = new Set([...functionalRequirementIds, ...functionalAcceptanceIds, ...contextIds]);
       const paths = new Map(evidence.manifest.documents.map(document => [document.id, document.path]));
@@ -186,7 +186,7 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
       const missing = [...cited].filter(id => !elements.some(element => element.id === id));
       return { functionalRequirementIds, functionalAcceptanceIds, contextIds, elements,
         unavailable: missing.length === 0 ? null : `Accepted catalog elements unavailable: ${missing.join(', ')}` };
-    })() } : {}),
+    })(),
     outlines: (view.records.outlines.get(id) ?? []).map(outline => ({
       revision: outline.revision,
       invocation: outline.invocation,

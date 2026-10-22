@@ -162,7 +162,7 @@ import { startingPointsSection, type StartingPointGroup } from '../../work-coord
 
 
 
-import { finalCorrectionSchema, descriptiveFinalCorrectionSchema, type FinalCorrection } from './final-correction.js';
+import { finalCorrectionSchema, type FinalCorrection } from './final-correction.js';
 
 
 import { posix } from 'node:path';
@@ -198,8 +198,8 @@ import { capabilityCompletionBlockers, replayCapabilityState } from '../../work-
 
 
 import { reviewAttemptId, reviewAttemptSchema, reviewLayout, reviewOrientationSchema, type ForkPoint, type ReviewAttempt, type ReviewOrientation, type ReviewRequest, type ReviewResult } from './reviews/records.js';
-import { descriptiveReviewSubmissionSchema, reviewSubmissionSchema, type OrientationSubmission, type ReviewSubmission } from '../../../../reviews/src/interfaces/submissions.js';
-import { descriptiveReviewJsonSchema, descriptiveReviewSubmissionDescription } from '../../../../reviews/src/submission.js';
+import { reviewSubmissionSchema, type OrientationSubmission, type ReviewSubmission } from '../../../../reviews/src/interfaces/submissions.js';
+import { reviewJsonSchema, reviewSubmissionDescription } from '../../../../reviews/src/submission.js';
 import type { CapturedInput } from '../../../../reviews/src/inputs.js';
 import { prepareReview, type PreparedReview } from '../../../../reviews/src/preparation.js';
 import { ReviewQueue } from '../../../../reviews/src/scheduler.js';
@@ -224,7 +224,7 @@ import { roundSchema, type Candidate } from '../../../../nonfunctional/src/inter
 import { decideNonfunctionalRound, type RoundDecision } from '../../../../nonfunctional/src/rounds.js';
 import { replayNonfunctionalPhase } from './nonfunctional-phase.js';
 import { preparedCandidateSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema } from './nonfunctional-records.js';
-import { assessedElements, bindCoordinatorAssessment, coordinatorAssessmentJsonSchema, coordinatorActionJsonSchema, descriptiveCoordinatorActionJsonSchema, coordinatorInvestigationJsonSchema, coordinatorActionSchema, descriptiveCoordinatorActionSchema, nonfunctionalRepairJsonSchema, nonfunctionalRepairToolName, validateCoordinatorAction, validateCoordinatorInvestigation, nonfunctionalRepairSubmissionSchema, type CoordinatorAssessmentSubmission, type CoordinatorAction, type CoordinatorInvestigation, type NonfunctionalRepairSubmission } from './nonfunctional/submissions.js';
+import { assessedElements, bindCoordinatorAssessment, coordinatorAssessmentJsonSchema, coordinatorActionJsonSchema, coordinatorInvestigationJsonSchema, coordinatorActionSchema, nonfunctionalRepairJsonSchema, nonfunctionalRepairToolName, validateCoordinatorAction, validateCoordinatorInvestigation, nonfunctionalRepairSubmissionSchema, type CoordinatorAssessmentSubmission, type CoordinatorAction, type CoordinatorInvestigation, type NonfunctionalRepairSubmission } from './nonfunctional/submissions.js';
 import { coordinatorAssessmentPrompt, coordinatorActionPrompt, repairPrompt } from './nonfunctional/prompts.js';
 
 
@@ -247,10 +247,9 @@ import { readScopeMeasurement, writeScopeMeasurement } from '../../../../kpi/src
 import { takeLineSnapshot } from '../../../../kpi/src/lines.js';
 
 
-import { nextCheckFinding } from './deviations/finding.js';
 import { nonfunctionalDeviationCommands, nonfunctionalDeviationHash, prepareNonfunctionalDeviation } from './deviations/nonfunctional.js';
 import type { StandIn } from '../../work-coordination/src/contracts/parity.js';
-import { contractsLayout, obligationId, type ConsumerRequirement } from '../../work-coordination/src/contracts/records.js';
+import { contractsLayout, type ConsumerRequirement } from '../../work-coordination/src/contracts/records.js';
 import { conformanceKey, verificationKey } from '../../work-coordination/src/contracts/schedule.js';
 import { type EstablishedContract } from '../../work-coordination/src/contracts/submission.js';
 import { remainingInjections } from '../../work-coordination/src/contracts/verification.js';
@@ -266,7 +265,7 @@ import { iterationAssignmentSchema, iterationLayout } from '../../work-coordinat
 import { isContained } from '../../../../../src/guard/resolve-contained-path.js';
 import { scopeConfigurationPaths, captureGuardedFiles, guardedScopeOf, resolveWriteScope } from '../../../../../src/work/scope.js';
 
-import { workLayout, workItemId, workItemSchema, type WorkItem } from '../../work-coordination/src/work/records.js';
+import { workLayout, workItemSchema, type WorkItem } from '../../work-coordination/src/work/records.js';
 import { type ReconciliationBriefing } from '../../work-coordination/src/work/session.js';
 import { gateDiagnostics, type GateAudience } from './checks/diagnostics.js';
 
@@ -310,7 +309,7 @@ export interface AcceptanceObservation extends AcceptanceReading {
  readonly findings: CheckFindingState; readonly restoring: boolean; readonly readerStop: NotVerifiedReason | undefined;
 }
 export interface AcceptanceInput {
- readonly projectRoot: string; readonly directory: string; readonly record: Pick<RunRecord, 'jobId' | 'planId' | 'manifest' | 'projectConfig' | 'auditConfiguration' | 'identityContract'>;
+ readonly projectRoot: string; readonly directory: string; readonly record: Pick<RunRecord, 'jobId' | 'planId' | 'manifest' | 'projectConfig' | 'auditConfiguration'>;
  readonly workflow: 'capability-coordination/1' | null;
  readonly options: { readonly ramify: RamifyCli; readonly commandExecution?: CommandRunner | undefined; readonly configuredAudit: ConfiguredAuditPort };
  readonly git: GitService; readonly candidates: CandidateSource;
@@ -505,7 +504,6 @@ export class Acceptance {
       prepared = await prepareReview({
         source: this.candidates,
         projectRoot: this.projectRoot,
-        identityContract: this.input.record.identityContract ?? 'legacy',
         signal: preparation.signal,
         maxConcerns: policy.maxConcerns,
         briefing: {
@@ -589,9 +587,9 @@ export class Acceptance {
       ...(step.fork === undefined ? {} : { fork: step.fork }),
       ...(start.degraded === undefined ? {} : { degraded: start.degraded }),
       toolName: step.submission.toolName,
-      description: this.input.record.identityContract === 'descriptive' ? descriptiveReviewSubmissionDescription : step.submission.description,
-      inputSchema: this.input.record.identityContract === 'descriptive' ? descriptiveReviewJsonSchema : step.submission.inputSchema,
-      submissionSchema: this.input.record.identityContract === 'descriptive' ? 'ramify-agent.review-submission/2' : step.submission.submissionSchema,
+      description: reviewSubmissionDescription,
+      inputSchema: reviewJsonSchema,
+      submissionSchema: 'ramify-agent.review-submission/2',
       validate: prepared.validate,
       keep: () => finished('work-closed'),
       scope: { write: null, measurement: null, size: null },
@@ -675,9 +673,8 @@ export class Acceptance {
     }
     const raw = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
     const { schema: _schema, ...body } = raw;
-    const descriptive = this.input.record.identityContract === 'descriptive';
-    const parsed = (descriptive ? descriptiveReviewSubmissionSchema : reviewSubmissionSchema).safeParse(body);
-    if (raw.schema !== (descriptive ? 'ramify-agent.review-submission/2' : 'ramify-agent.review-submission/1') || !parsed.success) {
+    const parsed = reviewSubmissionSchema.safeParse(body);
+    if (raw.schema !== 'ramify-agent.review-submission/2' || !parsed.success) {
       await this.ports.fail('recovery-exhausted', `Reviewer ${invocation} has an invalid accepted submission for ${pending.id}`);
       return false;
     }
@@ -843,7 +840,7 @@ export class Acceptance {
     submission?: ReviewSubmission,
     bindings: readonly ConcernBinding[] = [],
   ): Promise<'committed' | 'fenced'> {
-    return finishReview({ events: () => this.observe().history.events, commit: this.ports.commitFinding }, () => this.ports.now(), request, attempt, result, settles, submission, bindings, this.input.record.identityContract ?? 'legacy');
+    return finishReview({ events: () => this.observe().history.events, commit: this.ports.commitFinding }, () => this.ports.now(), request, attempt, result, settles, submission, bindings);
   }
 
   async finishUnsettledReviews(
@@ -1162,7 +1159,7 @@ export class Acceptance {
       role: owner.role,
       task: { kind: 'reconciliation', goal: item.goal, requirements: [JSON.stringify(basis)], modules: [item.module],
         literalSections: [{ key: 'support:work-item-package', text: (await this.ports.coordination.currentSelection(item.id))?.packageText
-          ?? this.ports.coordination.planPackage(await this.ports.coordination.frozenCatalog(), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs]) }] },
+          ?? this.ports.coordination.planPackage(await this.ports.coordination.frozenCatalog(), [...item.functionalRequirementIds, ...item.functionalAcceptanceIds, ...item.contextIds]) }] },
       work: owner.role === 'capability-architect' ? { capabilityTask: owner.id, request: owner.request } : { workItem: owner.id },
       attempt: basis.round,
       loaded,
@@ -1495,7 +1492,7 @@ export class Acceptance {
       const bytes = await readIfExists(this.path(runLayout.submission(start.data.invocation)));
       if (bytes === undefined || sha256(bytes) !== end.data.submission) throw new Error('Final correction submission is unavailable');
       const { schema: _schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-      accepted = { id: start.data.invocation, value: (this.input.record.identityContract === 'descriptive' ? descriptiveFinalCorrectionSchema : finalCorrectionSchema).parse(body) };
+      accepted = { id: start.data.invocation, value: finalCorrectionSchema.parse(body) };
     }
     let priorUnfinished: string | undefined;
     while (accepted === undefined) {
@@ -1508,7 +1505,7 @@ export class Acceptance {
         prompt: [
           `Final verification ${gate.id} is ${gate.verdict}. The plan remains unfinished; accepted work is retained.`,
           `For this turn, use submit_final_correction to choose the module architect and goal for the next correction; its supplied schema defines this task's answer.`,
-          ...(this.input.record.identityContract === 'descriptive' ? ['Propose workItemKey draft:work-item:<correction-goal-name>. Its accepted name must be unused in this run.'] : []),
+          'Propose workItemKey draft:work-item:<correction-goal-name>. Its accepted name must be unused in this run.',
           'Investigate the actual diagnostics. Explain why the next approach should help; repeated failure requires reconsideration, not abandonment.',
           'An environment or verification issue may need investigation before source changes. Delegate that investigation as the goal where appropriate.',
           `Gate evidence: ${this.path(runLayout.gate(gate.id))}`,
@@ -1518,10 +1515,10 @@ export class Acceptance {
         ].join('\n\n'),
         start: { mode: 'fresh' }, keep: () => finished('work-closed'),
         toolName: 'submit_final_correction', description: 'Choose the responsible module architect and correction goal after failed final verification.',
-        inputSchema: z.toJSONSchema(this.input.record.identityContract === 'descriptive' ? descriptiveFinalCorrectionSchema : finalCorrectionSchema) as JsonSchema,
-        submissionSchema: this.input.record.identityContract === 'descriptive' ? 'ramify-agent.final-correction/2' : 'ramify-agent.final-correction/1',
+        inputSchema: z.toJSONSchema(finalCorrectionSchema) as JsonSchema,
+        submissionSchema: 'ramify-agent.final-correction/2',
         validate: input => {
-          const result = validateAgainst(this.input.record.identityContract === 'descriptive' ? descriptiveFinalCorrectionSchema : finalCorrectionSchema, input);
+          const result = validateAgainst(finalCorrectionSchema, input);
           if (!result.ok || !('workItemKey' in result.value) || typeof result.value.workItemKey !== 'string') return result;
           const id = result.value.workItemKey.slice('draft:'.length);
           return committedRecords(this.observe().history.lines).workItems.some(item => item.id === id)
@@ -1540,14 +1537,11 @@ export class Acceptance {
       accepted = { id: result.id, value: result.value };
     }
     if (this.ports.ignoring()) return false;
-    const records = committedRecords(this.observe().history.lines);
-    const descriptive = this.input.record.identityContract === 'descriptive';
-    const item = workItemSchema.parse({ schema: descriptive ? 'ramify-agent.work-item/2' : 'ramify-agent.work-item/1',
-      id: descriptive && 'workItemKey' in accepted.value ? accepted.value.workItemKey.slice('draft:'.length) : workItemId(records.workItems.length + 1),
+    const item = workItemSchema.parse({ schema: 'ramify-agent.work-item/2',
+      id: accepted.value.workItemKey.slice('draft:'.length),
       module: accepted.value.module, origin: { finalVerification: gate.id },
       goal: [accepted.value.goal, accepted.value.rationale, `Failed verification: ${this.path(runLayout.gate(gate.id))}`, ...diagnostics.summary].join('\n\n'),
-      requirementRefs: [], acceptanceRefs: [], contextRefs: [],
-      ...(descriptive ? { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [] } : {}), startedFor: null,
+      functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null,
     });
     await this.ports.write({ type: 'final-correction-planned', data: { gate: gate.id, invocation: accepted.id,
       workItem: item.id, candidate: binding.candidateId, assessment: binding.assessment.id, round: binding.assessment.round } },
@@ -1712,10 +1706,9 @@ export class Acceptance {
     let action: CoordinatorAction;
     try {
       const envelope = JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
-      const descriptive = this.input.record.identityContract === 'descriptive';
-      if (envelope.schema !== (descriptive ? 'ramify-agent.nonfunctional-action/2' : 'ramify-agent.nonfunctional-action/1')) throw new Error('wrong close submission schema');
+      if (envelope.schema !== 'ramify-agent.nonfunctional-action/2') throw new Error('wrong close submission schema');
       const { schema: _schema, ...body } = envelope;
-      action = (descriptive ? descriptiveCoordinatorActionSchema : coordinatorActionSchema).parse(body);
+      action = coordinatorActionSchema.parse(body);
     } catch (error) {
       return unavailable(`The close submission cannot be parsed: ${message(error)}`, [runLayout.submission(actionId)]);
     }
@@ -1731,72 +1724,8 @@ export class Acceptance {
     if (preview.tree !== binding.assessment.candidate.tree) {
       throw new CandidateReassessmentRequired('The current candidate needs fresh assessment before recording deviations');
     }
-    if (this.input.record.identityContract === 'descriptive') {
-      return this.recordNamedNonfunctionalDeviations(agent, packages, binding, evidence.catalog, evidence.manifest,
-        action, actionId, unresolved, unavailable);
-    }
-    for (const result of unresolved) {
-      const item = evidence.catalog.elements.find(candidate => candidate.id === result.nfr);
-      const choice = choices.get(result.nfr);
-      if (!item || !choice) return unavailable(`Fixed NFR ${result.nfr} has no accepted source or close choice`);
-      // Continuations after external repairs or architect corrections keep
-      // earlier decisions as history. A new candidate receives its own evidence.
-      const invalidated = new Set([
-        ...this.events('nonfunctional-final-invalidated').map(event => event.data.assessment),
-        ...this.events('final-correction-planned').map(event => event.data.assessment),
-      ]);
-      const history = this.events('nonfunctional-deviation-recorded').filter(event => event.data.nfr === result.nfr);
-      const previous = history.filter(event => event.data.assessment === binding.assessment.id);
-      if (previous.length > 1 || history.some(event => event.data.assessment !== binding.assessment.id
-        && !invalidated.has(event.data.assessment))) {
-        return unavailable(`NFR ${result.nfr} has a conflicting recorded deviation`);
-      }
-      if (previous.length === 1) {
-        const event = previous[0]!;
-        const recorded = nonfunctionalDeviationSchema.safeParse(this.ports.committedBody(runLayout.nonfunctionalDeviation(event.data.deviation)));
-        const expected = prepareNonfunctionalDeviation({ id: event.data.deviation, checkFinding: event.data.checkFinding,
-          item, assessment: binding.assessment, result,
-          candidate: binding.assessment.candidate, coordinatorInvocation: binding.assessment.coordinatorInvocation,
-          proposedAlternative: choice.proposedAlternative ?? '', uncertainty: choice.uncertainty });
-        const finding = this.observe().findings.findings.get(event.data.checkFinding);
-        if (!recorded.success || !expected.ok || canonicalJson(recorded.data) !== canonicalJson(expected.record)
-          || finding?.reports[0]?.judgment?.ground?.hash !== nonfunctionalDeviationHash(recorded.data)
-          || finding.reports[0].observation.kind !== 'plan-deviation'
-          || finding.decisions[0]?.decision.action !== 'request-user-decision') {
-          return unavailable(`Previously recorded deviation for ${result.nfr} cannot be verified`);
-        }
-        continue;
-      }
-      const version = this.observe().version;
-      const id = `nfd-${String(this.events('nonfunctional-deviation-recorded').length + 1).padStart(3, '0')}`;
-      const committed = await this.ports.commitFinding( ({ state }) => {
-        if (this.observe().version !== version || this.observe().terminal !== undefined) return { stale: 'The assessed candidate moved before deviation recording' };
-        if (this.events('nonfunctional-deviation-recorded').some(event => event.data.nfr === result.nfr
-          && event.data.assessment === binding.assessment.id)) {
-          return { stale: `NFR ${result.nfr} was already recorded` };
-        }
-        if (this.events('nonfunctional-deviation-recorded').some(event => event.data.deviation === id)
-          || this.events('plan-deviation-recorded').some(event => event.data.deviation === id))
-          return { stale: `${id} is already accepted as a plan deviation` };
-        const prepared = prepareNonfunctionalDeviation({ id, checkFinding: nextCheckFinding(state), item,
-          assessment: binding.assessment, result,
-          candidate: binding.assessment.candidate, coordinatorInvocation: binding.assessment.coordinatorInvocation,
-          proposedAlternative: choice.proposedAlternative ?? '', uncertainty: choice.uncertainty });
-        if (!prepared.ok) throw new Error(prepared.errors.join('; '));
-        const record = prepared.record;
-        const path = runLayout.nonfunctionalDeviation(id);
-        const commands = nonfunctionalDeviationCommands(state, record, evidence.manifest, path);
-        if (!commands.ok) throw new Error(commands.errors.join('; '));
-        return { commands: commands.commands, compose: decided => ({
-          event: { type: 'nonfunctional-deviation-recorded', data: { deviation: id, nfr: result.nfr,
-            assessment: binding.assessment.id, checkFinding: record.checkFinding, checkFindings: [...decided.events] } },
-          records: [{ path, id, revision: 1, body: record }],
-        }) };
-      }, this.ports.now());
-      if (committed.kind !== 'committed') return unavailable(`Could not record deviation ${id}: ${committed.kind === 'refused' ? committed.refusal.message : 'already replayed'}`);
-      this.ports.notify();
-    }
-    return true;
+    return this.recordNamedNonfunctionalDeviations(agent, packages, binding, evidence.catalog, evidence.manifest,
+      action, actionId, unresolved, unavailable);
   }
 
   private async recordNamedNonfunctionalDeviations(
@@ -1839,7 +1768,7 @@ export class Acceptance {
       }
       const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
       if (schema !== 'ramify-agent.nonfunctional-action/2') return unavailable('Close correction has the wrong schema');
-      selected = { value: descriptiveCoordinatorActionSchema.parse(body), invocation: start.data.invocation };
+      selected = { value: coordinatorActionSchema.parse(body), invocation: start.data.invocation };
     }
     const loaded = packages.get('nonfunctional-coordinator');
     if (loaded === undefined) return unavailable('Non-functional coordinator package is unavailable for close correction');
@@ -1858,17 +1787,12 @@ export class Acceptance {
           return { stale: 'The close batch was already recorded' };
         const otherDeviations = new Set([
           ...this.events('plan-deviation-recorded').map(event => event.data.deviation),
-          ...this.events('nonfunctional-deviation-recorded').map(event => event.data.deviation),
           ...this.events('nonfunctional-deviations-recorded').flatMap(event => event.data.deviations.map(entry => entry.deviation)),
         ]);
         const entries: Array<{ deviation: string; nfr: string; checkFinding: string }> = [];
         const records: CommitRecord[] = [];
         const commands: import('../../../../check-findings/src/interfaces/check-findings.js').CheckFindingCommand[] = [];
         for (const [index, choice] of choices.entries()) {
-          if (!('deviationKey' in choice) || !('findingKey' in choice)
-            || typeof choice.deviationKey !== 'string' || typeof choice.findingKey !== 'string') {
-            return { stale: `deviations.${index}: descriptive close keys are required` };
-          }
           const id = choice.deviationKey.slice('draft:'.length);
           const findingId = choice.findingKey.slice('draft:'.length);
           if (otherDeviations.has(id) || entries.some(entry => entry.deviation === id))
@@ -1910,16 +1834,15 @@ export class Acceptance {
           `Publication refused: ${reason}`, `Previous close submission: ${this.path(runLayout.submission(selected.invocation))}`].join('\n\n'),
         start: { mode: 'fresh' }, toolName: coordinatorActionToolName,
         description: 'Correct conflicting close names for the retained non-functional assessment.',
-        inputSchema: descriptiveCoordinatorActionJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-action/2',
+        inputSchema: coordinatorActionJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-action/2',
         validate: input => validateCoordinatorAction(input, {
           decision: { action: 'close', round: assessment.round, outcome: 'exhausted', unresolved: unresolved.map(result => result.nfr) },
           results: assessment.results, investigatedNfrs: [], moduleNames: [],
           occupiedDeviationNames: new Set([
             ...this.events('plan-deviation-recorded').map(event => event.data.deviation),
-            ...this.events('nonfunctional-deviation-recorded').map(event => event.data.deviation),
-            ...this.events('nonfunctional-deviations-recorded').flatMap(event => event.data.deviations.map(entry => entry.deviation)),
+              ...this.events('nonfunctional-deviations-recorded').flatMap(event => event.data.deviations.map(entry => entry.deviation)),
           ]), occupiedFindingNames: new Set(this.observe().findings.findings.keys()),
-        }, 'descriptive'), keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
+        }), keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
         writer: true, equip: session => this.nonfunctionalTools(session, []),
       });
       if (result.ended !== 'submitted' || result.value?.kind !== 'close')
@@ -2038,19 +1961,19 @@ export class Acceptance {
       attempt: this.events('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator').length + 1,
       loaded, systemPrompt: renderNonfunctionalCoordinatorPrompt(loaded, this.projectRoot, coordinatorActionToolName),
       prompt: [coordinatorActionPrompt(candidate, unresolved, investigatedNfrs,
-        { assessment, allowedAction: decision.action, investigationPaths, identityContract: this.input.record.identityContract ?? 'legacy' }), this.ports.coordination.planPackage(catalog, unresolved)].join('\n\n'),
+        { assessment, allowedAction: decision.action, investigationPaths }), this.ports.coordination.planPackage(catalog, unresolved)].join('\n\n'),
       start: { mode: 'fresh' }, toolName: coordinatorActionToolName,
       description: 'Choose a bounded non-functional investigation, repair, or closure.',
-      inputSchema: this.input.record.identityContract === 'descriptive' ? descriptiveCoordinatorActionJsonSchema : coordinatorActionJsonSchema,
-      submissionSchema: this.input.record.identityContract === 'descriptive' ? 'ramify-agent.nonfunctional-action/2' : 'ramify-agent.nonfunctional-action/1',
+      inputSchema: coordinatorActionJsonSchema,
+      submissionSchema: 'ramify-agent.nonfunctional-action/2',
       validate: input => validateCoordinatorAction(input, {
         ...context,
         occupiedDeviationNames: new Set([
           ...this.events('plan-deviation-recorded').map(event => event.data.deviation),
-          ...this.events('nonfunctional-deviation-recorded').map(event => event.data.deviation),
+          ...this.events('nonfunctional-deviations-recorded').flatMap(event => event.data.deviations.map(entry => entry.deviation)),
         ]),
         occupiedFindingNames: new Set(this.observe().findings.findings.keys()),
-      }, this.input.record.identityContract ?? 'legacy'),
+      }),
       keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
       writer: true, equip: session => this.nonfunctionalTools(session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: sourceInputs.comparisons, scope: undefined })),
     });
@@ -2290,7 +2213,7 @@ export class Acceptance {
     let assessment: Assessment;
     if (nfrIds.length === 0) {
       // An empty fixed catalog still needs explicit candidate-bound coverage.
-      assessment = assessmentSchema.parse({ schema: this.input.record.identityContract === 'descriptive' ? 'ramify-agent.nonfunctional-assessment/2' : 'ramify-agent.nonfunctional-assessment/1', id,
+      assessment = assessmentSchema.parse({ schema: 'ramify-agent.nonfunctional-assessment/2', id,
         candidate: prepared.candidate, round, phase, coordinatorInvocation: 'harness:empty-catalog', results: [] });
     } else {
       const loaded = packages.get('nonfunctional-coordinator');
@@ -2309,7 +2232,7 @@ export class Acceptance {
         description: previous === undefined ? 'Submit one evidence-grounded result for every non-functional and fixed requirement.' : 'Verify selected repairs and unresolved requirements; optionally broaden for concrete changed circumstances.',
         inputSchema: coordinatorAssessmentJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-assessment-submission/1',
         validate: input => {
-          const checked = bindCoordinatorAssessment(input, { identityContract: this.input.record.identityContract ?? 'legacy', catalog: catalog.catalog, candidate: prepared.candidate,
+          const checked = bindCoordinatorAssessment(input, { catalog: catalog.catalog, candidate: prepared.candidate,
             observedTree: prepared.candidate.tree, id, round, phase, coordinatorInvocation: 'pending', previous, selected });
           return checked.ok
             ? { ok: true, value: { kind: 'assessment' as const, results: (input as CoordinatorAssessmentSubmission).results } }
@@ -2323,7 +2246,7 @@ export class Acceptance {
         return null;
       }
       const late = await this.ports.previewCandidateTree();
-      const bound = bindCoordinatorAssessment(result.value, { identityContract: this.input.record.identityContract ?? 'legacy', catalog: catalog.catalog, candidate: prepared.candidate,
+      const bound = bindCoordinatorAssessment(result.value, { catalog: catalog.catalog, candidate: prepared.candidate,
         observedTree: late.tree, id, round, phase, coordinatorInvocation: result.id, previous, selected });
       if (!bound.ok) {
         await this.ports.fail('inputs-changed', `The non-functional assessment could not bind to the prepared tree: ${bound.errors.map(error => error.message).join('; ')}`);
@@ -2713,7 +2636,6 @@ export class Acceptance {
     // never plainly: the count is of those still awaiting the person.
     const deviations = [
       ...this.events('plan-deviation-recorded').map(event => event.data.checkFinding),
-      ...this.events('nonfunctional-deviation-recorded').filter(event => event.data.assessment === binding.assessment.id).map(event => event.data.checkFinding),
       ...this.events('nonfunctional-deviations-recorded').filter(event => event.data.assessment === binding.assessment.id).flatMap(event => event.data.deviations.map(entry => entry.checkFinding)),
     ];
     const findings = this.observe().findings.findings;

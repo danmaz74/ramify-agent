@@ -67,7 +67,7 @@ test('unsupported committed versions and malformed records preserve refusal evid
     const run = committedRun(made.path);
     const event = runEventSchema.parse({ sequence: 2, jobId: run.record.jobId, at: run.record.createdAt,
       type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' } });
-    for (const body of [{ schema: 'ramify-agent.hypothesis/999' }, { schema: 'ramify-agent.hypothesis/1' }]) {
+    for (const body of [{ schema: 'ramify-agent.hypothesis/999' }, { schema: 'ramify-agent.hypothesis/2' }]) {
       const retained = { ...run, entries: [...run.entries, { sequence: 2, at: event.at, transaction: { event,
         records: [{ path: 'hypotheses/hyp-001.json', id: 'hyp-001', revision: 1, body }] } }] };
       const before = JSON.stringify(retained);

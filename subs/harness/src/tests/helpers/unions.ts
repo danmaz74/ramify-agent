@@ -39,8 +39,8 @@ function literalValues(schema: unknown): string[] | undefined {
 function discriminated(def: Def): { key: string; options: Array<{ values: string[]; option: unknown }>; inferred: boolean } | undefined {
   const options = def.options as unknown[];
   const explicit = def.discriminator as string | undefined;
-  // Mode-specific contracts have two established branches with different
-  // required fields. Their ordinary union still has a closed kind choice.
+  // Established branches with different required fields still share a
+  // closed kind choice when the discriminator is inferred.
   const inferred = explicit === undefined && options.every(option =>
     literalValues((defOf(option)?.shape as Record<string, unknown> | undefined)?.kind) !== undefined)
     && new Set(options.flatMap(option => literalValues((defOf(option)?.shape as Record<string, unknown>).kind) ?? [])).size < options.length;

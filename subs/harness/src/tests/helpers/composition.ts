@@ -10,7 +10,7 @@ import type { RunWrite } from '../../../subs/autonomous/src/run/log.js';
 import type { RunService } from '../../run/lifecycle.js';
 import type { CommandRunner } from '../../../subs/evidence/src/run-command.js';
 import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
-import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
+import { analysis, currentAnalysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import {
   consumerAgainstReal, consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, providerWrites,
   type Seam,
@@ -49,6 +49,7 @@ import { announcingAudit } from './direct-check-execution.js';
  */
 
 export const plan = 'review-notes';
+const authoredAnalysis = (...args: Parameters<typeof analysis>) => currentAnalysis(analysis(...args), 'document:review-notes-plan');
 
 const notes = 'collection-review/workspace/reviews/notes';
 const notesDirectory = 'subs/workspace/subs/reviews/subs/notes';
@@ -85,16 +86,23 @@ const backToNotes: Seam = {
 };
 
 function place(capability: string, owner: string) {
-  return localDecision(
+  return { ...localDecision(
     {
       question: `Where does ${capability} belong?`,
       outcome: 'reuse',
-      capability,
+      capability: `capability:${capability}`,
       owner,
       rationale: 'The rule is a capability of its own, in a subtree this architect may place work in.',
     },
-    [registryChange({ capability, owner, behavior: `The module provides ${capability}.` })],
-  );
+    [registryChange({ capability: `capability:${capability}`, owner, behavior: `The module provides ${capability}.` })],
+  ), decisionKey: `draft:placement-decision:${capability}` };
+}
+
+function revisedAgreement(seam: Seam) {
+  const { contractKey: _contractKey, providerObligationKey: _providerObligationKey,
+    consumerRequirementKey: _consumerRequirementKey, ...body } = established(seam);
+  return { ...body, contractId: 'contract:note-limit', providerObligationId: 'provider-obligation:note-limit',
+    consumerRequirementId: 'consumer-requirement:notes-note-limit' };
 }
 
 const yieldFor = (requirements: readonly string[]) => ({
@@ -195,7 +203,6 @@ export interface Scenario {
   readonly during?: ((write: RunWrite, context: DuringContext) => void) | undefined;
   /** The policy the run captures, where the scenario needs other limits than the tests' own. */
   readonly policy?: OpenRunsOptions['policy'];
-  readonly identityContract?: 'legacy' | 'descriptive';
 }
 
 export interface DuringContext {
@@ -237,7 +244,7 @@ const unchanged = (against: string) => ({ commit: null, against });
 export const materialized = 'scenarios-00';
 
 /** The feature file of one entry, in its owner's test area, for this plan. */
-const featureOf = (ownerDirectory: string, capability: string) => `${ownerDirectory}/src/tests/features/${plan}/${capability}.feature`;
+const featureOf = (ownerDirectory: string, capability: string) => `${ownerDirectory}/src/tests/features/${plan}/${encodeURIComponent(`capability:${capability}`).replace(/:/g, '%3A')}.feature`;
 
 /** The materialization commit over the tree readiness found: every feature file is new. */
 const materialize = (...files: string[]) => ({ commit: materialized, against: base, changes: untracked(...files) });
@@ -313,7 +320,7 @@ const iteration: Scenario = {
     { directory: draftsDirectory, name: 'drafts', files: {} },
   ]),
   script: root => byRole({
-    'initial-architect': [submit(analysis(
+    'initial-architect': [submit(authoredAnalysis(
       [entry('review-note', notes)],
       [
         hypothesis('note-storage', { change: 'create', changesExistingSymbols: true, suggestedOwner: notes, involvedModules: [notes], confidence: 'medium' }),
@@ -330,12 +337,12 @@ const iteration: Scenario = {
           read: [reviews],
           rationale: 'The limit is the notes module\'s own; its parent\'s declaration may need to say so.',
         },
-        externalCapabilities: [{ capability: 'review-note', owner: notes, role: 'use' }],
+        externalCapabilities: [{ capability: 'capability:review-note', owner: notes, role: 'use' }],
       }, outline()), { kind: 'compaction', reason: 'threshold', tokensBefore: 120_000, tokensAfter: 30_000 }),
       submit(assign(notes, {
         kind: 'repair',
         goal: 'Repair what the first iteration left: the limit\'s wording.',
-        externalCapabilities: [{ capability: 'review-note', owner: notes, role: 'request' }],
+        externalCapabilities: [{ capability: 'capability:review-note', owner: notes, role: 'request' }],
       }), { kind: 'compaction', reason: 'manual', tokensBefore: 90_000, tokensAfter: 20_000 }),
       submit(
         requestCompletion({ changes: 'The iterations carried the goal; the work item is ready.', revisionReason: 'The iterations are closed.' }),
@@ -398,23 +405,23 @@ const delegation: Scenario = {
   finalCandidate: { head: source(3), tree: '2'.repeat(40) },
   target: () => fixtureWith([notesModule, limitsModule]),
   script: root => byWork({
-    'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
-    'local-architect:wi-001': [
+    'initial-architect': [submit(authoredAnalysis([entry('review-notes', notes)]))],
+    'local-architect:work-item:review-notes': [
       submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-      submit(yieldFor(['rq-001'])),
+      submit(yieldFor(['consumer-requirement:notes-note-limit'])),
       submit(assign(notes, { kind: 'verification', goal: 'Replace the fake with the real note limit and rerun the behavior.' })),
       submit(requestCompletion()),
     ],
-    'engineer:wi-001': [
+    'engineer:work-item:review-notes': [
       submit(contractNeeded(noteLimit)),
       submit(completionProposed('The notes now use the real limit.'), write(join(root, paths(noteLimit).consumer), consumerAgainstReal(noteLimit))),
     ],
-    'contract-engineer:wi-001': [submit(established(noteLimit), ...contractWrites(noteLimit))],
-    'local-architect:wi-002': [
+    'contract-engineer:work-item:review-notes': [submit(established(noteLimit), ...contractWrites(noteLimit))],
+    'local-architect:work-item:provide-note-limit': [
       submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit and run the conformance suite against it.' }))),
       submit(requestCompletion()),
     ],
-    'engineer:wi-002': [submit(completionProposed('The real limit is implemented.'), ...providerWrites(noteLimit, root))],
+    'engineer:work-item:provide-note-limit': [submit(completionProposed('The real limit is implemented.'), ...providerWrites(noteLimit, root))],
   }),
   inputs: treeInputs,
 };
@@ -440,7 +447,7 @@ const placement: Scenario = {
   finalCandidate: { head: materialized, tree: '3'.repeat(40) },
   target: () => fixtureWith([], 'exit-0'),
   script: () => byRole({
-    'initial-architect': [submit(analysis(
+    'initial-architect': [submit(authoredAnalysis(
       [entry('reviewer-note', reviews)],
       [
         hypothesis('note-home', { change: 'reuse', suggestedOwner: reviews, involvedModules: [reviews] }),
@@ -449,16 +456,18 @@ const placement: Scenario = {
     ))],
     'local-architect': [
       submit(requestPlacement({
-        forCapability: 'reviewer-note',
+        requestKey: 'draft:placement-request:reviewer-note-home',
+        forCapability: 'capability:reviewer-note',
         hypotheses: [
-          { hypothesis: 'note-home', stance: 'supports', evidence: 'A review run already holds what a note is attached to.' },
-          { hypothesis: 'note-mail', stance: 'contradicts', evidence: 'Nothing in the request sends a note anywhere.' },
+          { hypothesis: 'hypothesis:note-home', stance: 'supports', evidence: 'A review run already holds what a note is attached to.' },
+          { hypothesis: 'hypothesis:note-mail', stance: 'contradicts', evidence: 'Nothing in the request sends a note anywhere.' },
         ],
       })),
       submit(requestPlacement({
-        forCapability: 'reviewer-note',
+        requestKey: 'draft:placement-request:reviewer-note-mail',
+        forCapability: 'capability:reviewer-note',
         question: 'Where would a notification of a new note be sent from?',
-        hypotheses: [{ hypothesis: 'note-mail', stance: 'departs', evidence: 'The notification would be another service\'s.' }],
+        hypotheses: [{ hypothesis: 'hypothesis:note-mail', stance: 'departs', evidence: 'The notification would be another service\'s.' }],
       })),
       submit(requestCompletion()),
     ],
@@ -469,18 +478,18 @@ const placement: Scenario = {
         // that already holds the behavior, whose implementation changes symbols
         // that already have consumers.
         decision: decisionBody({
-          outcome: 'create', capability: 'reviewer-note-attachment', changesExistingSymbols: true, owner: reviews,
+          outcome: 'create', capability: 'capability:reviewer-note-attachment', changesExistingSymbols: true, owner: reviews,
           rationale: 'The note is attached to the review run this module already owns, so the attached note is a capability of its own here.',
         }),
-        registry: [registryChange({ capability: 'reviewer-note-attachment', owner: reviews, behavior: 'A reviewer note is attached to a completed review run.' })],
-        hypothesisRevisions: [{ hypothesis: 'note-home', standing: 'confirmed', reason: 'The review run is where the note belongs.', confidence: 'high' }],
+        registry: [registryChange({ capability: 'capability:reviewer-note-attachment', owner: reviews, behavior: 'A reviewer note is attached to a completed review run.' })],
+        hypothesisRevisions: [{ hypothesis: 'hypothesis:note-home', standing: 'confirmed', reason: 'The review run is where the note belongs.', confidence: 'high' }],
         brief: 'The attached note is a new capability of the reviews module, which already holds a review run; implementing it changes symbols that already have consumers.',
       })),
       submit(forkDecision({
-        decision: decisionBody({ outcome: 'external', capability: 'note-mail', owner: null, rationale: 'Notifications are sent by a service outside this project.' }),
+        decision: decisionBody({ outcome: 'external', capability: 'capability:note-mail', owner: null, rationale: 'Notifications are sent by a service outside this project.' }),
         hypothesisRevisions: [
-          { hypothesis: 'note-mail', standing: 'superseded', reason: 'No module of this project sends mail.', confidence: 'low' },
-          { hypothesis: 'note-home', standing: 'tentative', reason: 'Only the note\'s home is settled, not how it is shown.', confidence: 'medium' },
+          { hypothesis: 'hypothesis:note-mail', standing: 'superseded', reason: 'No module of this project sends mail.', confidence: 'low' },
+          { hypothesis: 'hypothesis:note-home', standing: 'tentative', reason: 'Only the note\'s home is settled, not how it is shown.', confidence: 'medium' },
         ],
         brief: 'Notification of a note is outside this project.',
       })),
@@ -492,9 +501,8 @@ const placement: Scenario = {
 /** A descriptive fork whose second deviation collides with the first accepted name. */
 const nameRejection: Scenario = {
   name: 'name-rejection',
-  identityContract: 'descriptive',
   git: { head: base, after: materialized,
-    commits: [materialize(featureOf('subs/workspace/subs/reviews', 'capability%3Areviewer-notes')), unchanged(materialized), unchanged(materialized)] },
+    commits: [materialize(featureOf('subs/workspace/subs/reviews', 'reviewer-notes')), unchanged(materialized), unchanged(materialized)] },
   exercises: 'two accepted unresolved requests and a collision corrected in the second plan-architect fork',
   ends: 'completed',
   finalCandidate: { head: materialized, tree: '3'.repeat(40) },
@@ -525,8 +533,9 @@ const nameRejection: Scenario = {
           gherkin: 'Scenario: Reviewer notes remain available\n  When a reviewer records a note\n  Then the note remains available' }],
         integrationScenarios: [] });
       }
-      if (spec.role === 'local-architect') return local++ < 2
-        ? submit(unresolved('The note archive cannot be kept in the current place.', ['plans/review-notes/plan.md']))
+      if (spec.role === 'local-architect') return ++local <= 2
+        ? submit({ ...unresolved('The note archive cannot be kept in the current place.', ['plans/review-notes/plan.md']),
+          requestKey: `draft:unresolved-request:reviewer-notes-${local}` })
         : submit({ ...requestCompletion(), reports: [{ id: 'scenario:reviewer-notes-retained', judgment: 'done', basedOnRevision: 0 }] });
       if (spec.role === 'global-fork') {
         fork += 1;
@@ -574,17 +583,17 @@ const access: Scenario = {
     },
   ]),
   script: () => byWork({
-    'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
-    'local-architect:wi-001': [
+    'initial-architect': [submit(authoredAnalysis([entry('review-notes', notes)]))],
+    'local-architect:work-item:review-notes': [
       submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits), place('note-trim', limits)] }),
       submit(assign(notes, { goal: 'Use the trimming rule too.' })),
       submit(requestCompletion()),
     ],
-    'engineer:wi-001': [
+    'engineer:work-item:review-notes': [
       submit(contractNeeded(noteLimit)),
       submit(contractNeeded({ ...noteLimit, capability: 'note-trim', name: 'NoteTrim', behavior: 'A note is trimmed before it is kept.' })),
     ],
-    'contract-engineer:wi-001': [
+    'contract-engineer:work-item:review-notes': [
       submit(accessOnly('note-limit', 'consumer', 'expose-src createNoteLimit from "note-limit.ts" to parent'),
         write(`${limitsDirectory}/module.ramify`, 'ramify 1\nmodule limits\n\nexpose-src createNoteLimit from "note-limit.ts" to parent\n'),
         write(paths(noteLimit).consumer, consumerAgainstReal(noteLimit))),
@@ -599,6 +608,7 @@ const access: Scenario = {
 function accessOnly(capability: string, authority: 'consumer' | 'independent', declaration: string) {
   return {
     kind: 'established' as const,
+    contractKey: `draft:contract:expose-${capability}`,
     mode: 'access-only' as const,
     authority: {
       kind: authority,
@@ -674,7 +684,7 @@ const breaking: Scenario = {
     },
   ]),
   script: () => byRole({
-    'initial-architect': [submit(analysis([entry('structured-limit', notes)]))],
+    'initial-architect': [submit(authoredAnalysis([entry('structured-limit', notes)]))],
     'local-architect': [
       submit(assign(notes, { goal: 'Add the structured limit beside the plain number.' }, outline({
         changes: 'The limit becomes a structure; the plain number goes.',
@@ -743,7 +753,7 @@ const repair: Scenario = {
   ends: 'failed',
   target: () => fixtureWith([failingNotes]),
   script: () => byRole({
-    'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+    'initial-architect': [submit(authoredAnalysis([entry('review-note', notes)]))],
     'local-architect': [
       submit(assign(notes, {}, outline())),
       submit({ kind: 'unresolved', conflict: 'The limit the test states is not one this module can meet as asked.', evidence: [`${notesDirectory}/src/tests/notes.test.ts`] }),
@@ -773,7 +783,7 @@ const testless: Scenario = {
   finalCandidate: { head: materialized, tree: '6'.repeat(40) },
   target: () => fixtureWith([{ directory: limitsDirectory, name: 'limits', files: { 'src/limits.ts': 'export const limits = [];\n' } }]),
   script: () => byRole({
-    'initial-architect': [submit(analysis([entry('note-limits', limits)]))],
+    'initial-architect': [submit(authoredAnalysis([entry('note-limits', limits)]))],
     'local-architect': [
       submit(assign(limits, {}, outline())),
       submit(assign(limits, { goal: 'Declare the limits the notes need, here.' })),
@@ -813,35 +823,35 @@ const revision: Scenario = {
   finalCandidate: { head: source(4), tree: '7'.repeat(40) },
   target: () => fixtureWith([notesModule, limitsModule]),
   script: root => byWork({
-    'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
-    'local-architect:wi-001': [
+    'initial-architect': [submit(authoredAnalysis([entry('review-notes', notes)]))],
+    'local-architect:work-item:review-notes': [
       submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-      submit(yieldFor(['rq-001'])),
+      submit(yieldFor(['consumer-requirement:notes-note-limit'])),
       submit(assign(notes, {
         kind: 'contract',
-        revisesContract: 'ct-001',
-        goal: 'Revise ct-001 so that it states the behavior this module needs.',
+        revisesContract: 'contract:note-limit',
+        goal: 'Revise contract:note-limit so that it states the behavior this module needs.',
         approach: 'The provider cannot index 500 characters; agree the length it can.',
         completionEvidence: 'The revised conformance suite passes against the fake, and this module runs against it.',
       })),
-      submit(yieldFor(['rq-001'])),
+      submit(yieldFor(['consumer-requirement:notes-note-limit'])),
       submit(assign(notes, { kind: 'verification', goal: 'Replace the fake with the revised real limit.' })),
       submit(requestCompletion()),
     ],
-    'engineer:wi-001': [
+    'engineer:work-item:review-notes': [
       submit(contractNeeded(noteLimit)),
       submit(completionProposed('The notes now use the revised real limit.'), write(join(root, paths(relaxed).consumer), consumerAgainstReal(relaxed))),
     ],
-    'contract-engineer:wi-001': [
+    'contract-engineer:work-item:review-notes': [
       submit(established(noteLimit), ...contractWrites(noteLimit)),
-      submit(established(relaxed), ...contractWrites(relaxed)),
+      submit(revisedAgreement(relaxed), ...contractWrites(relaxed)),
     ],
-    'local-architect:wi-002': [
+    'local-architect:work-item:provide-note-limit': [
       submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))),
       submit(assign(limits, {}, outline({ changes: 'Implement the limit the revised agreement states.' }))),
       submit(requestCompletion()),
     ],
-    'engineer:wi-002': [
+    'engineer:work-item:provide-note-limit': [
       submit({
         kind: 'unsuitable',
         reason: 'provider-cannot-conform',
@@ -875,10 +885,10 @@ const cycle: Scenario = {
     { directory: limitsDirectory, name: 'limits', files: { 'src/limit-work.ts': consumerStub, 'src/tests/limit-work.test.ts': consumerTest('limit-work.ts') } },
   ]),
   script: () => byRole({
-    'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
+    'initial-architect': [submit(authoredAnalysis([entry('review-notes', notes)]))],
     'local-architect': [
       submit({ ...assign(notes, {}, outline()), localDecisions: [place('note-limit', limits)] }),
-      submit(yieldFor(['rq-001'])),
+      submit(yieldFor(['consumer-requirement:notes-note-limit'])),
       submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))),
       submit(assign(limits, { goal: 'Try the same need again.' })),
     ],
@@ -890,7 +900,10 @@ const cycle: Scenario = {
     'contract-engineer': [
       submit(established(noteLimit), ...contractWrites(noteLimit)),
       submit(established(backToNotes), ...contractWrites(backToNotes)),
-      submit(established(backToNotes), ...contractWrites(backToNotes)),
+      submit((({ contractKey, providerObligationKey, consumerRequirementKey, ...body }) => ({
+        ...body, contractId: 'contract:review-notes', providerObligationId: 'provider-obligation:review-notes',
+        consumerRequirementKey: 'draft:consumer-requirement:limit-work-review-notes-reconsidered',
+      }))(established(backToNotes)), ...contractWrites(backToNotes)),
     ],
   }),
   inputs: treeInputs,
@@ -911,7 +924,7 @@ const engineerBudget: Scenario = {
   finalCandidate: { head: materialized, tree: '8'.repeat(40) },
   target: () => fixtureWith([notesModule]),
   script: () => byRole({
-    'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
+    'initial-architect': [submit(authoredAnalysis([entry('review-notes', notes)]))],
     'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
     engineer: [budgetTurn, submit(partialReport(['Inspected the current scope.'], ['The remaining implementation needs another iteration.']))],
   }),
@@ -928,7 +941,7 @@ const stopping: Scenario = {
   ends: 'stopped',
   target: () => fixtureWith([notesModule]),
   script: () => byRole({
-    'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
+    'initial-architect': [submit(authoredAnalysis([entry('review-notes', notes)]))],
     'local-architect': [submit(assign(notes, {}, outline()))],
     engineer: [[{ kind: 'wait', ms: 60_000 }, { kind: 'submit', input: completionProposed('Too late.') }]],
   }),
@@ -959,7 +972,7 @@ const invalidAnalysis = failingAnalysis('invalid-analysis', 'an plan architect w
   [1, 2, 3, 4].map(() => ({ kind: 'submit' as const, input: { entries: 'none' } })));
 const overLimit: Scenario = {
   ...failingAnalysis('over-limit', 'work items continue beyond a captured historical count',
-    submit(analysis([entry('review-notes', notes), entry('review-note-limit', notes)]))),
+    submit(authoredAnalysis([entry('review-notes', notes), entry('review-note-limit', notes)]))),
   ends: 'completed',
   finalCandidate: { head: materialized, tree: '9'.repeat(40) },
   git: {
@@ -1012,6 +1025,7 @@ export async function runToEnd(scenario: Scenario, watch?: (service: RunService,
   const commands = statedCommands(target.root, scenario.commands ?? []);
   let runId = '';
   let stopped = false;
+  let stopPromise: Promise<void> | null = null;
   const opened = await openRuns(target.root, {
     agent,
     git,
@@ -1021,18 +1035,23 @@ export async function runToEnd(scenario: Scenario, watch?: (service: RunService,
     configuredAudit: announcingAudit(),
     commandExecution: commands,
     inputs: scenario.inputs(),
-    ...(scenario.identityContract === undefined ? {} : { identityContract: scenario.identityContract }),
     ...(scenario.policy === undefined ? {} : { policy: scenario.policy }),
     afterWrite: async (write, id) => {
       runId = id;
-      scenario.during?.(write, { runId: id, root: target.root, stop: () => { if (!stopped) { stopped = true; void sendStop(opened.service, id); } } });
+      scenario.during?.(write, { runId: id, root: target.root, stop: () => { if (!stopped) { stopped = true; stopPromise = sendStop(opened.service, id); } } });
       await watch?.(opened.service, id);
     },
   });
   const receipt = await opened.service.execute(startRun(plan));
   await opened.service.settled(plan, receipt.jobId);
-  commands.assertComplete();
-  try { git.assertComplete(); } catch (error) { throw new Error(`${scenario.name}: Git script incomplete`, { cause: error }); }
+  if (stopPromise !== null) {
+    await stopPromise;
+    await opened.service.settled(plan, receipt.jobId);
+  }
+  try { commands.assertComplete(); } catch (error) {
+    throw new Error(`${scenario.name}: command script incomplete; run ${JSON.stringify(opened.service.getRun(plan, receipt.jobId))}`, { cause: error });
+  }
+  try { git.assertComplete(); } catch (error) { throw new Error(`${scenario.name}: Git script incomplete; commits ${JSON.stringify(git.commits())}; run ${JSON.stringify(opened.service.getRun(plan, receipt.jobId))}`, { cause: error }); }
   void runId;
   return {
     root: target.root,
@@ -1087,7 +1106,6 @@ export async function crashAt(scenario: Scenario, point: CrashPoint) {
     configuredAudit: announcingAudit(),
     commandExecution: commands,
     inputs: scenario.inputs(),
-    ...(scenario.identityContract === undefined ? {} : { identityContract: scenario.identityContract }),
     // A stop waits for the invocation the driver has open before it writes
     // the run's terminal event. A crashed driver never closes it, and a
     // process that crashed writes nothing more, so the wait must outlast

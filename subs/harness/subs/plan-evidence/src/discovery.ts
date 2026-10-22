@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { Dirent } from 'node:fs';
-import { documentManifestSchema, type DocumentManifest, type IdentityContract } from './interfaces/contracts.js';
+import { documentManifestSchema, type DocumentManifest } from './interfaces/contracts.js';
 
 /** Read-only filesystem boundary used by document discovery. */
 export interface DocumentReader {
@@ -116,7 +116,6 @@ export async function discoverDocuments(
   revision: { readonly commit: string | null; readonly dirty: boolean },
   reader: DocumentReader = nodeDocumentReader,
   options: DocumentDiscoveryOptions = {},
-  identityContract: IdentityContract = 'legacy',
 ): Promise<DiscoveredDocuments> {
   const root = await reader.real(projectRoot);
   const rootPlan = `plans/${planId}/plan.md`;
@@ -226,9 +225,8 @@ export async function discoverDocuments(
   const names = paths.map(path => slug(path));
   const frequencies = new Map<string, number>();
   names.forEach(name => frequencies.set(name, (frequencies.get(name) ?? 0) + 1));
-  const ids = new Map(paths.map((path, index) => [path, identityContract === 'legacy'
-    ? `doc-${String(index + 1).padStart(3, '0')}`
-    : `document:${names[index]}${frequencies.get(names[index]!)! > 1 ? `-${createHash('sha256').update(path).digest('hex').slice(0, 8)}` : ''}`]));
+  const ids = new Map(paths.map((path, index) => [path,
+    `document:${names[index]}${frequencies.get(names[index]!)! > 1 ? `-${createHash('sha256').update(path).digest('hex').slice(0, 8)}` : ''}`]));
   const documents = paths.map(path => {
     const entry = found.get(path);
     if (!entry) throw new Error(`Root plan ${path} was not captured`);
@@ -240,7 +238,7 @@ export async function discoverDocuments(
   const missing = gaps.map(gap => ({ ...gap, from: ids.get(gap.from)! })).filter(gap => gap.from !== undefined);
   const principles = documents.filter(document => document.kind === 'principle').length;
   const status = unreadable.length > 0 ? 'partial' : principles > 0 ? 'complete' : 'empty';
-  const manifest = documentManifestSchema.parse({ schema: identityContract === 'legacy' ? 'ramify-agent.document-manifest/1' : 'ramify-agent.document-manifest/2', root: ids.get(rootPlan), documents, missing,
+  const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/2', root: ids.get(rootPlan), documents, missing,
     principlesScan: { status, unreadable } });
   return { manifest, bytes: new Map(documents.map(document => [document.id, found.get(document.path)!.bytes])) };
 }

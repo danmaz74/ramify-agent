@@ -9,7 +9,7 @@ import { type InvocationOutcome } from '../../subs/task-execution/src/records.js
 import type { Observation } from '../../subs/task-execution/src/observations.js';
 import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { capturedCheck, capturedFinding, changedDocument } from './helpers/check-payloads.js';
 import { addModule, assign, byRole, completionProposed, edit, outline, submit } from './helpers/iterations.js';
 import { onlyRun, openRuns, runPath, startRun } from './helpers/runs.js';
@@ -438,7 +438,7 @@ describe('a mutation is observed even when the tool failed', () => {
     const { service } = await openRuns(root, {
       ...boundary.options,
       script: byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
         engineer: [submit(
           completionProposed('Raised the limit, after one edit that matched nothing.'),
@@ -455,7 +455,7 @@ describe('a mutation is observed even when the tool failed', () => {
     await service.settled('review-notes', receipt.jobId);
     expect(onlyRun(service, 'review-notes').state, JSON.stringify(onlyRun(service, 'review-notes'))).toBe('completed');
 
-    const result = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
+    const result = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, iterationLayout.result('work-item:review-note', 1)), 'utf8')) as IterationResult;
     const invocation = result.invocations[0]!;
     const observations = (await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.observations(invocation)), 'utf8'))
       .split('\n').filter(Boolean).map(line => JSON.parse(line) as Observation);

@@ -93,9 +93,9 @@ const orient = (read: readonly string[]): ScriptStep[] => [{ kind: 'submit', inp
 
 /** The three assignments, each citing elements of the work-item package, and the completion request. */
 const citingArchitect: ReadonlyArray<readonly ScriptStep[]> = [
-  submit(assign(notes, { goal: 'Add the note store.', citedElements: ['fr-001', 'fr-002'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] }, outline())),
-  submit(assign(notes, { goal: 'State the note limit.', citedElements: ['fr-001'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] })),
-  submit(assign(notes, { goal: 'Export the store.', citedElements: ['fr-002'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] })),
+  submit(assign(notes, { goal: 'Add the note store.', citedElements: ['functional-requirement:review-notes-request', 'functional-requirement:review-notes-acceptance'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] }, outline())),
+  submit(assign(notes, { goal: 'State the note limit.', citedElements: ['functional-requirement:review-notes-request'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] })),
+  submit(assign(notes, { goal: 'Export the store.', citedElements: ['functional-requirement:review-notes-acceptance'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] })),
   submit(requestCompletion()),
 ];
 
@@ -105,7 +105,7 @@ async function assignmentPackage(root: string, runId: string, events: readonly R
   const run = runRecordSchema.parse(JSON.parse(await readFile(runPath(root, plan, runId, runLayout.record), 'utf8')));
   const evidence = await readAcceptedEvidence(directory, run.manifest, acceptedAnalysisReferences(events));
   if (evidence.status !== 'available') throw new Error(evidence.reason);
-  const assignment = iterationAssignmentSchema.parse(JSON.parse(await readFile(join(directory, iterationLayout.assignment('wi-001', n)), 'utf8')));
+  const assignment = iterationAssignmentSchema.parse(JSON.parse(await readFile(join(directory, iterationLayout.assignment('work-item:review-notes', n)), 'utf8')));
   const rendered = createPackage({ catalog: evidence.catalog, planDeviations: [], elements: assignment.source!.elements, deviations: assignment.source!.deviations });
   if ('unavailable' in rendered) throw new Error('The assignment package does not render');
   expect(rendered.hash).toBe(assignment.source!.hash);
@@ -141,9 +141,9 @@ describe('three questions over one candidate', () => {
     // same audited candidate, gate, base and assignment.
     const requests = eventsOf(events, 'review-request-recorded');
     expect(requests.map(event => [event.data.request, event.data.iteration, event.data.kind, event.data.candidate])).toEqual([
-      ['rq-0001', 'wi-001.i01', 'code', 'revision-01'], ['rq-0002', 'wi-001.i01', 'scope', 'revision-01'], ['rq-0003', 'wi-001.i01', 'design', 'revision-01'],
-      ['rq-0004', 'wi-001.i02', 'code', 'revision-02'], ['rq-0005', 'wi-001.i02', 'scope', 'revision-02'], ['rq-0006', 'wi-001.i02', 'design', 'revision-02'],
-      ['rq-0007', 'wi-001.i03', 'code', 'revision-03'], ['rq-0008', 'wi-001.i03', 'scope', 'revision-03'], ['rq-0009', 'wi-001.i03', 'design', 'revision-03'],
+      ['rq-0001', 'work-item:review-notes.i01', 'code', 'revision-01'], ['rq-0002', 'work-item:review-notes.i01', 'scope', 'revision-01'], ['rq-0003', 'work-item:review-notes.i01', 'design', 'revision-01'],
+      ['rq-0004', 'work-item:review-notes.i02', 'code', 'revision-02'], ['rq-0005', 'work-item:review-notes.i02', 'scope', 'revision-02'], ['rq-0006', 'work-item:review-notes.i02', 'design', 'revision-02'],
+      ['rq-0007', 'work-item:review-notes.i03', 'code', 'revision-03'], ['rq-0008', 'work-item:review-notes.i03', 'scope', 'revision-03'], ['rq-0009', 'work-item:review-notes.i03', 'design', 'revision-03'],
     ]);
     const records = await Promise.all(requests.map(event => requestRecord(root, runId, event.data.request)));
     for (let iteration = 0; iteration < 3; iteration += 1) {
@@ -160,8 +160,8 @@ describe('three questions over one candidate', () => {
       expect(design.source).toBeUndefined();
       for (const record of [code, scope, design]) expect(record).not.toHaveProperty('requirements');
     }
-    expect(records[1]!.source).toMatchObject({ elements: ['fr-001', 'fr-002'], deviations: [] });
-    expect(records[4]!.source).toMatchObject({ elements: ['fr-001'], deviations: [] });
+    expect(records[1]!.source).toMatchObject({ elements: ['functional-requirement:review-notes-request', 'functional-requirement:review-notes-acceptance'], deviations: [] });
+    expect(records[4]!.source).toMatchObject({ elements: ['functional-requirement:review-notes-request'], deviations: [] });
 
     // Scope forks the architect's point captured atomically with its assignment.
     const assigned = eventsOf(events, 'iteration-assigned');
@@ -229,7 +229,7 @@ describe('three questions over one candidate', () => {
       expect(sessionOf(scope).spec.prompt).toContain(text.trimEnd());
       expect(sessionOf(iteration === 1 ? 'rq-0003' : iteration === 2 ? 'rq-0006' : 'rq-0009').spec.prompt).not.toContain(text.trimEnd());
     }
-    expect(sessionOf('rq-0005').spec.prompt).toContain('> The plan asks for review-notes-request.');
+    expect(sessionOf('rq-0005').spec.prompt).toContain('> The plan asks for draft:functional-requirement:review-notes-request.');
     expect(sessionOf('rq-0005').spec.prompt).not.toContain('review-notes-acceptance');
 
     // Design binds its guidance from the candidate; the first two candidates

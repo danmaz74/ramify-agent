@@ -80,7 +80,7 @@ export type SessionRecord = z.infer<typeof sessionRecordSchema>;
 
 /** An accepted submission, as `submission.json` holds it: the run's record of the same submission. */
 export const sessionSubmissionSchema = z.intersection(
-  z.object({ schema: z.literal('ramify-agent.engineer-submission/1') }),
+  z.object({ schema: z.literal('ramify-agent.engineer-submission/2') }),
   engineerSubmissionSchema,
 );
 

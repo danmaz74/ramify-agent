@@ -13,7 +13,7 @@ const inline = (text: string) => ({ stored: 'inline' as const, text, bytes: Buff
 
 async function fixture() {
   const dir = await temporaryDirectory(); cleanup.push(dir.remove);
-  await writeFile(join(dir.path, 'job.json'), JSON.stringify({ schema: 'ramify-agent.job/3', kind: 'manual', planId: 'P', jobId: 'R', createdAt: at,
+  await writeFile(join(dir.path, 'job.json'), JSON.stringify({ schema: 'ramify-agent.job/4', kind: 'manual', planId: 'P', jobId: 'R', createdAt: at,
     projectRoot: dir.path, base: '', branch: null, origin: 'step-run', policy: committedRun(dir.path).record.policy }));
   const start: ConsultationStart = { schema: 'ramify-agent.consultation-start/1', id: consultationId('inv-caller', 'ask'), caller: {
     invocation: 'inv-caller', session: 'ses-0001', role: 'engineer', toolCall: 'ask', work: { workItem: 'W', iteration: 'W.i01' } }, parent: null,

@@ -75,7 +75,7 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
           waitForWriter(1),
           tool(snapshotToolNames.search, { pattern: 'length <= 50' }),
           { kind: 'submit', input: { inspected: [limit], missing: [], concerns: [{
-            summary: 'The note limit counts UTF-16 units, not characters',
+            findingKey: 'draft:finding:case-0001', summary: 'The note limit counts UTF-16 units, not characters',
             consequence: 'A note of 50 emoji is refused although the plan allows 50 characters',
             rationale: 'limit.ts compares text.length, which counts surrogate pairs twice',
             uncertainty: 'The plan does not say how characters are counted',
@@ -92,7 +92,7 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
         ],
       },
       reconcilers: {
-        'wi-001.rc01': reconcile(submission([disposition('cf-0001', { action: 'leave' })], { kind: 'unresolved' })),
+        'work-item:review-notes.rc01': reconcile(submission([disposition('finding:case-0001', { action: 'leave' })], { kind: 'unresolved' })),
       },
     });
     const { service, runId, events, agent } = run;
@@ -101,7 +101,7 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
     // One request per accepted iteration, recorded before the driver passed it.
     const requests = eventsOf(events, 'review-request-recorded');
     expect(requests.map(event => [event.data.request, event.data.iteration, event.data.kind, event.data.candidate]))
-      .toEqual([['rq-0001', 'wi-001.i01', 'code', 'revision-01'], ['rq-0002', 'wi-001.i02', 'code', 'revision-02'], ['rq-0003', 'wi-001.i03', 'code', 'revision-03']]);
+      .toEqual([['rq-0001', 'work-item:review-notes.i01', 'code', 'revision-01'], ['rq-0002', 'work-item:review-notes.i02', 'code', 'revision-02'], ['rq-0003', 'work-item:review-notes.i03', 'code', 'revision-03']]);
     for (const request of requests) {
       const closed = events.find(event => event.type === 'iteration-closed' && event.data.iteration === request.data.iteration)!;
       const next = events.find(event => event.sequence > closed.sequence && (event.type === 'iteration-assigned' || event.type === 'outline-revised'))!;
@@ -109,19 +109,19 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
       expect(request.sequence).toBeLessThan(next.sequence);
     }
     const request = JSON.parse(await readFile(runPath(root, plan, runId, reviewLayout.request('rq-0002')), 'utf8'));
-    expect(request).toMatchObject({ schema: 'ramify-agent.review-request/1', key: { iteration: 'wi-001.i02', candidate: 'revision-02', kind: 'code', policy: 'review-policy/1' },
-      workItem: 'wi-001', base: 'revision-01', tree: 'tree-02', forkPoint: { kind: 'none' }, guidance: [] });
+    expect(request).toMatchObject({ schema: 'ramify-agent.review-request/1', key: { iteration: 'work-item:review-notes.i02', candidate: 'revision-02', kind: 'code', policy: 'review-policy/1' },
+      workItem: 'work-item:review-notes', base: 'revision-01', tree: 'tree-02', forkPoint: { kind: 'none' }, guidance: [] });
     // A code request cites its assignment's own package: here no element, and no deviation.
     const assignment = JSON.parse(await readFile(runPath(root, plan, runId, request.assignment), 'utf8'));
     expect(request.source).toEqual(assignment.source);
     expect(request.source).toMatchObject({ elements: [], deviations: [] });
     expect(request).not.toHaveProperty('requirements');
 
-    // The overlap: both readers started before the writer of wi-001.i03
+    // The overlap: both readers started before the writer of work-item:review-notes.i03
     // ended, and ended after it started.
     const started = eventsOf(events, 'invocation-started');
     const ended = eventsOf(events, 'invocation-ended');
-    const writer = started.find(event => event.data.role === 'engineer' && event.data.work.iteration === 'wi-001.i03')!;
+    const writer = started.find(event => event.data.role === 'engineer' && event.data.work.iteration === 'work-item:review-notes.i03')!;
     const writerEnd = ended.find(event => event.data.invocation === writer.data.invocation)!;
     const reviewInvocations = eventsOf(events, 'review-attempt-started').map(event => event.data.invocation);
     for (const invocation of reviewInvocations.slice(0, 2)) {
@@ -174,13 +174,13 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
       result: { result: 'complete', inspected: [{ path: store }], concerns: 0 }, checkFindings: [],
     });
     const concern = await attemptRecord(root, runId, 'rq-0002.a01');
-    expect(concern).toMatchObject({ result: { result: 'complete', concerns: 1 }, checkFindings: ['cf-0001'], settles: true });
+    expect(concern).toMatchObject({ result: { result: 'complete', concerns: 1 }, checkFindings: ['finding:case-0001'], settles: true });
     const list = service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' });
-    expect(list).toMatchObject({ ok: true, view: { total: 1, items: [{ id: 'cf-0001', standing: 'open', reason: 'new', producers: ['review:code'] }] } });
-    const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0001' });
+    expect(list).toMatchObject({ ok: true, view: { total: 1, items: [{ id: 'finding:case-0001', standing: 'open', reason: 'new', producers: ['review:code'] }] } });
+    const detail = service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'finding:case-0001' });
     expect(detail).toMatchObject({ ok: true, view: { reports: { items: [{
       producer: 'review:code', attempt: 'rq-0002.a01', reportKey: 'concern-01', source: { kind: 'tree', id: 'tree-02' }, issueKey: null,
-      owner: { kind: 'work-item', workItem: 'wi-001' },
+      owner: { kind: 'work-item', workItem: 'work-item:review-notes' },
       observation: { kind: 'review-concern', evidence: [{ kind: 'review-submission', ref: reviewLayout.submission('rq-0002.a01'), hash: expect.stringMatching(/^sha256:/u) }] },
       judgment: { actor: { kind: 'agent', role: 'reviewer', invocation: concern.invocation }, risk: 'medium', ground: { ref: limit, hash: expect.stringMatching(/^sha256:/u) } },
       // The candidate declares no module, so the concern falls back to its work item's module.
@@ -188,7 +188,7 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
       modules: [notes],
     }] } } });
     expect(JSON.parse(await readFile(runPath(root, plan, runId, reviewLayout.submission('rq-0002.a01')), 'utf8')))
-      .toMatchObject({ schema: 'ramify-agent.review-submission/1', attempt: 'rq-0002.a01', inspected: [limit] });
+      .toMatchObject({ schema: 'ramify-agent.review-submission/2', attempt: 'rq-0002.a01', inspected: [limit] });
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 });
 
     // The reviews change no gate: every gate passed and the run completed.

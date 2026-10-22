@@ -98,7 +98,7 @@ import { declaredSchemaOf, jobSchemaVersion, listJobDirectories, newJobId, planS
 import { ensureStateDirectory } from '../../../../src/store/state-directory.js';
 import { readPlan } from '../../../../src/plans/discover.js';
 import { discoverDocuments } from '../../../plan-evidence/src/discovery.js';
-import { verifyDocumentBytes, type IdentityContract } from '../../../plan-evidence/src/interfaces/contracts.js';
+import { verifyDocumentBytes } from '../../../plan-evidence/src/interfaces/contracts.js';
 
 
 
@@ -225,8 +225,6 @@ import { processGroupIdentity } from '../../../evidence/src/run-command.js';
 
 /** One durable boundary a test can freeze the run at, as a crash would. */
 export interface RunServiceOptions {
-  /** Explicit run format; absent production capture starts with the complete descriptive contract. */
-  readonly identityContract?: IdentityContract | undefined;
   /** External command execution. Tests script outcomes; actual process tests use the default. */
   readonly commandExecution?: CommandRunner | undefined;
   readonly projectRoot: string;
@@ -480,7 +478,7 @@ export class AutonomousRunService {
       observation = { ...reading, findings: structuredClone(checkFindingStateOf(run.log.ledger)), restoring: run.restoring, readerStop: run.readerStop };
       return observation;
     };
-    value = new Acceptance({ projectRoot: this.projectRoot, directory: run.directory, record: structuredClone({ jobId: run.record.jobId, planId: run.record.planId, manifest: run.record.manifest, projectConfig: run.record.projectConfig, auditConfiguration: run.record.auditConfiguration, identityContract: run.record.identityContract }), workflow: this.workflow?.version ?? null,
+    value = new Acceptance({ projectRoot: this.projectRoot, directory: run.directory, record: structuredClone({ jobId: run.record.jobId, planId: run.record.planId, manifest: run.record.manifest, projectConfig: run.record.projectConfig, auditConfiguration: run.record.auditConfiguration }), workflow: this.workflow?.version ?? null,
       options: { ramify: this.options.ramify, commandExecution: this.options.commandExecution, configuredAudit: this.options.configuredAudit }, git: this.git, candidates: this.candidates,
       gates: this.gates(run), handling: this.handling(run),
     }, {
@@ -558,7 +556,7 @@ export class AutonomousRunService {
       return cached;
     };
     const coordinator = new WorkCoordination({ projectRoot: this.projectRoot, directory: run.directory, base: run.base,
-      record: structuredClone({ jobId: run.record.jobId, planId: run.record.planId, baseline: run.record.baseline, manifest: run.record.manifest, auditConfiguration: run.record.auditConfiguration, projectConfig: run.record.projectConfig, identityContract: run.record.identityContract }),
+      record: structuredClone({ jobId: run.record.jobId, planId: run.record.planId, baseline: run.record.baseline, manifest: run.record.manifest, auditConfiguration: run.record.auditConfiguration, projectConfig: run.record.projectConfig }),
       workflow: this.workflow?.version ?? null, options: { ramify: this.options.ramify, rootModule: this.options.rootModule, commandExecution: this.options.commandExecution, provisionalSourceGit: this.options.provisionalSourceGit, skillDirectory: this.options.skillDirectory },
       git: this.git, candidates: this.candidates, repairIncidentExport: this.repairIncidentExport,
     }, {
@@ -855,7 +853,7 @@ export class AutonomousRunService {
    */
   static async open(options: RunServiceOptions): Promise<{ service: AutonomousRunService; recovery: RunRecoveryReport }> {
     if (options.policy !== undefined) throw new Error('Production run policy is fixed; a caller cannot inject a policy');
-    const service = new AutonomousRunService({ ...options, identityContract: options.identityContract ?? 'descriptive' }, createCapabilityWorkflow());
+    const service = new AutonomousRunService(options, createCapabilityWorkflow());
     const recovery = await service.load();
     return { service, recovery };
   }
@@ -1220,11 +1218,11 @@ export class AutonomousRunService {
   // Loading and recovery
 
   private readonly refusedPolicies = new Map<string, string>();
-  private readonly refusedIdentityContracts = new Map<string, string>();
+  private readonly refusedRecordFormats = new Map<string, string>();
 
   private refuseUnavailableRun(planId: string, runId: string): void {
-    const contract = this.refusedIdentityContracts.get(key(planId, runId));
-    if (contract !== undefined) throw new CommandRejection('unsupported-version', `Run identity contract ${contract} is not supported; the retained run cannot continue`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
+    const format = this.refusedRecordFormats.get(key(planId, runId));
+    if (format !== undefined) throw new CommandRejection('unsupported-version', `Run record format ${format} is not supported; the retained run cannot continue`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
     const recorded = this.refusedPolicies.get(key(planId, runId));
     if (recorded !== undefined) throw new CommandRejection('unsupported-version', `Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
   }
@@ -1256,13 +1254,13 @@ export class AutonomousRunService {
           this.warn(`Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
           continue;
         }
-        const identityContract = (parsed as { identityContract?: unknown }).identityContract;
-        if (identityContract !== undefined && identityContract !== 'legacy' && identityContract !== 'descriptive') {
-          const recorded = typeof identityContract === 'string' ? identityContract : JSON.stringify(identityContract) ?? String(identityContract);
-          this.refusedIdentityContracts.set(key(planId, jobId), recorded);
-          this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run identity contract ${recorded}`);
+        const obsoleteFormat = (parsed as { identityContract?: unknown }).identityContract;
+        if (obsoleteFormat !== undefined) {
+          const recorded = typeof obsoleteFormat === 'string' ? obsoleteFormat : JSON.stringify(obsoleteFormat) ?? String(obsoleteFormat);
+          this.refusedRecordFormats.set(key(planId, jobId), recorded);
+          this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run record format ${recorded}`);
           report.skipped.push(key(planId, jobId));
-          this.warn(`Run identity contract ${recorded} is not supported; the retained run cannot continue`);
+          this.warn(`Run record format ${recorded} is not supported; the retained run cannot continue`);
           continue;
         }
         const record = runRecordSchema.parse(parsed);
@@ -1893,8 +1891,7 @@ export class AutonomousRunService {
     await ensureStateDirectory(planStateDirectory(this.projectRoot, planId), { gitignore: true });
     const captured = await capturePlan(this.projectRoot, planId);
     const inputs = await this.captureInputs(captured);
-    const identityContract = this.options.identityContract ?? 'legacy';
-    const capturedDocuments = await discoverDocuments(this.projectRoot, planId, inputs.manifest.source ?? { commit: null, dirty: false }, undefined, undefined, identityContract)
+    const capturedDocuments = await discoverDocuments(this.projectRoot, planId, inputs.manifest.source ?? { commit: null, dirty: false })
       .catch((error: unknown) => { throw new CommandRejection('unreadable', `Plan evidence cannot be captured: ${message(error)}`); });
     if (!Buffer.from(capturedDocuments.bytes.get(capturedDocuments.manifest.root)!).equals(Buffer.from(captured))) {
       throw new CommandRejection('inputs-changed', 'The root plan changed during input capture');
@@ -1942,7 +1939,6 @@ export class AutonomousRunService {
       : undefined;
     const record = runRecordSchema.parse({
       schema: jobSchemaVersion,
-      identityContract,
       jobId: runId,
       planId,
       kind: 'implementation',
@@ -1957,8 +1953,7 @@ export class AutonomousRunService {
       baseline: baseline.reference,
       // The plan's own scenarios, extracted once from the captured bytes. A
       // block that does not parse is a limitation, never a refusal.
-      planScenarios: extractPlanScenarios(new TextDecoder().decode(captured),
-        identityContract === 'descriptive' ? capturedDocuments.manifest.root : undefined, identityContract),
+      planScenarios: extractPlanScenarios(new TextDecoder().decode(captured), capturedDocuments.manifest.root),
       reviewStop,
       ...(breakpoint === undefined ? {} : { breakpoint }),
     });
@@ -1991,7 +1986,6 @@ export class AutonomousRunService {
     const { manifest: promptManifest, packages } = await loadPromptPackages({
       ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }),
       capabilityWorkflow: this.workflow !== null,
-      identityContract: this.options.identityContract ?? 'legacy',
     });
     let manifest;
     try {
@@ -2000,8 +1994,7 @@ export class AutonomousRunService {
       if (error instanceof EvidenceUnavailableError) throw new CommandRejection('unavailable', error.message);
       throw error;
     }
-    const policy = (this.options.policy ?? ((root: string) => defaultRunPolicy({ projectRoot: root,
-      identityContract: this.options.identityContract ?? 'legacy' })))(this.projectRoot);
+    const policy = (this.options.policy ?? ((root: string) => defaultRunPolicy({ projectRoot: root })))(this.projectRoot);
     if (!supportedCapabilityPolicy(policy.version)) {
       throw new CommandRejection('conflict', `Run policy ${policy.version} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
     }
@@ -2702,7 +2695,7 @@ export class AutonomousRunService {
   private async startRecoveredDriver(run: Run): Promise<void> {
     if (this.ignoring(run) || !this.options.agent) return;
     const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }),
-      capabilityWorkflow: this.workflow !== null, identityContract: run.record.identityContract ?? 'legacy' });
+      capabilityWorkflow: this.workflow !== null });
     run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
     let baseline: MeasurementSnapshot;
     const baselinePath = runLayout.measurement(snapshotId(1));
@@ -3095,7 +3088,7 @@ export class AutonomousRunService {
         if (record.path === capabilityLayout.request(need?.id ?? '')) return true;
         if (task !== undefined && record.path.startsWith(`capabilities/${task.id}/`)) return true;
         const body = record.body as { schema?: string; id?: string; iteration?: string };
-        if (body.schema === 'ramify-agent.iteration-assignment/1' && iterations.has(body.id ?? '')) return true;
+        if (body.schema === 'ramify-agent.iteration-assignment/2' && iterations.has(body.id ?? '')) return true;
         if (body.schema === 'ramify-agent.iteration-result/1' && iterations.has(body.iteration ?? '')) return true;
         return [...gates].some(gate => record.path.startsWith(`gates/${gate}/`)) || [...reviews].some(review => record.path.startsWith(`reviews/${review}/`));
       }).map(record => ({ path: record.path, label: record.path }));
@@ -3143,7 +3136,6 @@ export class AutonomousRunService {
     }
     return performInitialAnalysis({
       projectRoot: this.projectRoot, directory: run.directory, planId: run.record.planId,
-      identityContract: run.record.identityContract ?? 'legacy',
       manifest: run.record.manifest, planScenarios: run.record.planScenarios.scenarios, index: run.index, baseline,
       baselineMeasurement: run.record.baseline && 'measurement' in run.record.baseline ? run.record.baseline.measurement : null,
       capturedPlanPath: this.coordination(run).capturedPlanPath(), rootModule: this.options.rootModule ?? rootModuleOf(run.index) ?? rootModuleOfSnapshot(baseline) ?? 'root',

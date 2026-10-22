@@ -28,11 +28,10 @@ fixes its schemas, events and worked stream.
 `src/interfaces/check-findings.ts` holds the Zod schemas and types: opaque
 sources, owners, producers, obligations, actors, authorities and evidence;
 risk levels, grounds and credibility; reports; decisions and their actions;
-relations; commands; version 1 and 2 events; state; rejections; and queries
-and views (`check-finding-view/1`). Legacy findings receive `cf-0001` from
-replayed state. A descriptive report proposes `draft:finding:<name>` and
-opens `finding:<name>` when unused. Reports, decisions and relations retain
-counted `cfr-`, `cfd-` and `cfl-` IDs.
+relations; commands; version 2 events; state; rejections; and queries
+and views (`check-finding-view/1`). A report proposes `draft:finding:<name>`
+and opens `finding:<name>` when unused. Reports, decisions and relations
+retain counted `cfr-`, `cfd-` and `cfl-` record IDs.
 
 ## Identity
 
@@ -44,11 +43,10 @@ report to the one CheckFinding that holds it; a key that names more than one
 is `ambiguous-issue-key`, never the first match. Without a key a report opens
 a new CheckFinding, and a reviewer's `suggests` is only recorded. Prose,
 paths and line numbers never form identity.
-Descriptive proposals are validated and collisions are refused before the
-caller commits the report and its record copies together. A report of the
-same trusted issue key may attach only with the accepted name. Version 1
-events and records replay unchanged; named findings use version 2 and encoded
-record paths.
+Proposals are validated and collisions are refused before the caller commits
+the report and its record copies together. A report of the same trusted issue
+key may attach only with the accepted name. Named findings use version 2
+events and encoded record paths.
 
 ## Decisions
 

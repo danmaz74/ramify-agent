@@ -130,8 +130,7 @@ export function mergeReadinessOf(view: RunView, evidence: AcceptedEvidence): Mer
   const paths = new Map(evidence.manifest.documents.map(document => [document.id, document]));
   for (const line of view.entries) {
     const event = line.transaction.event;
-    if (event.type !== 'plan-deviation-recorded' && event.type !== 'nonfunctional-deviation-recorded'
-      && event.type !== 'nonfunctional-deviations-recorded') continue;
+    if (event.type !== 'plan-deviation-recorded' && event.type !== 'nonfunctional-deviations-recorded') continue;
     const recorded = event.type === 'nonfunctional-deviations-recorded' ? event.data.deviations : [event.data];
     for (const occurrence of recorded) {
       const nfr = event.type !== 'plan-deviation-recorded';

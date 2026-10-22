@@ -4,7 +4,7 @@ import { isTestingModule, type ArchitectIndex } from '../../../../evidence/src/v
 import { type RunRecord } from '../../../src/run/records.js';
 import { entryAssignmentsSchema, type EntryAssignments } from './records.js';
 import { runLayout } from '../../../src/run/records.js';
-import { workItemId, workItemSchema, workLayout, type WorkItem } from '../../work-coordination/src/work/records.js';
+import { workItemSchema, workLayout, type WorkItem } from '../../work-coordination/src/work/records.js';
 import type { PlanScenario } from '../../../../scenarios/src/extraction.js';
 import { assignScenarioIds, scenarioRecordSchema, type ScenarioModule, type ScenarioRecord } from '../../../../scenarios/src/records.js';
 import {
@@ -15,7 +15,6 @@ import { scenarioFormOf, type ResolvedAnalysis } from './submission.js';
 import type { DocumentManifest } from '../../../../plan-evidence/src/interfaces/contracts.js';
 import type { ElementCatalog } from '../../../../plan-evidence/src/interfaces/catalog.js';
 import type { Incorporation } from './evidence-contracts.js';
-import type { IdentityContract } from '../../../../plan-evidence/src/interfaces/contracts.js';
 
 /*
  * What one accepted initial analysis commits, in the single
@@ -37,7 +36,7 @@ export interface AcceptedAnalysis {
   readonly hypotheses: readonly Hypothesis[];
   readonly registry: readonly RegistryEntry[];
   readonly workItems: readonly WorkItem[];
-  /** `sc-001`, … every one `pending`. */
+  /** Every accepted scenario, initially pending. */
   readonly scenarios: readonly ScenarioRecord[];
   /** The form rules' warnings, by scenario ID, which the event records. */
   readonly warnings: readonly RecordedScenarioWarning[];
@@ -47,7 +46,6 @@ export interface AcceptedAnalysis {
 
 /** What acceptance reads beyond the submission. */
 export interface AnalysisAcceptanceContext {
-  readonly identityContract?: IdentityContract;
   readonly invocation: string;
   readonly view: InputManifest['architectView'];
   readonly planId: string;
@@ -68,18 +66,23 @@ export interface AnalysisAcceptanceContext {
  * derives the same records with the same IDs.
  */
 export function acceptAnalysis(submission: ResolvedAnalysis, context: AnalysisAcceptanceContext): AcceptedAnalysis {
-  const descriptive = context.identityContract === 'descriptive';
-  const capabilityId = (name: string) => descriptive ? `capability:${name}` : name;
-  const hypothesisId = (name: string) => descriptive ? `hypothesis:${name}` : name;
+  const capabilityId = (name: string) => `capability:${name}`;
+  const hypothesisId = (name: string) => `hypothesis:${name}`;
   const entries = entryAssignmentsSchema.parse({
-    schema: descriptive ? 'ramify-agent.entry-assignments/2' : 'ramify-agent.entry-assignments/1',
+    schema: 'ramify-agent.entry-assignments/2',
     view: context.view,
-    entries: submission.entries.map(entry => descriptive ? { ...entry, capabilityId: capabilityId(entry.capability),
-      functionalRequirementIds: entry.requirementRefs, functionalAcceptanceIds: entry.acceptanceRefs, contextIds: entry.contextRefs } : entry),
+    entries: submission.entries.map(entry => ({
+      capability: entry.capability, description: entry.description, owner: entry.owner,
+      ...(entry.proposed === undefined ? {} : { proposed: entry.proposed }),
+      capabilityId: capabilityId(entry.capability),
+      functionalRequirementIds: entry.requirementRefs, functionalAcceptanceIds: entry.acceptanceRefs, contextIds: entry.contextRefs,
+      citations: entry.citations,
+      ...(entry.nonBehavioralAcceptance === undefined ? {} : { nonBehavioralAcceptance: entry.nonBehavioralAcceptance }),
+    })),
   });
 
   const hypotheses = submission.hypotheses.map(hypothesis => hypothesisSchema.parse({
-    schema: descriptive ? 'ramify-agent.hypothesis/2' : 'ramify-agent.hypothesis/1',
+    schema: 'ramify-agent.hypothesis/2',
     revision: 1,
     standing: 'tentative',
     ...hypothesis,
@@ -89,7 +92,7 @@ export function acceptAnalysis(submission: ResolvedAnalysis, context: AnalysisAc
   }));
 
   const registry = submission.entries.map(entry => registryEntrySchema.parse({
-    schema: descriptive ? 'ramify-agent.capability/2' : 'ramify-agent.capability/1',
+    schema: 'ramify-agent.capability/2',
     capability: capabilityId(entry.capability),
     revision: 1,
     behavior: entry.description,
@@ -100,16 +103,13 @@ export function acceptAnalysis(submission: ResolvedAnalysis, context: AnalysisAc
     consumers: [],
   }));
 
-  const workItems = submission.entries.map((entry, index) => workItemSchema.parse({
-    schema: descriptive ? 'ramify-agent.work-item/2' : 'ramify-agent.work-item/1',
-    id: descriptive ? `work-item:${entry.capability}` : workItemId(index + 1),
+  const workItems = submission.entries.map(entry => workItemSchema.parse({
+    schema: 'ramify-agent.work-item/2',
+    id: `work-item:${entry.capability}`,
     module: entry.owner,
     origin: { entry: capabilityId(entry.capability) },
     goal: entry.description,
-    requirementRefs: entry.requirementRefs,
-    acceptanceRefs: entry.acceptanceRefs,
-    contextRefs: entry.contextRefs,
-    ...(descriptive ? { functionalRequirementIds: entry.requirementRefs, functionalAcceptanceIds: entry.acceptanceRefs, contextIds: entry.contextRefs } : {}),
+    functionalRequirementIds: entry.requirementRefs, functionalAcceptanceIds: entry.acceptanceRefs, contextIds: entry.contextRefs,
     startedFor: null,
   }));
 
@@ -119,13 +119,12 @@ export function acceptAnalysis(submission: ResolvedAnalysis, context: AnalysisAc
     index: context.index, catalog: context.catalog, incorporation: context.incorporation, planScenarios: context.planScenarios, documents: context.documents,
   });
   if (!form.ok) throw new Error(`An accepted analysis breaks a scenario form rule: ${form.message}`);
-  const assigned = assignScenarioIds(descriptive ? {
+  const assigned = assignScenarioIds({
     ...form.form, scenarios: form.form.scenarios.map(scenario => ({ ...scenario, entry: capabilityId(scenario.entry) })),
-  } : form.form, {
+  }, {
     planId: context.planId,
     entries: submission.entries.map(entry => ({ capability: capabilityId(entry.capability), owner: entry.owner })),
     modules: scenarioModulesOf(submission, context.index),
-    identityContract: context.identityContract,
   });
   const scenarios = assigned.records.map((record, index) => scenarioRecordSchema.parse({ ...record,
     ...(record.kind === 'entry' ? { citedElements: submission.scenarios[index]!.refs ?? [] } : {}),

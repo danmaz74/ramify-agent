@@ -1,7 +1,7 @@
 import { finalCandidate } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { analysis, entry, hypothesis, requestCompletion, unresolved } from './analysis.js';
+import { analysis, currentAnalysis, entry, hypothesis, requestCompletion, unresolved } from './analysis.js';
 import { copyFixture } from './fixture.js';
 import { byRole, readDeclaredTree, submit, treeInputs } from './iterations.js';
 import { forkDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
@@ -23,8 +23,7 @@ import { passingAudit } from './direct-check-execution.js';
  *
  * - `placements` (revision-diff, completed): matching placement, changed
  *   placement, implemented-only, all three initial roles, dependency depth,
- *   a shared dependency, a cycle, tentative links, confirmed links and an
- *   omitted dependency target.
+ *   a shared dependency, a cycle, tentative links and confirmed links.
  * - `proposed` (review-notes, failed): an entry module proposed at start and
  *   absent from the tree, a registered `todo` beside tentative `todo`, and a
  *   run failure that is reported at run level only.
@@ -79,7 +78,7 @@ const bulk = (prefix: string, index: number) => `${prefix}-${String(index).padSt
 /** The rich run: two entries, three placement decisions and the forecast graph. */
 function placementsScript() {
   return byRole({
-    'initial-architect': [submit(analysis(
+    'initial-architect': [submit(currentAnalysis(analysis(
       [
         entry('compare-revisions', core, 'Compares two revisions of one record, field by field.'),
         entry('compare-panel', panel, 'Shows the comparison of two revisions on the record card.'),
@@ -97,36 +96,35 @@ function placementsScript() {
         hypothesis('digest-format', { change: 'create', suggestedOwner: sharedUi, dependsOn: ['text-wrap'] }),
         // A shared dependency of digest-format, field-diff and note-preview.
         hypothesis('text-wrap', { suggestedOwner: sharedUi }),
-        // A dependency target no capability of the run answers.
-        hypothesis('note-preview', { change: 'create', suggestedOwner: panel, dependsOn: ['text-wrap', 'spell-check'] }),
+        hypothesis('note-preview', { change: 'create', suggestedOwner: panel, dependsOn: ['text-wrap'] }),
         // A cycle.
         hypothesis('draft-sync', { change: 'create', suggestedOwner: validation, dependsOn: ['draft-merge'] }),
         hypothesis('draft-merge', { change: 'create', suggestedOwner: validation, dependsOn: ['draft-sync'] }),
       ],
-    ))],
+    ), 'document:revision-diff-plan'))],
     'local-architect': [
-      // wi-001, compare-revisions in the core.
+      // The compare-revisions work item in the core.
       submit(requestPlacement({
-        forCapability: 'compare-revisions',
+        forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:compare-revisions',
         question: 'Does comparing two revisions belong here, or to the panel that shows it?',
         findings: [{ text: 'The core holds the revision chain.', citations: [{ module: core }] }],
         candidates: [{ owner: core, note: 'It already holds the chain.' }],
       })),
       submit(requestPlacement({
-        forCapability: 'compare-revisions',
+        forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:field-diff-relocation',
         question: 'Is the core still the right owner of field-diff now that only the panel reads it?',
       })),
       submit(requestPlacement({
-        forCapability: 'compare-revisions',
+        forCapability: 'capability:compare-revisions', requestKey: 'draft:placement-request:revision-chain',
         question: 'Where does walking the revision chain belong?',
         candidates: [{ owner: core, note: 'The chain is stored here.' }],
       })),
       submit(requestCompletion()),
-      // wi-002, compare-panel in the panel.
+      // The compare-panel work item in the panel.
       submit(requestPlacement({
-        forCapability: 'compare-panel',
+        forCapability: 'capability:compare-panel', requestKey: 'draft:placement-request:compare-panel',
         question: 'Does the panel need its own comparison of two revisions?',
-        candidates: [{ capability: 'field-diff', owner: panel, note: 'The brief says the panel owns it now.' }],
+        candidates: [{ capability: 'capability:field-diff', owner: panel, note: 'The brief says the panel owns it now.' }],
       })),
       submit(requestCompletion()),
     ],
@@ -134,48 +132,48 @@ function placementsScript() {
       submit(forkDecision({
         decision: {
           question: 'Where does comparing two revisions field by field belong?',
-          outcome: 'create', capability: 'field-diff', changesExistingSymbols: false, owner: core,
+          outcome: 'create', capability: 'capability:field-diff', changesExistingSymbols: false, owner: core,
           rationale: 'The core already holds the revision chain.',
           constraints: [], uncertainties: [], evidence: { citations: [{ module: core }], gaps: [] },
         },
-        registry: [registryChange({ capability: 'field-diff', owner: core, behavior: 'Compares two revisions of one record and names the fields that differ.' })],
+        registry: [registryChange({ capability: 'capability:field-diff', owner: core, behavior: 'Compares two revisions of one record and names the fields that differ.' })],
         brief: 'field-diff belongs to the catalog core.',
       })),
       submit(forkDecision({
         decision: {
           question: 'Is the core still the right owner of field-diff now that only the panel reads it?',
-          outcome: 'extract', capability: 'field-diff', changesExistingSymbols: true, owner: panel,
+          outcome: 'extract', capability: 'capability:field-diff', changesExistingSymbols: true, owner: panel,
           rationale: 'The only reader is the panel, and the comparison has no other consumer.',
           constraints: [], uncertainties: [], evidence: { citations: [{ module: panel }], gaps: [] },
-          revises: { decision: 'gd-001', affected: [{ workItem: 'wi-002', consequence: 'The panel owns the comparison it was going to consume.' }] },
+          revises: { decision: 'placement-decision:placement-compare-revisions', affected: [{ workItem: 'work-item:compare-panel', consequence: 'The panel owns the comparison it was going to consume.' }] },
         },
-        registry: [registryChange({ capability: 'field-diff', owner: panel, behavior: 'Compares two revisions of one record and names the fields that differ.' })],
-        brief: 'field-diff moves from the catalog core to the panel; gd-001 is replaced.',
+        registry: [registryChange({ capability: 'capability:field-diff', owner: panel, behavior: 'Compares two revisions of one record and names the fields that differ.' })],
+        brief: 'field-diff moves from the catalog core to the panel; the earlier placement is replaced.',
       })),
       // Implemented only: a capability no initial record names.
       submit(forkDecision({
         decision: {
           question: 'Where does walking the revision chain belong?',
-          outcome: 'create', capability: 'revision-chain', changesExistingSymbols: false, owner: core,
+          outcome: 'create', capability: 'capability:revision-chain', changesExistingSymbols: false, owner: core,
           rationale: 'The chain is stored in the core, and only the comparison walks it.',
           constraints: [], uncertainties: [], evidence: { citations: [{ module: core }], gaps: [] },
         },
         registry: [registryChange({
-          capability: 'revision-chain', owner: core, behavior: 'Walks one record\'s revisions in order.',
-          consumers: [{ capability: 'compare-revisions', workItem: 'wi-001' }],
+          capability: 'capability:revision-chain', owner: core, behavior: 'Walks one record\'s revisions in order.',
+          consumers: [{ capability: 'capability:compare-revisions', workItem: 'work-item:compare-revisions' }],
         })],
         brief: 'revision-chain is new, in the catalog core; compare-revisions consumes it.',
       })),
       submit(forkDecision({
         decision: {
           question: 'Does the panel need its own comparison of two revisions?',
-          outcome: 'reuse', capability: 'field-diff', changesExistingSymbols: false, owner: panel,
-          rationale: 'gd-002 placed it in the panel, which is its only consumer.',
+          outcome: 'reuse', capability: 'capability:field-diff', changesExistingSymbols: false, owner: panel,
+          rationale: 'The revised placement put it in the panel, which is its only consumer.',
           constraints: [], uncertainties: [], evidence: { citations: [{ module: panel }], gaps: [] },
         },
         registry: [registryChange({
-          capability: 'field-diff', owner: panel, behavior: 'Compares two revisions of one record and names the fields that differ.',
-          consumers: [{ capability: 'compare-panel', workItem: 'wi-002' }],
+          capability: 'capability:field-diff', owner: panel, behavior: 'Compares two revisions of one record and names the fields that differ.',
+          consumers: [{ capability: 'capability:compare-panel', workItem: 'work-item:compare-panel' }],
         })],
         brief: 'The panel consumes field-diff; nothing new was placed.',
       })),
@@ -186,15 +184,15 @@ function placementsScript() {
 /** A failed run: the first entry proposes a module and cannot be resolved; the second never starts. */
 function proposedScript() {
   return byRole({
-    'initial-architect': [submit(analysis(
+    'initial-architect': [submit(currentAnalysis(analysis(
       [
         entry('badge-archive', archive, 'Keeps retired status badges for later review.', {
           parent: sharedUi, directory: archiveDirectory, purpose: 'Keeps retired status badges.', tags: [],
         }),
         entry('badge-legend', sharedUi, 'Explains each badge tone in a legend.'),
       ],
-      [hypothesis('badge-tones', { change: 'create', suggestedOwner: sharedUi, dependsOn: ['badge-legend'] })],
-    ))],
+      [hypothesis('badge-tones', { change: 'create', suggestedOwner: sharedUi })],
+    ), 'document:review-notes-plan'))],
     'local-architect': [submit(unresolved('The archive would need the badge history, which the plan says is never stored.'))],
     'global-fork': [submit({ kind: 'nothing-possible', reason: 'Every requirement of the archive rests on the history the plan never stores.', evidence: [] })],
   });
@@ -202,7 +200,7 @@ function proposedScript() {
 
 /** Only hypotheses: no work item, so the run completes as soon as its analysis is accepted. */
 function forecastScript(hypotheses: ReadonlyArray<ReturnType<typeof hypothesis>>) {
-  return byRole({ 'initial-architect': [submit(analysis([], hypotheses))] });
+  return byRole({ 'initial-architect': [submit(currentAnalysis(analysis([], hypotheses), 'document:reviewer-identity-plan'))] });
 }
 
 function capabilityBoundScript() {
@@ -240,7 +238,7 @@ const scripts: Record<FixtureRun, () => ReturnType<typeof byRole>> = {
  * of a run with scenarios, then unchanged checkpoints.
  */
 const checkpoints: Record<FixtureRun, ReadonlyArray<string | GitCheckpoint>> = {
-  placements: [scenariosCommit('revision-diff'), 'wi-001', 'wi-002', 'final verification of plan "revision-diff"'],
+  placements: [scenariosCommit('revision-diff'), 'work-item:compare-revisions', 'work-item:compare-panel', 'final verification of plan "revision-diff"'],
   proposed: [scenariosCommit('review-notes')],
   capabilityBound: ['final verification of plan "reviewer-identity"'],
   rowBound: ['final verification of plan "reviewer-identity"'],

@@ -16,7 +16,8 @@ import { snapshotOf } from './snapshot.js';
 type Ref = { kind: RunEventRefKind; id: string };
 const ref = (kind: RunEventRefKind, id: string | null | undefined): Ref[] => (id === null || id === undefined ? [] : [{ kind, id }]);
 /** A scenario or a delegated outcome is a record of its own kind; a registered case or test is named in the sentence alone. */
-const obligationRef = (id: string): Ref[] => /^sc-\d{3,}$/.test(id) ? ref('scenario', id) : /^cap-\d{3,}$/.test(id) ? ref('capability-task', id) : [];
+const obligationRef = (id: string): Ref[] => /^scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) ? ref('scenario', id)
+  : /^capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) ? ref('capability-task', id) : [];
 
 /** Each kind of gate command, as a sentence names it. */
 const commandLabels: Record<RunEventOf<'gate-command-started'>['data']['kind'], string> = {
@@ -357,8 +358,6 @@ function describe(event: RunEvent): [string, Ref[]] {
       return [`Non-functional round ${event.data.round} repaired`, ref('invocation', event.data.invocation)];
     case 'nonfunctional-round-closed':
       return [`Non-functional round ${event.data.round} closed: ${event.data.outcome}`, ref('invocation', event.data.actionInvocation)];
-    case 'nonfunctional-deviation-recorded':
-      return [`Non-functional deviation ${event.data.deviation} recorded for ${event.data.nfr}`, []];
     case 'nonfunctional-deviations-recorded':
       return [`${event.data.deviations.length} non-functional deviations recorded for assessment ${event.data.assessment}`, ref('invocation', event.data.actionInvocation)];
     case 'candidate-bound-to-gate':

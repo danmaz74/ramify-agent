@@ -8,7 +8,7 @@ import { assign, edit, outline, submit, treeInputs, write } from '../../../../..
 import { openRuns, runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 import { commitCapabilityTransition } from '../../../../src/run/capability-transition.js';
-import { capabilityLayout, descriptiveCapabilityNeedInputSchema, identifyCapabilityNeed, type CapabilityHandback, type CapabilityPlan, type CapabilityRequest, type CapabilityTask } from '../capability/records.js';
+import { capabilityLayout, capabilityNeedInputSchema, identifyCapabilityNeed, type CapabilityHandback, type CapabilityPlan, type CapabilityRequest, type CapabilityTask } from '../capability/records.js';
 import { captureProvisionalSource } from '../capability/source.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { recordHash } from '../../../../../../src/jobs/committed-reader.js';
@@ -41,13 +41,12 @@ const provider = 'capability-coordination/b';
 const firstRequest = 'capability-request:render-source-fact';
 const firstExample = 'capability-example:render-source-fact';
 
-test('recorded engineer replay binds the schema to its captured identity contract', () => {
+test('recorded engineer replay accepts only the current submission schema', () => {
   const body = { kind: 'unsuitable', reason: 'scope', detail: 'The assignment does not include the source owner' };
-  expect(parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/1', ...body }, 'legacy')).toEqual(body);
-  expect(parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/2', ...body }, 'descriptive')).toEqual(body);
-  expect(() => parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/2', ...body }, 'legacy'))
-    .toThrow('does not match the run identity contract legacy');
-  expect(() => parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/3', ...body }, 'descriptive'))
+  expect(parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/2', ...body })).toEqual(body);
+  expect(() => parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/1', ...body }))
+    .toThrow('Unsupported recorded engineer submission schema');
+  expect(() => parseRecordedEngineerSubmission({ schema: 'ramify-agent.engineer-submission/3', ...body }))
     .toThrow('Unsupported recorded engineer submission schema');
 });
 
@@ -75,7 +74,7 @@ test.each(['request', 'example', 'none'] as const)(
   const options: Parameters<typeof openCapabilityRuns>[1] = {
     git: answers.git, candidates: answers.candidates, ramify: answers.ramify,
     provisionalSourceGit: answers.sourceGit, configuredAudit: answers.audit,
-    identityContract: 'descriptive', inputs: treeInputs(),
+    inputs: treeInputs(),
     script: spec => {
       if (spec.submission.name === 'submit_intake') {
         const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
@@ -132,7 +131,7 @@ test.each(['request', 'example', 'none'] as const)(
         git: answers.git, sourceGit: answers.sourceGit, request: competingId,
         writerSettledBy: 'inv-competing-author', invocationScoped: true, acceptedBase,
         changedPaths: await answers.git.changedPaths(fixture.root, acceptedBase) });
-      const proposed = descriptiveCapabilityNeedInputSchema.parse({ ...original.request,
+      const proposed = capabilityNeedInputSchema.parse({ ...original.request,
         requestKey: `draft:${competingId}`,
         examples: [{ ...original.request.examples[0]!, key: `draft:${collision === 'request' ? 'capability-example:competing-source-fact' : firstExample}` }] });
       const competitor: CapabilityRequest = { schema: 'ramify-agent.capability-request/2', id: competingId,
@@ -140,7 +139,7 @@ test.each(['request', 'example', 'none'] as const)(
         invocation: 'inv-competing-author', consumer, requirementPackage: { id: runLayout.capturedPlan, revision: 1,
           hash: planHash }, continuation: { session: 'ses-competing-author', point: null }, source,
         summary: 'The competing authorized author described the same source behavior',
-        original: identifyCapabilityNeed(competingId, proposed) };
+        original: identifyCapabilityNeed(proposed) };
       await commitCapabilityTransition(active.log, { type: 'capability-requested', data: {
         request: competitor.id, parent: competitor.parent.id, assignment: competitor.assignment,
         invocation: competitor.invocation,
@@ -152,14 +151,13 @@ test.each(['request', 'example', 'none'] as const)(
     },
   };
   const open = () => collision === 'none'
-    ? openRuns(fixture.root, { ...options, identityContract: undefined, production: true })
+    ? openRuns(fixture.root, { ...options, production: true })
     : openCapabilityRuns(fixture.root, options);
   const opened = await open();
   service = opened.service; cleanups.push(() => service!.close());
   const receipt = await service.execute(startRun('need'));
   if (collision === 'none') {
     const job = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.record), 'utf8')) as Record<string, unknown>;
-    expect(job.identityContract).toBe('descriptive');
   }
   const expectedRequests = collision === 'none' ? 1 : 2;
   await until(() => (service!.events('need', receipt.jobId) ?? []).filter(event => event.type === 'capability-requested').length >= expectedRequests
@@ -231,7 +229,7 @@ test('a nested descriptive request resumes its accepted provider assignment afte
   const options: Parameters<typeof openCapabilityRuns>[1] = {
     git: answers.git, candidates: answers.candidates, ramify: answers.ramify,
     provisionalSourceGit: answers.sourceGit, configuredAudit: answers.audit,
-    identityContract: 'descriptive', inputs: treeInputs(),
+    inputs: treeInputs(),
     script: spec => {
       if (spec.submission.name === 'submit_intake') {
         const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
@@ -350,7 +348,7 @@ test('an intervening accepted task name returns to the same qualification task b
   const opened = await openCapabilityRuns(fixture.root, {
     git: answers.git, candidates: answers.candidates, ramify: answers.ramify,
     provisionalSourceGit: answers.sourceGit, configuredAudit: answers.audit,
-    identityContract: 'descriptive', inputs: treeInputs(),
+    inputs: treeInputs(),
     script: spec => {
       if (spec.submission.name === 'submit_intake') {
         const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
@@ -411,7 +409,7 @@ test('an intervening accepted task name returns to the same qualification task b
         git: answers.git, sourceGit: answers.sourceGit, request: requestId,
         writerSettledBy: 'inv-competing-author', invocationScoped: true, acceptedBase,
         changedPaths: await answers.git.changedPaths(fixture.root, acceptedBase) });
-      const need = descriptiveCapabilityNeedInputSchema.parse({
+      const need = capabilityNeedInputSchema.parse({
         requestKey: `draft:${requestId}`, need: 'Provide another B source fact',
         usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Render B source', prospective: false }],
         constraints: [], knownInterface: { kind: 'none-known' },
@@ -422,7 +420,7 @@ test('an intervening accepted task name returns to the same qualification task b
         parent: { kind: 'work-item', id: started.data.work.workItem! }, assignment: started.data.work.iteration!,
         invocation: 'inv-competing-author', consumer, requirementPackage: { id: runLayout.capturedPlan,
           revision: 1, hash: planHash }, continuation: { session: 'ses-competing-author', point: null },
-        source, summary: 'Another accepted author needs the B source fact', original: identifyCapabilityNeed(requestId, need) };
+        source, summary: 'Another accepted author needs the B source fact', original: identifyCapabilityNeed(need) };
       await commitCapabilityTransition(active.log, { type: 'capability-requested', data: {
         request: competitor.id, parent: competitor.parent.id, assignment: competitor.assignment,
         invocation: competitor.invocation,

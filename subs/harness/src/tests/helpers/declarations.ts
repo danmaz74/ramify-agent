@@ -33,7 +33,7 @@ export function defaultTurn(spec: SessionSpec): readonly ScriptStep[] | undefine
   switch (spec.submission.name) {
     case intakeToolName: {
       if (/^Missing references to judge:$/mu.test(spec.prompt)) throw new Error('A scripted fixture with missing references must state its intake explicitly');
-      const plans = [...spec.prompt.matchAll(/^- (doc-\d{3,}) \(plan\):/gmu)].map(match => match[1]!);
+      const plans = [...spec.prompt.matchAll(/^- (document:[a-z0-9]+(?:-[a-z0-9]+)*) \(plan\):/gmu)].map(match => match[1]!);
       return [{ kind: 'submit', input: {
         goal: 'The plan asks for the behavior its entries name.', elements: [],
         incorporation: { documents: plans.map((document, index) => ({ document, scenarios: index === 0, uncertainty: '' })), missing: [] },
@@ -69,7 +69,7 @@ export function declaringScenarios(script: Script): Script {
 export function unfinishedScenarioObligations(prompt: string): Array<{ id: string; revision: number }> {
   const section = prompt.split('\n# Registered obligations\n').at(-1);
   if (section === undefined || section === prompt) return [];
-  return [...section.matchAll(/^- (sc-\d+) \(scenario\): (pending|bound|done), revision (\d+);/gmu)]
+  return [...section.matchAll(/^- (scenario:[a-z0-9]+(?:-[a-z0-9]+)*) \(scenario\): (pending|bound|done), revision (\d+);/gmu)]
     .filter(match => match[2] !== 'done')
     .map(match => ({ id: match[1]!, revision: Number(match[3]) }));
 }

@@ -5,7 +5,7 @@ import { modulePathSchema } from '../../../../../../src/interfaces/protocol/evid
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
 import { openFindingsMessage, type HookFinding, type HookSubmissionPolicy } from '../../../../../../src/hooks/post-write.js';
 import { needAsBehaviorSchema } from '../contracts/submission.js';
-import { capabilityNeedInputSchema, descriptiveCapabilityNeedInputSchema, type DescriptiveCapabilityNeedInput } from '../capability/records.js';
+import { capabilityNeedInputSchema, type CapabilityNeedInput } from '../capability/records.js';
 import { bindingErrors, obligationBindingSchema } from './obligations.js';
 import type { IterationAssignment } from './iterations.js';
 import { injectionSiteRule, moduleOwning } from '../../../../../../src/work/scope.js';
@@ -109,39 +109,21 @@ export const engineerSubmissionSchema = z.discriminatedUnion('kind', [
     request: capabilityNeedInputSchema,
   }).strict(),
 ]);
-export type EngineerSubmission = z.infer<typeof engineerSubmissionSchema> | z.infer<typeof descriptiveCapabilityEngineerSubmissionSchema>;
+export type EngineerSubmission = z.infer<typeof engineerSubmissionSchema>;
 
 /** The members this iteration's package offers the role. */
 export const engineerSubmissionKinds = ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'] as const;
-export const capabilityEngineerSubmissionKinds = ['completion-proposed', 'partial', 'unsuitable', 'capability-needed'] as const;
+export const capabilityEngineerSubmissionKinds = ['completion-proposed', 'partial', 'unsuitable', 'contract-needed', 'capability-needed'] as const;
 
 /** The schema the agent's tool is given, taken from the same definition that validates. */
 export const engineerJsonSchema = z.toJSONSchema(engineerSubmissionSchema) as JsonSchema;
-/** Legacy capability runs retain the capability-request-only tool surface. */
-export const capabilityEngineerSubmissionSchema = z.discriminatedUnion('kind', [
-  engineerSubmissionSchema.options[0]!, engineerSubmissionSchema.options[1]!,
-  engineerSubmissionSchema.options[2]!, engineerSubmissionSchema.options[4]!,
-]);
-export const capabilityEngineerJsonSchema = z.toJSONSchema(capabilityEngineerSubmissionSchema) as JsonSchema;
-export const descriptiveCapabilityEngineerSubmissionSchema = z.discriminatedUnion('kind', [
-  engineerSubmissionSchema.options[0]!, engineerSubmissionSchema.options[1]!,
-  engineerSubmissionSchema.options[2]!, engineerSubmissionSchema.options[3]!,
-  engineerSubmissionSchema.options[4]!.extend({ request: descriptiveCapabilityNeedInputSchema }),
-]);
-export const descriptiveCapabilityEngineerJsonSchema = z.toJSONSchema(descriptiveCapabilityEngineerSubmissionSchema) as JsonSchema;
-
 /** Authenticate the recorded tool contract before interpreting accepted engineer bytes. */
-export function parseRecordedEngineerSubmission(raw: unknown, identityContract?: 'legacy' | 'descriptive'): EngineerSubmission {
+export function parseRecordedEngineerSubmission(raw: unknown): EngineerSubmission {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Recorded engineer submission is not an object');
   const { schema, ...body } = raw as Record<string, unknown>;
-  const expected = identityContract === undefined ? undefined
-    : identityContract === 'descriptive' ? 'ramify-agent.engineer-submission/2' : 'ramify-agent.engineer-submission/1';
-  if (schema !== 'ramify-agent.engineer-submission/1' && schema !== 'ramify-agent.engineer-submission/2')
+  if (schema !== 'ramify-agent.engineer-submission/2')
     throw new Error(`Unsupported recorded engineer submission schema ${String(schema)}`);
-  if (expected !== undefined && schema !== expected)
-    throw new Error(`Recorded engineer submission schema ${schema} does not match the run identity contract ${identityContract}`);
-  return (schema === 'ramify-agent.engineer-submission/2'
-    ? descriptiveCapabilityEngineerSubmissionSchema : engineerSubmissionSchema).parse(body);
+  return engineerSubmissionSchema.parse(body);
 }
 
 export const engineerToolName = 'submit_iteration_result';
@@ -189,7 +171,6 @@ const trailerLine = /^\s*Ramify-[A-Za-z-]*\s*:/m;
 
 /** What the rules beyond the schema are checked against. */
 export interface EngineerEvidence {
-  readonly identityContract?: 'legacy' | 'descriptive';
   /** Accepted names at the author boundary; publication checks them again under the run lock. */
   readonly occupiedCapabilityNames?: { readonly requests: ReadonlySet<string>; readonly examples: ReadonlySet<string> };
   /** Only the internal test workflow may offer the new submission before rollout. */
@@ -235,28 +216,15 @@ export interface EngineerEvidence {
  * path.
  */
 export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}): SubmissionValidation<EngineerSubmission> {
-  const shape = evidence.identityContract === 'descriptive'
-    ? validateAgainst(descriptiveCapabilityEngineerSubmissionSchema, input)
-    : validateAgainst(engineerSubmissionSchema, input);
+  const shape = validateAgainst(engineerSubmissionSchema, input);
   if (!shape.ok) return shape;
   const errors: SubmissionError[] = [];
   const value = shape.value;
   if (value.kind === 'capability-needed') {
-    const descriptive = evidence.identityContract === 'descriptive';
-    const matching = descriptive ? descriptiveCapabilityNeedInputSchema.safeParse(value.request).success
-      : capabilityNeedInputSchema.safeParse(value.request).success;
-    if (!matching) errors.push({ path: 'request', message: `The capability request must use the ${descriptive ? 'descriptive draft keys' : 'legacy'} contract`,
-      expected: descriptive ? 'requestKey draft:capability-request:<name> and examples[].key draft:capability-example:<name>' : 'legacy examples without draft keys' });
-    if (descriptive && matching) {
-      const proposed = descriptiveCapabilityNeedInputSchema.parse(value.request);
-      errors.push(...descriptiveCapabilityNameErrors(proposed, evidence.occupiedCapabilityNames));
-    }
+    errors.push(...capabilityNameErrors(value.request, evidence.occupiedCapabilityNames));
   }
   if (value.kind === 'capability-needed' && evidence.capabilityWorkflow !== true) {
     errors.push({ path: 'kind', message: 'Capability coordination is not enabled for this run', expected: 'an enabled capability workflow' });
-  }
-  if (value.kind === 'contract-needed' && evidence.capabilityWorkflow === true && evidence.identityContract !== 'descriptive') {
-    errors.push({ path: 'kind', message: 'The contract workflow is unavailable in capability coordination', expected: 'capability-needed' });
   }
   if (value.kind === 'capability-needed' && evidence.capabilityUsage !== undefined) {
     const { ownership, registry, unavailable } = evidence.capabilityUsage;
@@ -387,8 +355,8 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
 }
 
 /** The same field diagnostics are used before author acceptance and after a serialized publication race. */
-export function descriptiveCapabilityNameErrors(
-  proposed: DescriptiveCapabilityNeedInput,
+export function capabilityNameErrors(
+  proposed: CapabilityNeedInput,
   occupied?: { readonly requests: ReadonlySet<string>; readonly examples: ReadonlySet<string> },
 ): SubmissionError[] {
   const errors: SubmissionError[] = [];
@@ -438,7 +406,6 @@ export interface IterationBriefing {
   readonly base: string;
   /** Selects the handback supported by this invocation's submission schema. */
   readonly capabilityWorkflow?: boolean | undefined;
-  readonly identityContract?: 'legacy' | 'descriptive' | undefined;
   /** The API views of the modules this iteration writes, or why one has none. */
   readonly views?: readonly IterationApiViews[] | undefined;
   /**
@@ -517,7 +484,7 @@ export function iterationMessage(briefing: IterationBriefing): string {
       : 'A symbol you need that is not there is reported with `unsuitable`, reason `scope`; it is never imported anyway.', '');
   }
 
-  if (briefing.capabilityWorkflow && briefing.identityContract === 'descriptive') lines.push(
+  if (briefing.capabilityWorkflow) lines.push(
     '## Capability identity proposals', '',
     'For capability-needed, propose request.requestKey as draft:capability-request:<behavior-name> and each request.examples[].key as draft:capability-example:<behavior-name>. The harness resolves these in ordinary acceptance. Existing accepted capability IDs are invalid in those draft fields. An unknown accepted requirement reference must be corrected from the work-item package; names are never guessed.',
     'For an accepted registry capability outside your scope, contract-needed may open the agreement iteration. Cite its accepted capability:<name> ID in need.capability and state the behavior and caller evidence.', '',

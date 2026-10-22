@@ -26,12 +26,12 @@ const waive = decision(
 
 /** One recorded deviation, awaiting the person's decision. */
 function recorded(): CheckFindingState {
-  return commitAll([report(deviation({ key: 'pd-001', hash: 1 })), dispose('cf-0001', 1, deviationRequest())]);
+  return commitAll([report(deviation({ key: 'plan-deviation:case-001', hash: 1 })), dispose('finding:case-0001', 1, deviationRequest())]);
 }
 
 describe('plan deviations', () => {
   it('is the run\'s, judged, verified by assessment and agent-generated', () => {
-    const valid = deviation({ key: 'pd-001', hash: 1 });
+    const valid = deviation({ key: 'plan-deviation:case-001', hash: 1 });
     expect(refusal(commitAll([]), report(valid))).toBeNull();
     expect(refusal(commitAll([]), report({ ...valid, owner: workItem('wi-001') }))).toBe('invalid-report');
     expect(refusal(commitAll([]), report({ ...valid, judgment: null }))).toBe('invalid-report');
@@ -40,47 +40,47 @@ describe('plan deviations', () => {
 
   it('awaits the person, and their waiver accepts it and settles the request', () => {
     const state = recorded();
-    expect(state.findings.get('cf-0001')).toMatchObject({ standing: 'open', reason: 'awaiting-user-decision', pendingUserDecision: 'cfd-0001', risk: 'high' });
-    const accepted = commit(state, dispose('cf-0001', 2, waive));
-    expect(accepted.findings.get('cf-0001')).toMatchObject({ standing: 'closed', reason: 'waived', pendingUserDecision: null, settledBy: 'cfd-0002' });
+    expect(state.findings.get('finding:case-0001')).toMatchObject({ standing: 'open', reason: 'awaiting-user-decision', pendingUserDecision: 'cfd-0001', risk: 'high' });
+    const accepted = commit(state, dispose('finding:case-0001', 2, waive));
+    expect(accepted.findings.get('finding:case-0001')).toMatchObject({ standing: 'closed', reason: 'waived', pendingUserDecision: null, settledBy: 'cfd-0002' });
   });
 
   it('refuses anyone else\'s waiver while it awaits the person', () => {
     const state = recorded();
-    expect(refusal(state, dispose('cf-0001', 2, { ...waive, actor: { kind: 'agent', role: 'global-architect', invocation: 'inv-1' } }))).toBe('awaiting-user-decision');
+    expect(refusal(state, dispose('finding:case-0001', 2, { ...waive, actor: { kind: 'agent', role: 'global-architect', invocation: 'inv-1' } }))).toBe('awaiting-user-decision');
   });
 
   it('keeps an ordinary signal\'s request pending against a person\'s waiver', () => {
     const state = commitAll([
       report(concern({ attempt: 'rq-0001.a01', key: 'c1', summary: 'A concern', hash: 1 })),
-      dispose('cf-0001', 1, deviationRequest()),
+      dispose('finding:case-0001', 1, deviationRequest()),
     ]);
-    expect(refusal(state, dispose('cf-0001', 2, waive))).toBe('awaiting-user-decision');
+    expect(refusal(state, dispose('finding:case-0001', 2, waive))).toBe('awaiting-user-decision');
   });
 
   it('is rejected by the person\'s answer, which stays open with the answer recorded', () => {
-    const answered = commit(recorded(), dispose('cf-0001', 2, decision(
+    const answered = commit(recorded(), dispose('finding:case-0001', 2, decision(
       { action: 'answer-user-decision', request: 'cfd-0001', option: 'reject' },
       { actor: user, rationale: 'The script prints the block in a follow-up run' },
     )));
-    expect(answered.findings.get('cf-0001')).toMatchObject({ standing: 'open', reason: 'user-decision-answered', pendingUserDecision: null });
+    expect(answered.findings.get('finding:case-0001')).toMatchObject({ standing: 'open', reason: 'user-decision-answered', pendingUserDecision: null });
   });
 
   it('comes before every other signal in the attention order', () => {
     const state = commitAll([
       report(concern({ attempt: 'rq-0001.a01', key: 'c1', summary: 'A high concern', hash: 1, risk: 'high', credibility: 'human-reviewed', ground: { ref: 'plan', hash: `sha256:${'1'.repeat(64)}` } })),
-      report(deviation({ key: 'pd-001', hash: 2 })),
+      report(deviation({ key: 'plan-deviation:case-001', hash: 2 })),
     ]);
     const selected = selectCheckFindings(state, { kind: 'list', select: 'all', order: 'attention' });
     if (!selected.ok || selected.view.kind !== 'list') throw new Error('no list');
-    expect(selected.view.items.map(item => item.id)).toEqual(['cf-0002', 'cf-0001']);
+    expect(selected.view.items.map(item => item.id)).toEqual(['finding:case-0002', 'finding:case-0001']);
   });
 });
 
 describe('environment problems', () => {
   /** One reported environment problem, awaiting the operator's answer. */
   function reported(): CheckFindingState {
-    return commitAll([report(environmentProblem({ key: 'ep-001', hash: 1 })), dispose('cf-0001', 1, deviationRequest())]);
+    return commitAll([report(environmentProblem({ key: 'ep-001', hash: 1 })), dispose('finding:case-0001', 1, deviationRequest())]);
   }
 
   it('is the run\'s, judged, verified by assessment and agent-generated', () => {
@@ -93,9 +93,9 @@ describe('environment problems', () => {
 
   it('the operator\'s waiver settles its request, and no one else\'s does', () => {
     const state = reported();
-    expect(refusal(state, dispose('cf-0001', 2, { ...waive, actor: { kind: 'agent', role: 'global-architect', invocation: 'inv-1' } }))).toBe('awaiting-user-decision');
-    const resumed = commit(state, dispose('cf-0001', 2, waive));
-    expect(resumed.findings.get('cf-0001')).toMatchObject({ standing: 'closed', reason: 'waived', pendingUserDecision: null });
+    expect(refusal(state, dispose('finding:case-0001', 2, { ...waive, actor: { kind: 'agent', role: 'global-architect', invocation: 'inv-1' } }))).toBe('awaiting-user-decision');
+    const resumed = commit(state, dispose('finding:case-0001', 2, waive));
+    expect(resumed.findings.get('finding:case-0001')).toMatchObject({ standing: 'closed', reason: 'waived', pendingUserDecision: null });
   });
 
   it('comes before an ordinary signal in the attention order', () => {
@@ -105,6 +105,6 @@ describe('environment problems', () => {
     ]);
     const selected = selectCheckFindings(state, { kind: 'list', select: 'all', order: 'attention' });
     if (!selected.ok || selected.view.kind !== 'list') throw new Error('no list');
-    expect(selected.view.items.map(item => item.id)).toEqual(['cf-0002', 'cf-0001']);
+    expect(selected.view.items.map(item => item.id)).toEqual(['finding:case-0002', 'finding:case-0001']);
   });
 });

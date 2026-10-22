@@ -5,7 +5,7 @@ import { scenarioIdOfTag } from '../../../../../scenarios/src/rendering.js';
  * What a gate's audit says of each tracked scenario, read from the raw runner
  * output the provider published: every Cucumber command's parsed run, whose
  * scenarios carry their executed tags. A scenario is identified by its
- * `@ramify-sc-NNN` tag; the project's own scenarios carry none and are
+ * `@ramify-scenario-<name>` tag; the project's own scenarios carry none and are
  * counted, not named.
  *
  * This is inspection context only. The audit's composed verdict is the

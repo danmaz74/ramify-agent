@@ -6,7 +6,7 @@
 Feature: audit-trail
   Every send leaves one audit line.
 
-  @ramify-sc-004 @ramify-pending
+  @ramify-scenario-every-send-is-audited @ramify-pending
   Scenario: Every send is audited
     When the user activates email sending
     Then one audit line records the send

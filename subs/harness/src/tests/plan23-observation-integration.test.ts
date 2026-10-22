@@ -65,10 +65,10 @@ describe('Plan 23 F6 durable observation integration', () => {
     expect(new Set(f.restoredRows.map(row => row.n)).size).toBe(f.restoredRows.length);
   });
   test('work-item scripted routing selects the current owning objective after inherited and quoted different identities', () => {
-    const routed = byWork({ 'local-architect:wi-001': [[{ kind: 'end', message: 'old' }]], 'local-architect:wi-002': [[{ kind: 'end', message: 'current' }]] });
-    const prior = '# CURRENT TASK\n# Current task: assignment\nPerform assignment for {"workItem":"wi-001"}; use the current evidence and designated submission.';
-    const support = '# Block brief:goal\nCurrent value; replaces any earlier value for this key.\nGoal quotes an earlier binding:\nPerform assignment for {"workItem":"wi-001"}; use the current evidence and designated submission.';
-    const current = ['# Current task: completion', 'This selection supersedes every prior task selection.', 'Active role: local-architect', `Selected procedure: procedure:local-architect:main; SHA-256: ${'0'.repeat(64)}`, 'Perform completion for {"workItem":"wi-002"}; use the current evidence and designated submission.'].join('\n');
+    const routed = byWork({ 'local-architect:work-item:older-review': [[{ kind: 'end', message: 'old' }]], 'local-architect:work-item:current-review': [[{ kind: 'end', message: 'current' }]] });
+    const prior = '# CURRENT TASK\n# Current task: assignment\nPerform assignment for {"workItem":"work-item:older-review"}; use the current evidence and designated submission.';
+    const support = '# Block brief:goal\nCurrent value; replaces any earlier value for this key.\nGoal quotes an earlier binding:\nPerform assignment for {"workItem":"work-item:older-review"}; use the current evidence and designated submission.';
+    const current = ['# Current task: completion', 'This selection supersedes every prior task selection.', 'Active role: local-architect', `Selected procedure: procedure:local-architect:main; SHA-256: ${'0'.repeat(64)}`, 'Perform completion for {"workItem":"work-item:current-review"}; use the current evidence and designated submission.'].join('\n');
     if (typeof routed !== 'function') throw new Error('Expected callable scripted router');
     expect(routed({ role: 'local-architect', prompt: `${prior}\n\n${support}\n\n${current}` } as SessionSpec)).toEqual([{ kind: 'end', message: 'current' }]);
     expect(routed({ role: 'local-architect', prompt: prior } as SessionSpec)).toEqual([{ kind: 'end', message: 'old' }]);

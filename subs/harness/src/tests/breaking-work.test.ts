@@ -9,7 +9,7 @@ import { iterationLayout } from '../../subs/autonomous/subs/work-coordination/sr
 import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { localArchitectToolName } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 
-import { analysis, entry } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, read, submit, treeInputs, write } from './helpers/iterations.js';
 import {
   onlyRun, openRuns, runEventsOnDisk, runPath, startRun,
@@ -32,7 +32,7 @@ describe('the broad scope is a planned exception', () => {
       git: scripted.git,
 
       script: byRole({
-        'initial-architect': [submit(analysis([entry('reviewer-identity', attribution)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-identity', attribution)]), 'document:reviewer-identity-plan'))],
         'local-architect': [
           [{ kind: 'submit', input: blank }, { kind: 'submit', input: assign(core, { kind: 'breaking', stage: 1, goal: 'Make the break.', scope: broadScope() }, stagedOutline()) }],
           submit({ kind: 'unresolved', conflict: 'Stopping after the assignment this test is about.', evidence: [] }),
@@ -55,10 +55,10 @@ describe('the broad scope is a planned exception', () => {
     expect(local.verdicts[1]).toEqual({ accepted: true });
     // Nothing was written for the refused input: one outline, one assignment,
     // and that one carries the rationale.
-    expect(existsSync(runPath(root, plan, runId, workLayout.outline('wi-001', 2)))).toBe(false);
-    const accepted = await readAssignment(root, runId, 'wi-001', 1);
+    expect(existsSync(runPath(root, plan, runId, workLayout.outline('work-item:reviewer-identity', 2)))).toBe(false);
+    const accepted = await readAssignment(root, runId, 'work-item:reviewer-identity', 1);
     expect(accepted.scope.base).toMatchObject({ rationale: broadRationale });
-    expect(existsSync(runPath(root, plan, runId, iterationLayout.assignment('wi-001', 2)))).toBe(false);
+    expect(existsSync(runPath(root, plan, runId, iterationLayout.assignment('work-item:reviewer-identity', 2)))).toBe(false);
     // A refused input and an unfinished iteration commit nothing at all;
     // the one revision is the feature files'.
     expect(scripted.revisions()).toEqual([materialized]);
@@ -71,7 +71,7 @@ describe('a break discovered during work', () => {
     const root = await target();
     const narrow = { base: { module: core, included: [] }, extra: [], read: [], rationale: 'The representation is defined here.' };
     const { service, runId, agent, scripted } = await run(root, {
-      'initial-architect': [submit(analysis([entry('reviewer-identity', attribution)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-identity', attribution)]), 'document:reviewer-identity-plan'))],
       'local-architect': [
         // The first plan did not see the break: one ordinary iteration.
         submit(assign(core, { goal: 'Give the outcome a structured reviewer.', scope: narrow }, {
@@ -122,7 +122,7 @@ describe('a break discovered during work', () => {
 
     // The report closed the iteration and nothing else. No gate ran for it,
     // and nothing was committed.
-    const reported = await readResult(root, runId, 'wi-001', 1);
+    const reported = await readResult(root, runId, 'work-item:reviewer-identity', 1);
     expect(reported.outcome).toBe('unsuitable');
     expect(reported.gate).toBeNull();
     expect(reported.commit).toBeNull();
@@ -130,7 +130,7 @@ describe('a break discovered during work', () => {
 
     // The module engineer did not widen its own writes: its scope was the one
     // module it was given, and nothing outside it changed in its turn.
-    const first = await readAssignment(root, runId, 'wi-001', 1);
+    const first = await readAssignment(root, runId, 'work-item:reviewer-identity', 1);
     expect(first.kind).toBe('ordinary');
     expect(first.scope.base).toEqual({ module: core, included: [] });
     const reporting = agent!.sessions.filter(session => session.spec.role === 'engineer')[0]!;
@@ -140,17 +140,17 @@ describe('a break discovered during work', () => {
 
     // The architect restaged: a new outline revision that records the break,
     // and a breaking iteration with the broad scope.
-    expect(existsSync(runPath(root, plan, runId, workLayout.outline('wi-001', 2)))).toBe(true);
-    const restaged = await readAssignment(root, runId, 'wi-001', 2);
+    expect(existsSync(runPath(root, plan, runId, workLayout.outline('work-item:reviewer-identity', 2)))).toBe(true);
+    const restaged = await readAssignment(root, runId, 'work-item:reviewer-identity', 2);
     expect(restaged.kind).toBe('breaking');
     expect(restaged.gate.checkpoint).toBe('breaking-iteration');
     expect('modules' in restaged.scope.base).toBe(true);
-    expect((await readResult(root, runId, 'wi-001', 2)).outcome).toBe('accepted');
+    expect((await readResult(root, runId, 'work-item:reviewer-identity', 2)).outcome).toBe('accepted');
     // The iteration that reported the break asked Git for no commit; the
     // restaged one is the only revision this run minted beside the feature
     // files'.
     expect(scripted.revisions()).toEqual([materialized, 'revision-01']);
-    expect(scripted.messages[1]).toContain('wi-001.i02');
+    expect(scripted.messages[1]).toContain('work-item:reviewer-identity.i02');
     scripted.assertComplete();
   }, 600_000);
 });

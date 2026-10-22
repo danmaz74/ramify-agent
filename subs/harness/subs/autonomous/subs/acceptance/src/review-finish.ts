@@ -125,7 +125,6 @@ export async function finishReview(
   settles: boolean,
   submission?: ReviewSubmission,
   bindings: readonly ConcernBinding[] = [],
-  identityContract: 'legacy' | 'descriptive' = 'legacy',
 ): Promise<'committed' | 'fenced'> {
   if ((submission?.concerns.length ?? 0) !== bindings.length) {
     throw new Error(`${attempt.id} submitted ${submission?.concerns.length ?? 0} concerns, and ${bindings.length} were bound`);
@@ -133,7 +132,7 @@ export async function finishReview(
   const finishedAt = now().toISOString();
   const record: ReviewSubmissionRecord | undefined = submission === undefined
     ? undefined
-    : { schema: identityContract === 'descriptive' ? 'ramify-agent.review-submission/2' : 'ramify-agent.review-submission/1', attempt: attempt.id, ...submission } as ReviewSubmissionRecord;
+    : { schema: 'ramify-agent.review-submission/2', attempt: attempt.id, ...submission } as ReviewSubmissionRecord;
   const evidenceHash = record === undefined ? null : `sha256:${sha256(canonicalJson(record))}`;
   const commit = await target.commit(({ state }) => {
     const current = reviewStateOf(target.events()).get(request.id);
@@ -145,7 +144,7 @@ export async function finishReview(
       producer: `review:${request.key.kind}`,
       attempt: attempt.id,
       reportKey: concernKey(index),
-      ...(identityContract === 'descriptive' && 'findingKey' in concern ? { findingKey: concern.findingKey } : {}),
+      findingKey: concern.findingKey,
       owner: { kind: 'work-item', workItem: request.workItem },
       source: { kind: 'tree', id: request.tree },
       issueKey: null,
@@ -193,7 +192,7 @@ export async function finishReview(
   }, now());
   if (commit.kind === 'committed' || commit.kind === 'replayed') return 'committed';
   if (commit.refusal.reason === 'run-ended' || commit.refusal.reason === 'stale-basis') return 'fenced';
-  if (identityContract === 'descriptive' && commit.refusal.reason === 'check-finding'
+  if (commit.refusal.reason === 'check-finding'
     && commit.refusal.rejection.code === 'finding-name-conflict') {
     return finishReview(target, now, request, attempt, {
       result: 'not-verified', reason: 'name-conflict', detail: commit.refusal.message,

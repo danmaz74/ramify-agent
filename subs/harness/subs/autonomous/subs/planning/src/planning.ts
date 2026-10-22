@@ -2,12 +2,12 @@ import { renderInitialArchitectPrompt, renderExtractionPrompt } from './prompts.
 import type { DurableRecordRef as RecordRef } from '../../../../task-execution/src/records.js';
 import { coverageRecordsOf, describeCoverageLimits, type ArchitectIndex } from '../../../../evidence/src/views.js';
 import { openElementCatalog, serializeElementCatalog, type ElementKind } from '../../../../plan-evidence/src/interfaces/catalog.js';
-import { acceptIntake, acceptPrinciples, applyCheck, asValidation, checkJsonSchema, checkMessage, checkSubmissionSchema, checkToolName, intakeJsonSchema, intakeMessage, intakeSubmissionSchema, intakeToolName, principleJsonSchema, principleMessage, principleSubmissionSchema, principleToolName, type CheckState, type CheckSubmission, type ExtractionInputs, type IntakeSubmission, type PrincipleSubmission } from './extraction.js';
+import { acceptIntake, acceptPrinciples, applyCheck, asValidation, checkMessage, checkToolName, intakeJsonSchema, intakeMessage, intakeSubmissionSchema, intakeToolName, principleJsonSchema, principleMessage, principleSubmissionSchema, principleToolName, type CheckState, type ExtractionInputs, type IntakeSubmission, type PrincipleSubmission } from './extraction.js';
 import type { CatalogFinding } from './records.js';
 import { finished, kept, type SessionKeeping } from '../../../../task-execution/src/results.js';
 import { baselineScope } from '../../../../kpi/src/capture.js';
 import { acceptAnalysis } from './accept.js';
-import { acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis, type AnalysisEvidence, type InitialAnalysisSubmission } from './submission.js';
+import { acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisToolName, type AnalysisEvidence, type InitialAnalysisSubmission } from './submission.js';
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -29,12 +29,9 @@ import type { RecordRef as CommitRecord } from '../../../../../src/jobs/commit.j
 import type { InvocationResult } from '../../../../task-execution/src/results.js';
 import { validateAgainst, type SubmissionValidation } from '../../../../task-execution/src/submissions.js';
 import type { JsonSchema } from '../../../../agent/src/interfaces/port.js';
-import type { IdentityContract } from '../../../../plan-evidence/src/interfaces/contracts.js';
 import { descriptiveInitialAnalysisJsonSchema, descriptiveInitialAnalysisSchemaId, normalizeDescriptiveAnalysis,
   validateDescriptiveInitialAnalysis, type DescriptiveInitialAnalysisSubmission } from './descriptive.js';
-import { descriptiveIntakeJsonSchema, descriptiveIntakeSubmissionSchema, descriptivePrincipleJsonSchema,
-  descriptivePrincipleSubmissionSchema, descriptiveCheckJsonSchema, descriptiveCheckSubmissionSchema,
-  normalizeDescriptiveCheck, type DescriptiveCheckSubmission } from './extraction.js';
+import { checkJsonSchema, checkSubmissionSchema, type CheckSubmission } from './extraction.js';
 
 /** The read-only task that planning prepares, with no scheduler or run authority. */
 export interface PlanningInvocation<T> {
@@ -58,7 +55,6 @@ export interface PlanningInvocation<T> {
 }
 export type AnalysisAcceptedTransition = Pick<Extract<RunEvent, { type: 'analysis-accepted' }>, 'type' | 'data'>;
 export interface PlanningInputs {
-  readonly identityContract?: IdentityContract;
   readonly projectRoot: string;
   readonly directory: string;
   readonly planId: string;
@@ -85,18 +81,16 @@ export interface PlanningPorts {
 }
 /** Plans from captured inputs; only the lifecycle commit makes its staged bundle authoritative. */
 export async function performInitialAnalysis(input: PlanningInputs, ports: PlanningPorts): Promise<boolean> {
-  const identityContract = input.identityContract ?? 'legacy';
-  const descriptive = identityContract === 'descriptive';
   const manifestRef = input.manifest.documentManifest;
   const documents = await readCapturedDocuments(input.directory, input.manifest);
   const inputs: ExtractionInputs = { planId: input.planId, manifest: documents.manifest, bytes: documents.bytes, runDirectory: input.directory };
-  let catalog = openElementCatalog(manifestRef.hash, documents.manifest, identityContract);
+  let catalog = openElementCatalog(manifestRef.hash, documents.manifest);
 
   const intake = await extract<IntakeSubmission>('intake', {
-    prompt: intakeMessage(inputs), toolName: intakeToolName, inputSchema: descriptive ? descriptiveIntakeJsonSchema : intakeJsonSchema,
-    submissionSchema: descriptive ? 'ramify-agent.intake/2' : 'ramify-agent.intake/1',
+    prompt: intakeMessage(inputs), toolName: intakeToolName, inputSchema: intakeJsonSchema,
+    submissionSchema: 'ramify-agent.intake/2',
     validate: input => {
-      const shape = validateAgainst(descriptive ? descriptiveIntakeSubmissionSchema : intakeSubmissionSchema, input);
+      const shape = validateAgainst(intakeSubmissionSchema, input);
       return shape.ok ? asValidation(shape.value, acceptIntake(catalog, documents.manifest, shape.value)) : shape;
     },
   });
@@ -109,10 +103,10 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
   for (const document of documents.manifest.documents.filter(item => item.kind === 'principle')) {
     const extracted = await extract<PrincipleSubmission>('principles', {
       prompt: principleMessage(inputs, document.id, intake.value.goal), toolName: principleToolName,
-      inputSchema: descriptive ? descriptivePrincipleJsonSchema : principleJsonSchema,
-      submissionSchema: descriptive ? 'ramify-agent.principle-extraction/2' : 'ramify-agent.principle-extraction/1',
+      inputSchema: principleJsonSchema,
+      submissionSchema: 'ramify-agent.principle-extraction/2',
       validate: input => {
-        const shape = validateAgainst(descriptive ? descriptivePrincipleSubmissionSchema : principleSubmissionSchema, input);
+        const shape = validateAgainst(principleSubmissionSchema, input);
         return shape.ok ? asValidation(shape.value, acceptPrinciples(catalog, document.id, shape.value)) : shape;
       },
     });
@@ -124,7 +118,7 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
 
   const plan = new TextDecoder().decode(await readFile(join(input.directory, runLayout.capturedPlan)));
   const evidence: AnalysisEvidence = { index: input.index, catalog, incorporation, documents, registeredTests: input.registeredTests, planScenarios: input.planScenarios };
-  const systemPrompt = renderInitialArchitectPrompt(input.architectPackage, input.projectRoot, descriptive);
+  const systemPrompt = renderInitialArchitectPrompt(input.architectPackage, input.projectRoot);
   const view = input.manifest.architectView;
   // Only correlate captured counts with records from the same view identity.
   const coverage = view.status !== 'materialized' ? [] : input.index === null ? view.coverageLimits
@@ -138,7 +132,7 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
     [],
   );
 
-  const result = await ports.execute<InitialAnalysisSubmission | DescriptiveInitialAnalysisSubmission>({
+  const result = await ports.execute<DescriptiveInitialAnalysisSubmission>({
     role: 'initial-architect',
     task: { kind: 'initial-analysis', goal: intake.value.goal, requirements: [planPointer(input.planId, 'Implement')], literalSections: [{ key: 'support:accepted-intake', text: `Accepted intake classifications and incorporation: ${JSON.stringify({ catalog, incorporation })}` }] },
     work: {},
@@ -149,9 +143,9 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
     start: { mode: 'fresh' },
     toolName: initialAnalysisToolName,
     description: 'Submit the run\'s initial analysis. The harness validates it; an invalid submission is returned with every error and its path, and a valid one ends this invocation.',
-    inputSchema: descriptive ? descriptiveInitialAnalysisJsonSchema : initialAnalysisJsonSchema,
-    submissionSchema: descriptive ? descriptiveInitialAnalysisSchemaId : 'ramify-agent.initial-analysis/3',
-    validate: input => descriptive ? validateDescriptiveInitialAnalysis(input, evidence) : validateInitialAnalysis(input, evidence),
+    inputSchema: descriptiveInitialAnalysisJsonSchema,
+    submissionSchema: descriptiveInitialAnalysisSchemaId,
+    validate: input => validateDescriptiveInitialAnalysis(input, evidence),
     // An accepted analysis session becomes the run's architect context:
     // briefs are appended to it and every placement request forks it.
     keep: ended => (ended === 'submitted' ? kept : finished('not-kept')),
@@ -176,27 +170,20 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
 
   // Each checker reads one document once every element of it exists, and
   // corrects the catalog and the citations before any ID is final.
-  let state: CheckState = acceptArchitectElements(catalog, descriptive
-    ? normalizeDescriptiveAnalysis(result.value as DescriptiveInitialAnalysisSubmission)
-    : result.value as InitialAnalysisSubmission);
+  let state: CheckState = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(result.value));
   const findings: CatalogFinding[] = [];
   for (const document of documents.manifest.documents) {
-    const checked = await extract<CheckSubmission | DescriptiveCheckSubmission>('check', {
+    const checked = await extract<CheckSubmission>('check', {
       prompt: checkMessage(inputs, document.id, state, incorporatedScenarios(evidence)), toolName: checkToolName,
-      inputSchema: descriptive ? descriptiveCheckJsonSchema : checkJsonSchema,
-      submissionSchema: descriptive ? 'ramify-agent.catalog-check/2' : 'ramify-agent.catalog-check/1',
+      inputSchema: checkJsonSchema,
+      submissionSchema: 'ramify-agent.catalog-check/2',
       validate: input => {
-        if (descriptive) {
-          const shape = validateAgainst(descriptiveCheckSubmissionSchema, input);
-          return shape.ok ? asValidation(shape.value, applyCheck(state, document.id, 'candidate', normalizeDescriptiveCheck(shape.value), evidence)) : shape;
-        }
         const shape = validateAgainst(checkSubmissionSchema, input);
         return shape.ok ? asValidation(shape.value, applyCheck(state, document.id, 'candidate', shape.value, evidence)) : shape;
       },
     });
     if (checked === undefined) return false;
-    const applied = applyCheck(state, document.id, checked.id, descriptive
-      ? normalizeDescriptiveCheck(checked.value as DescriptiveCheckSubmission) : checked.value as CheckSubmission, evidence);
+    const applied = applyCheck(state, document.id, checked.id, checked.value, evidence);
     if (!applied.ok) throw new Error('An accepted catalog check no longer validates');
     state = { catalog: applied.catalog, analysis: applied.analysis };
     findings.push(...applied.findings);
@@ -208,7 +195,6 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
     return false;
   }
   const accepted = acceptAnalysis(state.analysis, {
-    identityContract,
     invocation: result.id,
     view: input.manifest.architectView,
     planId: input.planId,
@@ -239,7 +225,7 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
       registry: accepted.registry.length,
       workItems: accepted.workItems.length,
       scenarios: accepted.scenarios.length,
-      ...(descriptive ? { scenarioIds: accepted.scenarios.map(scenario => scenario.id) } : {}),
+      scenarioIds: accepted.scenarios.map(scenario => scenario.id),
       warnings: [...accepted.warnings],
       catalog: { context: count('context'), functional: count('functional'), nonFunctional: count('non-functional'),
         fixed: count('fixed'), recommendation: count('recommendation') },
@@ -255,7 +241,7 @@ export async function performInitialAnalysis(input: PlanningInputs, ports: Plann
     const attempt = ports.nextExtractionAttempt();
     const result = await ports.execute<T>({
       role: 'catalog-extractor', work: {}, attempt, loaded: input.extractorPackage,
-      systemPrompt: renderExtractionPrompt(input.extractorPackage, input.projectRoot, turn, descriptive),
+      systemPrompt: renderExtractionPrompt(input.extractorPackage, input.projectRoot, turn),
       prompt: request.prompt, start: { mode: 'fresh' },
       toolName: request.toolName, description: `Submit this ${turn} turn's reading of the captured documents. The harness checks its shape, documents and citations and answers every error with its path.`,
       inputSchema: request.inputSchema, submissionSchema: request.submissionSchema, validate: request.validate,

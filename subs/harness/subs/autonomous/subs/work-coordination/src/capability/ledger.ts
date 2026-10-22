@@ -49,11 +49,10 @@ export function validateCapabilityTransition(
   if (event.type === 'capability-requested') {
     const request = capabilityRequestSchema.parse(records[0]!.body);
     if (request.id !== event.data.request || request.parent.id !== event.data.parent ||
-      request.assignment !== event.data.assignment || request.invocation !== event.data.invocation ||
-      (request.schema.endsWith('/1') && request.original.examples.some((example, index) => example.id !== `${request.id}.ex${String(index + 1).padStart(2, '0')}`))) {
+      request.assignment !== event.data.assignment || request.invocation !== event.data.invocation) {
       throw new Error('Request must retain its harness IDs, parent and stable example order');
     }
-    if (request.schema.endsWith('/2')) {
+    {
       const ids = request.original.examples.map(example => example.id);
       if ((request.original.revises === undefined) !== (event.data.retiredRequest === undefined))
         throw new Error('Request correction must retire its accepted prior request');
@@ -90,7 +89,7 @@ export function validateCapabilityTransition(
       throw new Error('Delegation must retain its original request, parent, source and examples');
     }
     const revises = request.original.revises;
-    if (task.schema.endsWith('/2') && (revises === undefined) !== (event.data.retiredTask === undefined))
+    if ((revises === undefined) !== (event.data.retiredTask === undefined))
       throw new Error('Task correction must retire its accepted prior task');
     const earlier = revises === undefined ? undefined : committed.capabilityHandbacks.get(revises.task);
     if ((revises === undefined) !== (task.revises === undefined) ||

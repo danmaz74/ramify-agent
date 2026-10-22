@@ -18,8 +18,8 @@ const changes = {
   b: [{ path: 'subs/b/src/fact.ts', status: 'M' }],
 };
 const features = [
-  { path: 'subs/a/src/tests/features/need/a-reads-b.feature', status: 'A' },
-  { path: 'subs/b/src/tests/features/need/b-entry.feature', status: 'A' },
+  { path: 'subs/a/src/tests/features/need/capability%3Aa-reads-b.feature', status: 'A' },
+  { path: 'subs/b/src/tests/features/need/capability%3Ab-entry.feature', status: 'A' },
 ];
 const modules = [
   { id: 'capability-coordination', parent: null, directory: '.' },
@@ -31,8 +31,8 @@ const owners: Readonly<Record<string, string>> = {
   'subs/a/src/caller.ts': 'capability-coordination/a', 'subs/b/src/fact.ts': 'capability-coordination/b',
   'subs/a/src/tests/caller.test.ts': 'capability-coordination/a', 'subs/b/src/tests/fact.test.ts': 'capability-coordination/b',
   'subs/d/src/consumer.ts': 'capability-coordination/d', 'subs/d/src/tests/consumer.test.ts': 'capability-coordination/d',
-  'subs/a/src/tests/features/need/a-reads-b.feature': 'capability-coordination/a',
-  'subs/b/src/tests/features/need/b-entry.feature': 'capability-coordination/b',
+  'subs/a/src/tests/features/need/capability%3Aa-reads-b.feature': 'capability-coordination/a',
+  'subs/b/src/tests/features/need/capability%3Ab-entry.feature': 'capability-coordination/b',
 };
 
 /** Version, measure, materialization, ownership, hook and frozen candidate reads are explicitly repeatable.

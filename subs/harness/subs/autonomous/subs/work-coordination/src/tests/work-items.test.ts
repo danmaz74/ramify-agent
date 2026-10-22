@@ -11,7 +11,7 @@ import { analysisLayout } from '../../../planning/src/records.js';
 import { workLayout } from '../work/records.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { analysis, entry, hypothesis, requestCompletion, unresolved } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, hypothesis, requestCompletion, unresolved } from '../../../../../../src/tests/helpers/analysis.js';
 import { treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
 
@@ -45,14 +45,14 @@ async function target(): Promise<string> {
 
 const root = 'collection-review';
 const reviews = 'collection-review/workspace/reviews';
-const twoWorkItemCheckpoints = [scenariosCommit('review-notes'), 'wi-001', 'wi-002', 'final verification of plan "review-notes"'] as const;
-const oneWorkItemCheckpoints = [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'] as const;
+const twoWorkItemCheckpoints = [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'work-item:note-in-panel', 'final verification of plan "review-notes"'] as const;
+const oneWorkItemCheckpoints = [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'final verification of plan "review-notes"'] as const;
 
 /** The scripted fake, answering each role with its own submission. */
 function script(initial: unknown, local: (spec: SessionSpec) => unknown) {
   return (spec: SessionSpec) => spec.role === 'catalog-extractor' ? [] : [{
     kind: 'submit' as const,
-    input: spec.role === 'initial-architect' ? initial : local(spec),
+    input: spec.role === 'initial-architect' ? currentAnalysis(initial as Parameters<typeof currentAnalysis>[0], 'document:review-notes-plan') : local(spec),
   }];
 }
 
@@ -118,12 +118,12 @@ describe('a run whose work items need no change', () => {
 
     // One work item per entry capability, and each one's goal is the entry's description.
     const item = async (id: string) => JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.item(id)), 'utf8')) as Record<string, unknown>;
-    expect(await item('wi-001')).toMatchObject({ module: reviews, origin: { entry: 'reviewer-note' }, goal: 'A reviewer can attach one note to a completed review run.', startedFor: null });
-    expect(await item('wi-002')).toMatchObject({ module: root, origin: { entry: 'note-in-panel' } });
-    expect(existsSync(runPath(project, 'review-notes', receipt.jobId, workLayout.item('wi-003')))).toBe(false);
+    expect(await item('work-item:reviewer-note')).toMatchObject({ module: reviews, origin: { entry: 'capability:reviewer-note' }, goal: 'A reviewer can attach one note to a completed review run.', startedFor: null });
+    expect(await item('work-item:note-in-panel')).toMatchObject({ module: root, origin: { entry: 'capability:note-in-panel' } });
+    expect(existsSync(runPath(project, 'review-notes', receipt.jobId, workLayout.item('work-item:another')))).toBe(false);
 
     // Two outlines, each recorded as a single iteration, each at revision 1.
-    for (const id of ['wi-001', 'wi-002']) {
+    for (const id of ['work-item:reviewer-note', 'work-item:note-in-panel']) {
       const outline = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline(id, 1)), 'utf8')) as Record<string, unknown>;
       expect(outline).toMatchObject({ workItem: id, revision: 1, decomposition: { kind: 'single-iteration' }, revisionReason: '' });
       expect(outline['invocation']).toMatch(/^inv-\d{4}$/);
@@ -157,25 +157,25 @@ describe('a run whose work items need no change', () => {
 
     // Every hypothesis is committed at revision 1, and none of them is rewritten.
     for (const id of ['note-storage', 'note-validation', 'note-transport', 'note-rendering']) {
-      const body = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, analysisLayout.hypothesis(id, 1)), 'utf8')) as Record<string, unknown>;
-      expect(body).toMatchObject({ schema: 'ramify-agent.hypothesis/1', id, revision: 1, standing: 'tentative' });
+      const body = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, analysisLayout.hypothesis(`hypothesis:${id}`, 1)), 'utf8')) as Record<string, unknown>;
+      expect(body).toMatchObject({ schema: 'ramify-agent.hypothesis/2', id: `hypothesis:${id}`, revision: 1, standing: 'tentative' });
       expect(body['cause']).toMatchObject({ initial: 'inv-0002' });
-      expect(existsSync(runPath(project, 'review-notes', receipt.jobId, analysisLayout.hypothesis(id, 2)))).toBe(false);
+      expect(existsSync(runPath(project, 'review-notes', receipt.jobId, analysisLayout.hypothesis(`hypothesis:${id}`, 2)))).toBe(false);
     }
 
     // The frontier holds exactly one work item per entry capability, and no more.
     const registry = ['reviewer-note', 'note-in-panel'];
     for (const capability of registry) {
-      expect(existsSync(runPath(project, 'review-notes', receipt.jobId, analysisLayout.registry(capability, 1)))).toBe(true);
+      expect(existsSync(runPath(project, 'review-notes', receipt.jobId, analysisLayout.registry(`capability:${capability}`, 1)))).toBe(true);
     }
     for (const forecast of ['note-storage', 'note-validation', 'note-transport', 'note-rendering']) {
-      expect(existsSync(runPath(project, 'review-notes', receipt.jobId, analysisLayout.registry(forecast, 1)))).toBe(false);
+      expect(existsSync(runPath(project, 'review-notes', receipt.jobId, analysisLayout.registry(`capability:${forecast}`, 1)))).toBe(false);
     }
 
     // No work record references a hypothesis. A work item and the event that
     // completes it are searched for every hypothesis ID.
     const forecasts = ['note-storage', 'note-validation', 'note-transport', 'note-rendering'];
-    for (const path of [workLayout.item('wi-001'), workLayout.item('wi-002')]) {
+    for (const path of [workLayout.item('work-item:reviewer-note'), workLayout.item('work-item:note-in-panel')]) {
       const text = await readFile(runPath(project, 'review-notes', receipt.jobId, path), 'utf8');
       for (const forecast of forecasts) expect(text).not.toContain(forecast);
     }
@@ -186,7 +186,7 @@ describe('a run whose work items need no change', () => {
     // An outline names the revisions its architect was given, and nothing
     // else about them. That is a record of delivery, not a reference that
     // creates work: outside `hypothesesSeen` no hypothesis appears.
-    for (const id of ['wi-001', 'wi-002']) {
+    for (const id of ['work-item:reviewer-note', 'work-item:note-in-panel']) {
       const outline = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline(id, 1)), 'utf8')) as Record<string, unknown>;
       const { hypothesesSeen, ...rest } = outline as { hypothesesSeen: unknown };
       expect(Array.isArray(hypothesesSeen)).toBe(true);
@@ -206,7 +206,7 @@ describe('a run whose work items need no change', () => {
         // Anticipates the module as a consumer.
         hypothesis('consumed-here', { suggestedOwner: root, anticipatedConsumers: [reviews] }),
         // Anticipates the work item's capability as a consumer.
-        hypothesis('consumed-by-capability', { suggestedOwner: root, anticipatedConsumers: ['reviewer-note'] }),
+        hypothesis('consumed-by-capability', { suggestedOwner: root, anticipatedConsumers: ['capability:reviewer-note'] }),
         // Nothing to do with it.
         hypothesis('elsewhere', { suggestedOwner: root }),
       ],
@@ -223,20 +223,20 @@ describe('a run whose work items need no change', () => {
     const deliveries = events.filter(event => event.type === 'hypotheses-delivered');
     expect(deliveries).toHaveLength(2);
     const first = deliveries[0]!.data as { workItem: string; refs: Array<{ id: string; revision: number; hash: string }> };
-    expect(first.workItem).toBe('wi-001');
-    expect(first.refs.map(ref => ref.id).sort()).toEqual(['consumed-by-capability', 'consumed-here', 'involves-here', 'owned-here']);
+    expect(first.workItem).toBe('work-item:reviewer-note');
+    expect(first.refs.map(ref => ref.id).sort()).toEqual(['hypothesis:consumed-by-capability', 'hypothesis:consumed-here', 'hypothesis:involves-here', 'hypothesis:owned-here']);
     expect(first.refs.every(ref => ref.revision === 1 && /^[0-9a-f]{64}$/.test(ref.hash))).toBe(true);
 
     const second = deliveries[1]!.data as { workItem: string; refs: Array<{ id: string }> };
-    expect(second.workItem).toBe('wi-002');
+    expect(second.workItem).toBe('work-item:note-in-panel');
     // `owned-here` suggests the other module and involves nothing, so it is
     // not delivered here; `elsewhere` suggests this one.
-    expect(second.refs.map(ref => ref.id).sort()).toEqual(['consumed-by-capability', 'consumed-here', 'elsewhere', 'involves-here']);
+    expect(second.refs.map(ref => ref.id).sort()).toEqual(['hypothesis:consumed-by-capability', 'hypothesis:consumed-here', 'hypothesis:elsewhere', 'hypothesis:involves-here']);
 
     // The outline records what the architect had been given, from the
     // delivery and not from the submission.
-    const outline = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('wi-001', 1)), 'utf8')) as { hypothesesSeen: Array<{ id: string }> };
-    expect(outline.hypothesesSeen.map(ref => ref.id).sort()).toEqual(['consumed-by-capability', 'consumed-here', 'involves-here', 'owned-here']);
+    const outline = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('work-item:reviewer-note', 1)), 'utf8')) as { hypothesesSeen: Array<{ id: string }> };
+    expect(outline.hypothesesSeen.map(ref => ref.id).sort()).toEqual(['hypothesis:consumed-by-capability', 'hypothesis:consumed-here', 'hypothesis:involves-here', 'hypothesis:owned-here']);
   }, 300_000);
 
   test('the delivered hash is the hash of the materialized record file', async () => {
@@ -252,7 +252,7 @@ describe('a run whose work items need no change', () => {
 
     const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
     const delivered = (events.find(event => event.type === 'hypotheses-delivered')!.data as { refs: Array<{ id: string; hash: string }> }).refs[0]!;
-    const bytes = await readFile(runPath(project, 'review-notes', receipt.jobId, analysisLayout.hypothesis('owned-here', 1)));
+    const bytes = await readFile(runPath(project, 'review-notes', receipt.jobId, analysisLayout.hypothesis('hypothesis:owned-here', 1)));
     const { createHash } = await import('node:crypto');
     expect(delivered.hash).toBe(createHash('sha256').update(bytes).digest('hex'));
   }, 300_000);
@@ -268,10 +268,10 @@ describe('a work-item gate that does not pass', () => {
       // Three failed attempts lead to a fourth, successful assessment.
       checkScript: ({ check, context }) => context.checkpoint === 'work-item' && check.kind === 'tests' && ++workItemChecks <= 3
         ? { outcome: { kind: 'completed', exitCode: 1 } } : {},
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'wi-001', 'wi-001', 'wi-001', 'final verification of plan "review-notes"'],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'work-item:reviewer-note', 'work-item:reviewer-note', 'work-item:reviewer-note', 'final verification of plan "review-notes"'],
       script: (spec: SessionSpec) => {
         if (spec.role === 'catalog-extractor') return [];
-        if (spec.role === 'initial-architect') return [{ kind: 'submit' as const, input: submitted }];
+        if (spec.role === 'initial-architect') return [{ kind: 'submit' as const, input: currentAnalysis(submitted, 'document:review-notes-plan') }];
         turn += 1;
         return [{ kind: 'submit' as const, input: requestCompletion({ revisionReason: turn === 1 ? '' : `Revision ${turn}` }) }];
       },
@@ -294,8 +294,8 @@ describe('a work-item gate that does not pass', () => {
     // Four outline revisions, each from its own invocation of the same session.
     const outlines = events.filter(event => event.type === 'outline-revised');
     expect(outlines.map(event => event.data.revision)).toEqual([1, 2, 3, 4]);
-    expect(existsSync(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('wi-001', 4)))).toBe(true);
-    const fourth = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('wi-001', 4)), 'utf8')) as { revisionReason: string };
+    expect(existsSync(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('work-item:reviewer-note', 4)))).toBe(true);
+    const fourth = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('work-item:reviewer-note', 4)), 'utf8')) as { revisionReason: string };
     expect(fourth.revisionReason).toBe('Revision 4');
 
     expect(events.some(event => event.type === 'work-item-completed')).toBe(true);
@@ -325,10 +325,10 @@ describe('a work-item gate that does not pass', () => {
       checkScript: ({ check, context }) => context.checkpoint === 'work-item' && check.kind === 'tests'
         ? { outcome: { kind: 'completed', exitCode: 1 } }
         : {},
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'wi-001', 'wi-001', 'wi-001'],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:reviewer-note', 'work-item:reviewer-note', 'work-item:reviewer-note', 'work-item:reviewer-note'],
       script: (spec: SessionSpec) => {
         if (spec.role === 'catalog-extractor') return [];
-        if (spec.role === 'initial-architect') return [{ kind: 'submit' as const, input: submitted }];
+        if (spec.role === 'initial-architect') return [{ kind: 'submit' as const, input: currentAnalysis(submitted, 'document:review-notes-plan') }];
         turn += 1;
         return [{ kind: 'submit' as const, input: turns[turn - 1]! }];
       },
@@ -343,7 +343,7 @@ describe('a work-item gate that does not pass', () => {
     const completions = events.filter(event => event.type === 'outline-revised').map(event => event.data as Record<string, unknown>);
     expect(completions.map(data => [data.revision, data.unchanged])).toEqual([[1, undefined], [1, true], [1, true], [2, undefined]]);
     expect(completions.every(data => data.architectRef !== undefined)).toBe(true);
-    const outline = (revision: number) => runPath(project, 'review-notes', receipt.jobId, workLayout.outline('wi-001', revision));
+    const outline = (revision: number) => runPath(project, 'review-notes', receipt.jobId, workLayout.outline('work-item:reviewer-note', revision));
     expect(existsSync(outline(3))).toBe(false);
     const second = JSON.parse(await readFile(outline(2), 'utf8')) as Record<string, unknown>;
     expect(second).toMatchObject({ revision: 2, changes: 'The module needs one more check.', revisionReason: 'The gate found a missing check.' });
@@ -378,6 +378,6 @@ describe('a local architect that cannot meet the request', () => {
     expect(events.some(event => event.type === 'work-item-completed')).toBe(false);
     // The submission is stored verbatim before anything is derived from it.
     const stored = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, runLayout.submission('inv-0006')), 'utf8')) as Record<string, unknown>;
-    expect(stored).toMatchObject({ schema: 'ramify-agent.local-architect-submission/1', kind: 'unresolved' });
+    expect(stored).toMatchObject({ schema: 'ramify-agent.local-architect-submission/2', kind: 'unresolved' });
   }, 300_000);
 });

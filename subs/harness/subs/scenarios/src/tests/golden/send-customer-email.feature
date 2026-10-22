@@ -7,7 +7,7 @@ Feature: send-customer-email
   A user activates email sending for a customer, and that customer receives
   one email.
 
-  @ramify-sc-001
+  @ramify-scenario-a-customer-receives-the-email
   Scenario: A customer receives the email
     Given a customer with the address ada@example.com
     When the user activates email sending

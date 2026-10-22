@@ -79,9 +79,9 @@ export function validateDescriptiveInitialAnalysis(input: unknown, evidence: Ana
     });
   });
   if (errors.length > 0) return { ok: false, errors };
-  const legacy = validateInitialAnalysis(normalizeDescriptiveAnalysis(value), evidence);
-  if (legacy.ok) return shape;
-  return { ok: false, errors: legacy.errors.map(error => ({ ...error, path: descriptivePath(error.path) })) };
+  const validated = validateInitialAnalysis(normalizeDescriptiveAnalysis(value), evidence);
+  if (validated.ok) return shape;
+  return { ok: false, errors: validated.errors.map(error => ({ ...error, path: descriptivePath(error.path) })) };
 }
 
 function descriptivePath(path: string): string {

@@ -8,7 +8,7 @@ const candidate: Candidate = { tree, head: null, preparedAt: '2026-09-25T00:00:0
 
 function assessment(results: Assessment['results']): Assessment {
   return {
-    schema: 'ramify-agent.nonfunctional-assessment/1', id: 'nfa-001', candidate,
+    schema: 'ramify-agent.nonfunctional-assessment/2', id: 'nfa-001', candidate,
     round: 1, phase: 'initial', coordinatorInvocation: 'coordinator-1', results,
   };
 }

@@ -7,7 +7,7 @@ const text = z.string().min(1);
 
 export const deviationOriginSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('work-item-conflict'), request: text, workItem: text, architectInvocation: text }).strict(),
-  z.object({ kind: z.literal('nonfunctional-assessment'), nfr: z.string().regex(/^(?:(?:nfr|fix)-\d{3,}|(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/), assessment: text, candidate: candidateSchema, coordinatorInvocation: text }).strict(),
+  z.object({ kind: z.literal('nonfunctional-assessment'), nfr: z.string().regex(/^(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/), assessment: text, candidate: candidateSchema, coordinatorInvocation: text }).strict(),
 ]);
 
 export const preparedCandidateSchema = z.object({
@@ -21,7 +21,7 @@ export const preparedCandidateSchema = z.object({
 export const nonfunctionalRepairAssignmentSchema = z.object({
   schema: z.literal('ramify-agent.nonfunctional-repair-assignment/1'),
   id: text, round: z.int().positive().max(3), assessment: text, candidate: text,
-  nfrs: z.array(z.string().regex(/^(?:(?:nfr|fix)-\d{3,}|(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/)).min(1),
+  nfrs: z.array(z.string().regex(/^(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/)).min(1),
   startingModule: text, task: text, evidence: z.array(text), uncertainty: z.string(),
   scope: writeScopeSchema, guarded: z.array(z.object({ path: text, hash: text.nullable() }).strict()),
 }).strict();
@@ -48,10 +48,7 @@ const nonfunctionalDeviationFields = {
   proposedAlternative: z.string(),
   checkFinding: text,
 };
-export const nonfunctionalDeviationSchema = z.discriminatedUnion('schema', [
-  z.object({ schema: z.literal('ramify-agent.nonfunctional-deviation/1'), ...nonfunctionalDeviationFields }).strict(),
-  z.object({ schema: z.literal('ramify-agent.nonfunctional-deviation/2'), ...nonfunctionalDeviationFields,
-    id: z.string().regex(/^plan-deviation:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
-    checkFinding: z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
-  }).strict(),
-]);
+export const nonfunctionalDeviationSchema = z.object({ schema: z.literal('ramify-agent.nonfunctional-deviation/2'), ...nonfunctionalDeviationFields,
+  id: z.string().regex(/^plan-deviation:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+  checkFinding: z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+}).strict();

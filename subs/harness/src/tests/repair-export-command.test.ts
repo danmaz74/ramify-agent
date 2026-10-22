@@ -78,8 +78,8 @@ test.each([
 });
 
 test.each([
-  ['unsupported version', { schema: 'ramify-agent.contract/1' }, 'unsupported-version', 'this harness reads ramify-agent.contract/2'],
-  ['malformed durable body', { schema: 'ramify-agent.contract/2' }, 'unreadable', 'no longer satisfies its schema'],
+  ['unsupported version', { schema: 'ramify-agent.contract/2' }, 'unsupported-version', 'this harness reads ramify-agent.contract/3'],
+  ['malformed durable body', { schema: 'ramify-agent.contract/3' }, 'unreadable', 'no longer satisfies its schema'],
 ] as const)('general %s admission remains before copy recovery', async (_name, body, code, diagnostic) => {
   const fixture = await retainedRun(false, false);
   await commitRecord(fixture.log.ledger, { event: fixture.log.next({ type: 'repair-export-recorded', data: {

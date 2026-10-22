@@ -4,10 +4,10 @@ import { documentManifestSchema, verifyDocumentBytes } from '../interfaces/contr
 
 const bytes = new TextEncoder().encode('# Plan\n  Keep spacing.\n');
 const hash = createHash('sha256').update(bytes).digest('hex');
-const doc = { id: 'doc-001', path: 'plans/example/plan.md', kind: 'plan', sha256: hash, bytes: bytes.length,
-  storedAt: 'input/documents/doc-001.bin', revision: { commit: null, dirty: true } };
-const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/1', root: 'doc-001',
-  documents: [doc, { ...doc, id: 'doc-002', path: 'plans/example/notes.md', storedAt: 'input/documents/doc-002.bin' }], missing: [],
+const doc = { id: 'document:example-plan', path: 'plans/example/plan.md', kind: 'plan', sha256: hash, bytes: bytes.length,
+  storedAt: 'input/documents/document:example-plan.bin', revision: { commit: null, dirty: true } };
+const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/2', root: 'document:example-plan',
+  documents: [doc, { ...doc, id: 'document:example-notes', path: 'plans/example/notes.md', storedAt: 'input/documents/document:example-notes.bin' }], missing: [],
   principlesScan: { status: 'empty', unreadable: [] } });
 
 describe('captured document contracts', () => {

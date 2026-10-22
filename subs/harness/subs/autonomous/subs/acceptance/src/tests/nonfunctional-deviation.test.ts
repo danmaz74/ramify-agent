@@ -11,19 +11,19 @@ import { nonfunctionalDeviationCommands, prepareNonfunctionalDeviation } from '.
 const source = Buffer.from('# Request\n\nThe service must preserve a 30 second timeout.\n');
 const sha256 = createHash('sha256').update(source).digest('hex');
 const quote = 'The service must preserve a 30 second timeout.';
-const manifest: DocumentManifest = { schema: 'ramify-agent.document-manifest/1', root: 'doc-001', documents: [{
-  id: 'doc-001', path: 'plans/example/plan.md', kind: 'plan', sha256, bytes: source.length,
+const manifest: DocumentManifest = { schema: 'ramify-agent.document-manifest/2', root: 'document:case-001', documents: [{
+  id: 'document:case-001', path: 'plans/example/plan.md', kind: 'plan', sha256, bytes: source.length,
   storedAt: 'input/plan.md', revision: { commit: null, dirty: null },
 }], missing: [], principlesScan: { status: 'empty', unreadable: [] } };
-const item: CatalogElement = { id: 'nfr-001', kind: 'non-functional', document: 'doc-001',
+const item: CatalogElement = { id: 'non-functional-requirement:case-001', kind: 'non-functional', document: 'document:case-001',
   text: quote, conditions: [{ text: 'for the service', source: 'inferred' }], uncertainty: '' };
 const candidate: Candidate = { tree: 'a'.repeat(40), head: null, preparedAt: '2026-09-25T00:00:00.000Z' };
-const result: Assessment['results'][number] = { nfr: 'nfr-001', result: 'not-satisfied',
+const result: Assessment['results'][number] = { nfr: 'non-functional-requirement:case-001', result: 'not-satisfied',
   inspectedScope: ['src/service.ts'], evidence: ['A 45 second timeout remains.'], uncertainty: 'No repair was safe.' };
-const assessment: Assessment = { schema: 'ramify-agent.nonfunctional-assessment/1', id: 'nfa-001', candidate,
+const assessment: Assessment = { schema: 'ramify-agent.nonfunctional-assessment/2', id: 'nfa-001', candidate,
   round: 3, phase: 'after-repair', coordinatorInvocation: 'inv-0100', results: [result] };
 
-const input = { id: 'pd-001', checkFinding: 'cf-0001', item, assessment, result, candidate,
+const input = { id: 'plan-deviation:case-001', checkFinding: 'finding:case-0001', item, assessment, result, candidate,
   coordinatorInvocation: 'inv-0100', proposedAlternative: 'A 45 second timeout remains.', uncertainty: 'No repair was safe.' };
 
 describe('non-functional deviation builder', () => {
@@ -31,8 +31,8 @@ describe('non-functional deviation builder', () => {
     const prepared = prepareNonfunctionalDeviation(input);
     expect(prepared.ok).toBe(true);
     if (!prepared.ok) return;
-    expect(prepared.record).toMatchObject({ element: { id: 'nfr-001', document: 'doc-001', text: quote }, evidence: result.evidence,
-      origin: { kind: 'nonfunctional-assessment', nfr: 'nfr-001', assessment: 'nfa-001', candidate,
+    expect(prepared.record).toMatchObject({ element: { id: 'non-functional-requirement:case-001', document: 'document:case-001', text: quote }, evidence: result.evidence,
+      origin: { kind: 'nonfunctional-assessment', nfr: 'non-functional-requirement:case-001', assessment: 'nfa-001', candidate,
         coordinatorInvocation: 'inv-0100' } });
     expect('request' in prepared.record).toBe(false);
     expect('workItem' in prepared.record).toBe(false);
@@ -40,8 +40,8 @@ describe('non-functional deviation builder', () => {
   });
 
   test('assesses fixed requirements too, but never a recommendation, context or functional element', () => {
-    expect(prepareNonfunctionalDeviation({ ...input, item: { ...item, id: 'fix-001', kind: 'fixed' },
-      result: { ...result, nfr: 'fix-001' }, assessment: { ...assessment, results: [{ ...result, nfr: 'fix-001' }] } }).ok).toBe(true);
+    expect(prepareNonfunctionalDeviation({ ...input, item: { ...item, id: 'fixed-requirement:case-001', kind: 'fixed' },
+      result: { ...result, nfr: 'fixed-requirement:case-001' }, assessment: { ...assessment, results: [{ ...result, nfr: 'fixed-requirement:case-001' }] } }).ok).toBe(true);
     for (const kind of ['recommendation', 'context', 'functional'] as const) {
       expect(prepareNonfunctionalDeviation({ ...input, item: { ...item, kind } }).ok).toBe(false);
     }
@@ -58,7 +58,7 @@ describe('non-functional deviation builder', () => {
   test('commands link the full canonical record and replay as a run-owned plan deviation', () => {
     const prepared = prepareNonfunctionalDeviation(input);
     if (!prepared.ok) throw new Error(prepared.errors.join('; '));
-    const ref = 'deviations/pd-001.json';
+    const ref = 'deviations/plan-deviation:case-001.json';
     const built = nonfunctionalDeviationCommands(emptyCheckFindingState(), prepared.record, manifest, ref);
     expect(built.ok).toBe(true);
     if (!built.ok) return;
@@ -83,10 +83,10 @@ describe('non-functional deviation builder', () => {
         state = applied.state;
       }
     }
-    expect(isPlanDeviation(state.findings.get('cf-0001')!)).toBe(true);
-    expect(state.findings.get('cf-0001')?.pendingUserDecision).not.toBeNull();
+    expect(isPlanDeviation(state.findings.get('finding:case-0001')!)).toBe(true);
+    expect(state.findings.get('finding:case-0001')?.pendingUserDecision).not.toBeNull();
     expect(nonfunctionalDeviationCommands(state, prepared.record, manifest, ref).ok).toBe(false);
-    expect(nonfunctionalDeviationCommands(emptyCheckFindingState(), { ...prepared.record, element: { ...prepared.record.element, document: 'doc-002' } }, manifest, ref).ok).toBe(false);
+    expect(nonfunctionalDeviationCommands(emptyCheckFindingState(), { ...prepared.record, element: { ...prepared.record.element, document: 'document:case-002' } }, manifest, ref).ok).toBe(false);
   });
 
   test('named non-functional requirement retains its descriptive deviation and finding through disposition', () => {
@@ -130,7 +130,7 @@ describe('non-functional deviation builder', () => {
     expect(prepared.ok).toBe(true);
     if (!prepared.ok) return;
     expect(prepared.record.element.text).toBe(longQuote);
-    const ref = 'deviations/pd-001.json';
+    const ref = 'deviations/plan-deviation:case-001.json';
     const built = nonfunctionalDeviationCommands(emptyCheckFindingState(), prepared.record, longManifest, ref);
     expect(built.ok).toBe(true);
     if (!built.ok || built.commands[0]?.type !== 'report' || built.commands[1]?.type !== 'dispose') return;

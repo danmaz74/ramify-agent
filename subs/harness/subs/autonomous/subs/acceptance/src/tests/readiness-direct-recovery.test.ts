@@ -35,7 +35,7 @@ describe('direct readiness recovery execution', () => {
     } };
     const calls: string[] = [];
     const recovery = await performRecovery({
-      id: 'rec-0001',
+      id: 'recommendation:case-0001',
       attempt: 1,
       plan: { cause: 'infrastructure', action: 'reinstall-nested', directories: [directory] },
       projectRoot: root,
@@ -55,7 +55,7 @@ describe('direct readiness recovery execution', () => {
 
     expect(calls).toEqual(['npm ci']);
     expect(recovery).toMatchObject({
-      id: 'rec-0001',
+      id: 'recommendation:case-0001',
       action: 'reinstall-nested',
       cause: 'infrastructure',
       outcome: 'recovered',
@@ -76,7 +76,7 @@ describe('direct readiness recovery execution', () => {
         packageDirectories: ['nested'], setupCommands: [],
       },
     } };
-    const result = await performRecovery({ id: 'rec-0001', attempt: 1,
+    const result = await performRecovery({ id: 'recommendation:case-0001', attempt: 1,
       plan: { cause: 'infrastructure', action: 'reinstall-nested', directories: ['nested'] },
       projectRoot: root, policy: testPolicy(root), auditConfiguration, ramify: new FakeRamifyCli(),
       commandExecution: async () => { throw new Error('install must not run'); }, count: 1, directory: join(root, 'recoveries') });

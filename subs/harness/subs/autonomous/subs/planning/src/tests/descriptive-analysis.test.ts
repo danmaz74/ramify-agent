@@ -14,7 +14,7 @@ import { acceptElements, createPackage, openElementCatalog } from '../../../../.
 import { descriptiveInitialAnalysisSubmissionSchema, normalizeDescriptiveAnalysis, validateDescriptiveInitialAnalysis } from '../descriptive.js';
 import { acceptArchitectElements } from '../submission.js';
 import { acceptAnalysis } from '../accept.js';
-import { applyCheck, descriptiveCheckSubmissionSchema, normalizeDescriptiveCheck } from '../extraction.js';
+import { applyCheck, checkSubmissionSchema, type CheckSubmission } from '../extraction.js';
 import { renderFeatureFiles } from '../../../../../scenarios/src/rendering.js';
 import { extractPlanScenarios } from '../../../../../scenarios/src/extraction.js';
 import { scenariosCommit } from '../../../../../../src/tests/helpers/scripted-git.js';
@@ -37,7 +37,7 @@ const manifest = documentManifestSchema.parse({
     storedAt: 'input/plan.md', revision: { commit: null, dirty: null } }],
   missing: [], principlesScan: { status: 'empty', unreadable: [] },
 });
-const empty = openElementCatalog(hash('manifest'), manifest, 'descriptive');
+const empty = openElementCatalog(hash('manifest'), manifest);
 const intake = acceptElements(empty, [{ key: 'draft:non-functional-requirement:keep-snapshot-isolated', kind: 'non-functional',
   document: manifest.root, text: 'Inspection snapshots remain isolated.', conditions: [], uncertainty: '' }]);
 if (!intake.ok) throw new Error(intake.errors.join('; '));
@@ -69,7 +69,7 @@ describe('descriptive initial analysis', () => {
     expect(validated.ok).toBe(true);
     if (!validated.ok) return;
     const acceptedElements = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(validated.value));
-    const accepted = acceptAnalysis(acceptedElements.analysis, { identityContract: 'descriptive', invocation: 'inv-0001',
+    const accepted = acceptAnalysis(acceptedElements.analysis, { invocation: 'inv-0001',
       view: { status: 'placeholder' }, planId: 'preview', planScenarios: [], index: null, catalog: acceptedElements.catalog });
     expect(acceptedElements.catalog.elements.find(item => item.id === 'functional-requirement:preview-missing-predecessor')).toMatchObject({
       text: 'A preview rejects a missing predecessor.', conditions: [{ text: 'The predecessor is unknown.', source: 'stated' }],
@@ -90,7 +90,7 @@ describe('descriptive initial analysis', () => {
     expect(features[0]).toMatchObject({ path: expect.stringContaining('capability%3Aadd-revision-preview.feature'),
       content: expect.stringContaining('@ramify-scenario-reject-missing-predecessor') });
     const briefing = createPackage({ catalog: acceptedElements.catalog, planDeviations: [],
-      elements: [...accepted.workItems[0]!.requirementRefs, ...accepted.workItems[0]!.acceptanceRefs], deviations: [] });
+      elements: [...accepted.workItems[0]!.functionalRequirementIds, ...accepted.workItems[0]!.functionalAcceptanceIds], deviations: [] });
     expect(briefing).toHaveProperty('text');
     if ('text' in briefing) {
       expect(briefing.text).toContain('A preview rejects a missing predecessor.');
@@ -104,7 +104,7 @@ describe('descriptive initial analysis', () => {
       expect.objectContaining({ schema: 'ramify-agent.work-item/2' }),
       expect.objectContaining({ schema: 'ramify-agent.scenario/2' }),
     ]));
-    expect(acceptAnalysis(acceptedElements.analysis, { identityContract: 'descriptive', invocation: 'inv-0001',
+    expect(acceptAnalysis(acceptedElements.analysis, { invocation: 'inv-0001',
       view: { status: 'placeholder' }, planId: 'preview', planScenarios: [], index: null, catalog: acceptedElements.catalog })).toEqual(accepted);
   });
 
@@ -123,7 +123,7 @@ describe('descriptive initial analysis', () => {
     const proposed = { key: 'draft:functional-requirement:preview-missing-predecessor', kind: 'functional' as const,
       document: manifest.root, text: 'A different obligation wants the same name.', conditions: [], uncertainty: '' };
     const colliding = applyCheck({ catalog: first.catalog, analysis: first.analysis }, manifest.root, 'inv-0002',
-      normalizeDescriptiveCheck({ corrections: [{ action: 'add', reason: 'A second obligation is present.', elements: [proposed] }],
+      ({ corrections: [{ action: 'add', reason: 'A second obligation is present.', elements: [proposed] }],
         entries: [], scenarios: [] }), evidence);
     expect(colliding).toMatchObject({ ok: false, errors: [expect.objectContaining({
       message: expect.stringContaining('collides with accepted or retired functional-requirement:preview-missing-predecessor'),
@@ -131,7 +131,7 @@ describe('descriptive initial analysis', () => {
     expect(first.catalog.elements.find(element => element.id === 'functional-requirement:preview-missing-predecessor')?.text)
       .toBe('A preview rejects a missing predecessor.');
     const qualified = applyCheck({ catalog: first.catalog, analysis: first.analysis }, manifest.root, 'inv-0002',
-      normalizeDescriptiveCheck({ corrections: [{ action: 'add', reason: 'A separate obligation needs its own name.',
+      ({ corrections: [{ action: 'add', reason: 'A separate obligation needs its own name.',
         elements: [{ ...proposed, key: 'draft:functional-requirement:preview-missing-predecessor-in-archive' }] }],
         entries: [], scenarios: [] }), evidence);
     expect(qualified).toMatchObject({ ok: true, catalog: { elements: expect.arrayContaining([
@@ -139,7 +139,7 @@ describe('descriptive initial analysis', () => {
     ]) } });
   });
 
-  test('tool schema names the draft fields rather than legacy ambiguous fields', () => {
+  test('tool schema names the draft fields explicitly', () => {
     const shape = descriptiveInitialAnalysisSubmissionSchema.safeParse(submission);
     expect(shape.success).toBe(true);
     expect(descriptiveInitialAnalysisSubmissionSchema.safeParse({ ...submission, entries: [{
@@ -149,7 +149,7 @@ describe('descriptive initial analysis', () => {
 
   test('authorized catalog replacement retires its name and rewrites affected citations together', () => {
     const acceptedElements = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(descriptiveInitialAnalysisSubmissionSchema.parse(submission)));
-    const check = normalizeDescriptiveCheck({
+    const check: CheckSubmission = ({
       corrections: [{ action: 'replace', reason: 'The acceptance is two distinct obligations.',
         retire: ['functional-requirement:reject-unknown-predecessor'], elements: [
           { key: 'draft:functional-requirement:reject-unknown-review-predecessor', kind: 'functional', document: manifest.root,
@@ -198,7 +198,7 @@ describe('descriptive initial analysis', () => {
     });
     expect(validateDescriptiveInitialAnalysis(initial, { ...evidence, registeredTests }).ok).toBe(true);
     const accepted = acceptArchitectElements(catalog, normalizeDescriptiveAnalysis(initial));
-    const correction = descriptiveCheckSubmissionSchema.parse({
+    const correction = checkSubmissionSchema.parse({
       corrections: [{ action: 'replace', reason: 'The coverage has separate review and branch obligations.',
         retire: ['functional-requirement:keep-snapshot-coverage'], elements: [
           { key: review, kind: 'functional', document: manifest.root, text: 'Keep review coverage.', conditions: [], uncertainty: '' },
@@ -218,7 +218,7 @@ describe('descriptive initial analysis', () => {
       scenarios: [],
     });
     const state = { catalog: accepted.catalog, analysis: accepted.analysis };
-    const result = applyCheck(state, manifest.root, 'inv-0002', normalizeDescriptiveCheck(correction),
+    const result = applyCheck(state, manifest.root, 'inv-0002', (correction),
       { ...evidence, registeredTests });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -227,13 +227,13 @@ describe('descriptive initial analysis', () => {
       { ref: 'functional-requirement:keep-branch-coverage', kind: 'non-behavioral', test: 'registered-coverage-test' },
     ]);
     expect(result.catalog.retired).toContain('functional-requirement:keep-snapshot-coverage');
-    const missing = applyCheck(state, manifest.root, 'inv-0002', normalizeDescriptiveCheck({ ...correction,
+    const missing = applyCheck(state, manifest.root, 'inv-0002', ({ ...correction,
       entries: [{ ...correction.entries[0]!, nonBehavioralAcceptance: [] }],
     }), { ...evidence, registeredTests });
     expect(missing).toMatchObject({ ok: false, errors: [expect.objectContaining({
       path: 'entries.0.acceptanceRefs.1', message: expect.stringContaining('registered test'),
     })] });
-    const unregistered = applyCheck(state, manifest.root, 'inv-0002', normalizeDescriptiveCheck({ ...correction,
+    const unregistered = applyCheck(state, manifest.root, 'inv-0002', ({ ...correction,
       entries: [{ ...correction.entries[0]!, nonBehavioralAcceptance: [
         { ...correction.entries[0]!.nonBehavioralAcceptance[0]!, test: 'unregistered-test' },
         correction.entries[0]!.nonBehavioralAcceptance[1]!,
@@ -243,7 +243,7 @@ describe('descriptive initial analysis', () => {
       path: 'entries.0.nonBehavioralAcceptance.0.test', message: expect.stringContaining('not a registered test'),
     })] });
     const retired = applyCheck({ catalog: result.catalog, analysis: result.analysis }, manifest.root, 'inv-0003',
-      normalizeDescriptiveCheck({ corrections: [], scenarios: [], entries: [{ ...correction.entries[0]!,
+      ({ corrections: [], scenarios: [], entries: [{ ...correction.entries[0]!,
         functionalAcceptanceCitations: [{ functionalRequirementId: 'functional-requirement:keep-snapshot-coverage' }],
         nonBehavioralAcceptance: [{ functionalAcceptanceCitation: { functionalRequirementId: 'functional-requirement:keep-snapshot-coverage' },
           kind: 'non-behavioral', test: 'registered-coverage-test' }],
@@ -253,12 +253,12 @@ describe('descriptive initial analysis', () => {
     ]) });
   });
 
-  test('a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools', async () => {
+  test('a run accepts the descriptive analysis through ordinary task tools', async () => {
     const fixture = await copyFixture();
     const seen: string[] = [];
     cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);
-    const { service, agent } = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive',
+    const { service, agent } = await openUnchangedRuns(fixture.root, {
       unchangedCheckpoints: ['final verification of plan "review-notes"'],
       script: spec => {
         seen.push(`${spec.role}:${spec.submission.name}`);
@@ -281,7 +281,6 @@ describe('descriptive initial analysis', () => {
     await service.settled('review-notes', receipt.jobId);
     expect(onlyRun(service, 'review-notes').state, JSON.stringify({ snapshot: onlyRun(service, 'review-notes'), seen, verdicts: agent?.sessions.map(session => session.verdicts) })).toBe('completed');
     const run = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, runLayout.record), 'utf8')) as Record<string, unknown>;
-    expect(run.identityContract).toBe('descriptive');
     const captured = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, runLayout.documentManifest), 'utf8')) as Record<string, unknown>;
     expect(captured.schema).toBe('ramify-agent.document-manifest/2');
     const entries = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, runLayout.entries), 'utf8')) as Record<string, unknown>;
@@ -309,13 +308,13 @@ describe('descriptive initial analysis', () => {
     await writeFile(planPath, plan);
     let root = '';
     let origins: ReturnType<typeof extractPlanScenarios>['scenarios'] = [];
-    const { service, agent } = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive',
+    const { service, agent } = await openUnchangedRuns(fixture.root, {
       unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:add-revision-preview', 'final verification of plan "review-notes"'],
       script: spec => {
         if (spec.submission.name === intakeToolName) {
           const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
           root = documents[0]!;
-          origins = extractPlanScenarios(plan, root, 'descriptive').scenarios;
+          origins = extractPlanScenarios(plan, root).scenarios;
           return [{ kind: 'submit', input: { goal: 'Show notes.', elements: [], incorporation: {
             documents: documents.map(document => ({ document, scenarios: true, uncertainty: '' })), missing: [],
           } } }];
@@ -341,7 +340,7 @@ describe('descriptive initial analysis', () => {
     expect(duplicate).toEqual(receipt);
     await service.settled('review-notes', receipt.jobId);
     expect(onlyRun(service, 'review-notes').state,
-      JSON.stringify(agent?.sessions.map(session => session.verdicts))).toBe('completed');
+      JSON.stringify({ run: onlyRun(service, 'review-notes'), verdicts: agent?.sessions.map(session => session.verdicts) })).toBe('completed');
     expect(origins).toHaveLength(2);
     expect(origins[0]!.id).not.toBe(origins[1]!.id);
     const record = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, runLayout.record), 'utf8')) as {
@@ -369,7 +368,7 @@ describe('descriptive initial analysis', () => {
     ]));
     await service.close();
     await rm(join(directory, runLayout.scenario('scenario:note-shown-2')));
-    const reopened = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive' });
+    const reopened = await openUnchangedRuns(fixture.root, {});
     cleanups.push(() => reopened.service.close());
     expect(reopened.recovery.rematerialized.some(entry => entry.startsWith(`review-notes/${receipt.jobId}`))).toBe(true);
     expect(await reopened.service.execute(command)).toEqual(receipt);
@@ -393,15 +392,15 @@ describe('descriptive initial analysis', () => {
     let root = '';
     let companionId = '';
     let origins: ReturnType<typeof extractPlanScenarios>['scenarios'] = [];
-    const { service, agent } = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive',
+    const { service, agent } = await openUnchangedRuns(fixture.root, {
       unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:add-revision-preview',
         'work-item:archive-revision-preview', 'final verification of plan "review-notes"'],
       script: spec => {
         if (spec.submission.name === intakeToolName) {
           const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
           [root, companionId] = documents;
-          const namedTogether = extractDocumentScenarios([{ id: root, text: plan }, { id: companionId, text: companion }], 'descriptive').scenarios;
-          origins = [{ ...namedTogether[0]!, id: extractPlanScenarios(plan, root, 'descriptive').scenarios[0]!.id }, namedTogether[1]!];
+          const namedTogether = extractDocumentScenarios([{ id: root, text: plan }, { id: companionId, text: companion }]).scenarios;
+          origins = [{ ...namedTogether[0]!, id: extractPlanScenarios(plan, root).scenarios[0]!.id }, namedTogether[1]!];
           return [{ kind: 'submit', input: { goal: 'Show notes in review and archive.', elements: [], incorporation: {
             documents: documents.map(document => ({ document, scenarios: true, uncertainty: '' })), missing: [],
           } } }];
@@ -429,7 +428,7 @@ describe('descriptive initial analysis', () => {
     const receipt = await service.execute(command);
     await service.settled('review-notes', receipt.jobId);
     expect(onlyRun(service, 'review-notes').state,
-      JSON.stringify(agent?.sessions.map(session => session.verdicts))).toBe('completed');
+      JSON.stringify({ run: onlyRun(service, 'review-notes'), verdicts: agent?.sessions.map(session => session.verdicts) })).toBe('completed');
     expect(origins.map(origin => origin.id)).toEqual([
       'plan-scenario:a-note-is-shown', expect.stringMatching(/^plan-scenario:a-note-is-shown-[a-f0-9]{8}$/),
     ]);
@@ -470,7 +469,7 @@ describe('descriptive initial analysis', () => {
       expect(assignedFeaturePaths({ obligations: [scenario.id] }, accepted)).toEqual([scenario.file]);
     }
     await service.close();
-    const reopened = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive' });
+    const reopened = await openUnchangedRuns(fixture.root, {});
     cleanups.push(() => reopened.service.close());
     expect(await reopened.service.execute(command)).toEqual(receipt);
     expect(reopened.service.events('review-notes', receipt.jobId)?.filter(event => event.type === 'analysis-accepted')).toHaveLength(1);
@@ -488,7 +487,7 @@ describe('descriptive initial analysis', () => {
     let leaveBoundary!: () => void;
     const atBoundary = new Promise<void>(resolve => { enteredBoundary = resolve; });
     const releaseBoundary = new Promise<void>(resolve => { leaveBoundary = resolve; });
-    const { service, agent } = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive',
+    const { service, agent } = await openUnchangedRuns(fixture.root, {
       afterWrite: async write => {
         if (write === 'analysis-accepted' && !interrupted) {
           interrupted = true;
@@ -542,14 +541,14 @@ describe('descriptive initial analysis', () => {
     await service.close();
     await rm(join(directory, runLayout.entries));
     await rm(join(directory, runLayout.scenario('scenario:reject-missing-predecessor')));
-    const reopened = await openUnchangedRuns(fixture.root, { identityContract: 'descriptive' });
+    const reopened = await openUnchangedRuns(fixture.root, {});
     cleanups.push(() => reopened.service.close());
     expect(reopened.recovery.rematerialized.some(entry => entry.startsWith(`review-notes/${receipt.jobId}`))).toBe(true);
     expect(await reopened.service.execute(command)).toEqual(receipt);
     expect(reopened.service.events('review-notes', receipt.jobId)?.filter(event => event.type === 'analysis-accepted')).toHaveLength(1);
-    const entries = JSON.parse(await readFile(join(directory, runLayout.entries), 'utf8')) as { entries: Array<{ capabilityId?: string; acceptanceRefs: string[] }> };
+    const entries = JSON.parse(await readFile(join(directory, runLayout.entries), 'utf8')) as { entries: Array<{ capabilityId: string; functionalAcceptanceIds: string[] }> };
     expect(entries.entries).toMatchObject([{ capabilityId: 'capability:add-revision-preview',
-      acceptanceRefs: ['functional-requirement:reject-unknown-predecessor'] }]);
+      functionalAcceptanceIds: ['functional-requirement:reject-unknown-predecessor'] }]);
     const scenario = JSON.parse(await readFile(join(directory, runLayout.scenario('scenario:reject-missing-predecessor')), 'utf8')) as {
       id: string; entry: string; citedElements: string[];
     };

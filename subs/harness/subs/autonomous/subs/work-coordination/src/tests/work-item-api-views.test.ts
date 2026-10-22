@@ -7,7 +7,7 @@ import { runLayout } from '../../../../src/run/records.js';
 import type { MaterializeResult } from '../../../../../evidence/src/ramify-cli.js';
 import type { Script } from '../../../../../agent/src/scripted.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, outline, read, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit } from '../../../acceptance/src/tests/helpers/gate-git.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
@@ -86,7 +86,7 @@ describe('the API view of a local architect\'s continued turns', () => {
       { commit: 'revision-01', changes: [{ status: 'A', path: `${notesDirectory}/src/store.ts` }] }, unchanged, unchanged] });
     const opened = await openRuns(fixture.root, {
       script: recording(byRole({
-        'initial-architect': [submit(analysis([entry('review-note', notes)]))],
+        'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'))],
         'local-architect': [
           [read('notes.ts'), ...submit(assign(notes, {}, outline({ changes: 'The note needs a store.', revisionReason: '' })))],
           [read('store.ts'), ...submit(requestCompletion({ changes: 'The store is in place.', revisionReason: 'The iteration added it.' }))],

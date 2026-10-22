@@ -123,7 +123,6 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       hash: isAuditEvidenceReference(auditStage) ? `sha256:${auditStage.artifact.sha256}` : digest(audit) };
     // Pure domain ingestion is already idempotent; keying the transaction also covers decisions after a restart.
     const factual = factualFindingCommands({ state: context.findingState(), assessment: assessment.id, tree: snapshot.tree, audit, protection,
-      identityContract: job.identityContract ?? 'legacy',
       protectionSelection: digest({ baseline, rules: job.protection!.rules }), evidence: factualEvidence,
       protectionEvidence: { kind: 'protection-comparison', ref: `assessments/${assessment.id}/stages/protection.json`, hash: digest(protection) } });
     if (factual.length) await context.recordFindings(factual);
@@ -275,7 +274,6 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     }
     if (reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
-        identityContract: job.identityContract ?? 'legacy',
         briefing: { id: assessment.id, kind: request.kind, finalContext, iteration: assessment.id, snapshot, outcome: (focused ? 'Focused repair follow-up: inspect the selected repairs and relevant surrounding behavior. Do not repeat the broad iteration review or unchanged discretionary issues. Verify previously unmet requirements affected by the repair.\n' : '') + intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
           testingContext, requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
@@ -295,20 +293,14 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       };
       const result = await scheduledReview(async () => (dependencies.review ?? runAssistedPiReview)({
         operations, runId: job.jobId, operationId: `${assessment.id}-review-${assessment.revision}`, projectRoot,
-        candidate: snapshot.commit, tree: snapshot.tree, kind: request.kind, identityContract: job.identityContract ?? 'legacy', prepared: withEvidence, signal,
-        ...(job.identityContract === 'descriptive' ? { acceptValidated: acceptSubmitted } : {}),
+        candidate: snapshot.commit, tree: snapshot.tree, kind: request.kind, prepared: withEvidence, signal,
+        acceptValidated: acceptSubmitted,
         onSubmitted: async (value, evidence) => {
-          if (job.identityContract === 'descriptive') {
-            const accepted = await acceptSubmitted(value, evidence);
-            if (!accepted.ok) throw new Error(accepted.errors.map(error => `${error.path}: ${error.message}`).join('; '));
-            return;
-          }
-          const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source, warn: message => limitations.push(message) },
-            snapshot, prepared.tools, value, null, path => path === null ? 'ungrounded' : 'agent-generated');
-          await record('review-accepted', { result: { status: 'submitted', value, ...evidence }, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'candidate-inspection/1', limitations });
+          const accepted = await acceptSubmitted(value, evidence);
+          if (!accepted.ok) throw new Error(accepted.errors.map(error => `${error.path}: ${error.message}`).join('; '));
         },
       }));
-      if (job.identityContract === 'descriptive' && result.status === 'submitted' && !stages('review-accepted')) {
+      if (result.status === 'submitted' && !stages('review-accepted')) {
         const accepted = await acceptSubmitted(result.value, { operationId: result.operationId, sessionId: result.sessionId, eventCount: result.eventCount });
         if (!accepted.ok) return incomplete('Descriptive review needs a corrected finding name.', accepted.errors.map(error => `${error.path}: ${error.message}`));
       }
@@ -323,11 +315,6 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     else {
       const report = reviewed.result.value;
       for (const answer of report.requirements) if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
-      if (job.identityContract !== 'descriptive') {
-        const reports = reportReviewConcerns({ assessment: assessment.id, tree: snapshot.tree, report, bindings: reviewed.bindings,
-          evidence: { kind: 'assisted-review', ref: `assessments/${assessment.id}/stages/review.json`, hash: digest(reviewed) } });
-        if (reports.length) await context.recordFindings(reports, 'review-reports');
-      }
     }
 
     let reconciliation = stages<ReconciliationEvidence>('reconciliation-accepted') ?? stages<ReconciliationEvidence>('reconciliation');

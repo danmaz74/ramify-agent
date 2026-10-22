@@ -18,13 +18,14 @@ const action = <T extends string, S extends z.ZodRawShape>(kind: T, fields: S) =
   z.object({ ...basis, kind: z.literal(kind), ...fields }).strict();
 
 export const capabilityActionSchema = z.discriminatedUnion('kind', [
-  action('consult-consumer', { question: text, sections: z.array(text).min(1), references: z.array(text) }),
+  action('consult-consumer', { exchangeKey: z.string().regex(/^draft:capability-exchange:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    question: text, sections: z.array(text).min(1), references: z.array(text) }),
   action('assign', {
     assignment: assignmentBodySchema,
   }),
-  action('delegate-capability', { request: text, provider: modulePathSchema, placementReason: text, constraints: z.array(text), taskKey: draftCapabilityTaskSchema.optional() }),
-  action('request-placement', { problem: text, evidence: z.array(text).min(1) }),
-  action('unresolved', { problem: text, evidence: z.array(text).min(1) }),
+  action('delegate-capability', { request: text, provider: modulePathSchema, placementReason: text, constraints: z.array(text), taskKey: draftCapabilityTaskSchema }),
+  action('request-placement', { placementRequestKey: z.string().regex(/^draft:placement-request:[a-z0-9]+(?:-[a-z0-9]+)*$/), problem: text, evidence: z.array(text).min(1) }),
+  action('unresolved', { unresolvedRequestKey: z.string().regex(/^draft:unresolved-request:[a-z0-9]+(?:-[a-z0-9]+)*$/), problem: text, evidence: z.array(text).min(1) }),
   /** The architect's done reports on the task's obligations, in `reports`,
    * are the handback; anything it says about an original example is free
    * text in `summary` or a report's `where`. No cited file or test is checked.
@@ -48,17 +49,16 @@ export const qualificationActionSchema = z.discriminatedUnion('kind', [
   }).strict(),
   z.object({ kind: z.literal('delegate-capability'), request: text, invocation: text,
     provider: modulePathSchema, placementReason: text, constraints: z.array(text), requirementRefs: z.array(elementIdSchema),
-    taskKey: draftCapabilityTaskSchema.optional(),
+    taskKey: draftCapabilityTaskSchema.describe('Propose draft:capability-task:<provider-behavior-name>; accepted ID is assigned on delegation.'),
   }).strict(),
-  z.object({ kind: z.literal('request-placement'), request: text, invocation: text, problem: text, evidence: z.array(text).min(1) }).strict(),
-  z.object({ kind: z.literal('unresolved'), request: text, invocation: text, problem: text, evidence: z.array(text).min(1) }).strict(),
+  z.object({ kind: z.literal('request-placement'), request: text, invocation: text,
+    placementRequestKey: z.string().regex(/^draft:placement-request:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    problem: text, evidence: z.array(text).min(1) }).strict(),
+  z.object({ kind: z.literal('unresolved'), request: text, invocation: text,
+    unresolvedRequestKey: z.string().regex(/^draft:unresolved-request:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    problem: text, evidence: z.array(text).min(1) }).strict(),
 ]);
 export type QualificationAction = z.infer<typeof qualificationActionSchema>;
-export const descriptiveQualificationActionSchema = z.discriminatedUnion('kind', [
-  qualificationActionSchema.options[0]!,
-  qualificationActionSchema.options[1]!.extend({ taskKey: draftCapabilityTaskSchema.describe('Propose draft:capability-task:<provider-behavior-name>; accepted ID is assigned on delegation.') }),
-  qualificationActionSchema.options[2]!, qualificationActionSchema.options[3]!,
-]);
 
 export const capabilityPlanUpdateSchema = z.object({
   task: text,

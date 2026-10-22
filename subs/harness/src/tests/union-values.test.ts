@@ -20,7 +20,7 @@ import { runLayout, runSchemas } from '../../subs/autonomous/src/run/records.js'
 import { invocationOutcomeSchema, sessionModeSchema, continueReasonSchema, degradeRelationSchema, forkReasonSchema, replaceReasonSchema, requestReasonSchema, sessionPointSchema } from '../../subs/task-execution/src/records.js';
 import { defaultContextPolicies } from '../run/policy.js';
 import { analysisLayout, analysisSchemas, hypothesisChangeSchema, hypothesisSchema, registryEntrySchema } from '../../subs/autonomous/subs/planning/src/records.js';
-import { contractAuthoritySchema, contractModeSchema, contractSchemas, contractsLayout, obligationId } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
+import { contractAuthoritySchema, contractModeSchema, contractSchemas, contractsLayout } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
 import { contractSubmissionKinds, contractSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/contracts/submission.js';
 import { decompositionSchema, workLayout, workSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import {
@@ -97,7 +97,7 @@ describe('the run log', () => {
       'readiness-preparation-started', 'readiness-preparation-completed', 'readiness-repair-committing', 'readiness-repair-committed',
       'repair-assignment-recorded', 'repair-preparation-recorded', 'repair-preparation-consumed', 'repair-incident-recorded', 'repair-export-recorded',
       'invocation-prepared', 'job-started', 'job-continued', 'debug-pausing', 'debug-paused', 'debug-exchange-admitted', 'debug-exchange-settled', 'debug-resumed', 'session-opened', 'invocation-started', 'invocation-ended', 'session-finished', 'analysis-accepted',
-      'document-manifest-committed', 'work-orientation-recorded', 'context-selection-recorded', 'context-package-append-requested', 'context-package-appended', 'context-package-prompt-bound', 'candidate-prepared', 'nonfunctional-phase-started', 'nonfunctional-final-invalidated', 'nonfunctional-assessed', 'nonfunctional-investigated', 'nonfunctional-repair-assigned', 'nonfunctional-repair-committed', 'nonfunctional-round-closed', 'nonfunctional-deviation-recorded', 'nonfunctional-deviations-recorded', 'candidate-bound-to-gate',
+      'document-manifest-committed', 'work-orientation-recorded', 'context-selection-recorded', 'context-package-append-requested', 'context-package-appended', 'context-package-prompt-bound', 'candidate-prepared', 'nonfunctional-phase-started', 'nonfunctional-final-invalidated', 'nonfunctional-assessed', 'nonfunctional-investigated', 'nonfunctional-repair-assigned', 'nonfunctional-repair-committed', 'nonfunctional-round-closed', 'nonfunctional-deviations-recorded', 'candidate-bound-to-gate',
       'capability-requested', 'capability-qualified', 'capability-delegated', 'capability-plan-revised', 'capability-coordinator-resumed',
       'capability-exchange-opened', 'capability-exchange-answered', 'capability-assigned',
       'capability-assignment-settled',
@@ -174,8 +174,8 @@ describe('the run log', () => {
     const append = { session: 'ses-0001', append: 4 };
     const lines = [
       { sequence: 1, type: 'session-opened', data: {
-        session: 'ses-0002', role: 'global-fork', work: { workItem: 'wi-001', request: 'pr-001' }, executor: 'scripted', model: null,
-        fork: { from: append, reason: 'placement-request', generation: 2, briefs: ['gd-001'] },
+        session: 'ses-0002', role: 'global-fork', work: { workItem: 'work-item:case-001', request: 'placement-request:case-001' }, executor: 'scripted', model: null,
+        fork: { from: append, reason: 'placement-request', generation: 2, briefs: ['placement-decision:case-001'] },
         replaces: { session: 'ses-0001', reason: 'context-rebuilt' },
         requestedBy: { invocation: 'inv-0001', reason: 'contract-needed' },
       } },
@@ -194,7 +194,7 @@ describe('the run log', () => {
       // A review's fork is of another role's session, not of the architect
       // context, and names no generation.
       { sequence: 5, type: 'session-opened', data: {
-        session: 'ses-0003', role: 'reviewer', work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, executor: 'scripted', model: null,
+        session: 'ses-0003', role: 'reviewer', work: { workItem: 'work-item:case-001', iteration: 'it-case-01' }, executor: 'scripted', model: null,
         fork: { from: end, reason: 'scope-review', briefs: [] },
       } },
     ];
@@ -337,7 +337,7 @@ describe('the observation log', () => {
     for (const kind of kinds) {
       expect(observationSchema.safeParse({ n: 1, at: '2026-09-20T10:15:00.000Z', type: 'coverage-gap', data: { kind, detail: 'why' } }).success).toBe(true);
     }
-    expect(observationSchema.safeParse({ n: 1, at: '2026-09-20T10:15:00.000Z', type: 'coverage-gap', data: { kind: 'other', detail: 'why' } }).success).toBe(false);
+    expect(observationSchema.safeParse({ n: 1, at: '2026-09-20T10:15:00.000Z', type: 'coverage-gap', data: { kind: 'capability:other', detail: 'why' } }).success).toBe(false);
   });
 
   test('the exploration usage and timing variants round-trip their exact values and stable identities', async () => {
@@ -463,9 +463,9 @@ describe('the records this iteration establishes', () => {
       for (const standing of hypothesisSchema.shape.standing.options) {
         for (const confidence of hypothesisSchema.shape.confidence.options) {
           index += 1;
-          const id = `h-${index}`;
+          const id = `hypothesis:case-${index}`;
           const read = await store.roundTrip(analysisLayout.hypothesis(id, 1), {
-            schema: 'ramify-agent.hypothesis/1', id, revision: 1, standing, capability: id, change,
+            schema: 'ramify-agent.hypothesis/2', id, revision: 1, standing, capability: `capability:case-${index}`, change,
             changesExistingSymbols: change !== 'reuse',
             suggestedOwner: 'shop/orders', anticipatedConsumers: [], involvedModules: ['shop'],
             dependsOn: [], confidence, rationale: 'r', assumptions: [], uncertainties: [],
@@ -478,13 +478,13 @@ describe('the records this iteration establishes', () => {
 
     // The other arm of `cause`: a revision one global decision caused,
     // which a placement fork produces.
-    const fromDecision = await store.roundTrip(analysisLayout.hypothesis('h-decided', 2), {
-      schema: 'ramify-agent.hypothesis/1', id: 'h-decided', revision: 2, standing: 'confirmed', capability: 'h-decided',
+    const fromDecision = await store.roundTrip(analysisLayout.hypothesis('hypothesis:decided', 2), {
+      schema: 'ramify-agent.hypothesis/2', id: 'hypothesis:decided', revision: 2, standing: 'confirmed', capability: 'capability:decided',
       change: 'create', changesExistingSymbols: true, suggestedOwner: 'shop/orders', anticipatedConsumers: [], involvedModules: [],
       dependsOn: [], confidence: 'high', rationale: 'r', assumptions: [], uncertainties: [],
-      citations: [], cause: { decision: 'gd-001', reason: 'the fork decided otherwise' }, confirmedBy: 'gd-001',
+      citations: [], cause: { decision: 'placement-decision:case-001', reason: 'the fork decided otherwise' }, confirmedBy: 'placement-decision:case-001',
     }, analysisSchemas.hypothesis);
-    expect(fromDecision.cause).toEqual({ decision: 'gd-001', reason: 'the fork decided otherwise' });
+    expect(fromDecision.cause).toEqual({ decision: 'placement-decision:case-001', reason: 'the fork decided otherwise' });
   });
 
   test('every registry origin is written and read back', async () => {
@@ -492,11 +492,11 @@ describe('the records this iteration establishes', () => {
     const origins = registryEntrySchema.shape.origin.options;
     expect(origins).toEqual(['entry', 'global-decision', 'local-decision']);
     for (const origin of origins) {
-      const capability = `c-${origin}`;
+      const capability = `capability:${origin}`;
       const read = await store.roundTrip(analysisLayout.registry(capability, 1), {
-        schema: 'ramify-agent.capability/1', capability, revision: 1, behavior: 'b',
-        owner: 'shop/orders', origin, decision: origin === 'entry' ? null : 'gd-001',
-        consumers: origin === 'entry' ? [] : [{ capability: 'other', workItem: 'wi-001' }],
+        schema: 'ramify-agent.capability/2', capability, revision: 1, behavior: 'b',
+        owner: 'shop/orders', origin, decision: origin === 'entry' ? null : 'placement-decision:case-001',
+        consumers: origin === 'entry' ? [] : [{ capability: 'capability:other', workItem: 'work-item:case-001' }],
         ...(origin === 'entry' ? {} : { previousOwner: 'shop' }),
       }, analysisSchemas.registry);
       expect(read).toMatchObject({ origin });
@@ -506,28 +506,28 @@ describe('the records this iteration establishes', () => {
   test('every work-item origin and every decomposition kind is written and read back', async () => {
     const store = await ledger();
     const origins = [
-      { entry: 'send-email' },
-      { obligation: { id: 'ob-send-email', revision: 1, hash: 'a'.repeat(64) } },
-      { verification: { id: 'cr-wi-001-send-email', revision: 1, hash: 'b'.repeat(64) } },
+      { entry: 'capability:send-email' },
+      { obligation: { id: 'provider-obligation:send-email', revision: 1, hash: 'a'.repeat(64) } },
+      { verification: { id: 'consumer-requirement:send-email', revision: 1, hash: 'b'.repeat(64) } },
     ];
     let index = 0;
     for (const origin of origins) {
       index += 1;
-      const id = `wi-${String(index).padStart(3, '0')}`;
+      const id = `work-item:case-${String(index).padStart(3, '0')}`;
       const read = await store.roundTrip(workLayout.item(id), {
-        schema: 'ramify-agent.work-item/1', id, module: 'shop/orders', origin,
-        goal: 'g', requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: index === 1 ? null : 'wi-001',
-        ...(index === 3 ? { follows: 'wi-001' } : {}),
+        schema: 'ramify-agent.work-item/2', id, module: 'shop/orders', origin,
+        goal: 'g', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: index === 1 ? null : 'work-item:case-001',
+        ...(index === 3 ? { follows: 'work-item:case-001' } : {}),
       }, workSchemas.item);
       expect(read.origin).toEqual(origin);
     }
 
     expect(decompositionSchema.shape.kind.options).toEqual(['single-iteration', 'staged']);
     for (const kind of decompositionSchema.shape.kind.options) {
-      const read = await store.roundTrip(workLayout.outline('wi-001', kind === 'staged' ? 2 : 1), {
-        schema: 'ramify-agent.work-item-outline/1', workItem: 'wi-001', revision: kind === 'staged' ? 2 : 1,
+      const read = await store.roundTrip(workLayout.outline('work-item:case-001', kind === 'staged' ? 2 : 1), {
+        schema: 'ramify-agent.work-item-outline/2', workItem: 'work-item:case-001', revision: kind === 'staged' ? 2 : 1,
         invocation: 'inv-0002', changes: 'c', decomposition: { kind, rationale: 'r' },
-        reuse: [{ capability: 'send-email', owner: 'shop/orders', role: 'provider' }],
+        reuse: [{ capability: 'capability:send-email', owner: 'shop/orders', role: 'provider' }],
         breakingChanges: kind === 'staged'
           ? [{ guarantee: 'g', reason: 'r', affectedConsumers: ['shop'], citations: [citation] }]
           : [],
@@ -537,7 +537,7 @@ describe('the records this iteration establishes', () => {
             { title: 'Two', approach: 'breaking' as const, dependsOn: [0], note: '' },
           ]
           : [],
-        hypothesesSeen: [{ id: 'h-1', revision: 1, hash: 'c'.repeat(64) }],
+        hypothesesSeen: [{ id: 'hypothesis:case-1', revision: 1, hash: 'c'.repeat(64) }],
         revisionReason: kind === 'staged' ? 'the gate failed' : '',
       }, workSchemas.outline);
       expect(read.decomposition.kind).toBe(kind);
@@ -555,7 +555,7 @@ describe('the records this iteration establishes', () => {
     const kinds = engineerSubmissionSchema.options.map(option => option.shape.kind.value);
     expect(kinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed', 'capability-needed']);
     expect([...engineerSubmissionKinds]).toEqual(kinds.filter(kind => kind !== 'capability-needed'));
-    expect([...capabilityEngineerSubmissionKinds]).toEqual(kinds.filter(kind => kind !== 'contract-needed'));
+    expect([...capabilityEngineerSubmissionKinds]).toEqual(kinds);
     // `obligation-change` and `unplaced-need` have no iteration that can act
     // on them yet, so the role never sees them and no run can produce one.
     // `provider-cannot-conform` gained its producer with the
@@ -575,12 +575,12 @@ describe('the records this iteration establishes', () => {
     expect(iterationKindSchema.options).toEqual(['ordinary', 'breaking', 'contract', 'verification', 'repair', 'integration']);
     expect(extraPurposeSchema.options).toEqual(['contract', 'conformance', 'fake', 'exposure-declaration', 'consumer', 'fake-injection']);
 
-    const outlineRef = { id: 'wi-001', revision: 1, hash: 'd'.repeat(64) };
+    const outlineRef = { id: 'work-item:case-001', revision: 1, hash: 'd'.repeat(64) };
     for (const [index, kind] of iterationKindSchema.options.entries()) {
-      const id = `wi-001.i${String(index + 1).padStart(2, '0')}`;
-      const read = await store.roundTrip(iterationLayout.assignment('wi-001', index + 1), {
-        schema: 'ramify-agent.iteration-assignment/1',
-        id, workItem: 'wi-001', outline: outlineRef, stage: 0, kind,
+      const id = `it-case-${String(index + 1).padStart(2, '0')}`;
+      const read = await store.roundTrip(iterationLayout.assignment('work-item:case-001', index + 1), {
+        schema: 'ramify-agent.iteration-assignment/2',
+        id, workItem: 'work-item:case-001', outline: outlineRef, stage: 0, kind,
         goal: 'g', approach: 'a',
         scope: {
           revision: index + 1,
@@ -596,8 +596,8 @@ describe('the records this iteration establishes', () => {
           rationale: 'r',
           resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/subs/orders/src'], files: ['/p/subs/orders/module.ramify'], view: { status: 'placeholder' } },
         },
-        source: { elements: ['fr-001', 'nfr-001'], deviations: ['pd-001'], hash: 'f'.repeat(64) },
-        externalCapabilities: [{ capability: 'send-email', owner: 'shop', role: 'use' }],
+        source: { elements: ['functional-requirement:case-001', 'non-functional-requirement:case-001'], deviations: ['plan-deviation:case-001'], hash: 'f'.repeat(64) },
+        externalCapabilities: [{ capability: 'capability:send-email', owner: 'shop', role: 'use' }],
         completionEvidence: 'e',
         evidenceObligations: [{ suite: ['subs/orders/src/tests/conformance.test.ts'], against: 'fake' }],
         gate: kind === 'breaking'
@@ -617,9 +617,9 @@ describe('the records this iteration establishes', () => {
     const outcomes = iterationResultSchema.shape.outcome.options;
     expect(outcomes).toEqual(['accepted', 'partial', 'unsuitable', 'exhausted', 'superseded']);
     for (const [index, outcome] of outcomes.entries()) {
-      const read = await store.roundTrip(iterationLayout.result('wi-002', index + 1), {
+      const read = await store.roundTrip(iterationLayout.result('work-item:case-002', index + 1), {
         schema: 'ramify-agent.iteration-result/1',
-        iteration: `wi-002.i${String(index + 1).padStart(2, '0')}`,
+        iteration: `it-result-${String(index + 1).padStart(2, '0')}`,
         outcome,
         invocations: ['inv-0003'],
         gate: outcome === 'accepted' ? 'ga-0004' : null,
@@ -647,9 +647,9 @@ describe('the records this iteration establishes', () => {
       { outcome: 'unavailable', invocation: null, reason: 'the analysis ended `failed`' },
     ];
     for (const [index, analysis] of analyses.entries()) {
-      const read = await store.roundTrip(iterationLayout.result('wi-003', index + 1), {
+      const read = await store.roundTrip(iterationLayout.result('work-item:case-003', index + 1), {
         schema: 'ramify-agent.iteration-result/1',
-        iteration: `wi-003.i${String(index + 1).padStart(2, '0')}`,
+        iteration: `it-failure-${String(index + 1).padStart(2, '0')}`,
         outcome: 'partial', invocations: ['inv-0003'], gate: null, commit: null,
         findings: ['f'], changedAssumptions: [], artifacts: [],
         failure: { digest, analysis },
@@ -664,19 +664,19 @@ describe('the records this iteration establishes', () => {
     expect(contractModeSchema.options).toEqual(['fake-backed', 'access-only']);
     expect(contractAuthoritySchema.shape.kind.options).toEqual(['provider', 'consumer', 'independent']);
 
-    const capability = { id: 'note-limit', revision: 1, hash: 'a'.repeat(64) };
+    const capability = { id: 'capability:note-limit', revision: 1, hash: 'a'.repeat(64) };
     // Both modes, and all three authorities the contract-authority rule
     // distinguishes. `fake-backed` and `provider` have producers in a run;
     // `access-only`, `consumer` and `independent` have none yet.
     for (const [index, authority] of contractAuthoritySchema.shape.kind.options.entries()) {
       const mode = index === 0 ? 'fake-backed' : 'access-only';
-      const id = `ct-00${index + 1}`;
+      const id = `contract:case-00${index + 1}`;
       const read = await store.roundTrip(contractsLayout.contract(id, 1), {
-        schema: 'ramify-agent.contract/2',
+        schema: 'ramify-agent.contract/3',
         id, revision: 1, capability,
         // Null where the initial analysis placed the capability and no
         // decision was taken, which is what an entry capability leaves.
-        decision: index === 0 ? null : 'gd-001',
+        decision: index === 0 ? null : 'placement-decision:case-001',
         authority: { kind: authority, owner: 'shop/orders', rationale: 'the rule that places it' },
         provider: 'shop/orders',
         behavior: 'a note of at most 500 characters is within the limit',
@@ -690,7 +690,7 @@ describe('the records this iteration establishes', () => {
           }] : [],
           exposure: [{ path: 'subs/orders/module.ramify', declaration: 'expose-src NoteLimit from "interfaces/note-limit.ts" to parent' }],
         },
-        establishedBy: { iteration: 'wi-001.i02', gate: 'ga-0003' },
+        establishedBy: { iteration: 'it-case-02', gate: 'ga-0003' },
       }, contractSchemas.contract);
       expect(read.mode).toBe(mode);
       expect(read.authority.kind).toBe(authority);
@@ -698,21 +698,20 @@ describe('the records this iteration establishes', () => {
 
     // One obligation per contract, keyed by it, and its evidence is run
     // against the real provider and against nothing else.
-    const obligation = await store.roundTrip(contractsLayout.obligation('ob-ct-001', 1), {
-      schema: 'ramify-agent.provider-obligation/1',
-      id: 'ob-ct-001', revision: 1,
-      contract: { id: 'ct-001', revision: 1, hash: 'e'.repeat(64) },
-      capability: 'note-limit', provider: 'shop/orders',
+    const obligation = await store.roundTrip(contractsLayout.obligation('provider-obligation:case-001', 1), {
+      schema: 'ramify-agent.provider-obligation/2',
+      id: 'provider-obligation:case-001', revision: 1,
+      contract: { id: 'contract:case-001', revision: 1, hash: 'e'.repeat(64) },
+      capability: 'capability:note-limit', provider: 'shop/orders',
       behavior: 'a note of at most 500 characters is within the limit',
       evidence: { conformance: ['subs/orders/src/tests/note-limit.conformance.test.ts'], against: 'real' },
     }, contractSchemas.obligation);
     expect(obligation.evidence.against).toBe('real');
-    expect(obligationId('ct-001')).toBe('ob-ct-001');
 
-    const requirement = await store.roundTrip(contractsLayout.requirement('rq-001', 1), {
-      schema: 'ramify-agent.consumer-requirement/1',
-      id: 'rq-001', revision: 1, workItem: 'wi-001', consumer: 'shop/notes',
-      forCapability: 'review-notes', obligation: 'ob-ct-001', contractRevision: 1,
+    const requirement = await store.roundTrip(contractsLayout.requirement('consumer-requirement:case-001', 1), {
+      schema: 'ramify-agent.consumer-requirement/2',
+      id: 'consumer-requirement:case-001', revision: 1, workItem: 'work-item:case-001', consumer: 'shop/notes',
+      forCapability: 'capability:review-notes', obligation: 'provider-obligation:case-001', contractRevision: 1,
       behavior: 'a note of at most 500 characters is within the limit',
       evidence: {
         tests: { policy: 'owned-by-scope', exactOwners: ['shop/notes'], subtrees: [], extraSuites: [] },
@@ -724,8 +723,8 @@ describe('the records this iteration establishes', () => {
 
   test('every member of the contract submission this iteration offers', () => {
     const kinds = contractSubmissionSchema.options.map(option => option.shape.kind.value);
-    expect(kinds).toEqual(['established', 'incomplete']);
-    expect([...contractSubmissionKinds]).toEqual(kinds);
+    expect(kinds).toEqual(['established', 'established', 'incomplete']);
+    expect([...contractSubmissionKinds]).toEqual([...new Set(kinds)]);
   });
 
   test('both outcomes of a harness-verified gate rule are representable', () => {
@@ -742,7 +741,7 @@ describe('the records this iteration establishes', () => {
     for (const kind of ['module-created', 'module-removed'] as const) {
       expect(moduleNoticeSchema.safeParse({
         kind, module: 'shop/orders/pricing', declaration: 'subs/orders/subs/pricing/module.ramify',
-        commit: 'abc', iteration: 'wi-001.i01',
+        commit: 'abc', iteration: 'it-case-01',
         // An entry assignment proposed its own owner and names no decision,
         // which is what null says.
         decision: null,
@@ -750,7 +749,7 @@ describe('the records this iteration establishes', () => {
     }
     expect(moduleNoticeSchema.safeParse({
       kind: 'module-created', module: 'shop/orders/pricing', declaration: 'subs/orders/subs/pricing/module.ramify',
-      commit: 'abc', iteration: 'wi-001.i01', decision: { id: 'gd-001', revision: 1, hash: 'f'.repeat(64) },
+      commit: 'abc', iteration: 'it-case-01', decision: { id: 'placement-decision:case-001', revision: 1, hash: 'f'.repeat(64) },
     }).success).toBe(true);
   });
 
@@ -763,15 +762,15 @@ describe('the records this iteration establishes', () => {
     for (const outcome of placementOutcomeSchema.options) {
       for (const authority of decisionAuthoritySchema.options) {
         index += 1;
-        const id = authority === 'global' ? `gd-${String(index).padStart(3, '0')}` : `ld-wi-001-${String(index).padStart(2, '0')}`;
+        const id = `placement-decision:case-${String(index).padStart(3, '0')}`;
         const read = await store.roundTrip(architectureLayout.decision(id), {
-          schema: 'ramify-agent.placement-decision/1',
+          schema: 'ramify-agent.placement-decision/2',
           id, authority,
-          request: authority === 'global' ? 'pr-001' : null,
-          workItem: 'wi-001', invocation: 'inv-0003',
+          request: authority === 'global' ? 'placement-request:case-001' : null,
+          workItem: 'work-item:case-001', invocation: 'inv-0003',
           question: 'Where does it belong?',
           outcome,
-          capability: 'send-email',
+          capability: 'capability:send-email',
           // An extension is a `create` with an existing owner and this flag,
           // never an outcome of its own.
           changesExistingSymbols: outcome === 'create',
@@ -783,10 +782,10 @@ describe('the records this iteration establishes', () => {
           rationale: 'r', constraints: ['c'], uncertainties: ['u'],
           evidence: { view: { status: 'placeholder' }, citations: [citation], gaps: ['no dependency facts'] },
           ...(outcome === 'extract'
-            ? { revises: { decision: 'gd-001', affected: [{ workItem: 'wi-002', contract: 'send-email', consequence: 'its consumer moves' }] } }
+            ? { revises: { decision: 'placement-decision:case-001', affected: [{ workItem: 'work-item:case-002', contract: 'capability:send-email', consequence: 'its consumer moves' }] } }
             : {}),
-          registry: [{ id: 'send-email', revision: 2, hash: 'a'.repeat(64) }],
-          hypothesisRevisions: [{ id: 'email-delivery', revision: 2, hash: 'b'.repeat(64) }],
+          registry: [{ id: 'capability:send-email', revision: 2, hash: 'a'.repeat(64) }],
+          hypothesisRevisions: [{ id: 'hypothesis:email-delivery', revision: 2, hash: 'b'.repeat(64) }],
           ...(authority === 'global' ? { brief: 'what a later fork needs to know' } : {}),
         }, architectureSchemas.decision);
         expect(read).toMatchObject({ outcome, authority });
@@ -798,16 +797,16 @@ describe('the records this iteration establishes', () => {
     const store = await ledger();
     expect(hypothesisStanceSchema.options).toEqual(['supports', 'contradicts', 'departs']);
     for (const [index, stance] of hypothesisStanceSchema.options.entries()) {
-      const id = `pr-${String(index + 1).padStart(3, '0')}`;
+      const id = `placement-request:case-${String(index + 1).padStart(3, '0')}`;
       const read = await store.roundTrip(architectureLayout.request(id), {
-        schema: 'ramify-agent.placement-request/1',
-        id, workItem: 'wi-001', requester: 'shop/orders', forCapability: 'send-email',
+        schema: 'ramify-agent.placement-request/2',
+        id, workItem: 'work-item:case-001', requester: 'shop/orders', forCapability: 'capability:send-email',
         question: 'Where does it belong?', requiredBehavior: 'one message per order',
         findings: [{ text: 'orders already sends one', citations: [citation] }],
-        candidates: [{ capability: 'send-email', owner: 'shop/orders', note: 'it is here today' }, { note: 'or nowhere yet' }],
+        candidates: [{ capability: 'capability:send-email', owner: 'shop/orders', note: 'it is here today' }, { note: 'or nowhere yet' }],
         unresolved: ['whether billing needs the same'],
-        hypotheses: [{ ref: { id: 'email-delivery', revision: 1, hash: 'c'.repeat(64) }, stance, evidence: 'e' }],
-        localDecisions: ['ld-wi-001-01'],
+        hypotheses: [{ ref: { id: 'hypothesis:email-delivery', revision: 1, hash: 'c'.repeat(64) }, stance, evidence: 'e' }],
+        localDecisions: ['placement-decision:case-001'],
       }, architectureSchemas.request);
       expect(read.hypotheses[0]!.stance).toBe(stance);
     }
@@ -824,29 +823,29 @@ describe('the records this iteration establishes', () => {
 
   test('an unresolved request, the plan deviation and the environment problem that answer it are written and read back', async () => {
     const store = await ledger();
-    const request = await store.roundTrip(deviationLayout.request('ur-001'), {
-      schema: 'ramify-agent.unresolved-request/1', id: 'ur-001', workItem: 'wi-001', requester: 'shop/orders', invocation: 'inv-0004',
+    const request = await store.roundTrip(deviationLayout.request('unresolved-request:case-001'), {
+      schema: 'ramify-agent.unresolved-request/2', id: 'unresolved-request:case-001', workItem: 'work-item:case-001', requester: 'shop/orders', invocation: 'inv-0004',
       conflict: 'the plan asks for a surface no module has', evidence: ['plan.md lines 3-4'],
     }, deviationSchemas.unresolvedRequest);
-    expect(request.id).toBe('ur-001');
+    expect(request.id).toBe('unresolved-request:case-001');
     for (const held of [false, true]) {
-      const read = await store.roundTrip(deviationLayout.deviation(held ? 'pd-002' : 'pd-001'), {
-        schema: 'ramify-agent.plan-deviation/1', id: held ? 'pd-002' : 'pd-001', request: 'ur-001', workItem: 'wi-001', invocation: 'inv-0005',
+      const read = await store.roundTrip(deviationLayout.deviation(held ? 'plan-deviation:case-002' : 'plan-deviation:case-001'), {
+        schema: 'ramify-agent.plan-deviation/2', id: held ? 'plan-deviation:case-002' : 'plan-deviation:case-001', request: 'unresolved-request:case-001', workItem: 'work-item:case-001', invocation: 'inv-0005',
         plan: { path: 'plans/p/plan.md', revision: `sha256:${'a'.repeat(64)}` },
-        amends: [{ id: 'fr-001', path: 'plans/p/plan.md', text: 'Serve it over MCP.' }],
+        amends: [{ id: 'functional-requirement:case-001', path: 'plans/p/plan.md', text: 'Serve it over MCP.' }],
         instead: 'tRPC only', why: 'no MCP surface', rejected: [{ alternative: 'a new module', reason: 'out of scope' }], loss: 'no MCP tool',
-        workItems: ['wi-001'], modules: ['shop/orders'],
-        scenarios: [{ scenario: 'sc-001', file: 'src/tests/features/p/e.feature', before: ['Scenario: a'], after: ['Scenario: b'] }],
-        checkFinding: 'cf-0001', held,
+        workItems: ['work-item:case-001'], modules: ['shop/orders'],
+        scenarios: [{ scenario: 'scenario:case-001', file: 'src/tests/features/p/e.feature', before: ['Scenario: a'], after: ['Scenario: b'] }],
+        checkFinding: 'finding:case-001', held,
       }, deviationSchemas.planDeviation);
       expect(read.held).toBe(held);
     }
-    const problem = await store.roundTrip(deviationLayout.environment('ep-001'), {
-      schema: 'ramify-agent.environment-problem/1', id: 'ep-001', request: 'ur-001', workItem: 'wi-001', invocation: 'inv-0005',
+    const problem = await store.roundTrip(deviationLayout.environment('environment-problem:case-001'), {
+      schema: 'ramify-agent.environment-problem/2', id: 'environment-problem:case-001', request: 'unresolved-request:case-001', workItem: 'work-item:case-001', invocation: 'inv-0005',
       diagnosis: 'The gate runs `npm test`, which imports `dist/src`; nothing builds it in the gate\'s worktree.',
-      suggestion: 'Declare a build step in `ramify-agent.json`.', checkFinding: 'cf-0002',
+      suggestion: 'Declare a build step in `ramify-agent.json`.', findingKey: 'draft:finding:case-002', checkFinding: 'finding:case-002',
     }, deviationSchemas.environmentProblem);
-    expect(problem.checkFinding).toBe('cf-0002');
+    expect(problem.checkFinding).toBe('finding:case-002');
   });
 
   test('the two events a contract revision writes carry every binding it scheduled', () => {
@@ -856,15 +855,15 @@ describe('the records this iteration establishes', () => {
       sequence: 1, jobId, at, type: 'evidence-reopened',
       data: {
         cause: 'wi-004.i02 revised ct-001 from revision 1 to 2',
-        contract: 'ct-001', revision: 2, iteration: 'wi-004.i02', obligation: 'ob-ct-001',
-        requirements: ['rq-001', 'rq-002', 'rq-003'],
+        contract: 'contract:case-001', revision: 2, iteration: 'it-revision-02', obligation: 'provider-obligation:case-001',
+        requirements: ['consumer-requirement:case-001', 'consumer-requirement:case-002', 'consumer-requirement:case-003'],
         bindings: [
-          { subject: { id: 'ob-ct-001', revision: 2, hash: 'a'.repeat(64) }, workItem: 'wi-005' },
-          { subject: { id: 'rq-001', revision: 2, hash: 'b'.repeat(64) }, workItem: 'wi-006' },
-          { subject: { id: 'rq-003', revision: 2, hash: 'c'.repeat(64) }, workItem: 'wi-004' },
+          { subject: { id: 'provider-obligation:case-001', revision: 2, hash: 'a'.repeat(64) }, workItem: 'work-item:case-005' },
+          { subject: { id: 'consumer-requirement:case-001', revision: 2, hash: 'b'.repeat(64) }, workItem: 'work-item:case-006' },
+          { subject: { id: 'consumer-requirement:case-003', revision: 2, hash: 'c'.repeat(64) }, workItem: 'work-item:case-004' },
         ],
-        followUps: [{ workItem: 'wi-005', follows: 'wi-002' }, { workItem: 'wi-006', follows: 'wi-001' }],
-        superseded: ['wi-002.i01'],
+        followUps: [{ workItem: 'work-item:case-005', follows: 'work-item:case-002' }, { workItem: 'work-item:case-006', follows: 'work-item:case-001' }],
+        superseded: ['it-result-01'],
       },
     });
     expect(reopened.type).toBe('evidence-reopened');
@@ -872,19 +871,19 @@ describe('the records this iteration establishes', () => {
       // A reused item is bound without a follow-up; a completed one is
       // followed, and the prior item keeps its own completion.
       expect(reopened.data.bindings).toHaveLength(3);
-      expect(reopened.data.followUps.map(entry => entry.follows)).toEqual(['wi-002', 'wi-001']);
+      expect(reopened.data.followUps.map(entry => entry.follows)).toEqual(['work-item:case-002', 'work-item:case-001']);
     }
 
     const needed = runEventSchema.parse({
       sequence: 2, jobId, at, type: 'revision-needed',
-      data: { obligation: { id: 'ob-ct-001', revision: 1, hash: 'd'.repeat(64) }, iteration: 'wi-002.i01', consumerWorkItem: 'wi-001' },
+      data: { obligation: { id: 'provider-obligation:case-001', revision: 1, hash: 'd'.repeat(64) }, iteration: 'it-result-01', consumerWorkItem: 'work-item:case-001' },
     });
     expect(needed.type).toBe('revision-needed');
     // Neither event carries a status or a verdict: what the run did is the
     // log, and nothing here is rewritten.
     expect(runEventSchema.safeParse({
       sequence: 3, jobId, at, type: 'revision-needed',
-      data: { obligation: { id: 'ob-ct-001', revision: 1, hash: 'd'.repeat(64) }, iteration: 'wi-002.i01', consumerWorkItem: 'wi-001', resolved: false },
+      data: { obligation: { id: 'provider-obligation:case-001', revision: 1, hash: 'd'.repeat(64) }, iteration: 'it-result-01', consumerWorkItem: 'work-item:case-001', resolved: false },
     }).success).toBe(false);
   });
 
@@ -904,9 +903,9 @@ describe('the records this iteration establishes', () => {
     }
     // The agreement is named; the revision number is not, because the
     // harness fills it and no submission chooses one.
-    const revising = assignmentBodySchema.parse({ ...base, kind: 'contract', revisesContract: 'ct-001' });
-    expect(revising.revisesContract).toBe('ct-001');
-    expect(assignmentBodySchema.safeParse({ ...base, kind: 'contract', revisesContract: 'ct-001', revision: 2 }).success).toBe(false);
+    const revising = assignmentBodySchema.parse({ ...base, kind: 'contract', revisesContract: 'contract:case-001' });
+    expect(revising.revisesContract).toBe('contract:case-001');
+    expect(assignmentBodySchema.safeParse({ ...base, kind: 'contract', revisesContract: 'contract:case-001', revision: 2 }).success).toBe(false);
     expect(assignmentBodySchema.safeParse({ ...base, kind: 'integration' }).success).toBe(false);
 
     // Both arms of the base a submission may state. The broad one carries
@@ -923,7 +922,7 @@ describe('the records this iteration establishes', () => {
     expect(assignmentBodySchema.safeParse({ ...base, kind: 'ordinary', authorizations: [{ path: 'vitest.config.ts', rationale: 'r' }] }).success).toBe(true);
     expect(assignmentBodySchema.safeParse({
       ...base, kind: 'ordinary',
-      authorizations: [{ path: 'vitest.config.ts', rationale: 'r', by: { id: 'wi-001', revision: 1, hash: 'd'.repeat(64) } }],
+      authorizations: [{ path: 'vitest.config.ts', rationale: 'r', by: { id: 'work-item:case-001', revision: 1, hash: 'd'.repeat(64) } }],
     }).success).toBe(false);
   });
 
@@ -981,10 +980,10 @@ describe('the run protocol a client reads', () => {
     expect(runNoticeSchema.options.map(option => option.shape.kind.value)).toEqual(['module-created', 'module-removed', 'dependency-cycle']);
     const common = { at: '2026-09-21T08:00:00.000Z', sequence: 3, summary: 's' };
     for (const kind of ['module-created', 'module-removed'] as const) {
-      expect(runNoticeSchema.safeParse({ kind, ...common, module: 'm', declaration: 'subs/m/module.ramify', commit: 'abc', iteration: 'wi-001.i01', decision: null }).success).toBe(true);
+      expect(runNoticeSchema.safeParse({ kind, ...common, module: 'm', declaration: 'subs/m/module.ramify', commit: 'abc', iteration: 'it-case-01', decision: null }).success).toBe(true);
     }
-    expect(runNoticeSchema.safeParse({ kind: 'dependency-cycle', ...common, cycle: ['a', 'b'], closedBy: 'wi-001', resolved: false }).success).toBe(true);
-    expect(runNoticeSchema.safeParse({ kind: 'dependency-cycle', ...common, cycle: [], closedBy: 'wi-001', resolved: false }).success).toBe(false);
+    expect(runNoticeSchema.safeParse({ kind: 'dependency-cycle', ...common, cycle: ['a', 'b'], closedBy: 'work-item:case-001', resolved: false }).success).toBe(true);
+    expect(runNoticeSchema.safeParse({ kind: 'dependency-cycle', ...common, cycle: [], closedBy: 'work-item:case-001', resolved: false }).success).toBe(false);
   });
 
   test('every metric state is representable, and only a measured metric has a value', () => {
@@ -1003,13 +1002,13 @@ describe('the run protocol a client reads', () => {
   });
 
   test('every kind of decision is produced from the record that holds it, and no choice is copied', async () => {
-    const outlineRef = { id: 'wi-001', revision: 1, hash: hash64 };
+    const outlineRef = { id: 'work-item:case-001', revision: 1, hash: hash64 };
     const run = constructedRun([
       { type: 'job-started', data: {} },
       {
         type: 'outline-revised', data: {},
         records: [{ path: 'work-items/wi-001/outline/1.json', body: {
-          schema: 'ramify-agent.work-item-outline/1', workItem: 'wi-001', revision: 1, invocation: 'inv-0002', changes: 'c',
+          schema: 'ramify-agent.work-item-outline/2', workItem: 'work-item:case-001', revision: 1, invocation: 'inv-0002', changes: 'c',
           decomposition: { kind: 'staged', rationale: 'r' }, reuse: [],
           breakingChanges: [{ guarantee: 'g', reason: 'why', affectedConsumers: ['shop/web'], citations: [] }],
           stages: [{ title: 't', approach: 'breaking', dependsOn: [], note: '' }], hypothesesSeen: [], revisionReason: '',
@@ -1018,7 +1017,7 @@ describe('the run protocol a client reads', () => {
       {
         type: 'iteration-assigned', data: {},
         records: [{ path: 'work-items/wi-001/iterations/01/assignment.json', body: {
-          schema: 'ramify-agent.iteration-assignment/1', id: 'wi-001.i01', workItem: 'wi-001', outline: outlineRef, stage: 0, kind: 'breaking',
+          schema: 'ramify-agent.iteration-assignment/2', id: 'it-case-01', workItem: 'work-item:case-001', outline: outlineRef, stage: 0, kind: 'breaking',
           goal: 'g', approach: 'a',
           scope: {
             revision: 1, base: { modules: ['shop', 'shop/web'], rationale: 'the guarantee changes in both' }, extra: [], read: [], bootstrap: [], rationale: 'r',
@@ -1032,18 +1031,18 @@ describe('the run protocol a client reads', () => {
       {
         type: 'decision-accepted', data: {},
         records: [{ path: 'decisions/gd-001.json', body: {
-          schema: 'ramify-agent.placement-decision/1', id: 'gd-001', authority: 'global', request: 'pr-001', workItem: 'wi-001', invocation: 'inv-0003',
-          question: 'Where?', outcome: 'reuse', capability: 'send-email', changesExistingSymbols: false, owner: 'shop', rationale: 'r', constraints: [], uncertainties: [],
+          schema: 'ramify-agent.placement-decision/2', id: 'placement-decision:case-001', authority: 'global', request: 'placement-request:case-001', workItem: 'work-item:case-001', invocation: 'inv-0003',
+          question: 'Where?', outcome: 'reuse', capability: 'capability:send-email', changesExistingSymbols: false, owner: 'shop', rationale: 'r', constraints: [], uncertainties: [],
           evidence: { view: { status: 'placeholder' }, citations: [], gaps: [] },
-          registry: [{ id: 'send-email', revision: 1, hash: hash64 }], hypothesisRevisions: [{ id: 'mail', revision: 2, hash: hash64 }], brief: 'b',
+          registry: [{ id: 'capability:send-email', revision: 1, hash: hash64 }], hypothesisRevisions: [{ id: 'hypothesis:mail', revision: 2, hash: hash64 }], brief: 'b',
         } }],
       },
       {
         type: 'contract-registered', data: {},
         records: [{ path: 'contracts/ct-001/1.json', body: {
-          schema: 'ramify-agent.contract/2', id: 'ct-001', revision: 1, capability: { id: 'send-email', revision: 1, hash: hash64 }, decision: 'gd-001',
+          schema: 'ramify-agent.contract/3', id: 'contract:case-001', revision: 1, capability: { id: 'capability:send-email', revision: 1, hash: hash64 }, decision: 'placement-decision:case-001',
           authority: { kind: 'provider', owner: 'shop', rationale: 'r' }, provider: 'shop', behavior: 'b', mode: 'fake-backed',
-          artifacts: { interface: [], conformance: [], fake: [], exposure: [] }, establishedBy: { iteration: 'wi-001.i01', gate: 'ga-0002' },
+          artifacts: { interface: [], conformance: [], fake: [], exposure: [] }, establishedBy: { iteration: 'it-case-01', gate: 'ga-0002' },
         } }],
       },
     ]);
@@ -1051,7 +1050,7 @@ describe('the run protocol a client reads', () => {
     for (const decision of decisions) decisionViewSchema.parse(decision);
     expect(decisions.map(decision => decision.kind)).toEqual(['plan-revision', 'breaking', 'scope', 'placement', 'contract']);
     expect([...new Set(decisions.map(decision => decision.kind))].sort()).toEqual([...decisionViewSchema.options.map(option => option.shape.kind.value)].sort());
-    expect(decisions.find(decision => decision.kind === 'scope')).toMatchObject({ broad: true, modules: ['shop', 'shop/web'], authorizations: [{ path: 'package.json', by: 'wi-001@1' }] });
-    expect(decisions.find(decision => decision.kind === 'placement')).toMatchObject({ hypotheses: [{ id: 'mail', revision: 2 }], registry: ['send-email'] });
+    expect(decisions.find(decision => decision.kind === 'scope')).toMatchObject({ broad: true, modules: ['shop', 'shop/web'], authorizations: [{ path: 'package.json', by: 'work-item:case-001@1' }] });
+    expect(decisions.find(decision => decision.kind === 'placement')).toMatchObject({ hypotheses: [{ id: 'hypothesis:mail', revision: 2 }], registry: ['capability:send-email'] });
   });
 });

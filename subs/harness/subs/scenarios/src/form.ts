@@ -19,7 +19,7 @@ import { comparableSteps, dedent, normalizedText, parseGherkin, scenariosOf, sou
 export const scenarioElementRefSchema = z.string().min(1);
 export type ScenarioElementRef = z.infer<typeof scenarioElementRefSchema>;
 
-const planScenarioIdSchema = z.string().regex(/^(?:ps-\d{2,}|plan-scenario:[a-z0-9]+(?:-[a-z0-9]+)*)$/, 'A plan scenario ID, such as "plan-scenario:reject-missing-predecessor"');
+const planScenarioIdSchema = z.string().regex(/^plan-scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A plan scenario ID, such as "plan-scenario:reject-missing-predecessor"');
 
 const descriptiveScenarioKey = z.string().regex(/^draft:scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const descriptiveCapabilityKey = z.string().regex(/^draft:capability:[a-z0-9]+(?:-[a-z0-9]+)*$/);

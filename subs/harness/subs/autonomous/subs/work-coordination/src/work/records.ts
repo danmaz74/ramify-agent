@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { citationSchema, modulePathSchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import { recordRefSchema } from '../../../../../task-execution/src/records.js';
 import { elementIdSchema } from '../../../../../plan-evidence/src/interfaces/catalog.js';
-import { slugSchema } from '../../../planning/src/records.js';
 import { scenarioIdSchema } from '../../../../../scenarios/src/records.js';
 
 /*
@@ -21,14 +20,14 @@ import { scenarioIdSchema } from '../../../../../scenarios/src/records.js';
 
 const text = z.string().min(1);
 
-/** `wi-001`, the count of committed work items. */
+/** Accepted semantic identity of one work item. */
 export type WorkItemId = string;
-
-export const workItemId = (count: number): WorkItemId => `wi-${String(count).padStart(3, '0')}`;
+const workItemIdSchema = z.string().regex(/^work-item:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const capabilityIdSchema = z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 export const workItemSchema = z.object({
-  schema: z.enum(['ramify-agent.work-item/1', 'ramify-agent.work-item/2']),
-  id: text,
+  schema: z.literal('ramify-agent.work-item/2'),
+  id: workItemIdSchema,
   module: modulePathSchema,
   /**
    * The harness derives the one capability from the entry, obligation or
@@ -36,35 +35,24 @@ export const workItemSchema = z.object({
    * no capability of its own.
    */
   origin: z.union([
-    z.object({ entry: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]) }).strict(),
+    z.object({ entry: capabilityIdSchema }).strict(),
     z.object({ obligation: recordRefSchema }).strict(),
     z.object({ verification: recordRefSchema }).strict(),
     z.object({ integration: scenarioIdSchema }).strict(),
     z.object({ finalVerification: text }).strict(),
   ]),
   /** A completed item's follow-up preserves that item's historical completion. */
-  follows: text.optional(),
+  follows: workItemIdSchema.optional(),
   goal: text,
   /** The functional elements that state the work item's requirement. */
-  requirementRefs: z.array(elementIdSchema),
+  functionalRequirementIds: z.array(elementIdSchema),
   /** The functional elements that state its acceptance. */
-  acceptanceRefs: z.array(elementIdSchema),
+  functionalAcceptanceIds: z.array(elementIdSchema),
   /** The context elements a reader needs to understand it. */
-  contextRefs: z.array(elementIdSchema),
-  /** Explicit accepted references on descriptive records; legacy fields remain for current work readers. */
-  functionalRequirementIds: z.array(elementIdSchema).optional(),
-  functionalAcceptanceIds: z.array(elementIdSchema).optional(),
-  contextIds: z.array(elementIdSchema).optional(),
+  contextIds: z.array(elementIdSchema),
   /** The work item whose yield started this one; the depth-first stack. */
-  startedFor: text.nullable(),
-}).strict().superRefine((item, ctx) => {
-  if (item.schema === 'ramify-agent.work-item/2') {
-    if (!/^work-item:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(item.id)) ctx.addIssue({ code: 'custom', path: ['id'], message: 'a work-item:<name> ID is required' });
-    for (const field of ['functionalRequirementIds', 'functionalAcceptanceIds', 'contextIds'] as const) {
-      if (item[field] === undefined) ctx.addIssue({ code: 'custom', path: [field], message: 'an explicit accepted reference list is required' });
-    }
-  }
-});
+  startedFor: workItemIdSchema.nullable(),
+}).strict();
 export type WorkItem = z.infer<typeof workItemSchema>;
 
 /** The kind of a work item's origin, as `work-item-started` and the projections name it. */
@@ -90,14 +78,14 @@ export const decompositionSchema = z.object({
 }).strict();
 
 export const workItemOutlineSchema = z.object({
-  schema: z.enum(['ramify-agent.work-item-outline/1', 'ramify-agent.work-item-outline/2']),
-  workItem: text,
+  schema: z.literal('ramify-agent.work-item-outline/2'),
+  workItem: workItemIdSchema,
   revision: z.int().positive(),
   invocation: text,
   /** The analysis, concise. */
   changes: text,
   decomposition: decompositionSchema,
-  reuse: z.array(z.object({ capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]), owner: modulePathSchema, role: text }).strict()),
+  reuse: z.array(z.object({ capability: capabilityIdSchema, owner: modulePathSchema, role: text }).strict()),
   breakingChanges: z.array(z.object({
     guarantee: text,
     reason: text,
@@ -114,10 +102,7 @@ export const workItemOutlineSchema = z.object({
   hypothesesSeen: z.array(recordRefSchema),
   /** Why this revision differs from the last; empty on revision 1. */
   revisionReason: z.string(),
-}).strict().superRefine((outline, context) => {
-  if (outline.schema.endsWith('/1') && outline.reuse.some(entry => entry.capability.startsWith('capability:')))
-    context.addIssue({ code: 'custom', path: ['reuse'], message: 'Legacy outlines cannot cite descriptive capability IDs' });
-});
+}).strict();
 export type WorkItemOutline = z.infer<typeof workItemOutlineSchema>;
 
 /** Where a work item's records are materialized, relative to the run's directory. */
@@ -129,8 +114,6 @@ export const workLayout = {
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const workSchemas = {
-  item: { schema: 'ramify-agent.work-item/1', body: workItemSchema },
-  itemDescriptive: { schema: 'ramify-agent.work-item/2', body: workItemSchema },
-  outline: { schema: 'ramify-agent.work-item-outline/1', body: workItemOutlineSchema },
-  outlineDescriptive: { schema: 'ramify-agent.work-item-outline/2', body: workItemOutlineSchema },
+  item: { schema: 'ramify-agent.work-item/2', body: workItemSchema },
+  outline: { schema: 'ramify-agent.work-item-outline/2', body: workItemOutlineSchema },
 } as const;

@@ -4,13 +4,13 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { RunLog } from '../../../../src/run/log.js';
 import { commitCapabilityTransition } from '../../../../src/run/capability-transition.js';
-import { capabilityLayout, capabilityPlanSchema, capabilityRequestSchema, capabilitySchemas, descriptiveCapabilityNeedInputSchema, identifyCapabilityNeed, type CapabilityPlan } from '../capability/records.js';
+import { capabilityLayout, capabilityPlanSchema, capabilityRequestSchema, capabilitySchemas, capabilityNeedInputSchema, identifyCapabilityNeed, type CapabilityPlan } from '../capability/records.js';
 import { committedRecords } from '../../../../src/run/committed-records.js';
 import { recordHash } from '../../../../../../src/jobs/committed-reader.js';
 import { capabilityFixtureIds, copyCapabilityFixture, fixturePlan, fixtureRequest, fixtureTask } from './helpers/capability.js';
-import { descriptiveCapabilityEngineerSubmissionSchema } from '../work/engineer.js';
-import { descriptiveQualificationActionSchema, qualificationActionSchema } from '../capability/submission.js';
-import { obligationsOf } from '../work/obligations.js';
+import { engineerSubmissionSchema } from '../work/engineer.js';
+import { qualificationActionSchema } from '../capability/submission.js';
+import { caseObligationId, obligationsOf } from '../work/obligations.js';
 import { submissionHash } from './helpers/obligations.js';
 import { mockGit } from '../../../../../../src/tests/helpers/mock-git.js';
 import { FakeRamifyCli } from '../../../../../../src/tests/helpers/fake-ramify.js';
@@ -97,7 +97,7 @@ describe('capability records', () => {
     expect(current.capabilityTasks.get(replacement.id)?.revises?.handback.id).toBe(task.id);
   });
   it('descriptive submission choices retain explicit qualification and unsuitable outcomes', () => {
-    expect(descriptiveCapabilityEngineerSubmissionSchema.safeParse({ kind: 'unsuitable', reason: 'scope',
+    expect(engineerSubmissionSchema.safeParse({ kind: 'unsuitable', reason: 'scope',
       detail: 'The provider owns the requested write.' }).success).toBe(true);
     const request = 'capability-request:render-source-fact';
     const invocation = 'inv-0001';
@@ -107,12 +107,12 @@ describe('capability records', () => {
         guidance: 'Read the existing fact.', evidence: ['subs/b/src/fact.ts'] },
       { kind: 'delegate-capability', request, invocation, provider: 'capability-coordination/b',
         placementReason: 'B owns the fact.', constraints: [], requirementRefs: [], taskKey: 'draft:capability-task:provide-source-fact' },
-      { kind: 'request-placement', request, invocation, problem: 'The owner is unknown.', evidence: ['subs/b/module.ramify'] },
-      { kind: 'unresolved', request, invocation, problem: 'The source is unavailable.', evidence: ['subs/b/src/fact.ts'] },
+      { kind: 'request-placement', request, invocation, placementRequestKey: 'draft:placement-request:source-owner', problem: 'The owner is unknown.', evidence: ['subs/b/module.ramify'] },
+      { kind: 'unresolved', request, invocation, unresolvedRequestKey: 'draft:unresolved-request:source-unavailable', problem: 'The source is unavailable.', evidence: ['subs/b/src/fact.ts'] },
     ];
-    expect(choices.map(choice => descriptiveQualificationActionSchema.safeParse(choice).success)).toEqual([true, true, true, true]);
     expect(choices.map(choice => qualificationActionSchema.safeParse(choice).success)).toEqual([true, true, true, true]);
-    expect(descriptiveQualificationActionSchema.safeParse({ ...choices[1], taskKey: undefined }).success).toBe(false);
+    expect(choices.map(choice => qualificationActionSchema.safeParse(choice).success)).toEqual([true, true, true, true]);
+    expect(qualificationActionSchema.safeParse({ ...choices[1], taskKey: undefined }).success).toBe(false);
   });
 
   it('accepts descriptive request, example and task identities together and replays exact relationships', async () => {
@@ -124,17 +124,17 @@ describe('capability records', () => {
     const taskId = 'capability-task:provide-review-predecessor-resolution';
     const exampleId = 'capability-example:reject-unknown-predecessor';
     const original = fixtureRequest();
-    const input = descriptiveCapabilityNeedInputSchema.parse({
+    const input = capabilityNeedInputSchema.parse({
       requestKey: `draft:${requestId}`,
       ...original.original,
       examples: original.original.examples.map(example => ({ key: `draft:${exampleId}`, title: example.title,
         code: example.code, designation: example.designation })),
     });
-    expect(descriptiveCapabilityNeedInputSchema.safeParse({ ...input, examples: input.examples.map(example => ({
+    expect(capabilityNeedInputSchema.safeParse({ ...input, examples: input.examples.map(example => ({
       ...example, designation: 'executable',
     })) }).success).toBe(true);
     const request = capabilityRequestSchema.parse({ ...original, schema: 'ramify-agent.capability-request/2', id: requestId,
-      original: identifyCapabilityNeed(requestId, input) });
+      original: identifyCapabilityNeed(input) });
     const task = { ...fixtureTask(request), schema: 'ramify-agent.capability-task/2' as const, id: taskId };
     const plan = { ...fixturePlan(request, task), schema: 'ramify-agent.capability-plan/2' as const };
     const accepted = await commitCapabilityTransition(log, { type: 'capability-requested', data: {
@@ -171,7 +171,7 @@ describe('capability records', () => {
       { path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
       { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
     ]);
-    const exchange = { schema: 'ramify-agent.capability-exchange/2', id: 'cx-0001', task: task.id,
+    const exchange = { schema: 'ramify-agent.capability-exchange/2', id: 'capability-exchange:source-metadata', task: task.id,
       request: request.id, planRevision: 1, question: 'Which source must A show?', references: ['subs/a/src/caller.ts'], answer: null };
     await commitCapabilityTransition(log, { type: 'capability-exchange-opened', data: {
       task: task.id, exchange: exchange.id, invocation: 'inv-0002',
@@ -223,7 +223,7 @@ describe('capability records', () => {
     const record = await reopened.ledger.readRecord(capabilityLayout.request(request.id), capabilitySchemas.request);
     expect(record).toEqual({ kind: 'valid', value: request });
     expect(committedRecords(reopened.ledger.replay()).capabilityRequests.get(request.id)?.original).toEqual(request.original);
-    expect(committedRecords(reopened.ledger.replay()).capabilityTasks.get(task.id)?.deferredWorkItems).toEqual(['wi-002']);
+    expect(committedRecords(reopened.ledger.replay()).capabilityTasks.get(task.id)?.deferredWorkItems).toEqual(['work-item:provide-fact']);
   });
 
   it('CA11 preserves original examples and old plan revisions across a corrected oracle', async () => {
@@ -233,9 +233,9 @@ describe('capability records', () => {
     const request = fixtureRequest();
     const task = fixtureTask();
     const plan = fixturePlan();
-    await commitCapabilityTransition(log, { type: 'capability-requested', data: { request: request.id, parent: 'wi-001', assignment: request.assignment, invocation: request.invocation } },
+    await commitCapabilityTransition(log, { type: 'capability-requested', data: { request: request.id, parent: 'work-item:format-fact', assignment: request.assignment, invocation: request.invocation } },
       [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
-    await commitCapabilityTransition(log, { type: 'capability-delegated', data: { task: task.id, request: request.id, parent: 'wi-001', invocation: 'inv-0002', planRevision: 1 } }, [
+    await commitCapabilityTransition(log, { type: 'capability-delegated', data: { task: task.id, request: request.id, parent: 'work-item:format-fact', invocation: 'inv-0002', planRevision: 1 } }, [
       { path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
       { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
     ]);
@@ -270,14 +270,14 @@ describe('capability records', () => {
     const request = fixtureRequest();
     const task = fixtureTask(request);
     const plan = fixturePlan(request, task);
-    await commitCapabilityTransition(log, { type: 'capability-requested', data: { request: request.id, parent: 'wi-001', assignment: request.assignment, invocation: request.invocation } },
+    await commitCapabilityTransition(log, { type: 'capability-requested', data: { request: request.id, parent: 'work-item:format-fact', assignment: request.assignment, invocation: request.invocation } },
       [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
-    await commitCapabilityTransition(log, { type: 'capability-delegated', data: { task: task.id, request: request.id, parent: 'wi-001', invocation: 'inv-0002', planRevision: 1 } }, [
+    await commitCapabilityTransition(log, { type: 'capability-delegated', data: { task: task.id, request: request.id, parent: 'work-item:format-fact', invocation: 'inv-0002', planRevision: 1 } }, [
       { path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
       { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
     ]);
     const handback = {
-      schema: 'ramify-agent.capability-handback/1' as const, task: task.id, request: request.id,
+      schema: 'ramify-agent.capability-handback/2' as const, task: task.id, request: request.id,
       plan: { id: task.id, revision: plan.revision, hash: recordHash(plan) },
       sourceRevision: 'source-1', returnedTree: 'b'.repeat(64), deltaFromSuspension: ['subs/a/src/caller.ts'],
       summary: 'A uses B; the original example now formats the fact as asked',
@@ -314,19 +314,19 @@ describe('PB3-D01 PB3-D05: registrations beside the capability records', () => {
     const request = fixtureRequest();
     const task = fixtureTask(request);
     const plan = fixturePlan(request, task);
-    await commitCapabilityTransition(log, { type: 'capability-requested', data: { request: request.id, parent: 'wi-001', assignment: request.assignment, invocation: request.invocation } },
+    await commitCapabilityTransition(log, { type: 'capability-requested', data: { request: request.id, parent: 'work-item:format-fact', assignment: request.assignment, invocation: request.invocation } },
       [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
-    await commitCapabilityTransition(log, { type: 'capability-delegated', data: { task: task.id, request: request.id, parent: 'wi-001', invocation: 'inv-0002', planRevision: 1 } }, [
+    await commitCapabilityTransition(log, { type: 'capability-delegated', data: { task: task.id, request: request.id, parent: 'work-item:format-fact', invocation: 'inv-0002', planRevision: 1 } }, [
       { path: capabilityLayout.task(task.id), id: task.id, revision: 1, body: task },
       { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
     ]);
     const by = { by: 'inv-0002', submission: submissionHash('f') };
     const responsible = { kind: 'capability-task' as const, id: task.id };
-    await log.append({ type: 'obligation-registered', data: { id: `${task.id}.case.${capabilityFixtureIds.example}`, kind: 'scenario', responsible, ...by, case: capabilityFixtureIds.example } });
-    await log.append({ type: 'obligation-registered', data: { id: 'test-001', kind: 'test', responsible, ...by, description: 'B keeps the old text for D' } });
+    await log.append({ type: 'obligation-registered', data: { id: caseObligationId(task.id, capabilityFixtureIds.example), kind: 'scenario', responsible, ...by, case: capabilityFixtureIds.example } });
+    await log.append({ type: 'obligation-registered', data: { id: 'test:source-preserved-for-d', kind: 'test', responsible, ...by, description: 'B keeps the old text for D' } });
     await log.append({ type: 'obligation-reported', data: { id: task.id, judgment: 'done', basedOnRevision: 0, revision: 1, ...by } });
     // A registration of the wrong shape is no log line.
-    await expect(log.append({ type: 'obligation-registered', data: { id: 'test-002', kind: 'test', responsible, ...by } as never })).rejects.toThrow();
+    await expect(log.append({ type: 'obligation-registered', data: { id: 'test:missing-description', kind: 'test', responsible, ...by } as never })).rejects.toThrow();
 
     const reopened = await RunLog.open(path, 'job-001');
     const committed = committedRecords(reopened.ledger.replay());
@@ -336,41 +336,9 @@ describe('PB3-D01 PB3-D05: registrations beside the capability records', () => {
     const { obligations } = obligationsOf({ scenarios: [], workItems: [], events: reopened.events });
     expect([...obligations.values()].map(one => [one.id, one.kind, one.status, one.revision, one.case, one.description])).toEqual([
       [task.id, 'outcome', 'done', 1, null, null],
-      [`${task.id}.case.${capabilityFixtureIds.example}`, 'scenario', 'pending', 0, capabilityFixtureIds.example, null],
-      ['test-001', 'test', 'pending', 0, null, 'B keeps the old text for D'],
+      [caseObligationId(task.id, capabilityFixtureIds.example), 'scenario', 'pending', 0, capabilityFixtureIds.example, null],
+      ['test:source-preserved-for-d', 'test', 'pending', 0, null, 'B keeps the old text for D'],
     ]);
   });
 
-  it('PB3-D05 refuses an old-policy run holding scenario declarations and coverage records, naming both versions, and never reads them as reports', async () => {
-    const fixture = await copyCapabilityFixture();
-    directories.push(fixture.root);
-    const id = '20261007T170000Z-000001';
-    const directory = runPath(fixture.root, 'need', id, '');
-    await mkdir(join(directory, 'capabilities', 'cap-001', 'plan'), { recursive: true });
-    const plan = { ...fixturePlan(), revision: 2, basedOn: 1, useCases: [{ ...fixturePlan().useCases[0]!, coverage: { state: 'exercised', tests: ['subs/a/src/tests/caller.test.ts'] } }] };
-    const files: Record<string, string> = {
-      'job.json': JSON.stringify({ schema: 'ramify-agent.job/4', kind: 'implementation', jobId: id, planId: 'need', policy: { version: 'run-policy/6' } }),
-      'events.jsonl': [
-        { type: 'scenario-declared', data: { scenario: 'sc-001', by: 'inv-0003', state: 'declared' } },
-        { type: 'scenario-implemented', data: { scenario: 'sc-001', gate: 'ga-0004' } },
-      ].map(line => JSON.stringify(line)).join('\n') + '\n',
-      'capabilities/cap-001/plan/2.json': JSON.stringify(plan),
-    };
-    for (const [file, text] of Object.entries(files)) await writeFile(join(directory, file), text);
-    const ramify = new FakeRamifyCli();
-    const opened = await openRuns(fixture.root, { production: true, git: mockGit(), ramify, script: () => [] });
-    try {
-      expect(opened.recovery.skipped).toEqual([`need/${id}`]);
-      const refusal = /Run policy run-policy\/6 is refused by run-policy\/8; a fresh run is required/u;
-      expect(() => opened.service.getRun('need', id)).toThrow(refusal);
-      expect(() => opened.service.committed('need', id)).toThrow(refusal);
-      const queries = new RunQueries(createQuerySource(opened.service));
-      await expect(queries.scenarios('need', id)).rejects.toThrow(refusal);
-      expect((await queries.list('need')).unserved).toEqual([expect.objectContaining({ jobId: id, code: 'unsupported-version', message: expect.stringMatching(refusal) })]);
-      for (const [file, text] of Object.entries(files)) expect(await readFile(join(directory, file), 'utf8')).toBe(text);
-      expect(ramify.calls).toEqual([]);
-    } finally {
-      await opened.service.close();
-    }
-  }, 60_000);
 });

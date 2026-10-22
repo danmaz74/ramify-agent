@@ -5,7 +5,7 @@ import { refOf } from '../../../../../../src/jobs/committed-reader.js';
 import { workLayout, workItemSchema, type WorkItem, type WorkItemId } from '../work/records.js';
 import {
   consumerRequirementSchema, contractRecordSchema, contractsLayout, executionRetirementPath, executionRetirementSchema,
-  obligationId, providerObligationSchema,
+  providerObligationSchema,
   type ConsumerRequirement, type ContractId, type ContractRecord, type ProviderObligation, type RequirementId,
 } from './records.js';
 import type { EstablishedContract } from './submission.js';
@@ -13,13 +13,11 @@ import type { EstablishedContract } from './submission.js';
 /*
  * What one accepted contract submission commits.
  *
- * Registration is derived: every identifier, hash and revision comes from
- * committed state and from the files the gate passed over, so a repeat after
- * a crash derives the same records with the same identifiers and the same
- * hashes. The agent chooses none of them.
+ * Registration resolves proposed identities against committed state and the
+ * files the gate passed over, so retry derives the same records and hashes.
  *
- * An initial agreement commits the contract, one provider obligation keyed
- * `ob-<contract-id>`, one requirement per consumer and the provider work
+ * An initial agreement commits the contract, one provider obligation,
+ * one requirement per consumer and the provider work
  * item. An access-only agreement establishes access to behavior that
  * already exists: it commits the contract alone.
  */
@@ -37,7 +35,7 @@ export interface AttachedConsumer {
 
 export interface RegistrationRequest {
   readonly contract: ContractId;
-  /** Explicit identity for a descriptive obligation; legacy derives it from the contract. */
+  /** The accepted identity of a fake-backed provider obligation. */
   readonly obligation?: string;
   readonly revision: number;
   /** The registry entry of the capability, and the decision that placed it. */
@@ -70,7 +68,6 @@ export interface Registration {
 /** The records one accepted contract submission commits, derived from committed state. */
 export function registerContract(request: RegistrationRequest): Registration {
   const { submission } = request;
-  const descriptive = 'contractKey' in submission || 'contractId' in submission;
   const proposedContract = 'contractKey' in submission ? submission.contractKey.slice('draft:'.length)
     : 'contractId' in submission ? submission.contractId : request.contract;
   if (request.contract !== proposedContract)
@@ -78,7 +75,7 @@ export function registerContract(request: RegistrationRequest): Registration {
       `the agreement in force is ${request.contract}; ${proposedContract} does not identify it`);
   const proposedObligation = 'providerObligationKey' in submission ? submission.providerObligationKey.slice('draft:'.length)
     : 'providerObligationId' in submission ? submission.providerObligationId : request.obligation;
-  if (descriptive && submission.mode === 'fake-backed' && request.obligation !== proposedObligation)
+  if (submission.mode === 'fake-backed' && request.obligation !== proposedObligation)
     throw new ContractPublicationError('providerObligationKey' in submission ? 'providerObligationKey' : 'providerObligationId',
       `the provider obligation in force is ${request.obligation ?? '<missing>'}; ${proposedObligation ?? '<none>'} does not identify it`);
   if ('consumerRequirementId' in submission && !request.consumers.some(consumer => consumer.requirement === submission.consumerRequirementId))
@@ -101,7 +98,7 @@ export function registerContract(request: RegistrationRequest): Registration {
   };
 
   const contract = contractRecordSchema.parse({
-    schema: descriptive ? 'ramify-agent.contract/3' : 'ramify-agent.contract/2',
+    schema: 'ramify-agent.contract/3',
     id: request.contract,
     revision: request.revision,
     capability: request.capability.ref,
@@ -139,8 +136,8 @@ export function registerContract(request: RegistrationRequest): Registration {
   }
 
   const obligation = providerObligationSchema.parse({
-    schema: descriptive ? 'ramify-agent.provider-obligation/2' : 'ramify-agent.provider-obligation/1',
-    id: request.obligation ?? obligationId(contract.id),
+    schema: 'ramify-agent.provider-obligation/2',
+    id: request.obligation!,
     revision: request.revision,
     contract: refOf(contract.id, contract.revision, contract),
     capability: request.capability.slug,
@@ -151,7 +148,7 @@ export function registerContract(request: RegistrationRequest): Registration {
   records.push({ path: contractsLayout.obligation(obligation.id, obligation.revision), id: obligation.id, revision: obligation.revision, body: obligation });
 
   const requirements = request.consumers.map(consumer => consumerRequirementSchema.parse({
-    schema: descriptive ? 'ramify-agent.consumer-requirement/2' : 'ramify-agent.consumer-requirement/1',
+    schema: 'ramify-agent.consumer-requirement/2',
     id: consumer.requirement,
     revision: request.revision,
     workItem: consumer.workItem,
@@ -182,15 +179,12 @@ export function registerContract(request: RegistrationRequest): Registration {
   let providerWorkItem: WorkItem | null = null;
   if (request.provider.kind === 'create') {
     providerWorkItem = workItemSchema.parse({
-      schema: descriptive ? 'ramify-agent.work-item/2' : 'ramify-agent.work-item/1',
+      schema: 'ramify-agent.work-item/2',
       id: request.provider.id,
       module: submission.provider,
       origin: { obligation: refOf(obligation.id, obligation.revision, obligation) },
       goal: request.provider.goal,
-      requirementRefs: [],
-      acceptanceRefs: [],
-      contextRefs: [],
-      ...(descriptive ? { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [] } : {}),
+      functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [],
       startedFor: request.provider.startedFor,
     } satisfies WorkItem);
     records.push({ path: workLayout.item(providerWorkItem.id), id: providerWorkItem.id, revision: 1, body: providerWorkItem });

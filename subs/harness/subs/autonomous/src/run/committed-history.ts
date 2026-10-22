@@ -12,39 +12,26 @@ import { entryAssignmentsSchema } from '../../subs/planning/src/records.js';
 // Durable families admitted by the harness. This was formerly held by the
 // response reader; commands must enforce it without constructing a response.
 const supported: Readonly<Record<string, string>> = Object.fromEntries([
-  'ramify-agent.hypothesis/1', 'ramify-agent.capability/1', 'ramify-agent.work-item/1',
-  'ramify-agent.work-item-outline/1', 'ramify-agent.iteration-assignment/1', 'ramify-agent.iteration-result/1',
-  'ramify-agent.invocation/1', 'ramify-agent.invocation-outcome/1', 'ramify-agent.placement-request/1',
-  'ramify-agent.placement-decision/1', 'ramify-agent.contract/2', 'ramify-agent.provider-obligation/1',
-  'ramify-agent.consumer-requirement/1', 'ramify-agent.gate-attempt/3', 'ramify-agent.gate-audit-outcome/1', 'ramify-agent.entry-assignments/1',
+  'ramify-agent.hypothesis/2', 'ramify-agent.capability/2', 'ramify-agent.work-item/2',
+  'ramify-agent.work-item-outline/2', 'ramify-agent.iteration-assignment/2', 'ramify-agent.iteration-result/1',
+  'ramify-agent.invocation/1', 'ramify-agent.invocation-outcome/1', 'ramify-agent.placement-request/2',
+  'ramify-agent.placement-decision/2', 'ramify-agent.contract/3', 'ramify-agent.provider-obligation/2',
+  'ramify-agent.consumer-requirement/2', 'ramify-agent.gate-attempt/3', 'ramify-agent.gate-audit-outcome/1', 'ramify-agent.entry-assignments/2',
   'ramify-agent.readiness-attempt/1', 'ramify-agent.infrastructure-recovery/1', 'ramify-agent.measurement-snapshot/1',
-  'ramify-agent.line-events/1', 'ramify-agent.scenario/1', 'ramify-agent.unresolved-request/1', 'ramify-agent.plan-deviation/1',
-  'ramify-agent.environment-problem/1', 'ramify-agent.prepared-candidate/1',
+  'ramify-agent.line-events/1', 'ramify-agent.scenario/2', 'ramify-agent.unresolved-request/2', 'ramify-agent.plan-deviation/2',
+  'ramify-agent.environment-problem/2', 'ramify-agent.prepared-candidate/1',
   'ramify-agent.repair-incident/1',
   'ramify-agent.automatic-repair-assignment/1', 'ramify-agent.repair-preparation/1',
   'ramify-agent.automatic-repair-delta/1', 'ramify-agent.repair-incident-export/1',
   'ramify-agent.automatic-repair-attempt/1',
-  'ramify-agent.nonfunctional-assessment/1', 'ramify-agent.nonfunctional-round/1',
-  'ramify-agent.nonfunctional-deviation/1',
-  'ramify-agent.capability-request/1', 'ramify-agent.capability-task/1', 'ramify-agent.capability-plan/1',
-  'ramify-agent.capability-exchange/1', 'ramify-agent.capability-handback/1',
+  'ramify-agent.nonfunctional-assessment/2', 'ramify-agent.nonfunctional-round/1',
+  'ramify-agent.nonfunctional-deviation/2',
+  'ramify-agent.capability-request/2', 'ramify-agent.capability-task/2', 'ramify-agent.capability-plan/2',
+  'ramify-agent.capability-exchange/2', 'ramify-agent.capability-handback/2',
 ].map(schema => [schema.replace(/\/\d+$/, ''), schema]));
-const alsoSupported = new Set([
-  'ramify-agent.hypothesis/2', 'ramify-agent.capability/2', 'ramify-agent.work-item/2',
-  'ramify-agent.work-item-outline/2',
-  'ramify-agent.iteration-assignment/2',
-  'ramify-agent.entry-assignments/2', 'ramify-agent.scenario/2',
-  'ramify-agent.capability-request/2', 'ramify-agent.capability-task/2',
-  'ramify-agent.capability-plan/2', 'ramify-agent.capability-exchange/2', 'ramify-agent.capability-handback/2',
-  'ramify-agent.contract/3', 'ramify-agent.provider-obligation/2', 'ramify-agent.consumer-requirement/2',
-  'ramify-agent.placement-request/2', 'ramify-agent.placement-decision/2',
-  'ramify-agent.unresolved-request/2', 'ramify-agent.plan-deviation/2', 'ramify-agent.environment-problem/2',
-  'ramify-agent.nonfunctional-assessment/2', 'ramify-agent.nonfunctional-deviation/2',
-]);
 
 export function unsupportedCommittedVersion(declared: unknown): string | null {
   if (typeof declared !== 'string') return null;
-  if (alsoSupported.has(declared)) return null;
   const expected = supported[declared.replace(/\/\d+$/, '')];
   return expected === undefined || expected === declared ? null : expected;
 }
@@ -67,15 +54,10 @@ export interface HistoryEntry {
 const schemas: Readonly<Record<string, z.ZodType>> = {
   'ramify-agent.gate-attempt/3': gateAttemptSchema,
   'ramify-agent.gate-audit-outcome/1': gateAuditOutcomeSchema,
-  'ramify-agent.hypothesis/1': hypothesisSchema,
   'ramify-agent.hypothesis/2': hypothesisSchema,
-  'ramify-agent.work-item-outline/1': workItemOutlineSchema,
   'ramify-agent.work-item-outline/2': workItemOutlineSchema,
-  'ramify-agent.iteration-assignment/1': iterationAssignmentSchema,
   'ramify-agent.iteration-assignment/2': iterationAssignmentSchema,
-  'ramify-agent.contract/2': contractRecordSchema,
   'ramify-agent.contract/3': contractRecordSchema,
-  'ramify-agent.entry-assignments/1': entryAssignmentsSchema,
   'ramify-agent.entry-assignments/2': entryAssignmentsSchema,
 };
 

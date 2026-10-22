@@ -46,17 +46,14 @@ export const checkFindingLayout = {
 } as const;
 
 export const checkFindingRecordVersions = {
-  report: 'ramify-agent.check-finding-report/1',
-  decision: 'ramify-agent.check-finding-decision/1',
-  relation: 'ramify-agent.check-finding-relation/1',
-  descriptiveReport: 'ramify-agent.check-finding-report/2',
-  descriptiveDecision: 'ramify-agent.check-finding-decision/2',
-  descriptiveRelation: 'ramify-agent.check-finding-relation/2',
+  report: 'ramify-agent.check-finding-report/2',
+  decision: 'ramify-agent.check-finding-decision/2',
+  relation: 'ramify-agent.check-finding-relation/2',
 } as const;
 
 /** A report as its record file holds it: the report with its CheckFinding and the revision it moved it to. */
 export const checkFindingReportRecordSchema = checkFindingReportSchema.extend({
-  schema: z.union([z.literal(checkFindingRecordVersions.report), z.literal(checkFindingRecordVersions.descriptiveReport)]),
+  schema: z.literal(checkFindingRecordVersions.report),
   checkFinding: checkFindingIdSchema,
   revision: z.int().positive(),
 }).strict();
@@ -64,25 +61,22 @@ export type CheckFindingReportRecord = z.infer<typeof checkFindingReportRecordSc
 
 /** A decision as its record file holds it: the decision with its CheckFinding and the revision it moved it to. */
 export const checkFindingDecisionRecordSchema = checkFindingDecisionSchema.extend({
-  schema: z.union([z.literal(checkFindingRecordVersions.decision), z.literal(checkFindingRecordVersions.descriptiveDecision)]),
+  schema: z.literal(checkFindingRecordVersions.decision),
   checkFinding: checkFindingIdSchema,
   revision: z.int().positive(),
 }).strict();
 export type CheckFindingDecisionRecord = z.infer<typeof checkFindingDecisionRecordSchema>;
 
 export const checkFindingRelationRecordSchema = checkFindingRelationSchema.extend({
-  schema: z.union([z.literal(checkFindingRecordVersions.relation), z.literal(checkFindingRecordVersions.descriptiveRelation)]),
+  schema: z.literal(checkFindingRecordVersions.relation),
 }).strict();
 export type CheckFindingRelationRecord = z.infer<typeof checkFindingRelationRecordSchema>;
 
 /** The readers of each record, for `readCommitted`. */
 export const checkFindingSchemas = {
   report: { schema: checkFindingRecordVersions.report, body: checkFindingReportRecordSchema },
-  descriptiveReport: { schema: checkFindingRecordVersions.descriptiveReport, body: checkFindingReportRecordSchema },
   decision: { schema: checkFindingRecordVersions.decision, body: checkFindingDecisionRecordSchema },
-  descriptiveDecision: { schema: checkFindingRecordVersions.descriptiveDecision, body: checkFindingDecisionRecordSchema },
   relation: { schema: checkFindingRecordVersions.relation, body: checkFindingRelationRecordSchema },
-  descriptiveRelation: { schema: checkFindingRecordVersions.descriptiveRelation, body: checkFindingRelationRecordSchema },
 } as const;
 
 /** The record copies of carried events, one per event, committed in the same transaction. */
@@ -92,17 +86,17 @@ export function checkFindingRecords(events: readonly CheckFindingEvent[]): Commi
       case 'check-finding-opened':
       case 'check-finding-reported': {
         const { checkFinding, revision, report } = event.data;
-        const body: CheckFindingReportRecord = { schema: event.data.version === 2 ? checkFindingRecordVersions.descriptiveReport : checkFindingRecordVersions.report, ...report, checkFinding, revision };
+        const body: CheckFindingReportRecord = { schema: checkFindingRecordVersions.report, ...report, checkFinding, revision };
         return { path: checkFindingLayout.report(checkFinding, report.id), id: report.id, revision: 1, body };
       }
       case 'check-finding-decided': {
         const { checkFinding, revision, decision } = event.data;
-        const body: CheckFindingDecisionRecord = { schema: event.data.version === 2 ? checkFindingRecordVersions.descriptiveDecision : checkFindingRecordVersions.decision, ...decision, checkFinding, revision };
+        const body: CheckFindingDecisionRecord = { schema: checkFindingRecordVersions.decision, ...decision, checkFinding, revision };
         return { path: checkFindingLayout.decision(checkFinding, decision.id), id: decision.id, revision: 1, body };
       }
       case 'check-finding-related': {
         const { relation } = event.data;
-        const body: CheckFindingRelationRecord = { schema: event.data.version === 2 ? checkFindingRecordVersions.descriptiveRelation : checkFindingRecordVersions.relation, ...relation };
+        const body: CheckFindingRelationRecord = { schema: checkFindingRecordVersions.relation, ...relation };
         return { path: checkFindingLayout.relation(relation.id), id: relation.id, revision: 1, body };
       }
     }

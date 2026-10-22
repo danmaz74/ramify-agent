@@ -62,7 +62,7 @@ export function paths(seam: Seam) {
 /** The need the consumer's engineer reports, stated as behavior. */
 export function need(seam: Seam) {
   return {
-    capability: seam.capability,
+    capability: `capability:${seam.capability}`,
     useCases: [seam.behavior],
     inputs: ['the note text'],
     outputs: ['whether the note is acceptable'],
@@ -85,8 +85,12 @@ export function contractNeeded(seam: Seam) {
 /** The `established` submission of the contract sub-session. */
 export function established(seam: Seam) {
   const path = paths(seam);
+  const consumer = seam.consumerFile.replace(/\.ts$/, '').replace(/[^a-z0-9]+/g, '-');
   return {
     kind: 'established' as const,
+    contractKey: `draft:contract:${seam.capability}`,
+    providerObligationKey: `draft:provider-obligation:${seam.capability}`,
+    consumerRequirementKey: `draft:consumer-requirement:${consumer}-${seam.capability}`,
     mode: 'fake-backed' as const,
     authority: {
       kind: 'provider' as const,

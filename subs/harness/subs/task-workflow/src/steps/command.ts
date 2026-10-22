@@ -250,9 +250,7 @@ async function render(options: Extract<StepCommandOptions, { command: 'render' }
     throw error;
   }
   const projectRoot = resolve(options.projectRoot);
-  const identityContract = 'identityContract' in inputs && (inputs.identityContract === 'legacy' || inputs.identityContract === 'descriptive')
-    ? inputs.identityContract : undefined;
-  const { packages } = await loadPromptPackages({ capabilityWorkflow: inputs.capabilityWorkflow, identityContract });
+  const { packages } = await loadPromptPackages({ capabilityWorkflow: inputs.capabilityWorkflow });
   const step = constructStep(inputs, { projectRoot, packages });
   const rendered = await renderStep(step, {
     projectRoot, packages, builtinDeclarations: piBuiltinDeclarations,

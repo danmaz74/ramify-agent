@@ -17,24 +17,24 @@ import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
 import { checkFindingSchemas } from '../check-findings/records.js';
 import { analysisSchemas } from '../../subs/autonomous/subs/planning/src/records.js';
 import { workSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
-import { iterationSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { iterationLayout, iterationSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import type { IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { resolveWriteScope } from '../work/scope.js';
 import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
 import { fixtureTask } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
-import { contractSchemas, descriptiveContractSchemas } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
+import { contractSchemas } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
 import { capabilitySchemas } from '../../subs/autonomous/subs/work-coordination/src/capability/records.js';
 import { architectureSchemas } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
 import { reviewSchemas } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
 import { reconciliationSchemas } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
 import { deviationSchemas } from '../../subs/autonomous/subs/acceptance/src/deviations/records.js';
-import { initialAnalysisSubmissionSchema } from '../../subs/autonomous/subs/planning/src/submission.js';
+import { descriptiveInitialAnalysisSubmissionSchema as initialAnalysisSubmissionSchema } from '../../subs/autonomous/subs/planning/src/descriptive.js';
 import { checkSubmissionSchema, intakeSubmissionSchema, principleSubmissionSchema } from '../../subs/autonomous/subs/planning/src/extraction.js';
-import { localArchitectSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
-import { descriptiveCapabilityEngineerSubmissionSchema, engineerSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import { localArchitectInputSchema as localArchitectSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
+import { engineerSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { forkSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
-import { contractSubmissionSchema, descriptiveContractSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/contracts/submission.js';
-import { descriptiveQualificationActionSchema, qualificationActionSchema } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
+import { contractSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/contracts/submission.js';
+import { qualificationActionSchema } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
 import { failureAnalysisSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/failure.js';
 import { shellInputSchema } from '../tools/shell.js';
 import {
@@ -223,8 +223,8 @@ describe('the composed runs', () => {
         const attempt = await admittedGates.committingCheckpoint( {
           id, runId: run.runId, checkpoint, projectRoot: run.root,
           directory: active.path(`gates/${id}`), head: 'source-01', policy: active.record.policy,
-          subject: checkpoint === 'iteration' ? { workItem: 'wi-001', iteration: 'wi-001.i01' }
-            : checkpoint === 'work-item' ? { workItem: 'wi-001' } : {},
+          subject: checkpoint === 'iteration' ? { workItem: 'work-item:review-note', iteration: 'work-item:review-note.i01' }
+            : checkpoint === 'work-item' ? { workItem: 'work-item:review-note' } : {},
         });
         expect(attempt.rules?.find(rule => rule.rule === 'write-scope')).toMatchObject({ outcome: 'failed', violations: [{ path: 'shell-note.txt' }] });
         expect(attempt.commit).toBeNull();
@@ -282,14 +282,14 @@ describe('the composed runs', () => {
           // Exact captured package bytes remain regular and unchanged, but a
           // newly declared independent tree requires its own included entry.
           await writeFile(declaration, `${originalDeclaration}\nowned-nested-project "subs/drafts"\n`);
-          const assignment = JSON.parse(await readFile(join(runDirectory(run.root, run.runId), 'work-items/wi-001/iterations/01/assignment.json'), 'utf8'));
+          const assignment = JSON.parse(await readFile(join(runDirectory(run.root, run.runId), iterationLayout.assignment('work-item:review-note', 1)), 'utf8'));
           expect(assignment.guarded).toContainEqual({ path: capturedPackage, hash: expect.any(String) });
         }
         dirty.mockResolvedValue([path]); query.mockClear();
         const id = `ga-091${index}`;
         const attempt = await admittedGates.committingCheckpoint( {
           id, runId: run.runId, checkpoint: 'work-item', projectRoot: run.root,
-          directory: active.path(`gates/${id}`), head: 'source-01', policy: active.record.policy, subject: { workItem: 'wi-001' },
+          directory: active.path(`gates/${id}`), head: 'source-01', policy: active.record.policy, subject: { workItem: 'work-item:review-note' },
         });
         expect(attempt.rules?.find(rule => rule.rule === 'write-scope')?.outcome).toBe('failed');
         expect(attempt.commit).toBeNull(); expect(query).toHaveBeenCalledTimes(1);
@@ -298,14 +298,14 @@ describe('the composed runs', () => {
       expect(await readFile(join(external, 'external.feature'), 'utf8')).toBe('external bytes must survive\n');
       dirty.mockRestore(); query.mockRestore(); commit.mockRestore();
     } finally { await run.dispose(); await rm(external, { recursive: true, force: true }); }
-  });
+  }, 30_000);
 
   test('PB3: scripted nested predecessors require every intermediate inherited hash to match', async () => {
     const run = await runToEnd(scenarios.iteration);
     try {
       const active = run.service['runs'].get(`${plan}/${run.runId}`)!;
       const ledger = active.log.ledger.replay();
-      const grandparent = committedRecords(ledger).assignments.get('wi-001.i01')!;
+      const grandparent = committedRecords(ledger).assignments.get('work-item:review-note.i01')!;
       const rootOwner = grandparent.scope.resolved.ownership.modules.find(module => module.parent === null)!.id;
       const scope = await resolveWriteScope({ projectRoot: run.root, ramify: run.service['options'].ramify, index: null,
         view: grandparent.scope.resolved.view, revision: 1, base: { module: rootOwner, included: [] },
@@ -315,12 +315,12 @@ describe('the composed runs', () => {
       const hash = (bytes: string) => createHash('sha256').update(bytes).digest('hex');
       await writeFile(join(run.root, path), 'later bytes\n');
       const currentHash = hash('later bytes\n');
-      const parentTask = { ...fixtureTask(), id: 'cap-091', parent: { kind: 'work-item' as const, id: grandparent.workItem }, originatingAssignment: grandparent.id };
-      const childTask = { ...fixtureTask(), id: 'cap-092', parent: { kind: 'capability-task' as const, id: parentTask.id }, originatingAssignment: 'cap-091.i01' };
-      const parent: IterationAssignment = { ...grandparent, id: 'cap-091.i01', scope, guarded: [], authorizations: [],
+      const parentTask = { ...fixtureTask(), id: 'capability-task:scripted-parent', parent: { kind: 'work-item' as const, id: grandparent.workItem }, originatingAssignment: grandparent.id };
+      const childTask = { ...fixtureTask(), id: 'capability-task:scripted-child', parent: { kind: 'capability-task' as const, id: parentTask.id }, originatingAssignment: 'capability-task:scripted-parent.i01' };
+      const parent: IterationAssignment = { ...grandparent, id: 'capability-task:scripted-parent.i01', scope, guarded: [], authorizations: [],
         coordination: { kind: 'capability-task', id: parentTask.id, sequence: 1, plan: grandparent.outline,
           startingTree: 'a'.repeat(40), startingPaths: [{ path, hash: hash('earlier bytes\n') }] } };
-      const child: IterationAssignment = { ...parent, id: 'cap-092.i01',
+      const child: IterationAssignment = { ...parent, id: 'capability-task:scripted-child.i01',
         coordination: { ...parent.coordination as Extract<NonNullable<IterationAssignment['coordination']>, { kind: 'capability-task' }>,
           id: childTask.id, startingPaths: [{ path, hash: currentHash }] } };
       // This is an explicit scripted ledger projection over a real finished
@@ -328,12 +328,12 @@ describe('the composed runs', () => {
       const last = ledger.at(-1)!;
       const entries = [parentTask, parent, childTask, child].map((body, index) => {
         const sequence = last.sequence + index + 1;
-        const isAssignment = body.schema === 'ramify-agent.iteration-assignment/1';
+        const isAssignment = body.schema === 'ramify-agent.iteration-assignment/2';
         return { sequence, at: last.at, transaction: {
           event: { sequence, at: last.at, jobId: run.runId,
             ...(isAssignment ? { type: 'capability-assigned' as const, data: { task: index === 1 ? parentTask.id : childTask.id,
               assignment: body.id, sequence: 1, invocation: 'scripted-provenance' } }
-              : { type: 'capability-delegated' as const, data: { task: body.id, request: 'need-001', parent: 'wi-001', invocation: 'scripted-provenance', planRevision: 1 as const } }) },
+              : { type: 'capability-delegated' as const, data: { task: body.id, request: 'capability-request:scripted-need', parent: 'work-item:review-note', invocation: 'scripted-provenance', planRevision: 1 as const } }) },
           records: [{ path: `scripted/${body.id}.json`, id: body.id, revision: 1, body }],
         } };
       });
@@ -388,17 +388,17 @@ describe('the sessions of the composed runs', () => {
     const yielded = events.find(event => event.type === 'invocation-ended'
       && event.data.session !== undefined && !event.data.kept && event.data.finished === 'not-kept'
       && events.some(started => started.type === 'invocation-started' && started.data.invocation === event.data.invocation
-        && started.data.role === 'local-architect' && started.data.work.workItem === 'wi-001'));
+        && started.data.role === 'local-architect' && started.data.work.workItem === 'work-item:review-notes'));
     expect(yielded?.type).toBe('invocation-ended');
     if (yielded?.type !== 'invocation-ended') return;
     const resumed = events.find(event => event.type === 'invocation-started' && event.sequence > yielded.sequence
-      && event.data.role === 'local-architect' && event.data.work.workItem === 'wi-001');
+      && event.data.role === 'local-architect' && event.data.work.workItem === 'work-item:review-notes');
     expect(resumed?.type).toBe('invocation-started');
     if (resumed?.type !== 'invocation-started') return;
     expect(resumed.data.start).toBe('opened');
     expect(resumed.data.session).not.toBe(yielded.data.session);
-    expect(events.filter(event => event.type === 'work-orientation-recorded' && event.data.workItem === 'wi-001')).toHaveLength(1);
-    expect(events.filter(event => event.type === 'context-selection-recorded' && event.data.workItem === 'wi-001')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'work-orientation-recorded' && event.data.workItem === 'work-item:review-notes')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'context-selection-recorded' && event.data.workItem === 'work-item:review-notes')).toHaveLength(1);
   });
 });
 
@@ -474,7 +474,7 @@ describe('no query appends an event', () => {
 function unionRoots(): Record<string, unknown> {
   const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas,
     ...Object.fromEntries(Object.entries(checkFindingSchemas).map(([key, value]) => [`check-finding-${key}`, value])),
-    ...Object.fromEntries(Object.entries(descriptiveContractSchemas).map(([key, value]) => [`descriptive-${key}`, value])), ...architectureSchemas,
+    ...architectureSchemas,
     ...Object.fromEntries(Object.entries(capabilitySchemas).map(([key, value]) => [`capability-${key}`, value])),
     ...reviewSchemas, ...reconciliationSchemas, ...deviationSchemas };
   return {
@@ -487,12 +487,9 @@ function unionRoots(): Record<string, unknown> {
     'submission catalog-check': checkSubmissionSchema,
     'submission local-architect': localArchitectSubmissionSchema,
     'submission engineer': engineerSubmissionSchema,
-    'submission engineer descriptive': descriptiveCapabilityEngineerSubmissionSchema,
     'submission capability qualification': qualificationActionSchema,
-    'submission capability qualification descriptive': descriptiveQualificationActionSchema,
     'submission fork': forkSubmissionSchema,
     'submission contract': contractSubmissionSchema,
-    'submission contract descriptive': descriptiveContractSubmissionSchema,
     'submission failure-analysis': failureAnalysisSubmissionSchema,
     'tool shell': shellInputSchema,
     'command': runCommandSchema,
@@ -512,14 +509,14 @@ function unionRoots(): Record<string, unknown> {
 }
 
 const submissionSchemas: Readonly<Record<string, unknown>> = {
-  'ramify-agent.initial-analysis/3': initialAnalysisSubmissionSchema,
+  'ramify-agent.initial-analysis/4': initialAnalysisSubmissionSchema,
   'ramify-agent.intake/1': intakeSubmissionSchema,
   'ramify-agent.principle-extraction/1': principleSubmissionSchema,
   'ramify-agent.catalog-check/1': checkSubmissionSchema,
-  'ramify-agent.local-architect-submission/1': localArchitectSubmissionSchema,
-  'ramify-agent.engineer-submission/1': engineerSubmissionSchema,
-  'ramify-agent.fork-submission/1': forkSubmissionSchema,
-  'ramify-agent.contract-submission/2': contractSubmissionSchema,
+  'ramify-agent.local-architect-submission/2': localArchitectSubmissionSchema,
+  'ramify-agent.engineer-submission/2': engineerSubmissionSchema,
+  'ramify-agent.fork-submission/2': forkSubmissionSchema,
+  'ramify-agent.contract-submission/3': contractSubmissionSchema,
   'ramify-agent.failure-analysis-submission/1': failureAnalysisSubmissionSchema,
 };
 
@@ -528,7 +525,7 @@ async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
   const observed = new Map<unknown, Set<string>>();
   const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas,
     ...Object.fromEntries(Object.entries(checkFindingSchemas).map(([key, value]) => [`check-finding-${key}`, value])),
-    ...Object.fromEntries(Object.entries(descriptiveContractSchemas).map(([key, value]) => [`descriptive-${key}`, value])), ...architectureSchemas,
+    ...architectureSchemas,
     ...Object.fromEntries(Object.entries(capabilitySchemas).map(([key, value]) => [`capability-${key}`, value])),
     ...reviewSchemas, ...reconciliationSchemas, ...deviationSchemas };
   const bySchema = new Map<string, unknown>(Object.values(registries).map(entry => [entry.schema, entry.body]));
@@ -589,50 +586,23 @@ async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
  * becoming a second copy of the test that owns them.
  */
 const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values: readonly string[]; readonly file: string; readonly test: string }> = [
-  { union: 'record ramify-agent.check-finding-report/1.schema', values: ['ramify-agent.check-finding-report/1'], file: 'subs/harness/src/tests/check-findings-ledger.test.ts', test: 'carries the decided events in order, with a record copy of each, and the harness computes every content hash' },
-  { union: 'record ramify-agent.check-finding-decision/1.schema', values: ['ramify-agent.check-finding-decision/1'], file: 'subs/harness/src/tests/check-findings-ledger.test.ts', test: 'a crash after the commit, before the record files, rebuilds from the log without invoking the producer' },
-  { union: 'record ramify-agent.check-finding-relation/1.schema', values: ['ramify-agent.check-finding-relation/1'], file: 'subs/harness/src/tests/check-findings-composition.integration.test.ts', test: 'concerns over real audited trees are related, corrected on a later commit, claimed on its tree and fixed, with the ground hashed from Git\'s objects' },
-  { union: 'record ramify-agent.check-finding-relation/1.schema', values: ['ramify-agent.check-finding-relation/2'], file: 'subs/harness/src/tests/check-findings-ledger.test.ts', test: 'a relation between named findings writes and reloads its descriptive record' },
+  { union: 'run log.type', values: ['evidence-reopened'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-revision.test.ts', test: 'revision-needed reaches the waiting consumer once, and the agreement stands until the revision registers' },
+  { union: 'run log[job-failed].data.reason', values: ['unresolvable-requirement'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/work-items.test.ts', test: '`unresolved` the global architect finds nothing possible for ends the run with the conflict and its evidence, and no gate runs' },
+  { union: 'submission fork.kind', values: ['nothing-possible'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/work-items.test.ts', test: '`unresolved` the global architect finds nothing possible for ends the run with the conflict and its evidence, and no gate runs' },
+  { union: 'query events.events[].refs[].kind', values: ['scenario'], file: 'subs/harness/src/tests/protocol-contract.test.ts', test: 'a projected event may refer to a scenario' },
   { union: 'run log[review-attempt-finished].data.reason', values: ['name-conflict'], file: 'subs/harness/src/tests/check-findings-ledger.test.ts', test: 'an authored named review retries an occupied name and retains corrected disposition after reload' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.version', values: ['1'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
-  { union: 'record ramify-agent.job/3.identityContract', values: ['descriptive'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools' },
-  { union: 'record ramify-agent.document-manifest/1.schema', values: ['ramify-agent.document-manifest/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools' },
-  { union: 'record ramify-agent.element-catalog/1.schema', values: ['ramify-agent.element-catalog/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools' },
-  { union: 'record ramify-agent.document-incorporation/2.schema', values: ['ramify-agent.document-incorporation/3'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools' },
-  { union: 'record ramify-agent.entry-assignments/1.schema', values: ['ramify-agent.entry-assignments/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools' },
-  { union: 'record ramify-agent.scenario/1.schema', values: ['ramify-agent.scenario/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'ordinary acceptance resolves local references into one committed bundle' },
-  { union: 'record ramify-agent.hypothesis/1.schema', values: ['ramify-agent.hypothesis/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'ordinary acceptance resolves local references into one committed bundle' },
-  { union: 'record ramify-agent.capability/1.schema', values: ['ramify-agent.capability/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'ordinary acceptance resolves local references into one committed bundle' },
-  { union: 'record ramify-agent.work-item/1.schema', values: ['ramify-agent.work-item/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'ordinary acceptance resolves local references into one committed bundle' },
-  { union: 'record ramify-agent.contract/2.schema', values: ['ramify-agent.contract/3'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive agreement and obligation survive record serialization with their relationship' },
-  { union: 'record ramify-agent.provider-obligation/1.schema', values: ['ramify-agent.provider-obligation/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive agreement and obligation survive record serialization with their relationship' },
-  { union: 'record ramify-agent.consumer-requirement/1.schema', values: ['ramify-agent.consumer-requirement/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive agreement and obligation survive record serialization with their relationship' },
-  { union: 'record ramify-agent.placement-request/1.schema', values: ['ramify-agent.placement-request/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/placement.test.ts', test: 'descriptive placement IDs preserve their work and capability origin through accepted records' },
-  { union: 'record ramify-agent.placement-decision/1.schema', values: ['ramify-agent.placement-decision/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/placement.test.ts', test: 'descriptive placement IDs preserve their work and capability origin through accepted records' },
-  { union: 'record ramify-agent.capability-request/1.schema', values: ['ramify-agent.capability-request/1'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'CA01 keeps request evidence and admits delegation beyond a captured work-unit count' },
-  { union: 'record ramify-agent.capability-request/1.schema', values: ['ramify-agent.capability-request/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
-  { union: 'record ramify-agent.capability-request/1.original.examples[].designation', values: ['pseudocode', 'executable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
-  { union: 'record ramify-agent.capability-task/1.schema', values: ['ramify-agent.capability-task/1'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'CA01 keeps request evidence and admits delegation beyond a captured work-unit count' },
-  { union: 'record ramify-agent.capability-task/1.schema', values: ['ramify-agent.capability-task/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
-  { union: 'record ramify-agent.capability-request/1.parent.kind', values: ['work-item'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
-  { union: 'record ramify-agent.capability-request/1.parent.kind', values: ['capability-task'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-dependencies.test.ts', test: 'CA21 CA29 CA32: a nested request keeps its parent assignment and depth-first authority in the real ledger' },
-  { union: 'record ramify-agent.capability-plan/1.schema', values: ['ramify-agent.capability-plan/1'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'CA01 keeps request evidence and admits delegation beyond a captured work-unit count' },
-  { union: 'record ramify-agent.capability-plan/1.schema', values: ['ramify-agent.capability-plan/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
-  { union: 'record ramify-agent.capability-exchange/1.schema', values: ['ramify-agent.capability-exchange/1'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-consultation.test.ts', test: 'CA04 CA06 CA16: original A request consultation preserves its point or uses named recovery after actual loss (lost=%s)' },
-  { union: 'record ramify-agent.capability-exchange/1.schema', values: ['ramify-agent.capability-exchange/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
-  { union: 'record ramify-agent.capability-handback/1.schema', values: ['ramify-agent.capability-handback/1'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'CA08 CA11–CA15 CA17 CA25 CA30: scripted multi-owner migration, repair, handback and linked revision' },
-  { union: 'record ramify-agent.capability-handback/1.schema', values: ['ramify-agent.capability-handback/2'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'descriptive request, task and examples survive composed provider handback, consumer verification and reload' },
-  { union: 'record ramify-agent.work-item-outline/1.schema', values: ['ramify-agent.work-item-outline/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-delegation.test.ts', test: 'descriptive registry delegation preserves agreement, obligation and requirement through %s handback and reload' },
-  { union: 'record ramify-agent.iteration-assignment/1.schema', values: ['ramify-agent.iteration-assignment/2'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-delegation.test.ts', test: 'descriptive registry delegation preserves agreement, obligation and requirement through %s handback and reload' },
-  { union: 'submission engineer descriptive.kind', values: ['completion-proposed', 'partial', 'capability-needed'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'descriptive request, task and examples survive composed provider handback, consumer verification and reload' },
-  { union: 'submission engineer descriptive.kind', values: ['contract-needed'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-delegation.test.ts', test: 'descriptive registry delegation preserves agreement, obligation and requirement through %s handback and reload' },
-  { union: 'submission engineer descriptive.kind', values: ['unsuitable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'descriptive submission choices retain explicit qualification and unsuitable outcomes' },
-  { union: 'submission engineer descriptive[capability-needed].request.examples[].designation', values: ['pseudocode'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'descriptive request, task and examples survive composed provider handback, consumer verification and reload' },
-  { union: 'submission engineer descriptive[capability-needed].request.examples[].designation', values: ['executable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-request/2.original.examples[].designation', values: ['pseudocode', 'executable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-request/2.parent.kind', values: ['work-item'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
+  { union: 'record ramify-agent.capability-request/2.parent.kind', values: ['capability-task'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-dependencies.test.ts', test: 'CA21 CA29 CA32: a nested request keeps its parent assignment and depth-first authority in the real ledger' },
+  { union: 'submission engineer.kind', values: ['completion-proposed', 'partial', 'capability-needed'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'request, task and examples survive composed provider handback, consumer verification and reload' },
+  { union: 'submission engineer.kind', values: ['contract-needed'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-delegation.test.ts', test: 'descriptive registry delegation preserves agreement, obligation and requirement through %s handback and reload' },
+  { union: 'submission engineer.kind', values: ['unsuitable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'descriptive submission choices retain explicit qualification and unsuitable outcomes' },
+  { union: 'submission engineer[capability-needed].request.examples[].designation', values: ['pseudocode'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'request, task and examples survive composed provider handback, consumer verification and reload' },
+  { union: 'submission engineer[capability-needed].request.examples[].designation', values: ['executable'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'accepts descriptive request, example and task identities together and replays exact relationships' },
   { union: 'submission capability qualification.kind', values: ['satisfy-with-existing', 'delegate-capability', 'request-placement', 'unresolved'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'descriptive submission choices retain explicit qualification and unsuitable outcomes' },
-  { union: 'submission capability qualification descriptive.kind', values: ['satisfy-with-existing', 'delegate-capability', 'request-placement', 'unresolved'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'descriptive submission choices retain explicit qualification and unsuitable outcomes' },
-  { union: 'submission contract descriptive.kind', values: ['established'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive proposals are delivered in the tool schema and reject wrong namespaces at their fields' },
-  { union: 'submission contract descriptive.kind', values: ['incomplete'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive proposals are delivered in the tool schema and reject wrong namespaces at their fields' },
+  { union: 'submission capability qualification.kind', values: ['satisfy-with-existing', 'delegate-capability', 'request-placement', 'unresolved'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-records.test.ts', test: 'descriptive submission choices retain explicit qualification and unsuitable outcomes' },
+  { union: 'submission contract.kind', values: ['established'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive proposals are delivered in the tool schema and reject wrong namespaces at their fields' },
+  { union: 'submission contract.kind', values: ['incomplete'], file: 'subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-submission.test.ts', test: 'descriptive proposals are delivered in the tool schema and reject wrong namespaces at their fields' },
   { union: 'run log.type', values: ['job-continued'], file: 'subs/harness/src/tests/restart-service.test.ts', test: 'continuation preserves historical failure and accepted analysis without copying run history' },
   { union: 'run log.type', values: ['external-candidate-observed'], file: 'subs/harness/src/tests/recovery-readiness-source.test.ts', test: 'readiness retains observed source and operational corrections through one %s run-branch commit' },
 
@@ -673,7 +643,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.repair-incident/1.export.state', values: ['exported'], file: 'subs/harness/src/tests/repair-export-command.test.ts', test: 'manual export updates a retained terminal run through ledger without changing terminal or incident lifecycle' },
   { union: 'record ramify-agent.repair-incident/1.export.state', values: ['conflict'], file: 'subs/harness/src/tests/repair-export-command.test.ts', test: 'manual export retains conflicting tracker identities without changing incident lifecycle' },
   { union: 'query events.events[].refs[].kind', values: ['repair-incident'], file: 'subs/harness/subs/projections/src/tests/automatic-repair-incidents.test.ts', test: 'retains original obstruction and partial-result reference after verified handback and terminal completion' },
-  { union: 'record ramify-agent.capability-request/1.original.usage[].prospective', values: ['false', 'true'], file: 'subs/harness/src/tests/revision-preview-submission-contracts.test.ts', test: 'prospective caller module is required structurally; actual usage may omit it' },
+  { union: 'record ramify-agent.capability-request/2.original.usage[].prospective', values: ['false', 'true'], file: 'subs/harness/src/tests/revision-preview-submission-contracts.test.ts', test: 'prospective caller module is required structurally; actual usage may omit it' },
   { union: 'query work-item.iterations[].invocations[].outsideScopeEvidence[].observations[].observedBy', values: ['tool'], file: 'subs/harness/src/tests/plan36-mutation-attribution.test.ts', test: 'candidate differences preserve recorded provenance across metrics and work projections without changing settlement (%j)' },
   { union: 'run log.type', values: ['consultation-started', 'consultation-finished'], file: 'subs/harness/src/tests/consultation-records.test.ts', test: 'start and outcome commit exact content references and completed replay is one exchange' },
   { union: 'run log.type', values: ['consultation-delivery-recorded'], file: 'subs/harness/src/tests/consultation-records.test.ts', test: 'answer acceptance and later caller-result observation preserve immutable outcome revisions' },
@@ -712,7 +682,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.nonfunctional-repair-assignment/1.scope.resolved.ownership.exclusions[].kind', values: ['owned-unwired', 'owned-nested-project', 'external', 'output'], file: 'subs/harness/src/tests/write-guard.boundary.test.ts', test: 'PB3-S01–S05 S09: F1 whole owners, named physical children, independent trees and hard exclusions share tool/candidate decisions' },
   { union: 'record ramify-agent.nonfunctional-repair-assignment/1.scope.resolved.included[].kind', values: ['owned-nested-project'], file: 'subs/harness/src/tests/write-guard.boundary.test.ts', test: 'PB3-S01–S05 S09: F1 whole owners, named physical children, independent trees and hard exclusions share tool/candidate decisions' },
   { union: 'submission local-architect[assign].assignment.scope.extra[].kind', values: ['file'], file: 'subs/harness/src/tests/local-architect-submission.test.ts', test: 'removed outside-modules authority is refused, while narrow ordinary and bootstrap extras remain' },
-  { union: 'record ramify-agent.iteration-assignment/1.coordination.kind', values: ['capability-task'], file: 'subs/harness/src/tests/capability-assignments.test.ts', test: 'CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A receive task-owned scopes' },
+  { union: 'record ramify-agent.iteration-assignment/2.coordination.kind', values: ['capability-task'], file: 'subs/harness/src/tests/capability-assignments.test.ts', test: 'CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A receive task-owned scopes' },
   { union: 'run log.type', values: ['ownership-evidence-retained'], file: 'subs/harness/src/tests/ownership-authority.test.ts', test: 'restrictive success survives unrelated success and reopen; only an answer for the same path clears it' },
   { union: 'run log.type', values: ['capability-requested', 'capability-qualified', 'capability-delegated'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
   { union: 'run log.type', values: ['capability-plan-revised', 'capability-exchange-opened', 'capability-exchange-answered', 'capability-assigned', 'capability-assignment-settled'], file: 'subs/harness/src/tests/capability-assignments.test.ts', test: 'CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A receive task-owned scopes' },
@@ -730,8 +700,8 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'run log[capability-assignment-settled].data.outcome', values: ['accepted'], file: 'subs/harness/src/tests/capability-assignments.test.ts', test: 'CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A receive task-owned scopes' },
   { union: 'run log[capability-assignment-settled].data.outcome', values: ['partial'], file: 'subs/harness/src/tests/capability-state.test.ts', test: 'refuses an active assignment but preserves partial history for the verifier' },
   { union: 'submission engineer.kind', values: ['capability-needed'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
-  { union: 'record ramify-agent.capability-request/1.original.knownInterface.kind', values: ['none-known'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
-  { union: 'record ramify-agent.capability-request/1.original.knownInterface.kind', values: ['insufficient'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'CA08 CA11–CA15 CA17 CA25 CA30: scripted multi-owner migration, repair, handback and linked revision' },
+  { union: 'record ramify-agent.capability-request/2.original.knownInterface.kind', values: ['none-known'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
+  { union: 'record ramify-agent.capability-request/2.original.knownInterface.kind', values: ['insufficient'], file: 'subs/harness/src/tests/capability-acceptance.integration.test.ts', test: 'CA08 CA11–CA15 CA17 CA25 CA30: scripted multi-owner migration, repair, handback and linked revision' },
   { union: 'submission engineer[capability-needed].request.examples[].designation', values: ['pseudocode'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
   { union: 'query events.events[].refs[].kind', values: ['capability-request', 'capability-task', 'capability-assignment'], file: 'subs/harness/src/tests/capability-tasks-projection.test.ts', test: 'CA23: capability event references identify requests, tasks and assignments' },
   { union: 'run log.type', values: ['obligation-registered', 'obligation-reported'], file: 'subs/harness/src/tests/local-architect-submission.test.ts', test: 'PB3-D01 PB3-D02 PB3-D04: an invalid report is refused before any effect; the accepted one records the test, the judgments and the where text as written' },
@@ -751,36 +721,36 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'run log[check-findings-recorded].data.cause.kind', values: ['producer'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
   { union: 'run log.type', values: ['plan-deviation-recorded'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the deviation is recorded, the work item goes on under it, and the run completes with it to review' },
   { union: 'run log[invocation-started].data.continues.reason', values: ['deviation-recorded'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the deviation is recorded, the work item goes on under it, and the run completes with it to review' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['plan-deviation'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the deviation is recorded, the work item goes on under it, and the run completes with it to review' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['plan-deviation'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the deviation is recorded, the work item goes on under it, and the run completes with it to review' },
   { union: 'submission fork.kind', values: ['deviation'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the deviation is recorded, the work item goes on under it, and the run completes with it to review' },
   { union: 'run log.type', values: ['scenarios-rewording', 'scenarios-reworded'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the harness renders the feature file from it, commits it, and the finding shows the old and the new text' },
-  { union: 'record ramify-agent.contract/2.artifacts.fake[].standsFor[].exposure.to[]', values: ['parent'], file: 'subs/harness/src/tests/fake-exposure-parity.test.ts', test: 'a contract that re-exposes its fake where the real export will not be fails the gate in scope, and a repair that removes it passes' },
-  { union: 'record ramify-agent.contract/2.artifacts.fake[].standsFor[].exposure.to[]', values: ['descendants'], file: 'subs/harness/src/tests/fake-exposure-parity.test.ts', test: 'the registered contract records what each fake stands for, as submitted' },
+  { union: 'record ramify-agent.contract/3.artifacts.fake[].standsFor[].exposure.to[]', values: ['parent'], file: 'subs/harness/src/tests/fake-exposure-parity.test.ts', test: 'a contract that re-exposes its fake where the real export will not be fails the gate in scope, and a repair that removes it passes' },
+  { union: 'record ramify-agent.contract/3.artifacts.fake[].standsFor[].exposure.to[]', values: ['descendants'], file: 'subs/harness/src/tests/fake-exposure-parity.test.ts', test: 'the registered contract records what each fake stands for, as submitted' },
   { union: 'run log.type', values: ['environment-reported'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
   { union: 'run log[invocation-started].data.continues.reason', values: ['environment-resumed'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['environment-problem'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['environment-problem'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
   { union: 'submission fork.kind', values: ['environment'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
   { union: 'query runs.runs[].environmentProblems[].answer', values: ['waiting', 'resumed'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
   { union: 'query runs.runs[].environmentProblems[].answer', values: ['ended'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the operator\'s answer end ends the run with the diagnosis and their note' },
   { union: 'command.type', values: ['respond-to-check-finding', 'waive-check-finding', 'revoke-check-finding-waiver'], file: 'subs/harness/src/tests/check-findings-commands.test.ts', test: 'an answer, a waiver and a revocation commit one decision each; a retry returns its receipt; conflicts, stale revisions and stale versions are refused' },
   { union: 'run log[check-findings-recorded].data.cause.kind', values: ['user-command'], file: 'subs/harness/src/tests/check-findings-commands.test.ts', test: 'an answer, a waiver and a revocation commit one decision each; a retry returns its receipt; conflicts, stale revisions and stale versions are refused' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['waive', 'revoke-waiver', 'answer-user-decision'], file: 'subs/harness/src/tests/check-findings-commands.test.ts', test: 'an answer, a waiver and a revocation commit one decision each; a retry returns its receipt; conflicts, stale revisions and stale versions are refused' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[waive].authority.kind', values: ['user-decision'], file: 'subs/harness/src/tests/check-findings-commands.test.ts', test: 'an answer, a waiver and a revocation commit one decision each; a retry returns its receipt; conflicts, stale revisions and stale versions are refused' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['waive', 'revoke-waiver', 'answer-user-decision'], file: 'subs/harness/src/tests/check-findings-commands.test.ts', test: 'an answer, a waiver and a revocation commit one decision each; a retry returns its receipt; conflicts, stale revisions and stale versions are refused' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[waive].authority.kind', values: ['user-decision'], file: 'subs/harness/src/tests/check-findings-commands.test.ts', test: 'an answer, a waiver and a revocation commit one decision each; a retry returns its receipt; conflicts, stale revisions and stale versions are refused' },
   { union: 'run log[check-findings-recorded].data.cause.kind', values: ['user-response'], file: 'subs/harness/src/tests/reconciliation.test.ts', test: 'a changed revision refuses the assessment, a changed source and a later signal refuse completion, and a waiver outside the module is refused' },
   { union: 'run log[check-findings-recorded].data.cause.kind', values: ['recovery'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[].type', values: ['check-finding-opened'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.credibility', values: ['objective'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.judgment.risk', values: ['high', 'medium', 'low'], file: 'subs/harness/src/tests/review-signals.test.ts', test: 'the harness classifies what each concern names, on the candidate\'s own module tree, independently of which candidate tool supplied the inspection' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.credibility', values: ['human-reviewed', 'agent-generated', 'ungrounded'], file: 'subs/harness/src/tests/review-signals.test.ts', test: 'the harness classifies what each concern names, on the candidate\'s own module tree, independently of which candidate tool supplied the inspection' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[].type', values: ['check-finding-decided'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.owner.kind', values: ['work-item'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.source.kind', values: ['tree'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.verification.kind', values: ['assessment', 'check'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['check-failed', 'review-concern'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.judgment.actor.kind', values: ['agent'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.communication.mode', values: ['quiet'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['plan-repair'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[plan-repair].repair.kind', values: ['intent'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[].type', values: ['check-finding-opened'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.credibility', values: ['objective'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.judgment.risk', values: ['high', 'medium', 'low'], file: 'subs/harness/src/tests/review-signals.test.ts', test: 'the harness classifies what each concern names, on the candidate\'s own module tree, independently of which candidate tool supplied the inspection' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.credibility', values: ['human-reviewed', 'agent-generated', 'ungrounded'], file: 'subs/harness/src/tests/review-signals.test.ts', test: 'the harness classifies what each concern names, on the candidate\'s own module tree, independently of which candidate tool supplied the inspection' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[].type', values: ['check-finding-decided'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.owner.kind', values: ['work-item'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.source.kind', values: ['tree'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.verification.kind', values: ['assessment', 'check'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['check-failed', 'review-concern'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.judgment.actor.kind', values: ['agent'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.communication.mode', values: ['quiet'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['plan-repair'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[plan-repair].repair.kind', values: ['intent'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'a crash rebuilds CheckFindings and their record copies from the log, and a restart calls no agent' },
   { union: 'run log.type', values: ['review-request-recorded', 'review-attempt-started', 'review-attempt-finished'], file: 'subs/harness/src/tests/review-attempts.test.ts', test: "two readers overlap the third iteration's writer, read only their own candidates, and every escape is refused" },
   { union: 'run log[debug-pausing].data.role', values: ['reviewer'], file: 'subs/harness/src/tests/review-attempts.test.ts', test: "two readers overlap the third iteration's writer, read only their own candidates, and every escape is refused" },
   { union: 'run log[review-request-recorded].data.kind', values: ['code'], file: 'subs/harness/src/tests/review-attempts.test.ts', test: "two readers overlap the third iteration's writer, read only their own candidates, and every escape is refused" },
@@ -935,17 +905,17 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.gate-attempt/3.commands[].outcome', values: ['not-verified'], file: 'subs/harness/src/tests/gate-not-verified.test.ts', test: 'records a timeout as a timeout, not as a failure' },
   { union: 'record ramify-agent.gate-attempt/3.commands[].notVerified', values: ['interrupted'], file: 'subs/harness/src/tests/gate-not-verified.test.ts', test: 'reports what a cancelled attempt did not reach as interrupted' },
   { union: 'run log[gate-command-waiting].data.kind', values: ['configured'], file: 'subs/harness/src/tests/gate-progress.test.ts', test: 'a composed readiness records the configured check wait and start' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[].type', values: ['check-finding-reported'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[].type', values: ['check-finding-reported'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
   { union: 'query scenarios.scenarios[].gates[].status', values: ['passed', 'failed'], file: 'subs/harness/src/tests/scenario-projections.test.ts', test: 'the scenario list, the review, the progress counts, the gate summary and the event references agree with the run' },
   { union: 'record ramify-agent.gate-attempt/3.cause', values: ['guarded-change'], file: 'subs/harness/src/tests/breaking-work.boundary.test.ts', test: 'an unauthorized edit of the test-runner configuration is guarded-change, and the same edit under a recorded revision passes' },
   { union: 'record ramify-agent.gate-attempt/3.next', values: ['retry-infrastructure'], file: 'subs/harness/src/tests/iteration-gate.test.ts', test: 'a test command that never answers is not-verified with cause timeout, and one infrastructure retry follows' },
-  { union: 'record ramify-agent.capability/1.origin', values: ['global-decision'], file: 'subs/harness/src/tests/placement.test.ts', test: 'the first creates a capability and revises its hypothesis; the second inherits its brief and reuses the entry' },
+  { union: 'record ramify-agent.capability/2.origin', values: ['global-decision'], file: 'subs/harness/src/tests/placement.test.ts', test: 'the first creates a capability and revises its hypothesis; the second inherits its brief and reuses the entry' },
   { union: 'record ramify-agent.iteration-result/1.outcome', values: ['superseded'], file: 'subs/harness/src/tests/contract-revision.test.ts', test: 'an unfinished item is reused and its open assignment closes as superseded; a completed one is followed' },
   { union: 'query work-item.iterations[].gates[].verdict', values: ['failed'], file: 'subs/harness/src/tests/iteration-gate.test.ts', test: 'repeated failed corrections return to the architect and further repair remains available' },
   { union: 'query work-item.iterations[].gates[].cause', values: ['check-failed'], file: 'subs/harness/src/tests/iteration-gate.test.ts', test: 'repeated failed corrections return to the architect and further repair remains available' },
   { union: 'query work-item.iterations[].gates[].next', values: ['repair'], file: 'subs/harness/src/tests/iteration-gate.test.ts', test: 'repeated failed corrections return to the architect and further repair remains available' },
-  { union: 'record ramify-agent.placement-decision/1.outcome', values: ['create'], file: 'subs/harness/src/tests/placement.test.ts', test: 'the first creates a capability and revises its hypothesis; the second inherits its brief and reuses the entry' },
-  { union: 'record ramify-agent.placement-decision/1.outcome', values: ['extract'], file: 'subs/harness/src/tests/placement.test.ts', test: 'it names what it affects, and the consequence reaches that work item before its own turn' },
+  { union: 'record ramify-agent.placement-decision/2.outcome', values: ['create'], file: 'subs/harness/src/tests/placement.test.ts', test: 'the first creates a capability and revises its hypothesis; the second inherits its brief and reuses the entry' },
+  { union: 'record ramify-agent.placement-decision/2.outcome', values: ['extract'], file: 'subs/harness/src/tests/placement.test.ts', test: 'it names what it affects, and the consequence reaches that work item before its own turn' },
   { union: 'submission engineer[unsuitable].reason', values: ['break-discovered'], file: 'subs/harness/src/tests/breaking-work.test.ts', test: 'break-discovered returns to the local architect, which restages, and the engineer widened nothing' },
   { union: 'submission contract.kind', values: ['incomplete'], file: 'subs/harness/src/tests/contract-delegation.test.ts', test: 'no contract and no obligation are committed, and its caller accounts for the partial work' },
   { union: 'error.error.code', values: ['invalid-request'], file: 'subs/harness/src/tests/run-protocol.test.ts', test: 'a start-run payload that breaks its schema is refused with every error and its path, and changes nothing' },
@@ -958,8 +928,8 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'query work-items.workItems[].origin', values: ['verification'], file: 'subs/harness/src/tests/contract-revision-scripted.test.ts', test: 'two consumers complete revision 1, a third revises it, and the follow-ups finish the run' },
   { union: 'query metrics.baseline.state', values: ['measured'], file: 'subs/harness/src/tests/measurement.test.ts', test: 'a run freezes B from its first snapshot, and job.json names it' },
   { union: 'submission initial-analysis.scenarios[].origin.kind', values: ['plan'], file: 'subs/harness/src/tests/analysis-scenarios.test.ts', test: 'analysis-accepted commits one pending scenario record per scenario, with IDs, owners, hashes and the integration owner' },
-  { union: 'record ramify-agent.scenario/1.kind', values: ['integration'], file: 'subs/harness/src/tests/analysis-scenarios.test.ts', test: 'analysis-accepted commits one pending scenario record per scenario, with IDs, owners, hashes and the integration owner' },
-  { union: 'record ramify-agent.scenario/1.origin.kind', values: ['plan'], file: 'subs/harness/src/tests/analysis-scenarios.test.ts', test: 'analysis-accepted commits one pending scenario record per scenario, with IDs, owners, hashes and the integration owner' },
+  { union: 'record ramify-agent.scenario/2.kind', values: ['integration'], file: 'subs/harness/src/tests/analysis-scenarios.test.ts', test: 'analysis-accepted commits one pending scenario record per scenario, with IDs, owners, hashes and the integration owner' },
+  { union: 'record ramify-agent.scenario/2.origin.kind', values: ['plan'], file: 'subs/harness/src/tests/analysis-scenarios.test.ts', test: 'analysis-accepted commits one pending scenario record per scenario, with IDs, owners, hashes and the integration owner' },
   { union: 'run log.type', values: ['review-requested', 'analysis-approved'], file: 'subs/harness/src/tests/review-stop.test.ts', test: 'waits at awaiting-review holding the project, and an approval continues it to completion' },
   { union: 'run log.type', values: ['obligation-bound'], file: 'subs/harness/src/tests/scenario-states.test.ts', test: 'a binding makes a scenario bound and takes its tag off before the gate that selects it; a done report finishes it, directly from pending too; the final gate runs every scenario in full mode' },
   { union: 'run log[work-item-started].data.origin', values: ['verification'], file: 'subs/harness/src/tests/contract-revision-scripted.test.ts', test: 'two consumers complete revision 1, a third revises it, and the follow-ups finish the run' },
@@ -978,35 +948,34 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'run log.type', values: ['nonfunctional-repair-assigned', 'nonfunctional-repair-committed'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
   { union: 'record ramify-agent.nonfunctional-repair-assignment/1.scope.resolved.ownership.provider', values: ['ramify.ownership/1'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
   { union: 'record ramify-agent.gate-attempt/3.ownershipPreflight.failureStatus', values: ['invalid', 'incomplete', 'unavailable', 'unsupported', 'execution-failed'], file: 'subs/harness/src/tests/ownership-mutation-classification.test.ts', test: 'a committing checkpoint with unavailable current ownership never commits or audits (%j)' },
-  { union: 'run log.type', values: ['nonfunctional-deviation-recorded'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
   { union: 'run log.type', values: ['nonfunctional-deviations-recorded'], file: 'subs/harness/subs/autonomous/subs/acceptance/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'a descriptive two-requirement close corrects an intervening name collision and survives reload' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.owner.kind', values: ['run'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.source.kind', values: ['document'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
-  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['request-user-decision'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.owner.kind', values: ['run'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.source.kind', values: ['document'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
+  { union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['request-user-decision'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
   { union: 'run log[debug-pausing].data.role', values: ['nonfunctional-coordinator'], file: 'subs/harness/src/tests/plan13-composed-functional.test.ts', test: 'functional work cites one NFR while the coordinator assesses the complete two-NFR catalog' },
   { union: 'run log[debug-pausing].data.role', values: ['nonfunctional-repair-engineer'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
   { union: 'run log[context-package-appended].data.outcome', values: ['session-lost'], file: 'subs/harness/src/tests/context-selection-runtime.test.ts', test: 'lost parent session reconstructs the exact package in a fresh organizing prompt from the record alone, without reselection' },
   { union: 'run log[nonfunctional-assessed].data.phase', values: ['after-repair'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
   { union: 'run log[nonfunctional-round-closed].data.outcome', values: ['exhausted'], file: 'subs/harness/src/tests/nonfunctional-recovery.test.ts', test: 'a closed round exhausts and a late source change still refuses the final gate' },
   { union: 'run log[nonfunctional-round-closed].data.outcome', values: ['continue'], file: 'subs/harness/src/tests/nonfunctional-phase.test.ts', test: 'advances from a committed continuing round without resetting the count' },
-  { union: 'record ramify-agent.document-manifest/1.documents[].kind', values: ['principle'], file: 'subs/harness/subs/plan-evidence/src/tests/discovery.test.ts', test: 'records invalid text and excludes nested independent principles even under a foreign subs directory' },
-  { union: 'record ramify-agent.document-manifest/1.missing[].judgment', values: ['unjudged'], file: 'subs/harness/subs/plan-evidence/src/tests/discovery.test.ts', test: 'reports missing local links with source offsets and refuses symlink escape' },
-  { union: 'record ramify-agent.document-manifest/1.principlesScan.status', values: ['complete'], file: 'subs/harness/subs/plan-evidence/src/tests/discovery.test.ts', test: 'records invalid text and excludes nested independent principles even under a foreign subs directory' },
-  { union: 'record ramify-agent.document-manifest/1.principlesScan.status', values: ['partial'], file: 'subs/harness/subs/plan-evidence/src/tests/discovery.test.ts', test: 'a root principles listing failure is partial coverage with an explicit root gap' },
-  { union: 'record ramify-agent.element-catalog/1.elements[].kind', values: ['non-functional', 'recommendation'], file: 'subs/harness/src/tests/analysis-plan-evidence.test.ts', test: 'accepts the intake\'s elements and incorporation once, and projects them by kind with an unclear source excerpt' },
-  { union: 'record ramify-agent.element-catalog/1.elements[].kind', values: ['fixed'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'adds fixed requirements and recommendations of its own document, numbered past the intake\'s' },
-  { union: 'record ramify-agent.element-catalog/1.elements[].kind', values: ['context'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'findings name the IDs each correction produced, in correction order' },
-  { union: 'record ramify-agent.element-catalog/1.elements[].conditions[].source', values: ['stated', 'inferred'], file: 'subs/harness/src/tests/analysis-plan-evidence.test.ts', test: 'accepts the intake\'s elements and incorporation once, and projects them by kind with an unclear source excerpt' },
-  { union: 'record ramify-agent.element-catalog/1.documents[].kind', values: ['principle'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'adds fixed requirements and recommendations of its own document, numbered past the intake\'s' },
-  { union: 'record ramify-agent.document-incorporation/2.missing[].judgment', values: ['unclear'], file: 'subs/harness/src/tests/analysis-plan-evidence.test.ts', test: 'accepts the intake\'s elements and incorporation once, and projects them by kind with an unclear source excerpt' },
+  { union: 'record ramify-agent.document-manifest/2.documents[].kind', values: ['principle'], file: 'subs/harness/subs/plan-evidence/src/tests/discovery.test.ts', test: 'records invalid text and excludes nested independent principles even under a foreign subs directory' },
+  { union: 'record ramify-agent.document-manifest/2.missing[].judgment', values: ['unjudged'], file: 'subs/harness/subs/plan-evidence/src/tests/discovery.test.ts', test: 'reports missing local links with source offsets and refuses symlink escape' },
+  { union: 'record ramify-agent.document-manifest/2.principlesScan.status', values: ['complete'], file: 'subs/harness/subs/plan-evidence/src/tests/discovery.test.ts', test: 'records invalid text and excludes nested independent principles even under a foreign subs directory' },
+  { union: 'record ramify-agent.document-manifest/2.principlesScan.status', values: ['partial'], file: 'subs/harness/subs/plan-evidence/src/tests/discovery.test.ts', test: 'a root principles listing failure is partial coverage with an explicit root gap' },
+  { union: 'record ramify-agent.element-catalog/2.elements[].kind', values: ['non-functional', 'recommendation'], file: 'subs/harness/src/tests/analysis-plan-evidence.test.ts', test: 'accepts the intake\'s elements and incorporation once, and projects them by kind with an unclear source excerpt' },
+  { union: 'record ramify-agent.element-catalog/2.elements[].kind', values: ['fixed'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'adds fixed requirements and recommendations of its own document' },
+  { union: 'record ramify-agent.element-catalog/2.elements[].kind', values: ['context'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'findings name the IDs each correction produced, in correction order' },
+  { union: 'record ramify-agent.element-catalog/2.elements[].conditions[].source', values: ['stated', 'inferred'], file: 'subs/harness/src/tests/analysis-plan-evidence.test.ts', test: 'accepts the intake\'s elements and incorporation once, and projects them by kind with an unclear source excerpt' },
+  { union: 'record ramify-agent.element-catalog/2.documents[].kind', values: ['principle'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'adds fixed requirements and recommendations of its own document' },
+  { union: 'record ramify-agent.document-incorporation/3.missing[].judgment', values: ['unclear'], file: 'subs/harness/src/tests/analysis-plan-evidence.test.ts', test: 'accepts the intake\'s elements and incorporation once, and projects them by kind with an unclear source excerpt' },
   { union: 'submission catalog-check.corrections[].action', values: ['add'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'adds a constraint its document states and the reading omitted, with a finding naming the new ID' },
   { union: 'submission catalog-check.corrections[].action', values: ['replace'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'splits a cited functional element, and the entry and its scenario are re-cited to the new IDs' },
   { union: 'submission catalog-check.corrections[].action', values: ['rewrite'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'rewrites a reading in place, and corrects only elements of its own document' },
   { union: 'run log[analysis-accepted].data.findings[].action', values: ['add', 'replace', 'rewrite'], file: 'subs/harness/src/tests/catalog-extraction.test.ts', test: 'findings name the IDs each correction produced, in correction order' },
-  { union: 'record ramify-agent.nonfunctional-assessment/1.phase', values: ['after-repair'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
-  { union: 'record ramify-agent.nonfunctional-assessment/1.results[].result', values: ['satisfied'], file: 'subs/harness/src/tests/plan13-composed-functional.test.ts', test: 'functional work cites one NFR while the coordinator assesses the complete two-NFR catalog' },
-  { union: 'record ramify-agent.nonfunctional-assessment/1.results[].result', values: ['not-satisfied'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
-  { union: 'record ramify-agent.nonfunctional-assessment/1.results[].result', values: ['undetermined'], file: 'subs/harness/src/tests/nonfunctional-phase.test.ts', test: 'reconstructs valid crash prefixes and the next permitted step' },
+  { union: 'record ramify-agent.nonfunctional-assessment/2.phase', values: ['after-repair'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
+  { union: 'record ramify-agent.nonfunctional-assessment/2.results[].result', values: ['satisfied'], file: 'subs/harness/src/tests/plan13-composed-functional.test.ts', test: 'functional work cites one NFR while the coordinator assesses the complete two-NFR catalog' },
+  { union: 'record ramify-agent.nonfunctional-assessment/2.results[].result', values: ['not-satisfied'], file: 'subs/harness/src/tests/nonfunctional-repair.test.ts', test: 'one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)' },
+  { union: 'record ramify-agent.nonfunctional-assessment/2.results[].result', values: ['undetermined'], file: 'subs/harness/src/tests/nonfunctional-phase.test.ts', test: 'reconstructs valid crash prefixes and the next permitted step' },
   { union: 'record ramify-agent.nonfunctional-round/1.outcome', values: ['exhausted'], file: 'subs/harness/src/tests/nonfunctional-recovery.test.ts', test: 'a closed round exhausts and a late source change still refuses the final gate' },
   { union: 'record ramify-agent.nonfunctional-round/1.outcome', values: ['continue'], file: 'subs/harness/src/tests/nonfunctional-phase.test.ts', test: 'advances from a committed continuing round without resetting the count' },
   { union: 'query analysis.analysis[accepted].planEvidence[available].missing[].judgment', values: ['unclear'], file: 'subs/harness/src/tests/analysis-plan-evidence.test.ts', test: 'accepts the intake\'s elements and incorporation once, and projects them by kind with an unclear source excerpt' },
@@ -1019,7 +988,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
  * are the same.
  */
 const projections: ReadonlyArray<readonly [query: string, record: string]> = [
-  ['query decisions.decisions[][placement].outcome', 'record ramify-agent.placement-decision/1.outcome'],
+  ['query decisions.decisions[][placement].outcome', 'record ramify-agent.placement-decision/2.outcome'],
   ['query work-item.iterations[].result.outcome', 'record ramify-agent.iteration-result/1.outcome'],
   ['query work-item.iterations[].gates[].cause', 'record ramify-agent.gate-attempt/3.cause'],
   ['query work-item.iterations[].gates[].next', 'record ramify-agent.gate-attempt/3.next'],
@@ -1040,11 +1009,11 @@ const projections: ReadonlyArray<readonly [query: string, record: string]> = [
   ['query gate.gate.audit.discovery.status', 'record ramify-agent.gate-attempt/3.audit.discovery.status'],
   ['query gate.gate.audit.discovery.skipped[].reason', 'record ramify-agent.gate-attempt/3.audit.discovery.skipped[].reason'],
   ['query work-item.iterations[].gates[].verdict', 'record ramify-agent.gate-attempt/3.verdict'],
-  ['query analysis.analysis[accepted].scenarios[].kind', 'record ramify-agent.scenario/1.kind'],
-  ['query analysis.analysis[accepted].scenarios[].origin.kind', 'record ramify-agent.scenario/1.origin.kind'],
+  ['query analysis.analysis[accepted].scenarios[].kind', 'record ramify-agent.scenario/2.kind'],
+  ['query analysis.analysis[accepted].scenarios[].origin.kind', 'record ramify-agent.scenario/2.origin.kind'],
   ['query analysis.analysis[accepted].warnings[].kind', 'run log[analysis-accepted].data.warnings[].kind'],
-  ['query analysis.analysis[accepted].planEvidence[available].elements[].kind', 'record ramify-agent.element-catalog/1.elements[].kind'],
-  ['query analysis.analysis[accepted].planEvidence[available].elements[].conditions[].source', 'record ramify-agent.element-catalog/1.elements[].conditions[].source'],
+  ['query analysis.analysis[accepted].planEvidence[available].elements[].kind', 'record ramify-agent.element-catalog/2.elements[].kind'],
+  ['query analysis.analysis[accepted].planEvidence[available].elements[].conditions[].source', 'record ramify-agent.element-catalog/2.elements[].conditions[].source'],
   ['query analysis.analysis[accepted].planEvidence[available].findings[].action', 'run log[analysis-accepted].data.findings[].action'],
 ];
 
@@ -1066,7 +1035,7 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
   { union: 'record ramify-agent.invocation-outcome/1.resource', values: ['stall'], reason: 'The active idle bound can produce this value, but current durable-outcome fixtures do not retain an idle watchdog result. run-bounds.test.ts verifies the real bound directly; durable recording coverage remains a specific gap.' },
   { union: 'record ramify-agent.operation-recovery/1.boundary.reconstruction.name', values: ['fresh-step-construction'], reason: 'Historical recovery reconstruction and retained-source modes remain readable; ordinary task re-entry no longer emits these controller-specific instructions.' },
   { union: 'record ramify-agent.operation-recovery/1.boundary.reconstruction.name', values: ['retained-task-request'], reason: 'Historical recovery reconstruction and retained-source modes remain readable; ordinary task re-entry no longer emits these controller-specific instructions.' },
-  { union: 'record ramify-agent.job/3.policy.version', values: ['run-policy/8'], reason: 'Historical continuity policy versions and adoption events remain readable; current runs start under their ordinary captured policy and no fixture adopts a legacy policy.' },
+  { union: 'record ramify-agent.job/4.policy.version', values: ['run-policy/8'], reason: 'Historical continuity policy versions and adoption events remain readable; current runs start under their ordinary captured policy and no fixture adopts a legacy policy.' },
   { union: 'run log.type', values: ['readiness-preparation-started', 'readiness-preparation-completed'], reason: 'Historical readiness recovery events remain readable; setup and candidate commitment now use ordinary readiness execution and committing events.' },
   { union: 'run log.type', values: ['readiness-repair-committing', 'readiness-repair-committed'], reason: 'Historical readiness recovery events remain readable; setup and candidate commitment now use ordinary readiness execution and committing events.' },
   { union: 'record ramify-agent.operation-recovery/1.boundary.start.mode', values: ['continue', 'fork'], reason: 'Historical recovery reconstruction and retained-source modes remain readable; ordinary task re-entry no longer emits these controller-specific instructions.' },
@@ -1124,10 +1093,6 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'A completion request missing a done report is a rejected submission (invalid-submission when exhausted), so no driven run reaches the final gate with a scenario not done; the rule itself is tested on incompleteScenarios, and exhausted capability-blocker refusals have no driven fixture yet.',
   },
   {
-    union: 'submission engineer[capability-needed].request.examples[].designation', values: ['executable'],
-    reason: 'Current capability service fixtures submit pseudocode examples; no driven engineer submission yet marks an example executable.',
-  },
-  {
     union: 'query analysis.analysis[accepted].planEvidence.status', values: ['unavailable'],
     reason: 'Projected when the accepted catalog or incorporation file fails its integrity check against the committed event, or the captured documents cannot be read; the query suite does not corrupt a run\'s evidence files.',
   },
@@ -1144,15 +1109,15 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'This record mirrors the unavailable round-close outcome, for which the current executable trials have no producer.',
   },
   {
-    union: 'record ramify-agent.document-manifest/1.missing[].judgment', values: ['required', 'unclear', 'advisory'],
+    union: 'record ramify-agent.document-manifest/2.missing[].judgment', values: ['required', 'unclear', 'advisory'],
     reason: 'Capture records missing links as unjudged. The catalog intake submits the judgments in a separate incorporation record, leaving these manifest-schema values unused by the capture writer.',
   },
   {
-    union: 'record ramify-agent.document-incorporation/2.missing[].judgment', values: ['required'],
+    union: 'record ramify-agent.document-incorporation/3.missing[].judgment', values: ['required'],
     reason: 'A required missing reference fails the intake\'s acceptance, so no accepted incorporation record contains this judgment.',
   },
   {
-    union: 'record ramify-agent.document-incorporation/2.missing[].judgment', values: ['advisory'],
+    union: 'record ramify-agent.document-incorporation/3.missing[].judgment', values: ['advisory'],
     reason: 'An advisory judgment is allowed for a missing reference, but the current accepted-incorporation runtime witness only exercises unclear.',
   },
   {
@@ -1160,43 +1125,43 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'The review projection supports advisory missing references, but the current browser and runtime fixtures show an unclear reference only.',
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[].type', values: ['check-finding-related'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[].type', values: ['check-finding-related'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.source.kind', values: ['file', 'artifact'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.source.kind', values: ['file', 'artifact'],
     reason: 'The NFR deviation adapter reports its captured passage as a document source. The broader CheckFinding schema also permits file and artifact sources, but this carrier never emits them.',
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.judgment.actor.kind', values: ['user'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-opened].data.report.judgment.actor.kind', values: ['user'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.communication.mode', values: ['report'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.communication.mode', values: ['report'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['claim-repair', 'fix-by-assessment', 'supersede', 'defer', 'reopen', 'revise-obligation'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['claim-repair', 'fix-by-assessment', 'supersede', 'defer', 'reopen', 'revise-obligation'],
     reason: 'The NFR deviation adapter asks for a user decision. Other disposition actions remain legal CheckFinding variants, but this event carrier does not emit them.',
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[plan-repair].repair.kind', values: ['assignment'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[plan-repair].repair.kind', values: ['assignment'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[waive].authority.kind', values: ['work-item-assessment'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[waive].authority.kind', values: ['work-item-assessment'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[defer].revisit.kind', values: ['condition', 'follow-up'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[defer].revisit.kind', values: ['condition', 'follow-up'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[reopen].cause.kind', values: ['decision', 'report'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[reopen].cause.kind', values: ['decision', 'report'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-related].data.relation.relation', values: ['same-issue', 'related-but-distinct', 'distinct', 'uncertain'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-related].data.relation.relation', values: ['same-issue', 'related-but-distinct', 'distinct', 'uncertain'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
@@ -1208,11 +1173,7 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'Nothing fails a run with it. Plan 1 used it for a stale map approval, which Plan 3 removed; RunInputs.changes is never called by the run service, so a changed plan or source is never a run failure.',
   },
   {
-    union: 'run log[job-failed].data.reason', values: ['internal'],
-    reason: 'Written where the harness finds itself inconsistent: a prompt package that is not loaded, an assignment without an outline, a revision of an agreement the run never registered. No test builds any of those states, because the run service does not reach them from records it wrote itself.',
-  },
-  {
-    union: 'record ramify-agent.job/3.agent', values: ['pi'],
+    union: 'record ramify-agent.job/4.agent', values: ['pi'],
     reason: 'A run started on pi. No pi session ran in this environment: there is no pi login, so the real trial (T2) was not run and nothing produced it. It is produced only by a real `serve --agent pi` run.',
   },
   {
@@ -1280,15 +1241,15 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'Committing gates and readiness announce each configured check as configured, and setup commands as setup (iteration 9); only an in-place diagnosis plans a Ramify check or a type check, and no test drives one through a run.',
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['fix-by-check'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision.action', values: ['fix-by-check'],
     reason: 'A check witnessed the fix only through the harness scenario producer, which gates no longer run (iteration 9); the decision itself stays a legal CheckFinding variant, decided by the child (check-findings decide.test.ts).',
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[fix-by-check].witness.coverage', values: ['complete', 'partial', 'not-run'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[fix-by-check].witness.coverage', values: ['complete', 'partial', 'not-run'],
     reason: 'No run decides fix-by-check since the harness scenario producer was removed (iteration 9).',
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[fix-by-check].witness.outcome', values: ['passed', 'failed', 'inconclusive'],
+    union: 'run log[nonfunctional-deviations-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[fix-by-check].witness.outcome', values: ['passed', 'failed', 'inconclusive'],
     reason: 'No run decides fix-by-check since the harness scenario producer was removed (iteration 9).',
   },
   {
@@ -1296,7 +1257,7 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'Read from the provider\'s parsed Cucumber run; the composed and projection fixtures\' runs report passing and failing scenarios only, and no query test supplies a run with these statuses.',
   },
   {
-    union: 'record ramify-agent.iteration-assignment/1.kind', values: ['integration'],
+    union: 'record ramify-agent.iteration-assignment/2.kind', values: ['integration'],
     reason: 'Not assignable: the architect\'s assignment body has no integration kind, and no harness path creates one. It is in the record\'s vocabulary from the proposal and has never had a use.',
   },
   {
@@ -1304,11 +1265,11 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'The consumer is a contract scope\'s base, not an extra location (iteration 9), so no writer names it.',
   },
   {
-    union: 'record ramify-agent.iteration-assignment/1.evidenceObligations[].against', values: ['fake'],
+    union: 'record ramify-agent.iteration-assignment/2.evidenceObligations[].against', values: ['fake'],
     reason: 'The contract gate requires the suite against the fake through the selection it resolves at the gate, because the suite does not exist when the assignment is made (iteration 9); no assignment records an obligation against the fake.',
   },
   {
-    union: 'record ramify-agent.iteration-assignment/1.gate.checkpoint', values: ['readiness', 'work-item', 'final'],
+    union: 'record ramify-agent.iteration-assignment/2.gate.checkpoint', values: ['readiness', 'work-item', 'final'],
     reason: 'An assignment\'s checkpoint is derived from its kind and is iteration, contract or breaking-iteration; the field shares the checkpoint vocabulary of GateAttempt, where these three are produced.',
   },
   {
@@ -1320,7 +1281,7 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'Every reconciliation requests the fork of its completion request; a missing point is a degraded fork request, recorded as requested fork and actually fresh (appendix §5), so no assessment requests a fresh start.',
   },
   {
-    union: 'record ramify-agent.job/3.policy.limits.laterRoundMinimumRisk', values: ['high'],
+    union: 'record ramify-agent.job/4.policy.limits.laterRoundMinimumRisk', values: ['high'],
     reason: 'The trial captures medium (appendix §4); high is a policy value no run captures yet, and the floor rule for it is exercised by reconciliation-submission.test.ts.',
   },
   {
@@ -1606,7 +1567,7 @@ describe('the acceptance matrix, composed', () => {
       await reopened.service.close();
     }
   });
-  test('the CLI inspects a supported legacy work item without changing its committed records', async () => {
+  test('the CLI inspects the accepted work item without changing its committed records', async () => {
     const run = finished.get('iteration')!;
     const directory = runDirectory(run.root, run.runId);
     const before = await fileHashes(directory);
@@ -1620,8 +1581,8 @@ describe('the acceptance matrix, composed', () => {
       const { main } = await import('../../../../src/tests/helpers/inspect-cli.js');
       for (let attempt = 0; attempt < 2; attempt += 1) {
         stdout.mockClear();
-        expect(await main(['inspect', '--server', origin, '--plan', plan, '--run', run.runId, '--work-item', 'wi-001', '--json'])).toBe(0);
-        expect(JSON.parse(stdout.mock.calls.map(call => call[0]).join(''))).toMatchObject({ workItem: { id: 'wi-001' } });
+        expect(await main(['inspect', '--server', origin, '--plan', plan, '--run', run.runId, '--work-item', 'work-item:review-note', '--json'])).toBe(0);
+        expect(JSON.parse(stdout.mock.calls.map(call => call[0]).join(''))).toMatchObject({ workItem: { id: 'work-item:review-note' } });
       }
       expect(await fileHashes(directory)).toEqual(before);
     } finally {

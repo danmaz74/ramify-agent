@@ -4,7 +4,7 @@ import { afterEach, expect, test } from 'vitest';
 import { debugInspectionSchema, debugExchangeSchema, startRunCommandSchema, type DebugMessageCommand } from '../interfaces/protocol/runs.js';
 import { openSessionStore } from '../../subs/session-store/src/session-store.js';
 import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
-import { analysis, entry } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { installTestRunner, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
@@ -28,7 +28,7 @@ async function ordinary(engineer: readonly (readonly ScriptStep[])[], options: P
   cleanups.push(copied.remove);
   await installTestRunner(copied.root);
   const opened = await openUnchangedRuns(copied.root, { inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit(plan)],
-    script: byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
+    script: byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(module, {}, outline())), submit(assign(module))], engineer }), ...options,
     ...(candidateObservations === 0 ? {} : { gitScript: { ...options.gitScript, previews: Array.from({ length: candidateObservations }, () => ({ repositoryRoot: copied.root, head: `scenarios-of-${plan}`, tree: 'a'.repeat(40) })) } }) });
   cleanups.push(() => opened.service.close());
@@ -65,7 +65,7 @@ test('breakpoint exchanges retain the assigning architect consultation tool and 
     { kind: 'tool', tool: 'consult_architect', input: { message: 'Explain the assigning architect rationale without implementing.' } },
     ...explain('The assigning architect clarified the rationale.'),
   ];
-  const base = byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
+  const base = byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan'))],
     'local-architect': [submit(assign(module, {}, outline())), submit(assign(module))], engineer: [engineer] });
   const opened = await ordinary([engineer], { script: spec => spec.submission.name === 'answer_architect_consultation'
     ? submit({ answer: 'The assignment adds a review note within its existing scope.' })
@@ -90,7 +90,7 @@ test('breakpoint exchanges retain the assigning architect consultation tool and 
 
 test('B05 B06 B07: preview, two plain returns and resumed implementation retain normal task, tools and both histories', async () => {
   const opened = await ordinary([explain('I will implement a note.'), explain('I understand the boundary.'), submit(completionProposed())],
-    { unchangedCheckpoints: [scenariosCommit(plan), 'wi-001.i01'] });
+    { unchangedCheckpoints: [scenariosCommit(plan), 'work-item:review-note.i01'] });
   const { service, agent, root, runId, pause } = opened;
   const before = service.events(plan, runId)!.length;
   const inspection = debugInspectionSchema.parse(await service.debugInspect(plan, runId, pause.pauseId));
@@ -166,7 +166,7 @@ test('B05 B06 B07: preview, two plain returns and resumed implementation retain 
 
 test.each(['completion-proposed', 'partial'] as const)('B09 B11: accepted %s is held, messages refused and resume consumes once without a model call', async kind => {
   const input = kind === 'completion-proposed' ? completionProposed() : { kind: 'partial', done: ['Useful partial work'], unfinished: ['Remaining task'], findings: [], startingPoints: [] };
-  const opened = await ordinary([submit(input)], { unchangedCheckpoints: kind === 'completion-proposed' ? [scenariosCommit(plan), 'wi-001.i01'] : [scenariosCommit(plan)] }, kind === 'partial' ? 1 : 0);
+  const opened = await ordinary([submit(input)], { unchangedCheckpoints: kind === 'completion-proposed' ? [scenariosCommit(plan), 'work-item:review-note.i01'] : [scenariosCommit(plan)] }, kind === 'partial' ? 1 : 0);
   const command = message(opened, 'Perform the task.');
   await opened.service.execute(command);
   const result = await settled(opened);
@@ -339,7 +339,7 @@ test('B14: host shutdown retains the debugger pause and admitted command without
 test('B08: unconfirmed debugger settlement holds its outcome and blocks fresh exchanges and gates', async () => {
   const barrier = gate();
   const scripted = createScriptedAgent(declaringScenarios(byRole({
-    'initial-architect': [submit(analysis([entry('review-note', module)]))],
+    'initial-architect': [submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan'))],
     'local-architect': [submit(assign(module, {}, outline()))], engineer: [explain('A return is not settlement.')],
   })));
   const opened = await ordinary([], { script: undefined,

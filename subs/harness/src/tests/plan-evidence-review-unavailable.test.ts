@@ -34,7 +34,7 @@ test('an assignment package that cannot be cited leaves a scope review explicitl
       }
     },
     architect: [
-      submit(assign(notes, { goal: 'Add the note store.', citedElements: ['fr-001'] }, outline())),
+      submit(assign(notes, { goal: 'Add the note store.', citedElements: ['functional-requirement:review-notes-request'] }, outline())),
       submit(assign(notes, { goal: 'State the note limit.' })),
       submit(assign(notes, { goal: 'Export the store.' })),
       submit({ kind: 'request-completion', outline: outline() }),

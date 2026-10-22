@@ -12,7 +12,7 @@ import type { HarnessTaskBrief } from '../../../task-execution/src/session-opera
 import { composeTaskBrief, type KnownProjectFacts } from '../task-brief.js';
 import { shellToolDeclaration } from '../../../../src/tools/shell.js';
 import {
-  capabilityEngineerJsonSchema, descriptiveCapabilityEngineerJsonSchema, engineerJsonSchema, engineerSubmissionDescription, engineerToolName, focusedCommandPendingNote, iterationMessage,
+  engineerJsonSchema, engineerSubmissionDescription, engineerToolName, focusedCommandPendingNote, iterationMessage,
   type EngineerEvidence, type IterationApiViews,
 } from '../../../autonomous/subs/work-coordination/src/work/engineer.js';
 import { engineerBuiltinTools } from '../../../autonomous/subs/work-coordination/src/work/engineer-equipment.js';
@@ -76,7 +76,7 @@ export interface ConstructedEngineerStep {
     readonly toolName: string;
     readonly description: string;
     readonly inputSchema: JsonSchema;
-    readonly submissionSchema: 'ramify-agent.engineer-submission/1' | 'ramify-agent.engineer-submission/2';
+    readonly submissionSchema: 'ramify-agent.engineer-submission/2';
   };
   /** The evidence the validator judges against that the inputs determine; the session's own findings are added while it runs. */
   readonly validator: Required<Pick<EngineerEvidence, 'capabilityWorkflow' | 'obligation' | 'kind' | 'assigned'>> & { readonly consumer: string };
@@ -163,7 +163,6 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
     projectRoot,
     workingDirectory,
     capabilityWorkflow: capability,
-    identityContract: inputs.identityContract,
     base: inputs.base,
     views,
     testAreas: inputs.testAreas.map(area => ({ module: area.module, area: relative(area.area) })),
@@ -180,8 +179,8 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
   const submission = {
     toolName: engineerToolName,
     description: engineerSubmissionDescription,
-    inputSchema: capability ? inputs.identityContract === 'descriptive' ? descriptiveCapabilityEngineerJsonSchema : capabilityEngineerJsonSchema : engineerJsonSchema,
-    submissionSchema: inputs.identityContract === 'descriptive' ? 'ramify-agent.engineer-submission/2' as const : 'ramify-agent.engineer-submission/1' as const,
+    inputSchema: engineerJsonSchema,
+    submissionSchema: 'ramify-agent.engineer-submission/2' as const,
   };
   const task = {
     kind,
@@ -236,9 +235,7 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
       workingDirectory,
       scopeRevision: assignment.scope.revision,
       commandTimeoutMs: bounds.commandTimeoutMs,
-      submissions: { legalOutcomes: capability ? inputs.identityContract === 'descriptive'
-        ? ['completion-proposed', 'partial', 'unsuitable', 'capability-needed', 'contract-needed']
-        : ['completion-proposed', 'partial', 'unsuitable', 'capability-needed']
+      submissions: { legalOutcomes: capability ? ['completion-proposed', 'partial', 'unsuitable', 'capability-needed', 'contract-needed']
         : ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'],
         completionOutcome: 'completion-proposed' },
       focusedCommands: focused.command.kind === 'available' ? [{ shellCommand: focused.command.shellCommand, selection: focused.command.selection,
@@ -265,7 +262,6 @@ export interface EngineerInputFacts {
   readonly base: string;
   readonly beforeTree: string | undefined;
   readonly capabilityWorkflow: boolean;
-  readonly identityContract?: 'legacy' | 'descriptive';
   readonly capabilityPolicy: boolean;
   readonly workingDirectory: ProjectPath;
   readonly views: readonly IterationApiViews[];
@@ -304,7 +300,6 @@ export function engineerStepInputsOf(facts: EngineerInputFacts): EngineerStepInp
     base: facts.base,
     ...(facts.beforeTree === undefined ? {} : { candidateBefore: facts.beforeTree }),
     capabilityWorkflow: facts.capabilityWorkflow,
-    ...(facts.identityContract === undefined ? {} : { identityContract: facts.identityContract }),
     capabilityPolicy: facts.capabilityPolicy,
     workingDirectory: facts.workingDirectory,
     views: facts.views.map(entry => ({ module: entry.module, unavailable: entry.unavailable,

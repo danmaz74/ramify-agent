@@ -7,7 +7,7 @@ import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
@@ -47,9 +47,9 @@ test('retained registration graph passes a stateless judgment, rejects a duplica
   let rejectionChecked = false;
   const opened = await openUnchangedRuns(fixture.root, {
     ramify, inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001.i01', 'wi-001', 'final verification of plan "review-notes"'],
+    unchangedCheckpoints: [scenariosCommit('review-notes'), 'work-item:preview-proposed-revision-chain.i01', 'work-item:preview-proposed-revision-chain', 'final verification of plan "review-notes"'],
     script: byRole({
-      'initial-architect': [submit(analysis([entry('preview-proposed-revision-chain', reviews)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('preview-proposed-revision-chain', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [[
         { kind: 'await', until: async () => {
           const jobId = onlyRun(opened.service, 'review-notes').jobId;
@@ -73,7 +73,7 @@ test('retained registration graph passes a stateless judgment, rejects a duplica
           const jobId = onlyRun(opened.service, 'review-notes').jobId;
           const log = await RunLog.open(runPath(fixture.root, 'review-notes', jobId, runLayout.events), jobId);
           const state = committedRecords(log.ledger.replay());
-          expect(state.registry.map(entry => entry.capability)).toEqual(['preview-proposed-revision-chain']);
+          expect(state.registry.map(entry => entry.capability)).toEqual(['capability:preview-proposed-revision-chain']);
           expect(state.decisions.size).toBe(0);
           expect(state.assignments.size).toBe(0);
           rejectionChecked = true;
@@ -106,8 +106,8 @@ test('retained registration graph passes a stateless judgment, rejects a duplica
   })));
   expect(records.filter(record => record.path.startsWith('decisions/'))).toHaveLength(3);
   const state = committedRecords(lines);
-  expect(state.assignments.get('wi-001.i01')!.externalCapabilities).toEqual(retained.assignment.externalCapabilities);
+  expect(state.assignments.get('work-item:preview-proposed-revision-chain.i01')!.externalCapabilities).toEqual(retained.assignment.externalCapabilities);
   expect([...state.decisions.values()]).toHaveLength(3);
-  expect(registries).toContainEqual(expect.objectContaining({ capability: 'resolve-chain-predecessors',
-    consumers: [{ capability: 'evaluate-proposed-revision-chain', workItem: 'wi-001' }] }));
+  expect(registries).toContainEqual(expect.objectContaining({ capability: 'capability:resolve-chain-predecessors',
+    consumers: [{ capability: 'capability:evaluate-proposed-revision-chain', workItem: 'work-item:preview-proposed-revision-chain' }] }));
 }, 180_000);

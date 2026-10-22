@@ -63,7 +63,7 @@ export function decideNonfunctionalRound(input: RoundDecisionInput): RoundDecisi
     || [...external].some(round => !Number.isInteger(round) || round < 1 || round > closedRounds.length)) {
     throw new Error('external continuations must name distinct closed rounds');
   }
-  if (new Set(nfrIds).size !== nfrIds.length || nfrIds.some((id) => !/^(?:(?:nfr|fix)-\d{3,}|(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/.test(id))) {
+  if (new Set(nfrIds).size !== nfrIds.length || nfrIds.some((id) => !/^(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(id))) {
     throw new Error('fixed NFR IDs must be unique and valid');
   }
   closedRounds.forEach((record, index) => {

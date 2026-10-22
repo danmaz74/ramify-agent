@@ -26,8 +26,8 @@ const passedRequest = 'e'.repeat(40);
 function automaticRepair(stage: 'running' | 'continued' | 'refused') {
   return repairIncidentViewSchema.parse({
     schema: 'ramify-agent.repair-incident/1', incidentId: 'apr-0001', revision: 3, createdAt: at, updatedAt: at, stage,
-    preparation: { id: 'prep-0001', path: 'repairs/preparations/prep-0001.json' }, operation: 'local-architect-work-turn', workItem: 'wi-002',
-    originalInvocation: 'inv-0006', originalAssignment: 'wi-002.i01', originalResult: 'work/wi-002/i01/result.json',
+    preparation: { id: 'prep-0001', path: 'repairs/preparations/prep-0001.json' }, operation: 'local-architect-work-turn', workItem: 'work-item:case-002',
+    originalInvocation: 'inv-0006', originalAssignment: 'work-item:case-002.i01', originalResult: 'work/work-item:case-002/i01/result.json',
     harnessError: { name: 'Error', message: 'Retained path missing during architect preparation', stack: null, evidence: ['retained-input.json'] },
     admission: { admitted: stage !== 'refused', reason: stage === 'refused' ? 'Root assignment unavailable' : 'Recorded preparation cannot reach architect' },
     authority: { assignment: 'repair-assignment-1', scopeEvidence: ['repairs/assignment.json'] },
@@ -56,7 +56,7 @@ function snapshot(extra: Partial<RunSnapshot> = {}): RunSnapshot {
   return runSnapshotSchema.parse({
     jobId: runId, planId: 'review-notes', agent: 'scripted', version: 12, state: 'running', phase: 'working', stopRequested: false,
     startedAt: at, updatedAt: at, endedAt: null, failure: null,
-    current: { workItem: 'wi-002', iteration: 'wi-002.i01', role: 'engineer', invocation: 'inv-0006' },
+    current: { workItem: 'work-item:case-002', iteration: 'work-item:case-002.i01', role: 'engineer', invocation: 'inv-0006' },
     waits: [],
     counts: { workItems: 2, completedWorkItems: 1, openRequirements: 0, invocations: 6, readinessAttempts: 1, gateAttempts: 3, scenarios: { pending: 2, bound: 0, done: 0 }, degradedStarts: 0 },
     writer: { held: 'inv-0006', unsettled: null },
@@ -65,10 +65,10 @@ function snapshot(extra: Partial<RunSnapshot> = {}): RunSnapshot {
     planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [],
     notices: [
       {
-        kind: 'module-created', at, sequence: 9, summary: 'Module created: shop/notes/drafts (subs/drafts/module.ramify) in wi-002.i01, commit abc. No placement decision proposed it.',
-        module: 'shop/notes/drafts', declaration: 'subs/drafts/module.ramify', commit: 'abcdef1234567890', iteration: 'wi-002.i01', decision: null,
+        kind: 'module-created', at, sequence: 9, summary: 'Module created: shop/notes/drafts (subs/drafts/module.ramify) in work-item:case-002.i01, commit abc. No placement decision proposed it.',
+        module: 'shop/notes/drafts', declaration: 'subs/drafts/module.ramify', commit: 'abcdef1234567890', iteration: 'work-item:case-002.i01', decision: null,
       },
-      { kind: 'dependency-cycle', at, sequence: 7, summary: 'A capability depends on itself: a → b → a. Closed by wi-001; the re-plan resolved it.', cycle: ['a', 'b'], closedBy: 'wi-001', resolved: true },
+      { kind: 'dependency-cycle', at, sequence: 7, summary: 'A capability depends on itself: a → b → a. Closed by work-item:case-001; the re-plan resolved it.', cycle: ['a', 'b'], closedBy: 'work-item:case-001', resolved: true },
     ],
     ...extra,
   });
@@ -78,7 +78,7 @@ const noteFailure = { step: 'Then the note is listed', message: 'expected one no
 
 function scenarioText(id: string, entry: string | null, owner: string, extra: Record<string, unknown> = {}) {
   return {
-    id, kind: 'entry', entry, owner, origin: { kind: 'architect', refs: ['fr-002'] }, partOf: null, subScenarios: [],
+    id, kind: 'entry', entry, owner, origin: { kind: 'architect', refs: ['functional-requirement:case-002'] }, partOf: null, subScenarios: [],
     name: `Scenario ${id}`, source: [`Scenario: Scenario ${id}`, '  When it is used', '  Then it works'],
     file: `subs/${owner.split('/').at(-1)}/src/tests/features/review-notes/${entry ?? 'integration'}.feature`, ...extra,
   };
@@ -86,8 +86,8 @@ function scenarioText(id: string, entry: string | null, owner: string, extra: Re
 
 function scenarioView(id: string, entry: string | null, state: string, extra: Record<string, unknown> = {}) {
   return {
-    id, kind: 'entry', name: `Scenario ${id}`, state, origin: { kind: 'architect', refs: ['fr-002'] }, entry, partOf: null, subScenarios: [],
-    workItem: 'wi-001', owner: 'shop/notes', file: `subs/notes/src/tests/features/review-notes/${entry ?? 'integration'}.feature`, gates: [], ...extra,
+    id, kind: 'entry', name: `Scenario ${id}`, state, origin: { kind: 'architect', refs: ['functional-requirement:case-002'] }, entry, partOf: null, subScenarios: [],
+    workItem: 'work-item:case-001', owner: 'shop/notes', file: `subs/notes/src/tests/features/review-notes/${entry ?? 'integration'}.feature`, gates: [], ...extra,
   };
 }
 
@@ -95,7 +95,7 @@ const catalogHash = 'e'.repeat(64);
 
 /** One element of the frozen catalog, from the plan unless it says otherwise. */
 function element(id: string, kind: string, text: string, extra: Record<string, unknown> = {}) {
-  return { id, kind, document: 'doc-001', path: 'plans/review-notes/plan.md', text, locator: null, conditions: [], uncertainty: '', ...extra };
+  return { id, kind, document: 'document:case-001', path: 'plans/review-notes/plan.md', text, locator: null, conditions: [], uncertainty: '', ...extra };
 }
 
 /** The frozen catalog of the stub run: one element of every kind, a checker's correction and the plan's incorporation. */
@@ -104,22 +104,22 @@ function planEvidence() {
     status: 'available', catalogHash,
     elements: [
       element('ctx-001', 'context', 'Reviewers write notes while they read a collection.'),
-      element('fr-001', 'functional', 'A reviewer can attach a note to a review.'),
-      element('fr-002', 'functional', 'A written note is listed on its review.', { locator: 'Acceptance' }),
-      element('fr-003', 'functional', 'A note can be tagged.'),
-      element('nfr-001', 'non-functional', 'A note is saved within one second.', {
+      element('functional-requirement:case-001', 'functional', 'A reviewer can attach a note to a review.'),
+      element('functional-requirement:case-002', 'functional', 'A written note is listed on its review.', { locator: 'Acceptance' }),
+      element('functional-requirement:case-003', 'functional', 'A note can be tagged.'),
+      element('non-functional-requirement:case-001', 'non-functional', 'A note is saved within one second.', {
         conditions: [{ text: 'on the reference machine', source: 'stated' }], uncertainty: 'The plan names no load.',
       }),
-      element('fix-001', 'fixed', 'Every module owns its tests.', { document: 'doc-002', path: 'docs/testing.principles.md' }),
-      element('rec-001', 'recommendation', 'Prefer plain text for notes.', { document: 'doc-002', path: 'docs/testing.principles.md' }),
+      element('fix-001', 'fixed', 'Every module owns its tests.', { document: 'document:case-002', path: 'docs/testing.principles.md' }),
+      element('rec-001', 'recommendation', 'Prefer plain text for notes.', { document: 'document:case-002', path: 'docs/testing.principles.md' }),
     ],
-    retired: ['fr-009'],
+    retired: ['functional-requirement:case-009'],
     findings: [
-      { document: 'doc-001', path: 'plans/review-notes/plan.md', action: 'replace', reason: 'The reading merged two requirements.', elements: ['fr-003'], retired: ['fr-009'] },
-      { document: 'doc-002', path: 'docs/testing.principles.md', action: 'add', reason: 'The rule on test ownership was missing.', elements: ['fix-001'], retired: [] },
+      { document: 'document:case-001', path: 'plans/review-notes/plan.md', action: 'replace', reason: 'The reading merged two requirements.', elements: ['functional-requirement:case-003'], retired: ['functional-requirement:case-009'] },
+      { document: 'document:case-002', path: 'docs/testing.principles.md', action: 'add', reason: 'The rule on test ownership was missing.', elements: ['fix-001'], retired: [] },
     ],
     missing: [],
-    incorporation: [{ document: 'doc-001', path: 'plans/review-notes/plan.md', scenarios: true, uncertainty: '' }],
+    incorporation: [{ document: 'document:case-001', path: 'plans/review-notes/plan.md', scenarios: true, uncertainty: '' }],
   };
 }
 
@@ -129,16 +129,16 @@ function stubRun(extra: Partial<RunSnapshot> = {}): StubRun {
     events: [
       { sequence: 1, at, transition: 'job-started', summary: 'The run started', refs: [] },
       { sequence: 2, at, transition: 'readiness-passed', summary: 'Readiness passed at attempt 1', refs: [{ kind: 'gate', id: 'ga-0001' }] },
-      { sequence: 3, at, transition: 'gate-attempted', summary: 'Gate ga-0002 (iteration wi-002.i01): failed, next repair', refs: [{ kind: 'gate', id: 'ga-0002' }] },
-      { sequence: 4, at, transition: 'gate-attempted', summary: 'Gate ga-0003 (iteration wi-002.i01): passed, next accept', refs: [{ kind: 'gate', id: 'ga-0003' }] },
+      { sequence: 3, at, transition: 'gate-attempted', summary: 'Gate ga-0002 (iteration work-item:case-002.i01): failed, next repair', refs: [{ kind: 'gate', id: 'ga-0002' }] },
+      { sequence: 4, at, transition: 'gate-attempted', summary: 'Gate ga-0003 (iteration work-item:case-002.i01): passed, next accept', refs: [{ kind: 'gate', id: 'ga-0003' }] },
     ],
     analysis: analysisResponseSchema.parse({
       plan: { markdown: '# Reviewer notes\n\nA plan.', hash: 'a'.repeat(64) },
       analysis: {
         status: 'accepted', view: { status: 'placeholder' },
         entries: [
-          { capability: 'review-note', description: 'd', owner: 'shop/notes', proposed: null, workItem: 'wi-001', requirementRefs: ['fr-001'], acceptanceRefs: ['fr-002'], contextRefs: ['ctx-001'] },
-          { capability: 'note-tags', description: 't', owner: 'shop/tags', proposed: null, workItem: 'wi-002', requirementRefs: ['fr-003'], acceptanceRefs: ['fr-003'], contextRefs: [] },
+          { capability: 'review-note', description: 'd', owner: 'shop/notes', proposed: null, workItem: 'work-item:case-001', requirementRefs: ['functional-requirement:case-001'], acceptanceRefs: ['functional-requirement:case-002'], contextRefs: ['ctx-001'] },
+          { capability: 'note-tags', description: 't', owner: 'shop/tags', proposed: null, workItem: 'work-item:case-002', requirementRefs: ['functional-requirement:case-003'], acceptanceRefs: ['functional-requirement:case-003'], contextRefs: [] },
         ],
         hypotheses: [{
           id: 'note-search', capability: 'note-search', revision: 2, standing: 'superseded', change: 'reuse',
@@ -148,22 +148,22 @@ function stubRun(extra: Partial<RunSnapshot> = {}): StubRun {
           decisions: ['gd-001'], supersededBy: null, confirmedBy: null,
         }],
         scenarios: [
-          scenarioText('sc-001', 'review-note', 'shop/notes', { origin: { kind: 'plan', planScenario: 'ps-01', lines: [10, 14] }, name: 'A reviewer writes a note' }),
-          scenarioText('sc-002', 'review-note', 'shop/notes', { partOf: 'sc-004', name: 'A note is written for tagging' }),
-          scenarioText('sc-003', 'note-tags', 'shop/tags', { partOf: 'sc-004', name: 'A written note is tagged', source: ['Scenario: A written note is tagged', '  Given a note was written', '  When the person tags it', '  Then the tag is shown'] }),
-          scenarioText('sc-004', null, 'shop', {
-            kind: 'integration', origin: { kind: 'plan', planScenario: 'ps-02', lines: [20, 25] }, subScenarios: ['sc-002', 'sc-003'], name: 'A written note is shown with its tag',
+          scenarioText('scenario:case-001', 'review-note', 'shop/notes', { origin: { kind: 'plan', planScenario: 'ps-01', lines: [10, 14] }, name: 'A reviewer writes a note' }),
+          scenarioText('scenario:case-002', 'review-note', 'shop/notes', { partOf: 'scenario:case-004', name: 'A note is written for tagging' }),
+          scenarioText('scenario:case-003', 'note-tags', 'shop/tags', { partOf: 'scenario:case-004', name: 'A written note is tagged', source: ['Scenario: A written note is tagged', '  Given a note was written', '  When the person tags it', '  Then the tag is shown'] }),
+          scenarioText('scenario:case-004', null, 'shop', {
+            kind: 'integration', origin: { kind: 'plan', planScenario: 'ps-02', lines: [20, 25] }, subScenarios: ['scenario:case-002', 'scenario:case-003'], name: 'A written note is shown with its tag',
             source: ['Scenario: A written note is shown with its tag', '  When the person writes a note', '  And the person tags it', '  Then the tag is shown'],
           }),
         ],
-        warnings: [{ kind: 'sub-scenario-shares-no-step', scenarios: ['sc-003'], message: 'sc-003 picks no step of sc-004 verbatim' }],
+        warnings: [{ kind: 'sub-scenario-shares-no-step', scenarios: ['scenario:case-003'], message: 'scenario:case-003 picks no step of scenario:case-004 verbatim' }],
         planEvidence: planEvidence(),
         total: { entries: 2, hypotheses: 1, scenarios: 4 },
       },
     }),
     decisions: decisionListResponseSchema.parse({
       decisions: [{
-        kind: 'placement', at, sequence: 5, workItem: 'wi-001', id: 'gd-001', authority: 'global', request: 'pr-001', question: 'Where is search?',
+        kind: 'placement', at, sequence: 5, workItem: 'work-item:case-001', id: 'gd-001', authority: 'global', request: 'pr-001', question: 'Where is search?',
         outcome: 'reuse', capability: 'note-search', changesExistingSymbols: false, owner: 'shop/search', proposed: null, rationale: 'Search exists.', revises: null,
         hypotheses: [{ id: 'note-search', revision: 2 }], registry: ['note-search'],
       }],
@@ -171,15 +171,15 @@ function stubRun(extra: Partial<RunSnapshot> = {}): StubRun {
     }),
     capabilities: capabilityListResponseSchema.parse({
       capabilities: [
-        { capability: 'send-button', owner: 'collection-review/workspace/reviews', entry: true, tentative: false, state: 'working', reason: 'Waiting for provider ob-ct-001 (rq-001)', dependsOn: [{ capability: 'send-email', tentative: false }], workItems: ['wi-001'], evidence: [], scenarios: { done: 0, total: 1 } },
-        { capability: 'send-email', owner: 'collection-review/workspace/reviews', entry: false, tentative: false, state: 'completed', reason: 'Provider work completed with current evidence', dependsOn: [], workItems: ['wi-002'], evidence: ['ga-0007', 'ga-0006'], scenarios: null },
+        { capability: 'send-button', owner: 'collection-review/workspace/reviews', entry: true, tentative: false, state: 'working', reason: 'Waiting for provider ob-ct-001 (rq-001)', dependsOn: [{ capability: 'send-email', tentative: false }], workItems: ['work-item:case-001'], evidence: [], scenarios: { done: 0, total: 1 } },
+        { capability: 'send-email', owner: 'collection-review/workspace/reviews', entry: false, tentative: false, state: 'completed', reason: 'Provider work completed with current evidence', dependsOn: [], workItems: ['work-item:case-002'], evidence: ['ga-0007', 'ga-0006'], scenarios: null },
         { capability: 'note-rendering', owner: 'collection-review', entry: false, tentative: true, state: 'todo', reason: 'Forecast by hypothesis note-rendering at revision 1 (tentative); no work derives from a hypothesis', dependsOn: [{ capability: 'note-storage', tentative: true }], workItems: [], evidence: [], scenarios: null },
         { capability: 'note-storage', owner: 'collection-review/workspace/reviews', entry: false, tentative: true, state: 'todo', reason: 'Forecast by hypothesis note-storage at revision 1 (tentative); no work derives from a hypothesis', dependsOn: [], workItems: [], evidence: [], scenarios: null },
       ],
       total: 4,
     }),
     moduleCapabilities: moduleCapabilityComparisonResponseSchema.parse({
-      identityPolicy: 'exact-capability-slug/1',
+      identityPolicy: 'exact-accepted-capability-id/2',
       runVersion: 12,
       initialView: { status: 'placeholder' },
       tree: {
@@ -190,7 +190,7 @@ function stubRun(extra: Partial<RunSnapshot> = {}): StubRun {
         { module: 'shop', placement: 'declared', proposedAtStart: null, capabilities: [] },
         {
           module: 'shop/notes', placement: 'declared', proposedAtStart: null, capabilities: [
-            { capability: 'review-note', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'wi-001 passed its work-item gate ga-0003', evidence: ['ga-0003'] } },
+            { capability: 'review-note', initial: [{ role: 'entry-owner', hypothesis: null }], implementedHere: { reason: 'work-item:case-001 passed its work-item gate ga-0003', evidence: ['ga-0003'] } },
             { capability: 'note-search', initial: [{ role: 'suggested-owner', hypothesis: 'note-search' }], implementedHere: null },
           ],
         },
@@ -212,39 +212,39 @@ function stubRun(extra: Partial<RunSnapshot> = {}): StubRun {
         }],
       }),
       'ga-0002': gateViewSchema.parse({
-        id: 'ga-0002', checkpoint: 'iteration', subject: { workItem: 'wi-002', iteration: 'wi-002.i01' }, repairRound: 0, infrastructureAttempt: 0,
+        id: 'ga-0002', checkpoint: 'iteration', subject: { workItem: 'work-item:case-002', iteration: 'work-item:case-002.i01' }, repairRound: 0, infrastructureAttempt: 0,
         head: baseCommit, commit: failedCommit, audited: failedCommit,
         evidence: { runRef: 'refs/audited/runs/failed', reportCommit: 'c'.repeat(40), treeRef: 'refs/audited/trees/failed' },
         audit: auditView(failedCommit, failedCommit, 'fail'),
         scenarios: [{
-          id: 'sc-001', check: 'scenarios', command: 'cucumber', status: 'failed', file: 'subs/notes/src/tests/features/review-notes/review-note.feature', line: 4,
+          id: 'scenario:case-001', check: 'scenarios', command: 'cucumber', status: 'failed', file: 'subs/notes/src/tests/features/review-notes/review-note.feature', line: 4,
           failure: noteFailure, undefined: [],
         }],
         verdict: 'failed', cause: 'check-failed', next: 'repair', guardedChanges: [], rules: [], commands: [],
       }),
       'ga-0003': gateViewSchema.parse({
-        id: 'ga-0003', checkpoint: 'iteration', subject: { workItem: 'wi-002', iteration: 'wi-002.i01' }, repairRound: 1, infrastructureAttempt: 0,
+        id: 'ga-0003', checkpoint: 'iteration', subject: { workItem: 'work-item:case-002', iteration: 'work-item:case-002.i01' }, repairRound: 1, infrastructureAttempt: 0,
         head: failedCommit, commit: null, audited: failedCommit,
         evidence: { runRef: 'refs/audited/runs/passed', reportCommit: 'd'.repeat(40), treeRef: 'refs/audited/trees/passed' },
         // The repaired tree equals the failed attempt's commit: the provider
         // answers with a record of it, both source commits kept.
         audit: auditView(passedRequest, failedCommit, 'pass', { auditedCommit: failedCommit, ignoredChangedPaths: ['docs/notes.md'], requestedMode: 'ramify-partial', resolution: 'defaulted' }),
-        scenarios: [{ id: 'sc-001', check: 'scenarios', command: 'cucumber', status: 'passed', file: 'subs/notes/src/tests/features/review-notes/review-note.feature', line: 4, failure: null, undefined: [] }],
+        scenarios: [{ id: 'scenario:case-001', check: 'scenarios', command: 'cucumber', status: 'passed', file: 'subs/notes/src/tests/features/review-notes/review-note.feature', line: 4, failure: null, undefined: [] }],
         verdict: 'passed', cause: null, next: 'accept', guardedChanges: [], rules: [], commands: [],
       }),
     },
     scenarios: scenarioListResponseSchema.parse({
       scenarios: [
-        scenarioView('sc-001', 'review-note', 'done', {
+        scenarioView('scenario:case-001', 'review-note', 'done', {
           origin: { kind: 'plan', planScenario: 'ps-01', lines: [10, 14] }, name: 'A reviewer writes a note',
           gates: [
-            { gate: 'ga-0002', checkpoint: 'iteration', subject: { workItem: 'wi-002', iteration: 'wi-002.i01' }, verdict: 'failed', check: 'scenarios', command: 'cucumber', status: 'failed', failure: noteFailure, undefined: [] },
-            { gate: 'ga-0003', checkpoint: 'iteration', subject: { workItem: 'wi-002', iteration: 'wi-002.i01' }, verdict: 'passed', check: 'scenarios', command: 'cucumber', status: 'passed', failure: null, undefined: [] },
+            { gate: 'ga-0002', checkpoint: 'iteration', subject: { workItem: 'work-item:case-002', iteration: 'work-item:case-002.i01' }, verdict: 'failed', check: 'scenarios', command: 'cucumber', status: 'failed', failure: noteFailure, undefined: [] },
+            { gate: 'ga-0003', checkpoint: 'iteration', subject: { workItem: 'work-item:case-002', iteration: 'work-item:case-002.i01' }, verdict: 'passed', check: 'scenarios', command: 'cucumber', status: 'passed', failure: null, undefined: [] },
           ],
         }),
-        scenarioView('sc-002', 'review-note', 'bound', { partOf: 'sc-004' }),
-        scenarioView('sc-003', 'note-tags', 'bound', { partOf: 'sc-004', owner: 'shop/tags', workItem: 'wi-002' }),
-        scenarioView('sc-004', null, 'pending', { kind: 'integration', origin: { kind: 'plan', planScenario: 'ps-02', lines: [20, 25] }, subScenarios: ['sc-002', 'sc-003'], owner: 'shop', workItem: null }),
+        scenarioView('scenario:case-002', 'review-note', 'bound', { partOf: 'scenario:case-004' }),
+        scenarioView('scenario:case-003', 'note-tags', 'bound', { partOf: 'scenario:case-004', owner: 'shop/tags', workItem: 'work-item:case-002' }),
+        scenarioView('scenario:case-004', null, 'pending', { kind: 'integration', origin: { kind: 'plan', planScenario: 'ps-02', lines: [20, 25] }, subScenarios: ['scenario:case-002', 'scenario:case-003'], owner: 'shop', workItem: null }),
       ],
       total: 4,
       obligations: [],
@@ -269,7 +269,7 @@ function stubRun(extra: Partial<RunSnapshot> = {}): StubRun {
       },
       evaluation: {
         guarding: { guarded: ['edit'], unguarded: ['shell'], verdicts: { allowed: 1, 'blocked-scope': 0, 'blocked-unresolved': 0 }, complete: false, statement: 'Guarded: edit. Not guarded: shell. A count of blocked calls is not evidence that every write respected its scope; what an unguarded tool wrote is seen only in the tree afterwards.' },
-        outsideScope: [{ invocation: 'inv-0004', role: 'engineer', workItem: 'wi-001', iteration: 'wi-001.i01', path: 'subs/reviews/src/outside.ts' }],
+        outsideScope: [{ invocation: 'inv-0004', role: 'engineer', workItem: 'work-item:case-001', iteration: 'work-item:case-001.i01', path: 'subs/reviews/src/outside.ts' }],
         invocations: [],
       },
     }),
@@ -277,8 +277,8 @@ function stubRun(extra: Partial<RunSnapshot> = {}): StubRun {
 }
 
 const workItemSummary: WorkItemSummary = {
-  id: 'wi-001', module: 'collection-review/workspace/reviews', capability: 'send-button', origin: 'entry', goal: 'The send button',
-  state: 'working', follows: null, startedFor: null, currentIteration: 'wi-001.i02', waitingFor: [], completedBy: null,
+  id: 'work-item:case-001', module: 'collection-review/workspace/reviews', capability: 'send-button', origin: 'entry', goal: 'The send button',
+  state: 'working', follows: null, startedFor: null, currentIteration: 'work-item:case-001.i02', waitingFor: [], completedBy: null,
   counts: { outlineRevisions: 1, iterations: 2, gateAttempts: 4, invocations: 5 },
 };
 
@@ -316,7 +316,7 @@ test('overview presents the harness verdict with its exact candidate tree and au
   run.mergeReadiness = { runId, version: run.snapshot.version, readiness: {
     status: 'pending-review', reason: 'A plan deviation awaits user review',
     candidate: { tree: baseCommit, head: null, preparedAt: at }, finalGate: 'ga-0009',
-    gateCommit: failedCommit, checkFindings: ['cf-0001'],
+    gateCommit: failedCommit, checkFindings: ['finding:case-0001'],
   } };
   const client = clientWith(run);
   render(<RunPage client={client} planId="review-notes" runId={runId} interval={60_000} />);
@@ -325,7 +325,7 @@ test('overview presents the harness verdict with its exact candidate tree and au
   await within(body).findByText(/Completed, pending user review/);
   expect(body.textContent).toContain(baseCommit);
   expect(body.textContent).toContain(`ga-0009 at commit ${failedCommit}`);
-  expect(body.textContent).toContain('cf-0001');
+  expect(body.textContent).toContain('finding:case-0001');
   expect(client.calls).toContain(`getMergeReadiness:${runId}:${run.snapshot.version}`);
 });
 
@@ -547,14 +547,14 @@ test('CM19: a failed run says failed at run level only; a capability keeps its l
   expect(capabilityStateSchema.options).toEqual(['todo', 'working', 'completed']);
   const failed = stubRun({
     state: 'failed', phase: 'ended', endedAt: at, current: null, writer: { held: null, unsettled: null },
-    failure: { reason: 'repair-exhausted', message: 'Repair rounds of wi-001 were spent without a passing gate', evidence: ['ga-0005'] },
+    failure: { reason: 'repair-exhausted', message: 'Repair rounds of work-item:case-001 were spent without a passing gate', evidence: ['ga-0005'] },
   });
   const run: StubRun = {
     ...failed,
     capabilities: capabilityListResponseSchema.parse({
       capabilities: [
-        { capability: 'send-button', owner: 'collection-review/workspace/reviews', entry: true, tentative: false, state: 'working', reason: 'wi-001 is under way, iteration wi-001.i02', dependsOn: [], workItems: ['wi-001'], evidence: [], scenarios: { done: 0, total: 1 } },
-        { capability: 'send-email', owner: 'collection-review/workspace/reviews', entry: false, tentative: false, state: 'todo', reason: 'wi-002 not started', dependsOn: [], workItems: ['wi-002'], evidence: [], scenarios: null },
+        { capability: 'send-button', owner: 'collection-review/workspace/reviews', entry: true, tentative: false, state: 'working', reason: 'work-item:case-001 is under way, iteration work-item:case-001.i02', dependsOn: [], workItems: ['work-item:case-001'], evidence: [], scenarios: { done: 0, total: 1 } },
+        { capability: 'send-email', owner: 'collection-review/workspace/reviews', entry: false, tentative: false, state: 'todo', reason: 'work-item:case-002 not started', dependsOn: [], workItems: ['work-item:case-002'], evidence: [], scenarios: null },
       ],
       total: 2,
     }),
@@ -563,11 +563,11 @@ test('CM19: a failed run says failed at run level only; a capability keeps its l
       total: 1,
     }),
     workItem: {
-      'wi-001': workItemResponseSchema.parse({
+      'work-item:case-001': workItemResponseSchema.parse({ acceptedReferences: { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], elements: [], unavailable: null },
         workItem: workItemSummary,
         outlines: [],
         iterations: [{
-          id: 'wi-001.i02', kind: 'implementation', stage: 0, goal: 'Send the note', approach: 'non-breaking',
+          id: 'work-item:case-001.i02', kind: 'implementation', stage: 0, goal: 'Send the note', approach: 'non-breaking',
           scope: { modules: ['collection-review/workspace/reviews'], included: [], broad: false, rationale: 'The owner.', extra: [], read: [] },
           checkpoint: 'iteration', completionEvidence: 'Its tests pass.', authorizations: [],
           result: { outcome: 'exhausted', gate: 'ga-0005', commit: null, findings: [], changedAssumptions: [], recommendation: null, failure: null },
@@ -594,9 +594,9 @@ test('CM19: a failed run says failed at run level only; a capability keeps its l
 
   fireEvent.click(within(graph).getByRole('button', { name: 'send-button, working, entry' }));
   expect(screen.getByLabelText('Details for send-button').textContent).not.toMatch(/fail/i);
-  fireEvent.click(screen.getByRole('button', { name: 'Open the history of work item wi-001' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open the history of work item work-item:case-001' }));
   expect(screen.getByRole('tab', { name: 'Work items' }).getAttribute('aria-selected')).toBe('true');
-  const history = await screen.findByLabelText('Work item wi-001');
+  const history = await screen.findByLabelText('Work item work-item:case-001');
   expect(await within(history).findByText(/Result: exhausted/)).toBeTruthy();
   expect(history.textContent).toContain('ga-0005 failed');
 });
@@ -630,16 +630,16 @@ test('an iteration whose engineer ended without a result shows the digest and th
     ...stubRun(),
     workItems: workItemListResponseSchema.parse({ workItems: [workItemSummary], total: 1 }),
     workItem: {
-      'wi-001': workItemResponseSchema.parse({
+      'work-item:case-001': workItemResponseSchema.parse({ acceptedReferences: { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], elements: [], unavailable: null },
         workItem: workItemSummary,
         outlines: [],
         iterations: [{
-          id: 'wi-001.i01', kind: 'ordinary', stage: 0, goal: 'Send the note', approach: 'Change the source.',
+          id: 'work-item:case-001.i01', kind: 'ordinary', stage: 0, goal: 'Send the note', approach: 'Change the source.',
           scope: { modules: ['collection-review/workspace/reviews'], included: [], broad: false, rationale: 'The owner.', extra: [], read: [] },
           checkpoint: 'iteration', completionEvidence: 'Its tests pass.', authorizations: [],
           result: {
             outcome: 'partial', gate: null, commit: null, changedAssumptions: [], recommendation: null,
-            findings: ['the module engineer of wi-001.i01 ended without a result (idle-timeout: No port event for 300000 ms; invocation inv-0003)'],
+            findings: ['the module engineer of work-item:case-001.i01 ended without a result (idle-timeout: No port event for 300000 ms; invocation inv-0003)'],
             failure: {
               digest: ['- Why it ended: The idle bound fired: no port event for 300000 ms.', '- What it said last: “Running the suite.”'],
               analysis: {
@@ -658,8 +658,8 @@ test('an iteration whose engineer ended without a result shows the digest and th
   };
   render(<RunPage client={clientWith(run)} planId="review-notes" runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Work items' }));
-  fireEvent.click(await screen.findByRole('button', { name: /wi-001/ }));
-  const history = await screen.findByLabelText('Work item wi-001');
+  fireEvent.click(await screen.findByRole('button', { name: /work-item:case-001/ }));
+  const history = await screen.findByLabelText('Work item work-item:case-001');
   expect(await within(history).findByText(/Ended without a result · cause: bound-too-tight/)).toBeTruthy();
   expect(within(history).getByLabelText('Failure digest').textContent).toContain('The idle bound fired');
   const analysis = within(history).getByLabelText('Failure analysis');
@@ -739,10 +739,10 @@ test('candidate differences retain snapshot provenance and distinguish an attrib
   const run = stubRun();
   run.metrics!.evaluation.outsideScope = [
     ...['subs/validation/README.md', 'subs/validation/module.ramify'].map(path => ({
-      path, invocation: 'inv-0012', role: 'engineer' as const, workItem: 'wi-001', iteration: 'wi-001.i01',
+      path, invocation: 'inv-0012', role: 'engineer' as const, workItem: 'work-item:case-001', iteration: 'work-item:case-001.i01',
       evidence: { attributable: false, observations: [{ number: 258, observedBy: 'snapshot' as const, callId: null, attributable: false }], uncertainty: null },
     })),
-    { path: 'subs/validation/src/changed.ts', invocation: 'inv-0012', role: 'engineer', workItem: 'wi-001', iteration: 'wi-001.i01',
+    { path: 'subs/validation/src/changed.ts', invocation: 'inv-0012', role: 'engineer', workItem: 'work-item:case-001', iteration: 'work-item:case-001.i01',
       evidence: { attributable: true, observations: [{ number: 257, observedBy: 'tool', callId: 'write-1', attributable: true }], uncertainty: null } },
   ];
   render(<RunPage client={clientWith(run)} planId="review-notes" runId={runId} interval={60_000} />);
@@ -758,9 +758,9 @@ test('candidate differences retain snapshot provenance and distinguish an attrib
 test('work-item history preserves accepted settlement beside inherited candidate differences', async () => {
   const run = stubRun();
   const path = 'subs/validation/README.md';
-  run.workItem = { 'wi-001': workItemResponseSchema.parse({
+  run.workItem = { 'work-item:case-001': workItemResponseSchema.parse({ acceptedReferences: { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], elements: [], unavailable: null },
     workItem: workItemSummary, outlines: [], gates: [], requirements: [], requests: [],
-    iterations: [{ id: 'wi-001.i01', kind: 'ordinary', stage: 0, goal: 'Settle provider.', approach: 'Provider work.',
+    iterations: [{ id: 'work-item:case-001.i01', kind: 'ordinary', stage: 0, goal: 'Settle provider.', approach: 'Provider work.',
       scope: { modules: ['shop/provider'], included: [], broad: false, rationale: 'Owner.', extra: [], read: [] },
       checkpoint: 'iteration', completionEvidence: 'Focused checks.', authorizations: [], package: null, gates: [],
       result: { outcome: 'accepted', gate: 'ga-001', commit: baseCommit, findings: [], changedAssumptions: [], recommendation: null, failure: null },
@@ -772,8 +772,8 @@ test('work-item history preserves accepted settlement beside inherited candidate
   run.workItems = workItemListResponseSchema.parse({ workItems: [workItemSummary], total: 1 });
   render(<RunPage client={clientWith(run)} planId="review-notes" runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Work items' }));
-  fireEvent.click(await screen.findByRole('button', { name: /wi-001/ }));
-  const history = await screen.findByLabelText('Work item wi-001');
+  fireEvent.click(await screen.findByRole('button', { name: /work-item:case-001/ }));
+  const history = await screen.findByLabelText('Work item work-item:case-001');
   await within(history).findByText(/Result: accepted/);
   expect(history.textContent).toContain(`${path}: observed during inv-0012; not attributable to this invocation (snapshot observation 258)`);
 });
@@ -801,21 +801,21 @@ test('the Scenarios area lists every tracked scenario with its state, origin, wo
   expect(client.calls.filter(call => call.startsWith('getScenarios'))).toEqual([`getScenarios:${runId}`]);
   const row = (id: string) => table.querySelector<HTMLElement>(`[data-scenario="${id}"]`)!;
   const cells = (id: string) => [...row(id).querySelectorAll('td')].map(cell => cell.textContent);
-  expect([...table.querySelectorAll('tbody tr')].map(one => one.getAttribute('data-scenario'))).toEqual(['sc-001', 'sc-002', 'sc-003', 'sc-004']);
-  expect(within(row('sc-001')).getByText('done').className).toContain('scenario-state-done');
-  expect(cells('sc-001')[1]).toBe('done');
-  expect(cells('sc-001')[2]).toBe('from the plan (ps-01, lines 10–14)');
-  expect(cells('sc-002')[1]).toBe('bound');
-  expect(cells('sc-002')[3]).toBe('entry review-note, work item wi-001; sub-scenario of sc-004');
-  expect(cells('sc-003')[1]).toBe('bound');
-  expect(cells('sc-004')[1]).toBe('pending');
-  expect(cells('sc-004')[3]).toBe('integration of sc-002, sc-003; no work item until its sub-scenarios are reported done');
-  expect(cells('sc-004')[4]).toContain('subs/notes/src/tests/features/review-notes/integration.feature');
-  expect(cells('sc-004')[5]).toBe('not run yet');
-  const gates = within(row('sc-001')).getByLabelText('Gates of sc-001');
+  expect([...table.querySelectorAll('tbody tr')].map(one => one.getAttribute('data-scenario'))).toEqual(['scenario:case-001', 'scenario:case-002', 'scenario:case-003', 'scenario:case-004']);
+  expect(within(row('scenario:case-001')).getByText('done').className).toContain('scenario-state-done');
+  expect(cells('scenario:case-001')[1]).toBe('done');
+  expect(cells('scenario:case-001')[2]).toBe('from the plan (ps-01, lines 10–14)');
+  expect(cells('scenario:case-002')[1]).toBe('bound');
+  expect(cells('scenario:case-002')[3]).toBe('entry review-note, work item work-item:case-001; sub-scenario of scenario:case-004');
+  expect(cells('scenario:case-003')[1]).toBe('bound');
+  expect(cells('scenario:case-004')[1]).toBe('pending');
+  expect(cells('scenario:case-004')[3]).toBe('integration of scenario:case-002, scenario:case-003; no work item until its sub-scenarios are reported done');
+  expect(cells('scenario:case-004')[4]).toContain('subs/notes/src/tests/features/review-notes/integration.feature');
+  expect(cells('scenario:case-004')[5]).toBe('not run yet');
+  const gates = within(row('scenario:case-001')).getByLabelText('Gates of scenario:case-001');
   expect([...gates.querySelectorAll('li')].map(item => item.textContent)).toEqual([
-    'ga-0002 iteration wi-002.i01, scenarios.cucumber: failedThen the note is listed: expected one note, got none',
-    'ga-0003 iteration wi-002.i01, scenarios.cucumber: passed',
+    'ga-0002 iteration work-item:case-002.i01, scenarios.cucumber: failedThen the note is listed: expected one note, got none',
+    'ga-0003 iteration work-item:case-002.i01, scenarios.cucumber: passed',
   ]);
   expect(screen.getByLabelText('Scenario states').textContent).toBe('1 pending · 2 bound · 1 done');
 });
@@ -830,21 +830,21 @@ test('PB3-D04: the Scenarios area lists each registered obligation with its bind
   const at = '2026-10-08T06:00:00.000Z';
   const run = stubRun();
   const obligations = [
-    { id: 'sc-001', kind: 'scenario', responsible: { kind: 'work-item', id: 'wi-001' }, status: 'done', revision: 1, case: null, description: null,
+    { id: 'scenario:case-001', kind: 'scenario', responsible: { kind: 'work-item', id: 'work-item:case-001' }, status: 'done', revision: 1, case: null, description: null,
       registeredBy: null, binding: { fakes: ['FakeReportReader'], invocation: 'inv-0007', submission: 'a'.repeat(64), sequence: 40, at },
       report: { judgment: 'done', revision: 1, basedOnRevision: 0, where: 'notes.test.ts — the note limit test', invocation: 'inv-0009',
         submission: 'b'.repeat(64), sequence: 52, at } },
-    { id: 'test-001', kind: 'test', responsible: { kind: 'work-item', id: 'wi-001' }, status: 'pending', revision: 0, case: null,
+    { id: 'test-001', kind: 'test', responsible: { kind: 'work-item', id: 'work-item:case-001' }, status: 'pending', revision: 0, case: null,
       description: 'The notes test states the plan limit', registeredBy: { invocation: 'inv-0006', submission: 'c'.repeat(64) }, binding: null, report: null },
   ];
   render(<RunPage client={clientWith({ ...run, scenarios: scenarioListResponseSchema.parse({ ...run.scenarios, obligations }) })}
     planId="review-notes" runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Scenarios' }));
   const list = await screen.findByLabelText('Registered obligations');
-  expect(within(list).getByLabelText('Obligation sc-001').textContent).toBe('sc-001 · scenario · done · reported on by work-item wi-001'
+  expect(within(list).getByLabelText('Obligation scenario:case-001').textContent).toBe('scenario:case-001 · scenario · done · reported on by work-item work-item:case-001'
     + ' · bound by inv-0007, fakes: FakeReportReader · architect report done by inv-0009 (revision 1), where: notes.test.ts — the note limit test');
   expect(within(list).getByLabelText('Obligation test-001').textContent).toBe('test-001 · registered test: The notes test states the plan limit · pending'
-    + ' · reported on by work-item wi-001 · not bound · no architect report yet');
+    + ' · reported on by work-item work-item:case-001 · not bound · no architect report yet');
   expect(within(list).getByLabelText('Outstanding reports').textContent).toBe('A done report is outstanding on test-001.');
 });
 
@@ -852,24 +852,24 @@ test('the review on the analysis page: each entry\'s scenarios with their origin
   render(<RunPage client={clientWith(stubRun())} planId="review-notes" runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Plan and entries' }));
   const note = await screen.findByLabelText('Scenarios of review-note');
-  expect(within(note).getAllByRole('listitem').map(item => item.getAttribute('aria-label'))).toEqual(['Scenario sc-001', 'Scenario sc-002']);
-  const first = within(note).getByLabelText('Scenario sc-001');
+  expect(within(note).getAllByRole('listitem').map(item => item.getAttribute('aria-label'))).toEqual(['Scenario scenario:case-001', 'Scenario scenario:case-002']);
+  const first = within(note).getByLabelText('Scenario scenario:case-001');
   expect(first.textContent).toContain('A reviewer writes a note');
   expect(first.textContent).toContain('from the plan (ps-01, lines 10–14)');
   expect(first.querySelector('.badge')!.textContent).toBe('plan');
-  const second = within(note).getByLabelText('Scenario sc-002');
-  expect(second.textContent).toContain('written by the architect, citing fr-002; a sub-scenario of sc-004');
-  expect(second.querySelector('pre')!.textContent).toBe('Scenario: Scenario sc-002\n  When it is used\n  Then it works');
+  const second = within(note).getByLabelText('Scenario scenario:case-002');
+  expect(second.textContent).toContain('written by the architect, citing functional-requirement:case-002; a sub-scenario of scenario:case-004');
+  expect(second.querySelector('pre')!.textContent).toBe('Scenario: Scenario scenario:case-002\n  When it is used\n  Then it works');
 
-  const integration = screen.getByLabelText('Integration scenario sc-004');
-  expect(within(integration).getByRole('heading', { level: 3 }).textContent).toBe('Integration scenario sc-004: A written note is shown with its tag');
+  const integration = screen.getByLabelText('Integration scenario scenario:case-004');
+  expect(within(integration).getByRole('heading', { level: 3 }).textContent).toBe('Integration scenario scenario:case-004: A written note is shown with its tag');
   expect(within(integration).getByLabelText('The plan\'s text').querySelector('pre')!.textContent)
     .toBe('Scenario: A written note is shown with its tag\n  When the person writes a note\n  And the person tags it\n  Then the tag is shown');
   const subs = within(integration).getByLabelText('Its sub-scenarios');
-  expect(within(subs).getAllByRole('listitem').map(item => item.getAttribute('aria-label'))).toEqual(['Scenario sc-002', 'Scenario sc-003']);
+  expect(within(subs).getAllByRole('listitem').map(item => item.getAttribute('aria-label'))).toEqual(['Scenario scenario:case-002', 'Scenario scenario:case-003']);
   // The warning is listed, and shown on the scenario it concerns.
-  expect(screen.getByLabelText('Warnings of the analysis').textContent).toContain('sub-scenario-shares-no-step on sc-003: sc-003 picks no step of sc-004 verbatim');
-  expect(within(subs).getByLabelText('Scenario sc-003').querySelector('.warn')!.textContent).toBe('Warning (sub-scenario-shares-no-step): sc-003 picks no step of sc-004 verbatim');
+  expect(screen.getByLabelText('Warnings of the analysis').textContent).toContain('sub-scenario-shares-no-step on scenario:case-003: scenario:case-003 picks no step of scenario:case-004 verbatim');
+  expect(within(subs).getByLabelText('Scenario scenario:case-003').querySelector('.warn')!.textContent).toBe('Warning (sub-scenario-shares-no-step): scenario:case-003 picks no step of scenario:case-004 verbatim');
   expect(within(note).queryByText(/Warning/)).toBeNull();
 });
 
@@ -880,20 +880,20 @@ test('the plan and entries: each entry names the elements it cites, and the plan
   expect([...assignments.querySelectorAll('th')].map(cell => cell.textContent)).toEqual(['Capability', 'Owner', 'Work item', 'Description', 'Elements']);
   const rows = [...assignments.querySelectorAll('tbody tr')].map(row => [...row.querySelectorAll('td')].map(cell => cell.textContent));
   // Requirement, then acceptance where it differs, then context.
-  expect(rows.map(row => [row[0], row[4]])).toEqual([['review-note', 'fr-001, fr-002, ctx-001'], ['note-tags', 'fr-003']]);
+  expect(rows.map(row => [row[0], row[4]])).toEqual([['review-note', 'functional-requirement:case-001, functional-requirement:case-002, ctx-001'], ['note-tags', 'functional-requirement:case-003']]);
 
   // The catalog replaced the Non-functional requirements panel.
   expect(screen.queryByRole('heading', { name: 'Non-functional requirements' })).toBeNull();
   const catalog = screen.getByRole('heading', { name: 'The plan context catalog' }).closest('section')!;
-  expect(catalog.textContent).toContain(`Catalog ${catalogHash.slice(0, 12)}: 7 elements; retired fr-009.`);
+  expect(catalog.textContent).toContain(`Catalog ${catalogHash.slice(0, 12)}: 7 elements; retired functional-requirement:case-009.`);
   const kinds = within(catalog).getAllByRole('heading', { level: 3 }).map(heading => heading.textContent);
   expect(kinds).toEqual([
     'Context (1)', 'Functional requirements (3)', 'Non-functional requirements of the plan (1)', 'Fixed requirements (1)', 'Recommendations (1)', 'Checker findings',
   ]);
   const ids = (heading: string) => within(within(catalog).getByLabelText(heading)).queryAllByRole('listitem').map(item => item.getAttribute('aria-label'));
   expect(ids('Context')).toEqual(['Element ctx-001']);
-  expect(ids('Functional requirements')).toEqual(['Element fr-001', 'Element fr-002', 'Element fr-003']);
-  expect(ids('Non-functional requirements of the plan')).toEqual(['Element nfr-001']);
+  expect(ids('Functional requirements')).toEqual(['Element functional-requirement:case-001', 'Element functional-requirement:case-002', 'Element functional-requirement:case-003']);
+  expect(ids('Non-functional requirements of the plan')).toEqual(['Element non-functional-requirement:case-001']);
   expect(ids('Fixed requirements')).toEqual(['Element fix-001']);
   expect(ids('Recommendations')).toEqual(['Element rec-001']);
   // Context and recommendations say that nothing assesses them.
@@ -901,16 +901,16 @@ test('the plan and entries: each entry names the elements it cites, and the plan
   expect(within(catalog).getByLabelText('Recommendations').textContent).toContain('Not requirements; nothing assesses them.');
   expect(within(catalog).getByLabelText('Functional requirements').textContent).not.toContain('nothing assesses');
   // An element as the catalog holds it: its text, where it is from, its conditions and uncertainty.
-  const nfr = within(catalog).getByLabelText('Element nfr-001');
+  const nfr = within(catalog).getByLabelText('Element non-functional-requirement:case-001');
   expect(nfr.querySelector('blockquote')!.textContent).toBe('A note is saved within one second.');
   expect(nfr.textContent).toContain('plans/review-notes/plan.md');
   expect(nfr.textContent).toContain('stated condition: on the reference machine');
   expect(nfr.textContent).toContain('Uncertainty: The plan names no load.');
-  expect(within(catalog).getByLabelText('Element fr-002').textContent).toContain('plans/review-notes/plan.md · Acceptance');
+  expect(within(catalog).getByLabelText('Element functional-requirement:case-002').textContent).toContain('plans/review-notes/plan.md · Acceptance');
   expect(within(catalog).getByLabelText('Element fix-001').textContent).toContain('docs/testing.principles.md');
   // Each checker's correction, with what it retired and why.
   expect(within(within(catalog).getByLabelText('Checker findings')).getAllByRole('listitem').map(item => item.textContent)).toEqual([
-    'The checker of plans/review-notes/plan.md replaced fr-009 with fr-003: The reading merged two requirements.',
+    'The checker of plans/review-notes/plan.md replaced functional-requirement:case-009 with functional-requirement:case-003: The reading merged two requirements.',
     'The checker of docs/testing.principles.md added fix-001: The rule on test ownership was missing.',
   ]);
   expect(catalog.querySelector('details')!.textContent).toContain('plans/review-notes/plan.md: scenarios incorporated');
@@ -937,7 +937,7 @@ test('the plan context catalog of a run without one says it is unavailable, and 
 });
 
 test('an iteration shows the assignment package its engineer received, or why it cannot be rendered', async () => {
-  const text = '# Package\n\n## Functional requirements\n\n- fr-001: A reviewer can attach a note to a review.\n';
+  const text = '# Package\n\n## Functional requirements\n\n- functional-requirement:case-001: A reviewer can attach a note to a review.\n';
   const iteration = (id: string, extra: Record<string, unknown>) => ({
     id, kind: 'ordinary', stage: 0, goal: 'Send the note', approach: 'Change the source.',
     scope: { modules: ['collection-review/workspace/reviews'], included: [], broad: false, rationale: 'The owner.', extra: [], read: [] },
@@ -947,13 +947,13 @@ test('an iteration shows the assignment package its engineer received, or why it
     ...stubRun(),
     workItems: workItemListResponseSchema.parse({ workItems: [workItemSummary], total: 1 }),
     workItem: {
-      'wi-001': workItemResponseSchema.parse({
+      'work-item:case-001': workItemResponseSchema.parse({ acceptedReferences: { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], elements: [], unavailable: null },
         workItem: workItemSummary,
         outlines: [],
         iterations: [
-          iteration('wi-001.i01', { package: { elements: ['fr-001', 'nfr-001'], deviations: ['dv-001'], hash: 'f'.repeat(64), text, unavailable: null } }),
-          iteration('wi-001.i02', { package: { elements: ['fr-001'], deviations: [], hash: '1'.repeat(64), text: null, unavailable: 'the catalog file is missing' } }),
-          iteration('wi-001.i03', { package: null }),
+          iteration('work-item:case-001.i01', { package: { elements: ['functional-requirement:case-001', 'non-functional-requirement:case-001'], deviations: ['plan-deviation:case-001'], hash: 'f'.repeat(64), text, unavailable: null } }),
+          iteration('work-item:case-001.i02', { package: { elements: ['functional-requirement:case-001'], deviations: [], hash: '1'.repeat(64), text: null, unavailable: 'the catalog file is missing' } }),
+          iteration('work-item:case-001.i03', { package: null }),
         ],
         gates: [], requirements: [], requests: [],
       }),
@@ -961,13 +961,13 @@ test('an iteration shows the assignment package its engineer received, or why it
   };
   render(<RunPage client={clientWith(run)} planId="review-notes" runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Work items' }));
-  fireEvent.click(await screen.findByRole('button', { name: /wi-001/ }));
-  const history = await screen.findByLabelText('Work item wi-001');
+  fireEvent.click(await screen.findByRole('button', { name: /work-item:case-001/ }));
+  const history = await screen.findByLabelText('Work item work-item:case-001');
   await within(history).findAllByText(/Assignment package/);
   const packages = [...history.querySelectorAll('details')].filter(details => details.querySelector('summary')!.textContent!.startsWith('Assignment package'));
   expect(packages.map(details => details.querySelector('summary')!.textContent)).toEqual([
-    `Assignment package ${'f'.repeat(12)}: fr-001, nfr-001, with dv-001`,
-    `Assignment package ${'1'.repeat(12)}: fr-001`,
+    `Assignment package ${'f'.repeat(12)}: functional-requirement:case-001, non-functional-requirement:case-001, with plan-deviation:case-001`,
+    `Assignment package ${'1'.repeat(12)}: functional-requirement:case-001`,
   ]);
   expect(packages[0]!.querySelector('pre')!.textContent).toBe(text);
   expect(within(packages[1]!).getByRole('status').textContent).toBe('The package cannot be rendered: the catalog file is missing');
@@ -1060,7 +1060,7 @@ test('a gate shows each tracked scenario its audit ran, with its status, check a
   const gate = await screen.findByLabelText('Gate ga-0002');
   const results = within(gate).getByLabelText('Scenarios the audit ran');
   expect(within(results).getByRole('list').textContent)
-    .toBe('sc-001 failed in scenarios.cucumber, subs/notes/src/tests/features/review-notes/review-note.feature:4Then the note is listed: expected one note, got none');
+    .toBe('scenario:case-001 failed in scenarios.cucumber, subs/notes/src/tests/features/review-notes/review-note.feature:4Then the note is listed: expected one note, got none');
   expect(within(gate).getByLabelText('Configured audit').textContent).toContain('Composed verdictfail: composed fail');
   expect(within(gate).queryByLabelText('Scenario check')).toBeNull();
 });
@@ -1108,7 +1108,7 @@ test('Run → Sessions draws the timeline, each segment opening its chapter; Mea
 
 test('a work item\'s CheckFindings sit in its history, and the overview shows the modules\' unsettled counts', async () => {
   const signal = {
-    id: 'cf-0001', revision: 2, workItem: 'wi-001', standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision', verification: 'assessment',
+    id: 'finding:case-0001', revision: 2, workItem: 'work-item:case-001', standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision', verification: 'assessment',
     obligation: null, required: false, risk: 'medium', credibility: 'human-reviewed', modules: ['collection-review/workspace/reviews'], unresolved: null,
     latestReview: false, settlement: null, materialChoice: null, repair: null, producers: ['review:scope'], title: 'The API conflicts with the plan',
     reports: 1, decisions: 1, group: null, userCommands: ['respond'], planDeviation: null,
@@ -1120,12 +1120,12 @@ test('a work item\'s CheckFindings sit in its history, and the overview shows th
   const run: StubRun = {
     ...stubRun(),
     workItems: workItemListResponseSchema.parse({ workItems: [workItemSummary], total: 1 }),
-    workItem: { 'wi-001': workItemResponseSchema.parse({ workItem: workItemSummary, outlines: [], iterations: [], gates: [], requirements: [], requests: [] }) },
-    checkFindings: { [checkFindingKey({ workItem: 'wi-001', select: 'reported' })]: checkFindingListResponseSchema.parse({
-      protocol: 'check-findings/1', runId, version: 12, coverage, query: { workItem: 'wi-001', module: null, select: 'reported', order: 'attention' },
+    workItem: { 'work-item:case-001': workItemResponseSchema.parse({ acceptedReferences: { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], elements: [], unavailable: null }, workItem: workItemSummary, outlines: [], iterations: [], gates: [], requirements: [], requests: [] }) },
+    checkFindings: { [checkFindingKey({ workItem: 'work-item:case-001', select: 'reported' })]: checkFindingListResponseSchema.parse({
+      protocol: 'check-findings/2', runId, version: 12, coverage, query: { workItem: 'work-item:case-001', module: null, select: 'reported', order: 'attention' },
       total: 1, shown: 1, next: null, counts: { total: 1, open: 1, deferred: 0, closed: 0, fixed: 0, waived: 0, superseded: 0, unresolved: 0, awaitingUser: 1 }, items: [signal],
     }) },
-    checkFindingModules: checkFindingModuleCountsSchema.parse({ protocol: 'check-findings/1', runId, version: 12, coverage,
+    checkFindingModules: checkFindingModuleCountsSchema.parse({ protocol: 'check-findings/2', runId, version: 12, coverage,
       modules: [{ module: 'collection-review/workspace/reviews', open: 1, deferred: 0, unresolved: 0, highestOpenRisk: 'medium', pendingUserDecisions: 1 }] }),
   };
   const client = clientWith(run);
@@ -1135,18 +1135,18 @@ test('a work item\'s CheckFindings sit in its history, and the overview shows th
   expect(screen.getByText(/A decision is requested of you/)).toBeTruthy();
 
   fireEvent.click(screen.getByRole('tab', { name: 'Work items' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'wi-001' }));
-  const history = await screen.findByLabelText('Work item wi-001');
-  const findings = await within(history).findByLabelText('CheckFindings of wi-001');
+  fireEvent.click(await screen.findByRole('button', { name: 'work-item:case-001' }));
+  const history = await screen.findByLabelText('Work item work-item:case-001');
+  const findings = await within(history).findByLabelText('CheckFindings of work-item:case-001');
   expect((await within(findings).findByLabelText('Review coverage')).textContent).toMatch(/^Review coverage/);
-  const card = await within(findings).findByRole('listitem', { name: 'CheckFinding cf-0001' });
+  const card = await within(findings).findByRole('listitem', { name: 'CheckFinding finding:case-0001' });
   expect(within(card).getByRole('group', { name: 'Decision requested' })).toBeTruthy();
-  expect(client.calls.filter(call => call === `getReviews:${runId}:wi-001`)).toHaveLength(1);
+  expect(client.calls.filter(call => call === `getReviews:${runId}:work-item:case-001`)).toHaveLength(1);
 });
 
 test('a run that waits for the person\'s decision says so above every area and marks its work item; the banner opens the request; the answer clears it', async () => {
   const signal = {
-    id: 'cf-0001', revision: 2, workItem: 'wi-001', standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision', verification: 'assessment',
+    id: 'finding:case-0001', revision: 2, workItem: 'work-item:case-001', standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision', verification: 'assessment',
     obligation: null, required: false, risk: 'high', credibility: 'human-reviewed', modules: ['collection-review/workspace/reviews'], unresolved: null,
     latestReview: false, settlement: null, materialChoice: null, repair: null, producers: ['review:scope'], title: 'The API conflicts with the plan',
     reports: 1, decisions: 1, group: null, userCommands: ['respond'], planDeviation: null,
@@ -1155,17 +1155,17 @@ test('a run that waits for the person\'s decision says so above every area and m
       options: [{ id: 'keep', summary: 'Keep', consequence: 'Unmet' }, { id: 'list', summary: 'List', consequence: 'Callers change' }] },
   };
   const coverage = { state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 } as const;
-  const other: WorkItemSummary = { ...workItemSummary, id: 'wi-002', capability: 'send-email' };
-  const waiting = { open: 1, waiting: true, workItems: [{ workItem: 'wi-001', requests: [{ checkFinding: 'cf-0001', request: 'cfd-0001' }] }] };
+  const other: WorkItemSummary = { ...workItemSummary, id: 'work-item:case-002', capability: 'send-email' };
+  const waiting = { open: 1, waiting: true, workItems: [{ workItem: 'work-item:case-001', requests: [{ checkFinding: 'finding:case-0001', request: 'cfd-0001' }] }] };
   const run: StubRun = {
     ...stubRun({ current: null, writer: { held: null, unsettled: null }, decisionRequests: waiting }),
     workItems: workItemListResponseSchema.parse({ workItems: [workItemSummary, other], total: 2 }),
-    workItem: { 'wi-001': workItemResponseSchema.parse({ workItem: workItemSummary, outlines: [], iterations: [], gates: [], requirements: [], requests: [] }) },
-    checkFindings: { [checkFindingKey({ workItem: 'wi-001', select: 'reported' })]: checkFindingListResponseSchema.parse({
-      protocol: 'check-findings/1', runId, version: 12, coverage, query: { workItem: 'wi-001', module: null, select: 'reported', order: 'attention' },
+    workItem: { 'work-item:case-001': workItemResponseSchema.parse({ acceptedReferences: { functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], elements: [], unavailable: null }, workItem: workItemSummary, outlines: [], iterations: [], gates: [], requirements: [], requests: [] }) },
+    checkFindings: { [checkFindingKey({ workItem: 'work-item:case-001', select: 'reported' })]: checkFindingListResponseSchema.parse({
+      protocol: 'check-findings/2', runId, version: 12, coverage, query: { workItem: 'work-item:case-001', module: null, select: 'reported', order: 'attention' },
       total: 1, shown: 1, next: null, counts: { total: 1, open: 1, deferred: 0, closed: 0, fixed: 0, waived: 0, superseded: 0, unresolved: 0, awaitingUser: 1 }, items: [signal],
     }) },
-    checkFindingModules: checkFindingModuleCountsSchema.parse({ protocol: 'check-findings/1', runId, version: 12, coverage,
+    checkFindingModules: checkFindingModuleCountsSchema.parse({ protocol: 'check-findings/2', runId, version: 12, coverage,
       modules: [{ module: 'collection-review/workspace/reviews', open: 1, deferred: 0, unresolved: 0, highestOpenRisk: 'high', pendingUserDecisions: 1 }] }),
   };
   const client = clientWith(run);
@@ -1176,7 +1176,7 @@ test('a run that waits for the person\'s decision says so above every area and m
   expect(banner.closest('[aria-label="Overview"]')).toBeNull();
   expect(banner.textContent).toMatch(/^Waiting for your decision\. This run is held until you answer/);
   expect(banner.textContent).toContain('There is no time limit.');
-  expect(banner.textContent).toContain('Work item wi-001: answer cfd-0001 (CheckFinding cf-0001)');
+  expect(banner.textContent).toContain('Work item work-item:case-001: answer cfd-0001 (CheckFinding finding:case-0001)');
   const header = document.querySelector('.run-page > .page-header')!;
   expect(within(header as HTMLElement).getByText('Waiting for your decision').className).toBe('badge awaiting-decision');
   expect(header.querySelector('.run-state')!.textContent).toBe('running');
@@ -1190,7 +1190,7 @@ test('a run that waits for the person\'s decision says so above every area and m
   const list = await within(screen.getByLabelText('Work items')).findAllByRole('listitem');
   expect(within(list[0]!).getByText('Waiting for your decision')).toBeTruthy();
   expect(within(list[1]!).queryByText('Waiting for your decision')).toBeNull();
-  const history = await screen.findByLabelText('Work item wi-001');
+  const history = await screen.findByLabelText('Work item work-item:case-001');
   const request = await within(history).findByRole('group', { name: 'Decision requested' });
   await waitFor(() => expect(document.activeElement).toBe(request));
   expect(request.id).toBe('decision-cfd-0001');
@@ -1205,7 +1205,7 @@ test('a run that waits for the person\'s decision says so above every area and m
 });
 
 test('a work item row counts its iterations and gates in the singular for one and the plural otherwise', async () => {
-  const single: WorkItemSummary = { ...workItemSummary, id: 'wi-002', counts: { ...workItemSummary.counts, iterations: 1, gateAttempts: 1 } };
+  const single: WorkItemSummary = { ...workItemSummary, id: 'work-item:case-002', counts: { ...workItemSummary.counts, iterations: 1, gateAttempts: 1 } };
   const run: StubRun = { ...stubRun(), workItems: workItemListResponseSchema.parse({ workItems: [workItemSummary, single], total: 2 }) };
   render(<RunPage client={clientWith(run)} planId="review-notes" runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Work items' }));
@@ -1218,23 +1218,23 @@ test('a run held on an environment problem shows its diagnosis and suggestion in
   const diagnosis = 'The work-item gate runs `npm test`, whose tests import `dist/src`; nothing builds it in the gate\'s worktree.';
   const suggestion = 'Declare a build step in `ramify-agent.json`.';
   const signal = {
-    id: 'cf-0001', revision: 2, workItem: null, standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision', verification: 'assessment',
+    id: 'finding:case-0001', revision: 2, workItem: null, standing: 'open', reason: 'awaiting-user-decision', awaiting: 'user-decision', verification: 'assessment',
     obligation: null, required: false, risk: 'high', credibility: 'agent-generated', modules: ['collection-review/workspace/reviews'], unresolved: null,
-    latestReview: false, settlement: null, materialChoice: null, repair: null, producers: ['plan:environment'], title: `Environment problem ep-001 of wi-001: ${diagnosis}`,
+    latestReview: false, settlement: null, materialChoice: null, repair: null, producers: ['plan:environment'], title: `Environment problem ep-001 of work-item:case-001: ${diagnosis}`,
     reports: 1, decisions: 1, group: null, userCommands: ['respond'], planDeviation: null,
     pendingUserDecision: { request: 'cfd-0001', by: { kind: 'harness', reason: 'an environment problem is the operator\'s to correct' }, rationale: diagnosis,
       conflicts: [{ text: 'The work-item gate fails before any test runs.', document: 'requests/ur-001.json', revision: '1' }],
-      options: [{ id: 'resume', summary: 'Resume the run', consequence: 'wi-001 retries.' }, { id: 'end', summary: 'End the run', consequence: 'The run fails.' }] },
+      options: [{ id: 'resume', summary: 'Resume the run', consequence: 'work-item:case-001 retries.' }, { id: 'end', summary: 'End the run', consequence: 'The run fails.' }] },
   };
   const coverage = { state: 'available', requested: 0, complete: 0, partial: 0, notVerified: 0, pending: 0 } as const;
-  const waiting = { open: 1, waiting: true, workItems: [{ workItem: 'wi-001', requests: [{ checkFinding: 'cf-0001', request: 'cfd-0001' }] }] };
+  const waiting = { open: 1, waiting: true, workItems: [{ workItem: 'work-item:case-001', requests: [{ checkFinding: 'finding:case-0001', request: 'cfd-0001' }] }] };
   const run: StubRun = {
     ...stubRun({
       current: null, writer: { held: null, unsettled: null }, decisionRequests: waiting,
-      environmentProblems: [{ problem: 'ep-001', request: 'ur-001', workItem: 'wi-001', checkFinding: 'cf-0001', diagnosis, suggestion, answer: 'waiting' }],
+      environmentProblems: [{ problem: 'ep-001', request: 'ur-001', workItem: 'work-item:case-001', checkFinding: 'finding:case-0001', diagnosis, suggestion, answer: 'waiting' }],
     }),
     checkFindings: { [checkFindingKey({ select: 'all' })]: checkFindingListResponseSchema.parse({
-      protocol: 'check-findings/1', runId, version: 12, coverage, query: { workItem: null, module: null, select: 'all', order: 'attention' },
+      protocol: 'check-findings/2', runId, version: 12, coverage, query: { workItem: null, module: null, select: 'all', order: 'attention' },
       total: 1, shown: 1, next: null, counts: { total: 1, open: 1, deferred: 0, closed: 0, fixed: 0, waived: 0, superseded: 0, unresolved: 0, awaitingUser: 1 }, items: [signal],
     }) },
   };
@@ -1244,7 +1244,7 @@ test('a run held on an environment problem shows its diagnosis and suggestion in
   expect(await screen.findByRole('status', { name: 'Waiting for your decision' })).toBeTruthy();
   const panel = (await screen.findByRole('heading', { name: 'Environment problems' })).closest('section')!;
   const problem = within(panel as HTMLElement).getByLabelText('Environment problem ep-001');
-  expect(problem.textContent).toContain('work item wi-001, request ur-001, CheckFinding cf-0001');
+  expect(problem.textContent).toContain('work item work-item:case-001, request ur-001, CheckFinding finding:case-0001');
   expect(problem.textContent).toContain(`Diagnosis: ${diagnosis}`);
   expect(problem.textContent).toContain(`Suggestion: ${suggestion}`);
   expect(problem.textContent).toContain('The run holds this work item until you answer');
@@ -1254,7 +1254,7 @@ test('a run held on an environment problem shows its diagnosis and suggestion in
   fireEvent.change(within(form).getByRole('textbox', { name: 'Your name' }), { target: { value: 'dan' } });
   fireEvent.click(within(form).getByRole('button', { name: 'Answer' }));
   await waitFor(() => expect(client.commands.map(command => command.type)).toEqual(['respond-to-check-finding']));
-  expect(client.commands[0]).toMatchObject({ payload: { checkFinding: 'cf-0001', request: 'cfd-0001', option: 'resume', responder: 'dan' } });
+  expect(client.commands[0]).toMatchObject({ payload: { checkFinding: 'finding:case-0001', request: 'cfd-0001', option: 'resume', responder: 'dan' } });
 });
 
 test('PB3-E07: a nested final audit shows each project\'s verdict, execution, failures, counts, duration and record, and what discovery skipped', async () => {
@@ -1347,11 +1347,11 @@ test('U05: a breakpoint run that has not paused yet has a Debugger tab that says
 });
 
 test('U06: a reached pause shows the header badge, a banner that names it and opens the Debugger area, and its facts with the harness summary', async () => {
-  const paused = pause({ work: { workItem: 'wi-001', iteration: 'wi-001.i01', request: 'rq-002', capabilityTask: 'ct-003', nonfunctionalRepair: 'nfr-004' } });
+  const paused = pause({ work: { workItem: 'work-item:case-001', iteration: 'work-item:case-001.i01', request: 'rq-002', capabilityTask: 'ct-003', nonfunctionalRepair: 'non-functional-requirement:case-004' } });
   const client = debugClient(debugState(paused));
   render(<RunPage client={client} planId={debugPlanId} runId={debugRunId} interval={60_000} />);
   const banner = await screen.findByRole('status', { name: 'Paused at a breakpoint' });
-  expect(banner.textContent).toContain('Paused at a breakpoint. The module engineer for wi-001.i01 is prepared and waits for resume.');
+  expect(banner.textContent).toContain('Paused at a breakpoint. The module engineer for work-item:case-001.i01 is prepared and waits for resume.');
   expect(banner.textContent).toContain('pause bp-0001, revision 1');
   const badge = document.querySelector('.page-header .badge.debug-paused')!;
   expect(badge.textContent).toBe('Paused at a breakpoint');
@@ -1363,11 +1363,11 @@ test('U06: a reached pause shows the header badge, a banner that names it and op
   expect(within(area).getByText('The run is paused before the module engineer starts.')).toBeTruthy();
   const facts = within(area).getByLabelText('Pause facts');
   expect([...facts.querySelectorAll('div')].map(row => [row.querySelector('dt')!.textContent, row.querySelector('dd')!.textContent])).toEqual([
-    ['Role', 'Module engineer'], ['Work item', 'wi-001'], ['Iteration', 'wi-001.i01'], ['Request', 'rq-002'], ['Capability task', 'ct-003'],
-    ['Nonfunctional repair', 'nfr-004'], ['Goal', 'Attach a note to a review'], ['Next action', 'execute the iteration'],
+    ['Role', 'Module engineer'], ['Work item', 'work-item:case-001'], ['Iteration', 'work-item:case-001.i01'], ['Request', 'rq-002'], ['Capability task', 'ct-003'],
+    ['Nonfunctional repair', 'non-functional-requirement:case-004'], ['Goal', 'Attach a note to a review'], ['Next action', 'execute the iteration'],
     ['Task state', 'pending'], ['Pause ID', 'bp-0001'], ['Revision', '1'],
   ]);
-  expect(within(area).getByLabelText('Harness summary').textContent).toBe('The module engineer for wi-001.i01 is prepared and waits for resume.');
+  expect(within(area).getByLabelText('Harness summary').textContent).toBe('The module engineer for work-item:case-001.i01 is prepared and waits for resume.');
 });
 
 test('automatic repair shows its live transcript and obstruction while Stop remains available', async () => {
@@ -1389,7 +1389,7 @@ test('automatic repair history retains handback, unfinished work and pending exp
   expect(within(card).getByText('Complete module behavior')).toBeTruthy();
   expect(within(card).getByText(/Beads export: pending/)).toBeTruthy();
   expect(within(card).getByText(/Preparation verified/)).toBeTruthy();
-  expect(within(card).getByText('work/wi-002/i01/result.json')).toBeTruthy();
+  expect(within(card).getByText('work/work-item:case-002/i01/result.json')).toBeTruthy();
 });
 
 test('automatic repair admission refusal is displayed apart from the attempted count', async () => {

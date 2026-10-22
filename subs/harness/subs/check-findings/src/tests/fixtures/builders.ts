@@ -32,6 +32,7 @@ export const reviewer = (invocation: string) => ({ kind: 'agent', role: 'reviewe
 
 export interface ConcernOptions {
   readonly producer?: `review:${string}`;
+  readonly findingKey?: string;
   readonly attempt: string;
   readonly key: string;
   readonly summary: string;
@@ -62,6 +63,7 @@ export function concern(options: ConcernOptions): CheckFindingReportInput {
     producer: options.producer ?? 'review:code',
     attempt: options.attempt,
     reportKey: options.key,
+    findingKey: options.findingKey ?? `draft:finding:case-${String(Number(options.key.match(/(\d+)$/)?.[1] ?? 1)).padStart(4, '0')}`,
     contentHash: hashOf(options.hash),
     owner: options.owner ?? workItem('wi-001'),
     source: options.source ?? tree('t-01'),
@@ -90,6 +92,7 @@ export function concern(options: ConcernOptions): CheckFindingReportInput {
 
 export interface FailureOptions {
   readonly attempt: string;
+  readonly findingKey?: string;
   readonly key?: string;
   readonly subject?: string;
   readonly revision?: number;
@@ -108,6 +111,7 @@ export function failure(options: FailureOptions): CheckFindingReportInput {
     producer: 'check:scenario',
     attempt: options.attempt,
     reportKey: options.key ?? subject,
+    findingKey: options.findingKey ?? 'draft:finding:case-0001',
     contentHash: hashOf(options.hash),
     owner: options.owner ?? workItem('wi-001'),
     source: options.source,
@@ -209,6 +213,7 @@ export function deviation(options: { readonly key: string; readonly hash: number
     producer: 'plan:deviation',
     attempt: 'inv-0030',
     reportKey: options.key,
+    findingKey: `draft:finding:case-${String(options.hash).padStart(4, '0')}`,
     contentHash: hashOf(options.hash),
     owner: { kind: 'run' },
     source: { kind: 'document', id: 'plans/p/plan.md' },
@@ -258,7 +263,7 @@ export function environmentProblem(options: { readonly key: string; readonly has
 export function deviationRequest(): CheckFindingDecisionInput {
   return decision({
     action: 'request-user-decision',
-    authority: { kind: 'governing-record', ref: 'deviations/pd-001.json' },
+    authority: { kind: 'governing-record', ref: 'deviations/plan-deviation%3Acase-001.json' },
     conflicts: [{ text: 'The report script prints the same block.', document: 'plans/p/plan.md', revision: hashOf(77) }],
     options: [
       { id: 'accept', summary: 'Accept the deviation', consequence: 'It stands.' },

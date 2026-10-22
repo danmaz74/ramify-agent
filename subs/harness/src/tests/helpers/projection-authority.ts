@@ -21,14 +21,14 @@ const where = 'subs/workspace/subs/reviews/src/notes.ts — retained architect j
 function audit(id: string, passed: boolean): Line {
   const verdict = passed ? 'passed' : 'failed';
   const body: GateAttempt = {
-    schema: 'ramify-agent.gate-attempt/3', id, checkpoint: 'iteration', subject: { workItem: 'wi-001', iteration: 'wi-001.i01' },
+    schema: 'ramify-agent.gate-attempt/3', id, checkpoint: 'iteration', subject: { workItem: 'work-item:read-note', iteration: 'work-item:read-note.i01' },
     proposedBy: 'inv-engineer', repairRound: passed ? 1 : 0, infrastructureAttempt: 0,
     head: 'a'.repeat(40), commit: null, audited: 'a'.repeat(40), evidence: null,
     audit: { requestId: `retained-${id}`, mode: 'project-default', status: 'completed', definition: { path: 'ramify-audit.json', blob: 'b'.repeat(40) },
       requestedSourceCommit: 'a'.repeat(40), auditedSourceCommit: 'a'.repeat(40), requestedMode: 'full', executedMode: 'full', fallbackReason: null,
       reuse: null, verdict: passed ? 'pass' : 'fail', detail: 'Scripted retained audit', nested: false, projects: null, discovery: null },
-    provider: { result: {}, checks: { scenarios: { cucumberMessages: { status: 'read', run: { scenarios: ['sc-001', 'sc-002'].map(scenario => ({
-      uri: 'retained.feature', line: 1, tags: [`@ramify-${scenario}`], outcome: passed ? 'passed' : 'failed',
+    provider: { result: {}, checks: { scenarios: { cucumberMessages: { status: 'read', run: { scenarios: ['scenario:read-note-first', 'scenario:read-note-second'].map(scenario => ({
+      uri: 'retained.feature', line: 1, tags: [`@ramify-scenario-${scenario.slice('scenario:'.length)}`], outcome: passed ? 'passed' : 'failed',
       steps: [{ text: 'Then the retained behavior holds', status: verdict, definitionLocations: [], ...(passed ? {} : { errorMessage: 'Recorded failure, not a withdrawn judgment' }) }],
     })) } } } } },
     guardedChanges: [], commands: [], verdict, cause: passed ? null : 'check-failed', next: passed ? 'accept' : 'repair',
@@ -62,22 +62,22 @@ function metricEvidence(id: string, session: string, partial: boolean): Line[] {
 export async function recordedProjectionAuthority() {
   const root = await mkdtemp(join(tmpdir(), 'projection-authority-'));
   try {
-    const scenarios = ['sc-001', 'sc-002', 'sc-003'].map(id => {
+    const scenarios = ['scenario:read-note-first', 'scenario:read-note-second', 'scenario:read-note-third'].map(id => {
       const source = [`Scenario: ${id}`, '  Given a retained note', '  When it is read', '  Then its identity remains'];
-      return scenarioRecordSchema.parse({ schema: 'ramify-agent.scenario/1', id, kind: 'entry', entry: 'read-note', owner: reviews,
-        origin: { kind: 'architect', refs: ['fr-002'] }, partOf: null, subScenarios: [], name: id, source, hash: scenarioSourceHash(source),
+      return scenarioRecordSchema.parse({ schema: 'ramify-agent.scenario/2', id, kind: 'entry', entry: 'capability:read-note', owner: reviews,
+        origin: { kind: 'architect', refs: ['functional-requirement:read-note-acceptance'] }, citedElements: ['functional-requirement:read-note-acceptance'], partOf: null, subScenarios: [], name: id, source, hash: scenarioSourceHash(source),
         file: 'subs/workspace/subs/reviews/src/tests/features/review-notes/read-note.feature' });
     });
     const lines: Line[] = [
       { type: 'job-started', data: {} },
       { type: 'analysis-accepted', data: { invocation: 'inv-architect', entries: 1, hypotheses: 0, registry: 1, workItems: 1, scenarios: 3, warnings: [] }, records: [
-        { path: at('registry', 'read-note'), body: registered('read-note') },
-        { path: 'work-items/wi-001/item.json', body: item('wi-001', { entry: 'read-note' }) },
-        ...scenarios.map(body => ({ path: `scenarios/${body.id}.json`, body })),
+        { path: at('registry', 'capability%3Aread-note'), body: registered('capability:read-note') },
+        { path: 'work-items/work-item%3Aread-note/item.json', body: item('work-item:read-note', { entry: 'capability:read-note' }) },
+        ...scenarios.map(body => ({ path: `scenarios/${encodeURIComponent(body.id)}.json`, body })),
       ] },
-      { type: 'work-item-started', data: { workItem: 'wi-001' } },
-      ...['sc-001', 'sc-002'].map(id => ({ type: 'obligation-bound' as const, data: { id, fakes: [], by: 'inv-engineer', submission: hash } })),
-      { type: 'obligation-reported', data: { id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, where, by: 'inv-architect', submission: hash } },
+      { type: 'work-item-started', data: { workItem: 'work-item:read-note' } },
+      ...['scenario:read-note-first', 'scenario:read-note-second'].map(id => ({ type: 'obligation-bound' as const, data: { id, fakes: [], by: 'inv-engineer', submission: hash } })),
+      { type: 'obligation-reported', data: { id: 'scenario:read-note-first', judgment: 'done', basedOnRevision: 0, revision: 1, where, by: 'inv-architect', submission: hash } },
       audit('ga-0001', false), audit('ga-0002', true),
       ...metricEvidence('inv-0001', 'ses-0001', false), ...metricEvidence('inv-0002', 'ses-0002', true),
     ];
@@ -112,14 +112,14 @@ export async function recordedProjectionAuthority() {
       async exercise() { answer = await read(); assert.deepEqual(await read(), answer); },
       authority() {
         const { progress, scenarios: list } = current();
-        assert.deepEqual(list.scenarios.map(one => [one.id, one.state]), [['sc-001', 'done'], ['sc-002', 'bound'], ['sc-003', 'pending']]);
+        assert.deepEqual(list.scenarios.map(one => [one.id, one.state]), [['scenario:read-note-first', 'done'], ['scenario:read-note-second', 'bound'], ['scenario:read-note-third', 'pending']]);
         for (const one of list.scenarios.slice(0, 2)) {
           assert.deepEqual(one.gates.map(gate => [gate.gate, gate.status, gate.verdict]), [['ga-0001', 'failed', 'failed'], ['ga-0002', 'passed', 'passed']]);
           assert.equal(one.gates[0]!.failure?.message, 'Recorded failure, not a withdrawn judgment');
         }
-        assert.equal(list.obligations.find(one => one.id === 'sc-002')!.report, null);
+        assert.equal(list.obligations.find(one => one.id === 'scenario:read-note-second')!.report, null);
         assert.deepEqual(progress.capabilities.map(one => [one.state, one.scenarios]), [['working', { done: 1, total: 3 }]]);
-        assert.deepEqual(list.obligations.find(one => one.id === 'sc-001')!.report, {
+        assert.deepEqual(list.obligations.find(one => one.id === 'scenario:read-note-first')!.report, {
           judgment: 'done', revision: 1, basedOnRevision: 0, where, invocation: 'inv-architect', submission: hash,
           sequence: 106, sourceRun, at: run.entries[5]!.at,
         });
@@ -135,10 +135,10 @@ export async function recordedProjectionAuthority() {
         assert.equal(weighted.subtotal, 180);
         assert.deepEqual(weighted.coverage, { covered: 1, total: 2 });
         assert.deepEqual(weighted.evidence, ['ses-0002: architect-view unavailable']);
-        assert.deepEqual(list.obligations.find(one => one.id === 'sc-002')!.binding, {
+        assert.deepEqual(list.obligations.find(one => one.id === 'scenario:read-note-second')!.binding, {
           fakes: [], invocation: 'inv-engineer', submission: hash, sourceRun, sequence: 105, at: run.entries[4]!.at,
         });
-        assert.deepEqual(list.scenarios[0]!.origin, { kind: 'architect', refs: ['fr-002'] });
+        assert.deepEqual(list.scenarios[0]!.origin, { kind: 'architect', refs: ['functional-requirement:read-note-acceptance'] });
       },
       async unchanged() {
         const before = current();

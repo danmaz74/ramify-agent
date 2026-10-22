@@ -9,7 +9,7 @@ const context = { compaction: 'forbidden', budgetTokens: null, budgetFraction: n
 const command = { argv: ['never-execute'], cwd: '.', env: [], envAdditions: {}, timeoutMs: 1 };
 export function committedRun(directory: string): CommittedRun {
   const record = runRecordSchema.parse({
-    schema: 'ramify-agent.job/3', jobId: '20261013T000000Z-c0ffee', planId: 'reader-test',
+    schema: 'ramify-agent.job/4', jobId: '20261013T000000Z-c0ffee', planId: 'reader-test',
     kind: 'implementation', agent: 'scripted', createdAt: at,
     manifest: { planHash: hash, documentManifest: { path: 'input/documents.json', hash }, source: null,
       versions: { architectPrompt: null, procedure: null, skill: null, ramify: null }, architectView: { status: 'placeholder' } },
@@ -23,7 +23,7 @@ export function committedRun(directory: string): CommittedRun {
       context: { 'initial-architect': context, 'global-fork': context, 'local-architect': context, engineer: context },
       transcript: { inlineBodyBytes: 32 }, commands: { typeCheck: command, ramifyCheck: command, ramifyChanged: command, hookTimeoutMs: 1 } },
     projectConfig: { path: 'ramify-agent.json', hash: null, invalid: 'Scripted reading witness' },
-    baseline: { unavailable: 'No acquired baseline' }, planScenarios: { scenarios: [], limitations: [] }, reviewStop: false,
+    baseline: { unavailable: 'No acquired baseline' }, planScenarios: { schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: [], limitations: [] }, reviewStop: false,
   });
   const event = runEventSchema.parse({ sequence: 1, jobId: record.jobId, at, type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' } });
   return { record, directory, entries: [{ sequence: 1, at, transaction: { event, records: [] } }] };

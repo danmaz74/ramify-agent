@@ -33,6 +33,7 @@ export async function started(log: RunLog): Promise<void> {
 export interface ConcernOptions {
   readonly attempt?: string;
   readonly key?: string;
+  readonly findingKey?: string;
   readonly summary?: string;
   readonly workItem?: string;
   readonly tree?: string;
@@ -41,12 +42,17 @@ export interface ConcernOptions {
 /** A reviewer's concern, bound as the review integration binds it (appendix §3.4). */
 export function concern(options: ConcernOptions = {}): BoundReport {
   const attempt = options.attempt ?? 'rq-0001.a01';
+  const key = options.key ?? 'concern-01';
+  const fixtureName = attempt === 'rq-0001.a01' && /^concern-\d+$/u.test(key)
+    ? `case-${key.slice('concern-'.length).padStart(4, '0')}`
+    : `review-${attempt.replace(/[^a-z0-9]+/gu, '-')}-${key.replace(/[^a-z0-9]+/gu, '-')}`;
   const summary = options.summary ?? 'The discount is applied twice when a coupon is present';
   return {
     producer: 'review:code',
     attempt,
-    reportKey: options.key ?? 'concern-01',
-    owner: { kind: 'work-item', workItem: options.workItem ?? 'wi-001' },
+    reportKey: key,
+    findingKey: options.findingKey ?? `draft:finding:${fixtureName}`,
+    owner: { kind: 'work-item', workItem: options.workItem ?? 'work-item:review-notes' },
     source: { kind: 'tree', id: options.tree ?? 't-01' },
     issueKey: null,
     verification: { kind: 'assessment' },
@@ -72,12 +78,13 @@ export function concern(options: ConcernOptions = {}): BoundReport {
 }
 
 /** A failed required scenario, bound with its stable issue key as the scenario adapter would. */
-export function failure(options: { readonly attempt: string; readonly subject: string; readonly tree: string; readonly revision?: number }): BoundReport {
+export function failure(options: { readonly attempt: string; readonly subject: string; readonly tree: string; readonly revision?: number; readonly findingKey?: string }): BoundReport {
   return {
     producer: 'check:scenario',
     attempt: options.attempt,
     reportKey: options.subject,
-    owner: { kind: 'work-item', workItem: 'wi-001' },
+    findingKey: options.findingKey ?? `draft:finding:check-${options.attempt.replace(/[^a-z0-9]+/g, '-')}`,
+    owner: { kind: 'work-item', workItem: 'work-item:review-notes' },
     source: { kind: 'tree', id: options.tree },
     issueKey: options.subject,
     verification: { kind: 'check', producer: 'check:scenario', obligation: { subject: options.subject, revision: options.revision ?? 1 }, selection: 'quick/identity', required: true },

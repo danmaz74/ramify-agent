@@ -42,18 +42,18 @@ test('CA21 CA29 CA32: a nested request keeps its parent assignment and depth-fir
   // The assignment event is a ledger event; its immutable body is exercised
   // by the service assignment tests, which use the real write scope resolver.
   await log.append({ type: 'capability-assigned', data: { task: task.id,
-    assignment: 'cap-001.i01', sequence: 1, invocation: 'inv-0002' } });
-  const childRequest = { ...request, id: 'need-002', parent: { kind: 'capability-task' as const, id: task.id },
-    assignment: 'cap-001.i01', invocation: 'inv-0003', original: { ...request.original,
-      examples: request.original.examples.map(example => ({ ...example, id: 'need-002.ex01' })) } };
+    assignment: 'capability-task:provide-fact.i01', sequence: 1, invocation: 'inv-0002' } });
+  const childRequest = { ...request, id: 'capability-request:normalize-source', parent: { kind: 'capability-task' as const, id: task.id },
+    assignment: 'capability-task:provide-fact.i01', invocation: 'inv-0003', original: { ...request.original,
+      examples: request.original.examples.map(example => ({ ...example, id: 'capability-example:normalize-source' })) } };
   await expect(commitCapabilityTransition(log, { type: 'capability-requested', data: {
-    request: childRequest.id, parent: task.id, assignment: 'cap-001.i02', invocation: childRequest.invocation,
+    request: childRequest.id, parent: task.id, assignment: 'capability-task:provide-fact.i02', invocation: childRequest.invocation,
   } }, [{ path: capabilityLayout.request(childRequest.id), id: childRequest.id, revision: 1, body: childRequest }])).rejects.toThrow();
   expect(log.count('capability-requested')).toBe(1);
   await commitCapabilityTransition(log, { type: 'capability-requested', data: {
     request: childRequest.id, parent: task.id, assignment: childRequest.assignment, invocation: childRequest.invocation,
   } }, [{ path: capabilityLayout.request(childRequest.id), id: childRequest.id, revision: 1, body: childRequest }]);
-  const childTask = { ...fixtureTask(childRequest), id: 'cap-002', request: childRequest.id,
+  const childTask = { ...fixtureTask(childRequest), id: 'capability-task:provide-normalization', request: childRequest.id,
     parent: childRequest.parent, originatingAssignment: childRequest.assignment, source: childRequest.source,
     provider: task.provider, deferredWorkItems: task.deferredWorkItems };
   const childPlan = { ...fixturePlan(childRequest, childTask), task: childTask.id };
@@ -65,16 +65,16 @@ test('CA21 CA29 CA32: a nested request keeps its parent assignment and depth-fir
   ]);
   const reopened = await RunLog.open(join(directory, 'events.jsonl'), 'job-001');
   const state = replayCapabilityState(reopened.events);
-  expect(state.stack).toEqual(['wi-001', 'cap-001', 'cap-002']);
-  expect(state.tasks.get('cap-001')?.status).toBe('awaiting-dependency');
-  expect(state.tasks.get('cap-001')?.activeAssignment).toBe('cap-001.i01');
-  expect(state.tasks.get('cap-001')?.nextAssignmentSequence).toBe(2);
-  expect(state.tasks.get('cap-002')?.nextAssignmentSequence).toBe(1);
-  expect(capabilityDependencyCycle(state, 'cap-002', 'cap-001')).toEqual(['cap-002', 'cap-001', 'cap-002']);
-  expect(capabilityDependencyCycle(state, 'cap-002', 'cap-003')).toBeNull();
+  expect(state.stack).toEqual(['work-item:format-fact', 'capability-task:provide-fact', 'capability-task:provide-normalization']);
+  expect(state.tasks.get('capability-task:provide-fact')?.status).toBe('awaiting-dependency');
+  expect(state.tasks.get('capability-task:provide-fact')?.activeAssignment).toBe('capability-task:provide-fact.i01');
+  expect(state.tasks.get('capability-task:provide-fact')?.nextAssignmentSequence).toBe(2);
+  expect(state.tasks.get('capability-task:provide-normalization')?.nextAssignmentSequence).toBe(1);
+  expect(capabilityDependencyCycle(state, 'capability-task:provide-normalization', 'capability-task:provide-fact')).toEqual(['capability-task:provide-normalization', 'capability-task:provide-fact', 'capability-task:provide-normalization']);
+  expect(capabilityDependencyCycle(state, 'capability-task:provide-normalization', 'capability-task:other-provider')).toBeNull();
 });
 
-test('CA21: exact ancestor task reference is rejected while another need in the same provider is allowed', async () => {
+test('CA21: an ancestor revision without retiring its accepted request is rejected while another need in the same provider is allowed', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'capability-cycle-'));
   directories.push(directory);
   const log = await RunLog.open(join(directory, 'events.jsonl'), 'job-001');
@@ -91,15 +91,15 @@ test('CA21: exact ancestor task reference is rejected while another need in the 
     { path: capabilityLayout.plan(task.id, 1), id: task.id, revision: 1, body: plan },
   ]);
   await log.append({ type: 'capability-assigned', data: { task: task.id,
-    assignment: 'cap-001.i01', sequence: 1, invocation: 'inv-0002' } });
-  const nested = { ...request, id: 'need-002', parent: { kind: 'capability-task' as const, id: task.id },
-    assignment: 'cap-001.i01', invocation: 'inv-0003', original: { ...request.original,
-      examples: request.original.examples.map(example => ({ ...example, id: 'need-002.ex01' })) } };
+    assignment: 'capability-task:provide-fact.i01', sequence: 1, invocation: 'inv-0002' } });
+  const nested = { ...request, id: 'capability-request:normalize-source', parent: { kind: 'capability-task' as const, id: task.id },
+    assignment: 'capability-task:provide-fact.i01', invocation: 'inv-0003', original: { ...request.original,
+      examples: request.original.examples.map(example => ({ ...example, id: 'capability-example:normalize-source' })) } };
   const input = { type: 'capability-requested' as const, data: { request: nested.id, parent: task.id,
     assignment: nested.assignment, invocation: nested.invocation } };
   await expect(commitCapabilityTransition(log, input, [{ path: capabilityLayout.request(nested.id),
     id: nested.id, revision: 1, body: { ...nested, original: { ...nested.original,
-      revises: { task: task.id, reason: 'Would wait for the active ancestor' } } } }])).rejects.toThrow('Exact capability dependency cycle');
+      revises: { task: task.id, reason: 'Would wait for the active ancestor' } } } }])).rejects.toThrow('Request correction must retire its accepted prior request');
   expect(log.count('capability-requested')).toBe(1);
   await commitCapabilityTransition(log, input, [{ path: capabilityLayout.request(nested.id), id: nested.id, revision: 1, body: nested }]);
   expect(log.count('capability-requested')).toBe(2);

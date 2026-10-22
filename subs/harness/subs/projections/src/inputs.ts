@@ -92,8 +92,8 @@ export interface RunView {
 }
 
 /** The accepted capability carried by an entry assignment under its run contract. */
-export function acceptedEntryCapability(assignments: EntryAssignments, entry: EntryAssignments['entries'][number]): string {
-  return assignments.schema === 'ramify-agent.entry-assignments/2' ? entry.capabilityId! : entry.capability;
+export function acceptedEntryCapability(_assignments: EntryAssignments, entry: EntryAssignments['entries'][number]): string {
+  return entry.capabilityId;
 }
 
 /** Why a declared schema is refused, under the durable owner's admission rules. */
@@ -130,19 +130,15 @@ export function runView(run: CommittedRun): RunView {
           gateAuditOutcomes.set(body.gate, { body, ...at });
           break;
         }
-        case 'ramify-agent.hypothesis/1':
         case 'ramify-agent.hypothesis/2':
           hypothesisRevisions.push({ body: parse(hypothesisSchema, record.body, run, record.path), ...at });
           break;
-        case 'ramify-agent.work-item-outline/1':
         case 'ramify-agent.work-item-outline/2':
           outlines.push({ body: parse(workItemOutlineSchema, record.body, run, record.path), ...at });
           break;
-        case 'ramify-agent.iteration-assignment/1':
         case 'ramify-agent.iteration-assignment/2':
           assignments.push({ body: parse(iterationAssignmentSchema, record.body, run, record.path), ...at });
           break;
-        case 'ramify-agent.contract/2':
         case 'ramify-agent.contract/3':
           contracts.push({ body: parse(contractRecordSchema, record.body, run, record.path), ...at });
           break;
@@ -240,11 +236,6 @@ export async function unservedRun(projectRoot: string, planId: string, runId: st
       `Run ${runId} declares ${typeof declared === 'string' ? declared : 'no schema'} in ${shown}; this harness reads ${jobSchemaVersion}`,
       [shown, `declares ${typeof declared === 'string' ? declared : 'no schema'}`],
     );
-  }
-  const identityContract = (document as { identityContract?: unknown } | null)?.identityContract;
-  if (identityContract !== undefined && identityContract !== 'legacy' && identityContract !== 'descriptive') {
-    const recorded = typeof identityContract === 'string' ? identityContract : JSON.stringify(identityContract) ?? String(identityContract);
-    return new ProjectionError('unsupported-version', `Run identity contract ${recorded} is not supported; the retained run cannot continue`, [shown]);
   }
   const parsed = runRecordSchema.safeParse(document);
   // A valid record the service does not hold yet is a run being created.

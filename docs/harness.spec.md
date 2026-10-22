@@ -44,64 +44,51 @@ Historical evidence retains the names actually recorded. The toolkit's
 module-architect skill and its glossary retain their upstream terminology under
 the snapshot's [provenance](../skills/module-architect/PROVENANCE.md).
 
-### Run Identity Contract
+### Semantic Identities
 
-An implementation run records its identity contract at capture. An absent
-contract denotes a legacy run. Legacy continuation uses its numbered catalog,
-scenario and work identities and its original submission fields; accepted
-records, features and reports are read without rewriting their bytes. The
-installed fresh-run default is descriptive. An explicit legacy start remains
-legacy, and continuation always uses the contract captured by that run. A fresh
-assisted plan start also defaults to descriptive; a retained assisted job with
-an absent contract remains legacy. If a retained run declares a contract this
-harness cannot read, run queries and commands identify that contract and leave
-its records unchanged.
+Initial analysis proposes draft keys for functional requirements, context,
+entry capabilities, hypotheses and scenarios in its ordinary submission. The
+harness validates the complete submission and commits the accepted catalog,
+entry assignments, hypotheses, capability records, initial work items and
+scenarios in one accepted transition. Submission fields identify their reference
+family and stage. Accepted records carry the namespace and descriptive name as
+their actual ID; no separate registration call or reservation precedes
+acceptance. Catalog replacement records retirement and replacement relationships
+under the catalog checker's existing authority. The [catalog specification](architecture/plan-context-catalog.spec.md)
+and [scenario contract](architecture/acceptance-scenarios.md) define source and
+wording authority.
 
-Under the descriptive contract, initial analysis proposes draft keys for
-functional requirements, context, entry capabilities, hypotheses and scenarios
-in its ordinary submission. The harness validates the complete submission and
-commits the accepted catalog, entry assignments, hypotheses, capability records,
-initial work items and scenarios in one accepted transition. New submission
-fields identify their reference family and stage. The accepted records carry
-the namespace and descriptive name as their actual ID; no registration call or
-reservation state precedes acceptance. Catalog replacement records retirement
-and replacement relationships under the catalog checker's existing authority.
-The [catalog specification](architecture/plan-context-catalog.spec.md) and
-[scenario contract](architecture/acceptance-scenarios.md) define their source
-and wording authority in both formats.
-
-A descriptive contract submission proposes `contractKey`,
-`providerObligationKey` and `consumerRequirementKey` as draft keys in the
-ordinary agreement task. Acceptance resolves them in its existing transaction;
-a revision keeps accepted identities, while a newly attached consumer receives
-its own requirement identity. Descriptive records use contract `/3`, provider
-obligation `/2`, consumer requirement `/2` and derived work item `/2` shapes.
-Record paths encode their IDs. Legacy agreements retain their original
-submission `/2`, contract `/2`, provider obligation `/1`, consumer requirement
-`/1` and work item `/1` shapes and IDs.
-The descriptive capability run captures the contract engineer and the module
-architect's provider-yield action when an engineer names an existing capability
-whose provider agreement is needed. A legacy capability run retains its earlier
-prompt set and does not accept that agreement path.
+An agreement submission proposes `contractKey`, `providerObligationKey` and
+`consumerRequirementKey` as draft keys in the ordinary contract task. Acceptance
+resolves them in its existing transaction; a revision keeps accepted identities,
+while a newly attached consumer receives its own requirement identity. Records
+use contract `/3`, provider obligation `/2`, consumer requirement `/2` and
+work-item `/2` shapes. Record paths encode their IDs. The capability run captures
+the contract engineer and module architect's provider-yield action when an
+engineer names an existing capability whose provider agreement is needed.
 
 Public analysis entries expose `functionalRequirementIds`,
-`functionalAcceptanceIds` and `contextIds` for descriptive runs; legacy entries
-expose `requirementRefs`, `acceptanceRefs` and `contextRefs`. A descriptive work
-item detail resolves those accepted IDs against the frozen catalog and includes
-each selected element's full text, conditions, source document and uncertainty.
-Public work, scenario, contract and finding readers use the run's recorded
-identity contract and accept both supported record versions. Their selection
-uses the exact accepted ID, including the namespace, while HTTP paths encode
-it as one segment.
+`functionalAcceptanceIds` and `contextIds`. A work item detail resolves those
+accepted IDs against the frozen catalog and includes each selected element's
+full text, conditions, source document and uncertainty. Public work, scenario,
+contract and finding readers use current record versions and select by exact
+accepted ID, including its namespace; HTTP paths encode it as one segment.
+An unavailable recorded format yields an inspectable query or command error;
+the harness leaves its durable bytes intact.
 
-On descriptive runs, an engineer proposes capability request and example draft
-keys in submission `/2`; qualification proposes a task draft key. Acceptance
-records request, task, plan, exchange and handback `/2` with the same accepted
-relationships. A later placement request and its decision use `/2` identities
-derived from the accepted work item and capability; repeated requests receive
-distinct stable ordinals. Derived provider, revision and integration work items
-use `/2`; a final correction proposes its work item name. Legacy records and
-continuations retain their original versions and IDs.
+An engineer proposes capability request and example draft keys in submission
+`/2`; qualification proposes a task draft key. Acceptance records request,
+task, plan, exchange and handback `/2` with the same accepted relationships.
+A later placement request and its decision use `/2` identities derived from
+the accepted work item and capability; repeated requests receive distinct
+stable ordinals. A decision on an accepted unresolved request carries a
+distinct `placement-decision:unresolved-<name>` identity; a placement decision
+uses `placement-decision:placement-<name>`. Derived provider, revision and integration work items use
+`/2`; a final correction proposes its work item name. A module architect
+proposes `draft:test:<name>` in each required-test registration; acceptance
+records `test:<name>` and derives each registered capability case from its
+accepted task and case source with a stable collision-safe discriminator.
+Registration, binding, reporting and reload preserve those accepted IDs.
 
 ### Forecast Early; Decide with Current Evidence
 

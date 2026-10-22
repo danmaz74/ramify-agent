@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { CheckFindingCommand, CheckFindingEntry, CheckFindingState } from '../../../../../check-findings/src/interfaces/check-findings.js';
+import type { CheckFindingCommand, CheckFindingEntry } from '../../../../../check-findings/src/interfaces/check-findings.js';
 import { canonicalJson } from '../../../../../../src/jobs/commands.js';
 import { reportCommand } from '../../../../../../src/check-findings/report.js';
 import { deviationLayout, type EnvironmentProblem, type UnresolvedRequest } from './records.js';
@@ -36,12 +36,11 @@ function bounded(text: string, limit = 4000): string {
 
 /**
  * The two commands that record an environment problem's CheckFinding,
- * decided in order against `state`: the report that opens it, and the
+ * decided in order: the report that opens it, and the
  * harness's request for the operator's answer. The problem names the
- * CheckFinding the report opens, which is the next one the state allocates.
+ * CheckFinding the report opens.
  */
 export function environmentCommands(
-  state: CheckFindingState,
   problem: EnvironmentProblem,
   request: Pick<UnresolvedRequest, 'conflict'>,
   module: string,
@@ -53,7 +52,7 @@ export function environmentCommands(
     producer: environmentProducer,
     attempt: problem.invocation,
     reportKey: problem.id,
-    ...(problem.schema === 'ramify-agent.environment-problem/2' ? { findingKey: problem.findingKey } : {}),
+    findingKey: problem.findingKey,
     owner: { kind: 'run' },
     source,
     issueKey: null,

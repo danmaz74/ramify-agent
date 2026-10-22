@@ -48,13 +48,11 @@ export interface DecisionContext {
 }
 
 export function acceptDecision(context: DecisionContext): AcceptedDecision {
-  const descriptive = context.id.startsWith('placement-decision:');
-  const capabilityId = (name: string): string => descriptive && !name.startsWith('capability:') && !name.startsWith('capability-request:')
-    ? `capability:${name}` : name;
+  const capabilityId = (name: string): string => name;
   const registry = context.registry.map(change => {
     const current = context.committed.registry.get(capabilityId(change.capability));
     return registryEntrySchema.parse({
-      schema: descriptive ? 'ramify-agent.capability/2' : 'ramify-agent.capability/1',
+      schema: 'ramify-agent.capability/2',
       capability: capabilityId(change.capability),
       revision: (current?.revision ?? 0) + 1,
       behavior: change.behavior,
@@ -94,7 +92,7 @@ export function acceptDecision(context: DecisionContext): AcceptedDecision {
   });
 
   const decision = placementDecisionSchema.parse({
-    schema: descriptive ? 'ramify-agent.placement-decision/2' : 'ramify-agent.placement-decision/1',
+    schema: 'ramify-agent.placement-decision/2',
     id: context.id,
     authority: context.authority,
     request: context.request,

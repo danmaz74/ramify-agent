@@ -32,7 +32,7 @@ async function fixture(priorOutside = false) {
     resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', roots: [broad ? root : join(root, 'Alpha')], files: [], excluded: [], view: { status: 'placeholder' },
       included: broad ? included.map(entry => ({ ...entry, kind: 'child-subtree', owner: `Root/${entry.directory}`, projectInstructions: [] })) : [],
       ownership: { provider: 'ramify.ownership/1', ramifyVersion: 'scripted', root, inputId: 'captured', configuration: 'tsconfig.json', modules, exclusions: [] } } });
-  const original = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/1', id: 'wi-001.i01', workItem: 'wi-001', outline: { id: 'wi-001', revision: 1, hash: 'a'.repeat(64) }, coordination: { kind: 'work-item', id: 'wi-001' }, stage: 0, kind: 'ordinary', goal: 'Implement A', approach: 'Preserve partial work', startingPoints: [], scope: scope(false), externalCapabilities: [], completionEvidence: 'Tests', evidenceObligations: [], gate: { checkpoint: 'iteration', tests: { policy: 'owned-by-scope', exactOwners: ['Root/Alpha'], subtrees: [], extraSuites: [] } }, guarded: [], authorizations: [] });
+  const original = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/2', id: 'work-item:repair-alpha.i01', workItem: 'work-item:repair-alpha', outline: { id: 'work-item:repair-alpha', revision: 1, hash: 'a'.repeat(64) }, coordination: { kind: 'work-item', id: 'work-item:repair-alpha' }, stage: 0, kind: 'ordinary', goal: 'Implement A', approach: 'Preserve partial work', startingPoints: [], scope: scope(false), externalCapabilities: [], completionEvidence: 'Tests', evidenceObligations: [], gate: { checkpoint: 'iteration', tests: { policy: 'owned-by-scope', exactOwners: ['Root/Alpha'], subtrees: [], extraSuites: [] } }, guarded: [], authorizations: [] });
   const assignment = automaticRepairAssignmentSchema.parse({ schema: 'ramify-agent.automatic-repair-assignment/1', id: 'root-repair', invocation: 'inv-0001', delegation: { root: 'Root', included, instructions: 'Restore preparation' }, scope: scope(true), guarded: [] });
   const paths = ['Alpha/partial.ts', 'Beta/restored.ts'];
   const before = await captureRepairFiles(root, paths);
@@ -71,7 +71,7 @@ async function fixture(priorOutside = false) {
     // Only the fields acceptedCommit reads; no gate execution is scripted here.
     append('gate-attempted', { gate: 'gate-001', checkpoint: 'iteration', verdict: 'passed', next: 'continue' }, [{ path: 'gate.json', id: 'gate-001', revision: 1,
       body: { schema: 'ramify-agent.gate-attempt/3', id: 'gate-001', checkpoint: 'iteration', audited: 'later-accepted' } }]);
-  }, rewordScenarios: () => append('scenarios-reworded', { deviation: 'pd-001', commit: 'feature-only-commit' }), async outcome() {
+  }, rewordScenarios: () => append('scenarios-reworded', { deviation: 'plan-deviation:case-001', commit: 'feature-only-commit' }), async outcome() {
     const result = await new CommittingGates(gateFixturePorts(run, host)).candidateAuthority({ checkpoint: 'iteration', subject: { iteration: original.id } });
     expect(git.unexpected).toEqual([]);
     return result.rules.find(rule => rule.rule === 'write-scope');

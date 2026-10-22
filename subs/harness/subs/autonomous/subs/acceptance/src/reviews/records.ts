@@ -1,4 +1,4 @@
-import { descriptiveReviewSubmissionSchema, reviewSubmissionSchema } from '../../../../../reviews/src/interfaces/submissions.js';
+import { reviewSubmissionSchema } from '../../../../../reviews/src/interfaces/submissions.js';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { checkFindingIdSchema } from '../../../../../check-findings/src/interfaces/check-findings.js';
@@ -130,14 +130,10 @@ export type ReviewAttempt = z.infer<typeof reviewAttemptSchema>;
 
 /** The submission as its record holds it. */
 export const reviewSubmissionRecordSchema = reviewSubmissionSchema.extend({
-  schema: z.literal('ramify-agent.review-submission/1'),
-  attempt: reviewAttemptIdSchema,
-}).strict();
-export const descriptiveReviewSubmissionRecordSchema = descriptiveReviewSubmissionSchema.extend({
   schema: z.literal('ramify-agent.review-submission/2'),
   attempt: reviewAttemptIdSchema,
 }).strict();
-export type ReviewSubmissionRecord = z.infer<typeof reviewSubmissionRecordSchema> | z.infer<typeof descriptiveReviewSubmissionRecordSchema>;
+export type ReviewSubmissionRecord = z.infer<typeof reviewSubmissionRecordSchema>;
 
 // The events' data. The run log imports these.
 
@@ -216,7 +212,6 @@ export const reviewLayout = {
 export const reviewSchemas = {
   reviewRequest: { schema: 'ramify-agent.review-request/1', body: reviewRequestSchema },
   reviewAttempt: { schema: 'ramify-agent.review-attempt/1', body: reviewAttemptSchema },
-  reviewSubmission: { schema: 'ramify-agent.review-submission/1', body: reviewSubmissionRecordSchema },
-  reviewSubmissionDescriptive: { schema: 'ramify-agent.review-submission/2', body: descriptiveReviewSubmissionRecordSchema },
+  reviewSubmission: { schema: 'ramify-agent.review-submission/2', body: reviewSubmissionRecordSchema },
   reviewOrientation: { schema: 'ramify-agent.review-orientation/1', body: reviewOrientationSchema },
 } as const;

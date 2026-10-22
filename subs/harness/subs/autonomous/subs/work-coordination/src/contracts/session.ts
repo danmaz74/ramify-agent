@@ -14,7 +14,6 @@ import { contractToolName, type ContractIdentityContext, type NeedAsBehavior } f
 
 export interface ContractBriefing {
   readonly assignment: IterationAssignment;
-  readonly identityContract?: 'legacy' | 'descriptive';
   readonly identity?: ContractIdentityContext;
   readonly projectRoot: string;
   /** The commit `git diff` compares against: the last accepted boundary. */
@@ -66,7 +65,7 @@ export function contractMessage(briefing: ContractBriefing): string {
       'The elements its assignment cites, whole, with the plan deviations in force when it was assigned.', '',
       briefing.package.trimEnd(), '']),
   ];
-  if (briefing.identityContract === 'descriptive') {
+  {
     lines.push('## Agreement identities', '');
     const identity = briefing.identity ?? { kind: 'fresh' };
     if (identity.kind === 'fresh') lines.push(

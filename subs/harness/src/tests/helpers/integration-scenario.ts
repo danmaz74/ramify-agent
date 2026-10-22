@@ -5,7 +5,7 @@ import type { GateAttempt } from '../../../subs/autonomous/subs/acceptance/src/c
 import { scenarioResultsOf, type ScenarioResult } from '../../../subs/autonomous/subs/acceptance/src/checks/scenario-results.js';
 import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
-import { analysis, entry, requestCompletion } from './analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './analysis.js';
 import { accepted, added, answeredGit, modified, scenariosCommitted, unchanged, type CommitResponse } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import type { DirectCheckScript } from './direct-check-execution.js';
 import { copyFixture } from './fixture.js';
@@ -44,8 +44,8 @@ export const tags = `${reviews}/tags`;
 export const tagsDirectory = `${reviewsDirectory}/subs/tags`;
 
 export const featureOf = (directory: string, name: string) => `${directory}/src/tests/features/${plan}/${name}.feature`;
-export const noteFeature = featureOf(notesDirectory, 'review-note');
-export const tagFeature = featureOf(tagsDirectory, 'review-tags');
+export const noteFeature = featureOf(notesDirectory, 'capability%3Areview-note');
+export const tagFeature = featureOf(tagsDirectory, 'capability%3Areview-tags');
 export const integrationFeature = featureOf(reviewsDirectory, 'integration');
 export const noteSteps = `${notesDirectory}/src/tests/steps/review-note.steps.ts`;
 export const tagSteps = `${tagsDirectory}/src/tests/steps/review-tags.steps.ts`;
@@ -64,7 +64,7 @@ export const planScenario = [
 export function integrationAnalysis() {
   return analysis([entry('review-note', notes), entry('review-tags', tags)], [], [], [
     {
-      key: 'note-for-tags', entry: 'review-note', origin: { kind: 'architect' }, partOf: 'ps-01', refs: ['review-note-acceptance'],
+      key: 'note-for-tags', entry: 'review-note', origin: { kind: 'architect' }, partOf: 'plan-scenario:a-written-note-is-shown-with-its-tag', refs: ['draft:functional-requirement:review-note-acceptance'],
       gherkin: [
         'Scenario: A note is written for tagging',
         '  Given the project as the plan finds it',
@@ -73,7 +73,7 @@ export function integrationAnalysis() {
       ].join('\n'),
     },
     {
-      key: 'tags-on-note', entry: 'review-tags', origin: { kind: 'architect' }, partOf: 'ps-01', refs: ['review-tags-acceptance'],
+      key: 'tags-on-note', entry: 'review-tags', origin: { kind: 'architect' }, partOf: 'plan-scenario:a-written-note-is-shown-with-its-tag', refs: ['draft:functional-requirement:review-tags-acceptance'],
       gherkin: [
         'Scenario: A written note is tagged',
         '  Given a note was written with review-note',
@@ -81,7 +81,7 @@ export function integrationAnalysis() {
         '  Then the outcome review-tags promises is shown',
       ].join('\n'),
     },
-  ], [{ planScenario: 'ps-01', subScenarios: ['note-for-tags', 'tags-on-note'] }]);
+  ], [{ planScenario: 'plan-scenario:a-written-note-is-shown-with-its-tag', subScenarios: ['note-for-tags', 'tags-on-note'] }]);
 }
 
 /** Each entry's step file: its own definitions, and one named export the ancestor imports. */
@@ -155,24 +155,24 @@ export async function integrationProject(cleanups: Cleanups): Promise<string> {
 
 /** The turns of the two entries' work items: each binds its own sub-scenario in one iteration. */
 export const entryTurns = {
-  'initial-architect': [submit(integrationAnalysis())],
-  'local-architect:wi-001': [submit(assign(notes, { obligations: ['sc-001'] }, outline())), submit(requestCompletion())],
-  'engineer:wi-001': [submit(completionProposed('The note\'s sub-scenario is bound.', { bindings: [{ id: 'sc-001' }] }), write('tests/steps/review-note.steps.ts', noteStepFile))],
-  'local-architect:wi-002': [submit(assign(tags, { obligations: ['sc-002'] }, outline())), submit(requestCompletion())],
-  'engineer:wi-002': [submit(completionProposed('The tags\' sub-scenario is bound.', { bindings: [{ id: 'sc-002' }] }), write('tests/steps/review-tags.steps.ts', tagStepFile))],
+  'initial-architect': [submit(currentAnalysis(integrationAnalysis(), 'document:review-notes-plan'))],
+  'local-architect:work-item:review-note': [submit(assign(notes, { obligations: ['scenario:note-for-tags'] }, outline())), submit(requestCompletion())],
+  'engineer:work-item:review-note': [submit(completionProposed('The note\'s sub-scenario is bound.', { bindings: [{ id: 'scenario:note-for-tags' }] }), write('tests/steps/review-note.steps.ts', noteStepFile))],
+  'local-architect:work-item:review-tags': [submit(assign(tags, { obligations: ['scenario:tags-on-note'] }, outline())), submit(requestCompletion())],
+  'engineer:work-item:review-tags': [submit(completionProposed('The tags\' sub-scenario is bound.', { bindings: [{ id: 'scenario:tags-on-note' }] }), write('tests/steps/review-tags.steps.ts', tagStepFile))],
 };
 
 /** The integration work item's assignment: the ancestor, with both children on the paths to the owners. */
 export const bindAtAncestor = assign(reviews, {
-  goal: 'Bind sc-003 at the common ancestor.',
-  obligations: ['sc-003'],
+  goal: 'Bind scenario:a-written-note-is-shown-with-its-tag at the common ancestor.',
+  obligations: ['scenario:a-written-note-is-shown-with-its-tag'],
   approach: 'Import both step files by name, and expose them to this module with expose-test.',
   scope: { base: { module: reviews, included: [notes, tags].map(module => ({ directory: module.split('/').slice(1).map(part => `subs/${part}`).join('/'), reason: 'Fixture whole child tree', instructions: 'Implement the assigned fixture behavior' })) }, extra: [], read: [], rationale: 'The ancestor and both paths down to the owners.' },
 }, outline());
 
 /** The module engineer that binds it: the ancestor's step file, the two exposures, and the binding. */
 export const bindTurn = submit(
-  completionProposed('The integration scenario binds to both sub-scenarios\' definitions.', { bindings: [{ id: 'sc-003' }] }),
+  completionProposed('The integration scenario binds to both sub-scenarios\' definitions.', { bindings: [{ id: 'scenario:a-written-note-is-shown-with-its-tag' }] }),
   write('tests/steps/integration.steps.ts', ancestorStepFile),
   write('../subs/notes/module.ramify', exposing('notes', 'reviewNoteSteps', 'review-note.steps.ts')),
   write('../subs/tags/module.ramify', exposing('tags', 'reviewTagsSteps', 'review-tags.steps.ts')),
@@ -180,12 +180,12 @@ export const bindTurn = submit(
 
 /** The commits of the two entries' work items, then the integration item's iteration. */
 export const entryCommits: CommitResponse[] = [
-  accepted('wi-001.i01', 'revision-01', [...added(noteSteps), ...modified(noteFeature)]),
-  unchanged('wi-001'),
-  accepted('wi-002.i01', 'revision-02', [...added(tagSteps), ...modified(tagFeature)]),
-  unchanged('wi-002'),
+  accepted('work-item:review-note.i01', 'revision-01', [...added(noteSteps), ...modified(noteFeature)]),
+  unchanged('work-item:review-note'),
+  accepted('work-item:review-tags.i01', 'revision-02', [...added(tagSteps), ...modified(tagFeature)]),
+  unchanged('work-item:review-tags'),
 ];
-export const bindCommit = accepted('wi-003.i01', 'revision-03', [...added(ancestorSteps), ...modified(notesModule, tagsModule, integrationFeature)]);
+export const bindCommit = accepted('work-item:bind-a-written-note-is-shown-with-its-tag.i01', 'revision-03', [...added(ancestorSteps), ...modified(notesModule, tagsModule, integrationFeature)]);
 
 export async function runIntegration(
   cleanups: Cleanups,

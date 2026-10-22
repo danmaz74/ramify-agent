@@ -1,12 +1,12 @@
 import {
-  checkFindingCommandSchema,
+  checkFindingCommandSchema, checkFindingEventVersion,
   type CheckFindingChange, type CheckFindingCommand, type CheckFindingDecision, type CheckFindingDecisionInput,
   type CheckFindingEntry, type CheckFindingEvent, type CheckFindingId, type CheckFindingRejection,
   type CheckFindingRejectionCode, type CheckFindingRelationInput, type CheckFindingReport,
   type CheckFindingReportInput, type CheckFindingState,
 } from './interfaces/check-findings.js';
 import {
-  checkFindingId, decisionId, findingEventVersion, ingestionKey, issueKeyMatches, proposedFindingId, relationId, reportId, sameObligation, sameOwner,
+  decisionId, ingestionKey, issueKeyMatches, proposedFindingId, relationId, reportId, sameObligation, sameOwner,
   sameSource, scopedIssueKey,
 } from './identity.js';
 import { applyCheckFindingEvent } from './replay.js';
@@ -89,9 +89,10 @@ function decideReport(state: CheckFindingState, report: CheckFindingReportInput)
       return attach(state, match, next);
     }
   }
-  const id = report.findingKey === undefined ? checkFindingId(state.counters.findings + 1) : proposedFindingId(report.findingKey);
+  if (report.findingKey === undefined) return reject('invalid-report', 'a new finding needs a draft:finding:<descriptive-name> key');
+  const id = proposedFindingId(report.findingKey);
   if (state.findings.has(id)) return reject('finding-name-conflict', `${report.findingKey} conflicts with accepted finding ${id}; propose a distinct name in this submission`);
-  return accepted([{ type: 'check-finding-opened', data: { version: findingEventVersion(id), checkFinding: id, revision: 1, report: next } }], [id]);
+  return accepted([{ type: 'check-finding-opened', data: { version: checkFindingEventVersion, checkFinding: id, revision: 1, report: next } }], [id]);
 }
 
 /**
@@ -104,7 +105,7 @@ function decideReport(state: CheckFindingState, report: CheckFindingReportInput)
 function attach(state: CheckFindingState, entry: CheckFindingEntry, report: CheckFindingReport): CheckFindingChange {
   const events: CheckFindingEvent[] = [{
     type: 'check-finding-reported',
-    data: { version: findingEventVersion(entry.id), checkFinding: entry.id, revision: entry.revision + 1, report },
+    data: { version: checkFindingEventVersion, checkFinding: entry.id, revision: entry.revision + 1, report },
   }];
   const closing = entry.standing === 'closed' ? entry.decisions.find(decision => decision.id === entry.settledBy) : undefined;
   const contradicts = closing !== undefined && closing.decision.action !== 'waive'
@@ -122,7 +123,7 @@ function attach(state: CheckFindingState, entry: CheckFindingEntry, report: Chec
       communication: { mode: 'quiet' },
       decision: { action: 'reopen', cause: { kind: 'report', report: report.id } },
     };
-    events.push({ type: 'check-finding-decided', data: { version: findingEventVersion(entry.id), checkFinding: entry.id, revision: entry.revision + 2, decision } });
+    events.push({ type: 'check-finding-decided', data: { version: checkFindingEventVersion, checkFinding: entry.id, revision: entry.revision + 2, decision } });
   }
   return accepted(events, [entry.id]);
 }
@@ -140,7 +141,7 @@ function decideDisposal(state: CheckFindingState, id: CheckFindingId, expectedRe
   const refusal = refusalOf(entry, input);
   if (refusal !== null) return refusal;
   const decision: CheckFindingDecision = { ...input, id: decisionId(state.counters.decisions + 1), considered: entry.revision };
-  return accepted([{ type: 'check-finding-decided', data: { version: findingEventVersion(id), checkFinding: id, revision: entry.revision + 1, decision } }], [id]);
+  return accepted([{ type: 'check-finding-decided', data: { version: checkFindingEventVersion, checkFinding: id, revision: entry.revision + 1, decision } }], [id]);
 }
 
 /**
@@ -273,7 +274,7 @@ function decideRelation(state: CheckFindingState, relation: CheckFindingRelation
     if (grouped || already) return reject('relation-cycle', `${from.id} and ${to.id} already belong to one same-issue group`);
   }
   const id = relationId(state.counters.relations + 1);
-  const related: CheckFindingEvent = { type: 'check-finding-related', data: { version: findingEventVersion(from.id), relation: { ...relation, id } } };
+  const related: CheckFindingEvent = { type: 'check-finding-related', data: { version: checkFindingEventVersion, relation: { ...relation, id } } };
   const applied = applyCheckFindingEvent(state, related);
   if (!applied.ok) return { ok: false, rejection: applied.rejection };
   const waived = relation.relation === 'same-issue' ? waiveJoined(state, applied.state, from.id, relation) : [];
@@ -315,7 +316,7 @@ function waiveJoined(
       communication: { mode: 'quiet' },
       decision: { action: 'waive', authority: { kind: 'governing-record', ref: waiver.id }, acceptedRisk: entry.risk, uncertainty: waiver.decision.uncertainty },
     };
-    const event: CheckFindingEvent = { type: 'check-finding-decided', data: { version: findingEventVersion(id), checkFinding: id, revision: entry.revision + 1, decision } };
+    const event: CheckFindingEvent = { type: 'check-finding-decided', data: { version: checkFindingEventVersion, checkFinding: id, revision: entry.revision + 1, decision } };
     const applied = applyCheckFindingEvent(current, event);
     // The decision follows the state it was derived from, so replay accepts it.
     if (!applied.ok) throw new Error(`the waiver of ${id} does not follow its state: ${applied.rejection.message}`);

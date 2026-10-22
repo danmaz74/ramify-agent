@@ -8,11 +8,11 @@ const result = (nfr: string, status: 'satisfied' | 'not-satisfied' | 'undetermin
   nfr, result: status, inspectedScope: ['src'], evidence: [], uncertainty: status === 'undetermined' ? 'Need an observation' : '',
 });
 const assessment = (round: number, phase: 'initial' | 'after-repair', results: ReturnType<typeof result>[], tree = candidate.tree) =>
-  assessmentSchema.parse({ schema: 'ramify-agent.nonfunctional-assessment/1', id: 'nfa-001', candidate: { ...candidate, tree }, round, phase, coordinatorInvocation: 'inv-001', results });
+  assessmentSchema.parse({ schema: 'ramify-agent.nonfunctional-assessment/2', id: 'nfa-001', candidate: { ...candidate, tree }, round, phase, coordinatorInvocation: 'inv-001', results });
 const closed = (number: number, outcome: 'satisfied' | 'continue' | 'exhausted' | 'unavailable') =>
   roundSchema.parse({ schema: 'ramify-agent.nonfunctional-round/1', number, initial: 'nfa-001', investigation: null, repair: null, reassessment: null, outcome });
 const base: RoundDecisionInput = {
-  nfrIds: ['nfr-001', 'nfr-002'], maxRounds: 3, closedRounds: [], candidate, initial: null,
+  nfrIds: ['non-functional-requirement:response-time', 'non-functional-requirement:uptime'], maxRounds: 3, closedRounds: [], candidate, initial: null,
   investigated: false, repairCommitted: false, reassessment: null,
 };
 
@@ -38,19 +38,19 @@ describe('nonfunctional round decision', () => {
       action: 'close', round: 1, outcome: 'satisfied', unresolved: [],
     });
     expect(decideNonfunctionalRound({ ...base, candidate: null, recoveryExhausted: true })).toEqual({ action: 'unavailable', round: 1 });
-    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', [result('nfr-001', 'satisfied')]) })).toThrow('missing nfr-002');
-    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', [result('nfr-001', 'satisfied'), result('nfr-001', 'satisfied')]) })).toThrow('duplicate nfr-001');
-    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', [result('nfr-001', 'satisfied'), result('nfr-999', 'satisfied')]) })).toThrow('unknown nfr-999');
-    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'after-repair', [result('nfr-001', 'satisfied'), result('nfr-002', 'satisfied')]) })).toThrow('must be initial');
-    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', [result('nfr-001', 'satisfied'), result('nfr-002', 'satisfied')], repairedCandidate.tree) })).toThrow('candidate differs');
+    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', [result('non-functional-requirement:response-time', 'satisfied')]) })).toThrow('missing non-functional-requirement:uptime');
+    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', [result('non-functional-requirement:response-time', 'satisfied'), result('non-functional-requirement:response-time', 'satisfied')]) })).toThrow('duplicate non-functional-requirement:response-time');
+    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', [result('non-functional-requirement:response-time', 'satisfied'), result('non-functional-requirement:unknown', 'satisfied')]) })).toThrow('unknown non-functional-requirement:unknown');
+    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'after-repair', [result('non-functional-requirement:response-time', 'satisfied'), result('non-functional-requirement:uptime', 'satisfied')]) })).toThrow('must be initial');
+    expect(() => decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', [result('non-functional-requirement:response-time', 'satisfied'), result('non-functional-requirement:uptime', 'satisfied')], repairedCandidate.tree) })).toThrow('candidate differs');
   });
 
   it('investigates uncertainty before one optional repair and reassesses every NFR', () => {
-    const initial = assessment(1, 'initial', [result('nfr-001', 'undetermined'), result('nfr-002', 'satisfied')]);
-    expect(decideNonfunctionalRound({ ...base, initial })).toEqual({ action: 'investigate', round: 1, undetermined: ['nfr-001'] });
+    const initial = assessment(1, 'initial', [result('non-functional-requirement:response-time', 'undetermined'), result('non-functional-requirement:uptime', 'satisfied')]);
+    expect(decideNonfunctionalRound({ ...base, initial })).toEqual({ action: 'investigate', round: 1, undetermined: ['non-functional-requirement:response-time'] });
     expect(() => decideNonfunctionalRound({ ...base, initial, repairCommitted: true })).toThrow('investigation before repair');
     expect(decideNonfunctionalRound({ ...base, initial, investigated: true })).toEqual({
-      action: 'repair-or-close', round: 1, unresolved: ['nfr-001'],
+      action: 'repair-or-close', round: 1, unresolved: ['non-functional-requirement:response-time'],
     });
     expect(requireRepairPermitted({ ...base, initial, investigated: true })).toBe(1);
     expect(() => requireRepairPermitted({ ...base, initial })).toThrow('not permitted');
@@ -62,28 +62,28 @@ describe('nonfunctional round decision', () => {
       action: 'assess', round: 1, phase: 'after-repair',
     });
     expect(() => decideNonfunctionalRound({ ...base, initial, investigated: true, repairCommitted: true, candidate: repairedCandidate,
-      reassessment: assessment(1, 'after-repair', [result('nfr-001', 'satisfied')], repairedCandidate.tree) })).toThrow('missing nfr-002');
+      reassessment: assessment(1, 'after-repair', [result('non-functional-requirement:response-time', 'satisfied')], repairedCandidate.tree) })).toThrow('missing non-functional-requirement:uptime');
     expect(() => decideNonfunctionalRound({ ...base, initial, investigated: true, repairCommitted: true, candidate: repairedCandidate,
-      reassessment: assessment(1, 'after-repair', [result('nfr-001', 'satisfied'), result('nfr-002', 'satisfied')]) })).toThrow('candidate differs');
+      reassessment: assessment(1, 'after-repair', [result('non-functional-requirement:response-time', 'satisfied'), result('non-functional-requirement:uptime', 'satisfied')]) })).toThrow('candidate differs');
     expect(decideNonfunctionalRound({ ...base, initial, investigated: true, repairCommitted: true, candidate: repairedCandidate,
-      reassessment: assessment(1, 'after-repair', [result('nfr-001', 'satisfied'), result('nfr-002', 'satisfied')], repairedCandidate.tree) })).toEqual({
+      reassessment: assessment(1, 'after-repair', [result('non-functional-requirement:response-time', 'satisfied'), result('non-functional-requirement:uptime', 'satisfied')], repairedCandidate.tree) })).toEqual({
       action: 'close', round: 1, outcome: 'satisfied', unresolved: [],
     });
   });
 
   it('continues useful rounds beyond the captured legacy limit and stops on a coordinator closure', () => {
-    const unresolved = [result('nfr-001', 'not-satisfied'), result('nfr-002', 'satisfied')];
+    const unresolved = [result('non-functional-requirement:response-time', 'not-satisfied'), result('non-functional-requirement:uptime', 'satisfied')];
     expect(decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', unresolved) })).toEqual({
-      action: 'repair-or-close', round: 1, unresolved: ['nfr-001'],
+      action: 'repair-or-close', round: 1, unresolved: ['non-functional-requirement:response-time'],
     });
     expect(decideNonfunctionalRound({ ...base, closedRounds: [closed(1, 'continue'), closed(2, 'continue')], initial: assessment(3, 'initial', unresolved) })).toEqual({
-      action: 'repair-or-close', round: 3, unresolved: ['nfr-001'],
+      action: 'repair-or-close', round: 3, unresolved: ['non-functional-requirement:response-time'],
     });
     expect(decideNonfunctionalRound({ ...base, maxRounds: 1, initial: assessment(1, 'initial', unresolved) })).toEqual({
-      action: 'repair-or-close', round: 1, unresolved: ['nfr-001'],
+      action: 'repair-or-close', round: 1, unresolved: ['non-functional-requirement:response-time'],
     });
     expect(decideNonfunctionalRound({ ...base, maxRounds: 2, closedRounds: [closed(1, 'continue')], initial: assessment(2, 'initial', unresolved) })).toEqual({
-      action: 'repair-or-close', round: 2, unresolved: ['nfr-001'],
+      action: 'repair-or-close', round: 2, unresolved: ['non-functional-requirement:response-time'],
     });
     expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), closed(3, 'exhausted')] })).toEqual({
       action: 'stop', closedRounds: 3, outcome: 'exhausted',

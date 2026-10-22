@@ -1,8 +1,9 @@
+import { checkFindingEventVersion } from './interfaces/check-findings.js';
 import type {
   CheckFindingApplied, CheckFindingDecision, CheckFindingEntry, CheckFindingEvent, CheckFindingReplay,
   CheckFindingReport, CheckFindingState,
 } from './interfaces/check-findings.js';
-import { checkFindingId, decisionId, findingEventVersion, ingestionKey, proposedFindingId, relationId, reportId, scopedIssueKey } from './identity.js';
+import { decisionId, ingestionKey, proposedFindingId, relationId, reportId, scopedIssueKey } from './identity.js';
 import { currentCredibility, currentRisk, modulesOf } from './signals.js';
 
 /*
@@ -35,9 +36,10 @@ export function applyCheckFindingEvent(state: CheckFindingState, event: CheckFin
   switch (event.type) {
     case 'check-finding-opened': {
       const { checkFinding, report } = event.data;
-      const expected = report.findingKey === undefined ? checkFindingId(state.counters.findings + 1) : proposedFindingId(report.findingKey);
+      if (report.findingKey === undefined) return conflict('a new finding has no draft:finding:<descriptive-name> key');
+      const expected = proposedFindingId(report.findingKey);
       if (checkFinding !== expected) return conflict(`check-finding-opened allocates ${checkFinding}, but the next CheckFinding is ${expected}`);
-      if (event.data.version !== findingEventVersion(checkFinding)) return conflict(`${checkFinding} requires event version ${findingEventVersion(checkFinding)}`);
+      if (event.data.version !== checkFindingEventVersion) return conflict(`${checkFinding} requires event version ${checkFindingEventVersion}`);
       if (state.findings.has(checkFinding)) return conflict(`check-finding-opened repeats accepted identity ${checkFinding}`);
       const reportCheck = checkReport(state, report);
       if (reportCheck !== null) return conflict(reportCheck);
@@ -67,7 +69,7 @@ export function applyCheckFindingEvent(state: CheckFindingState, event: CheckFin
       const { checkFinding, revision, report } = event.data;
       const entry = state.findings.get(checkFinding);
       if (entry === undefined) return conflict(`check-finding-reported names ${checkFinding}, which is no CheckFinding`);
-      if (event.data.version !== findingEventVersion(checkFinding)) return conflict(`${checkFinding} requires event version ${findingEventVersion(checkFinding)}`);
+      if (event.data.version !== checkFindingEventVersion) return conflict(`${checkFinding} requires event version ${checkFindingEventVersion}`);
       if (report.findingKey !== undefined && proposedFindingId(report.findingKey) !== checkFinding) return conflict(`${report.findingKey} does not name ${checkFinding}`);
       if (revision !== entry.revision + 1) return conflict(`check-finding-reported moves ${checkFinding} to revision ${revision}, but it is at ${entry.revision}`);
       const reportCheck = checkReport(state, report);
@@ -86,7 +88,7 @@ export function applyCheckFindingEvent(state: CheckFindingState, event: CheckFin
       const { checkFinding, revision, decision } = event.data;
       const entry = state.findings.get(checkFinding);
       if (entry === undefined) return conflict(`check-finding-decided names ${checkFinding}, which is no CheckFinding`);
-      if (event.data.version !== findingEventVersion(checkFinding)) return conflict(`${checkFinding} requires event version ${findingEventVersion(checkFinding)}`);
+      if (event.data.version !== checkFindingEventVersion) return conflict(`${checkFinding} requires event version ${checkFindingEventVersion}`);
       if (revision !== entry.revision + 1 || decision.considered !== entry.revision) {
         return conflict(`check-finding-decided moves ${checkFinding} from ${decision.considered} to ${revision}, but it is at ${entry.revision}`);
       }

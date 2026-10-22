@@ -81,7 +81,7 @@ export interface StepRunOptions {
   readonly auditChecks?: ((projectRoot: string, head: string) => Promise<readonly unknown[]>) | undefined;
   readonly skillDirectory?: string | undefined;
   /** The prompt packages the step is built with; by default the installed ones. Tests inject a changed package as a harness fix. */
-  readonly loadPackages?: ((capabilityWorkflow: StepInputs['capabilityWorkflow'], identityContract?: 'legacy' | 'descriptive') => Promise<ReadonlyMap<string, LoadedPackage>>) | undefined;
+  readonly loadPackages?: ((capabilityWorkflow: StepInputs['capabilityWorkflow']) => Promise<ReadonlyMap<string, LoadedPackage>>) | undefined;
   readonly groups?: ProcessGroups | undefined;
   readonly now?: (() => Date) | undefined;
   /** Everything the invocation does, as it happens. */
@@ -311,11 +311,8 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
   const provenance = provenanceText(inputs.provenance);
   const variant = inputs.role === 'local-architect' ? inputs.phase : inputs.role === 'reviewer' ? inputs.question : null;
 
-  const identityContract = 'identityContract' in inputs && (inputs.identityContract === 'legacy' || inputs.identityContract === 'descriptive')
-    ? inputs.identityContract : undefined;
-  const packages = options.loadPackages !== undefined ? await options.loadPackages(inputs.capabilityWorkflow, identityContract)
+  const packages = options.loadPackages !== undefined ? await options.loadPackages(inputs.capabilityWorkflow)
     : (await loadPromptPackages({ capabilityWorkflow: inputs.capabilityWorkflow,
-      identityContract,
       ...(options.skillDirectory === undefined ? {} : { skillDirectory: options.skillDirectory }) })).packages;
 
   let settlementConfirmed = true;

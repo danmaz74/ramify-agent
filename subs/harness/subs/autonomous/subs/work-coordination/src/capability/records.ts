@@ -10,9 +10,9 @@ import { elementIdSchema } from '../../../../../plan-evidence/src/interfaces/cat
 
 const text = z.string().min(1).refine(value => value.trim().length > 0, 'Must contain non-whitespace text');
 const id = z.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
-const exampleId = z.string().regex(/^(?:need-\d+\.ex\d+|capability-example:[a-z0-9]+(?:-[a-z0-9]+)*)$/);
-const requestId = z.string().regex(/^(?:need-\d+|capability-request:[a-z0-9]+(?:-[a-z0-9]+)*)$/);
-const taskId = z.string().regex(/^(?:cap-\d+|capability-task:[a-z0-9]+(?:-[a-z0-9]+)*)$/);
+const exampleId = z.string().regex(/^capability-example:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const requestId = z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const taskId = z.string().regex(/^capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const draftRequest = z.string().regex(/^draft:capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const draftExample = z.string().regex(/^draft:capability-example:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 export const draftCapabilityTaskSchema = z.string().regex(/^draft:capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -20,9 +20,6 @@ const positive = z.int().positive();
 const treeIdentity = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 const location = z.string().regex(/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\\\s]+$/);
 
-export const capabilityTaskId = (count: number): string => `cap-${String(count).padStart(3, '0')}`;
-export const capabilityRequestId = (count: number): string => `need-${String(count).padStart(3, '0')}`;
-export const capabilityExampleId = (request: string, count: number): string => `${request}.ex${String(count).padStart(2, '0')}`;
 export const capabilityAssignmentId = (task: string, count: number): string => `${task}.i${String(count).padStart(2, '0')}`;
 
 export const capabilityNeedSchema = z.object({
@@ -52,26 +49,21 @@ export const capabilityNeedSchema = z.object({
 });
 export type CapabilityNeed = z.infer<typeof capabilityNeedSchema>;
 
-/** The module engineer does not choose durable example IDs. The harness assigns
- * them after the request ID is reserved. */
+/** The author proposes each request and example name in its ordinary submission. */
 const { examples: _identifiedExamples, ...needInputShape } = capabilityNeedSchema.shape;
 export const capabilityNeedInputSchema = z.object({ ...needInputShape,
-  examples: z.array(z.object({ title: text, code: text, designation: z.enum(['executable', 'pseudocode']) }).strict()).min(1),
-}).strict();
-export type CapabilityNeedInput = z.infer<typeof capabilityNeedInputSchema>;
-export const descriptiveCapabilityNeedInputSchema = capabilityNeedInputSchema.extend({
   requestKey: draftRequest.describe('Propose draft:capability-request:<behavior-name>; the accepted ID is allocated on acceptance.'),
   examples: z.array(z.object({ key: draftExample.describe('Propose draft:capability-example:<behavior-name> for this example.'),
     title: text, code: text, designation: z.enum(['executable', 'pseudocode']) }).strict()).min(1),
 }).strict();
-export type DescriptiveCapabilityNeedInput = z.infer<typeof descriptiveCapabilityNeedInputSchema>;
-export function identifyCapabilityNeed(request: string, input: CapabilityNeedInput | DescriptiveCapabilityNeedInput): CapabilityNeed {
+export type CapabilityNeedInput = z.infer<typeof capabilityNeedInputSchema>;
+export function identifyCapabilityNeed(input: CapabilityNeedInput): CapabilityNeed {
   return capabilityNeedSchema.parse({
     need: input.need, usage: input.usage, constraints: input.constraints, knownInterface: input.knownInterface,
     ...(input.suggestedProvider === undefined ? {} : { suggestedProvider: input.suggestedProvider }),
     ...(input.revises === undefined ? {} : { revises: input.revises }),
-    examples: input.examples.map((example, index) => ({ title: example.title, code: example.code, designation: example.designation,
-      id: 'key' in example ? example.key.slice('draft:'.length) : capabilityExampleId(request, index + 1) })),
+    examples: input.examples.map(example => ({ title: example.title, code: example.code, designation: example.designation,
+      id: example.key.slice('draft:'.length) })),
   });
 }
 
@@ -88,7 +80,7 @@ export const provisionalSourceSchema = z.object({
 export type ProvisionalSource = z.infer<typeof provisionalSourceSchema>;
 
 export const capabilityRequestSchema = z.object({
-  schema: z.enum(['ramify-agent.capability-request/1', 'ramify-agent.capability-request/2']),
+  schema: z.literal('ramify-agent.capability-request/2'),
   id: requestId,
   parent: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('work-item'), id: text }).strict(),
@@ -102,17 +94,11 @@ export const capabilityRequestSchema = z.object({
   source: provisionalSourceSchema,
   summary: text,
   original: capabilityNeedSchema,
-}).strict().superRefine((request, context) => {
-  const descriptive = request.schema.endsWith('/2');
-  if (descriptive !== request.id.startsWith('capability-request:')) context.addIssue({ code: 'custom', path: ['id'], message: 'request ID disagrees with its contract version' });
-  request.original.examples.forEach((example, index) => {
-    if (descriptive !== example.id.startsWith('capability-example:')) context.addIssue({ code: 'custom', path: ['original', 'examples', index, 'id'], message: 'example ID disagrees with its contract version' });
-  });
-});
+}).strict();
 export type CapabilityRequest = z.infer<typeof capabilityRequestSchema>;
 
 export const capabilityTaskSchema = z.object({
-  schema: z.enum(['ramify-agent.capability-task/1', 'ramify-agent.capability-task/2']),
+  schema: z.literal('ramify-agent.capability-task/2'),
   id: taskId,
   request: requestId,
   parent: capabilityRequestSchema.shape.parent,
@@ -127,11 +113,7 @@ export const capabilityTaskSchema = z.object({
   /** A later task links an accepted handback without changing its verdict. */
   revises: z.object({ handback: recordRefSchema, sourceRevision: text, reason: text }).strict().optional(),
   limits: z.object({ maxAssignments: positive, maxWorkUnits: positive, maxInvocations: positive }).strict(),
-}).strict().superRefine((task, context) => {
-  const descriptive = task.schema.endsWith('/2');
-  if (descriptive !== task.id.startsWith('capability-task:')) context.addIssue({ code: 'custom', path: ['id'], message: 'task ID disagrees with its contract version' });
-  if (descriptive !== task.request.startsWith('capability-request:')) context.addIssue({ code: 'custom', path: ['request'], message: 'request ID disagrees with task contract version' });
-});
+}).strict();
 export type CapabilityTask = z.infer<typeof capabilityTaskSchema>;
 
 /** The editable plan content is shared with the plan-update tool schema. */
@@ -142,7 +124,7 @@ export const capabilityPlanContentSchema = z.object({
    * through every revision as immutable request context; a case carries no
    * coverage state, cited evidence or test list. A case is tracked on its own
    * only when the task's architect registers it as an obligation. */
-  useCases: z.array(z.object({ id: z.union([exampleId, id]), expectedBehavior: text, derivedFrom: z.array(exampleId).min(1) }).strict()),
+  useCases: z.array(z.object({ id: z.union([exampleId, z.string().regex(/^capability-case:[a-z0-9]+(?:-[a-z0-9]+)*$/)]), expectedBehavior: text, derivedFrom: z.array(exampleId).min(1) }).strict()),
   compatibility: z.array(text),
   outline: z.array(text),
   decisions: z.array(z.object({ decision: text, reason: text, evidence: z.array(text) }).strict()),
@@ -151,7 +133,7 @@ export const capabilityPlanContentSchema = z.object({
 }).strict();
 
 export const capabilityPlanSchema = z.object({
-  schema: z.enum(['ramify-agent.capability-plan/1', 'ramify-agent.capability-plan/2']),
+  schema: z.literal('ramify-agent.capability-plan/2'),
   task: taskId,
   revision: positive,
   basedOn: z.int().nonnegative(),
@@ -161,10 +143,6 @@ export const capabilityPlanSchema = z.object({
   /** Original example IDs cannot disappear. Additional cases may be derived. */
   originalExamples: z.array(exampleId).min(1),
 }).strict().superRefine((plan, context) => {
-  if (plan.schema.endsWith('/2') !== plan.task.startsWith('capability-task:')) context.addIssue({ code: 'custom', path: ['task'], message: 'task ID disagrees with plan contract version' });
-  plan.originalExamples.forEach((example, index) => {
-    if (plan.schema.endsWith('/2') !== example.startsWith('capability-example:')) context.addIssue({ code: 'custom', path: ['originalExamples', index], message: 'example ID disagrees with plan contract version' });
-  });
   if (plan.basedOn !== plan.revision - 1) context.addIssue({ code: 'custom', path: ['basedOn'], message: 'A revision follows its immediate predecessor' });
   const cases = new Set(plan.useCases.map(item => item.id));
   for (const example of plan.originalExamples) {
@@ -179,8 +157,8 @@ export const capabilityPlanSchema = z.object({
 export type CapabilityPlan = z.infer<typeof capabilityPlanSchema>;
 
 export const capabilityExchangeSchema = z.object({
-  schema: z.enum(['ramify-agent.capability-exchange/1', 'ramify-agent.capability-exchange/2']),
-  id,
+  schema: z.literal('ramify-agent.capability-exchange/2'),
+  id: z.string().regex(/^capability-exchange:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   task: taskId,
   request: text,
   planRevision: positive,
@@ -191,7 +169,7 @@ export const capabilityExchangeSchema = z.object({
 export type CapabilityExchange = z.infer<typeof capabilityExchangeSchema>;
 
 export const capabilityHandbackSchema = z.object({
-  schema: z.enum(['ramify-agent.capability-handback/1', 'ramify-agent.capability-handback/2']),
+  schema: z.literal('ramify-agent.capability-handback/2'),
   task: taskId,
   request: requestId,
   plan: recordRefSchema,
@@ -204,11 +182,7 @@ export const capabilityHandbackSchema = z.object({
   checks: z.array(recordRefSchema).min(1),
   reviews: z.array(recordRefSchema),
   limitations: z.array(text),
-}).strict().superRefine((handback, context) => {
-  const descriptive = handback.schema.endsWith('/2');
-  if (descriptive !== handback.task.startsWith('capability-task:')) context.addIssue({ code: 'custom', path: ['task'], message: 'task ID disagrees with handback contract version' });
-  if (descriptive !== handback.request.startsWith('capability-request:')) context.addIssue({ code: 'custom', path: ['request'], message: 'request ID disagrees with handback contract version' });
-});
+}).strict();
 export type CapabilityHandback = z.infer<typeof capabilityHandbackSchema>;
 
 export const capabilityLayout = {
@@ -221,9 +195,9 @@ export const capabilityLayout = {
 } as const;
 
 export const capabilitySchemas = {
-  request: { schema: 'ramify-agent.capability-request/1', body: capabilityRequestSchema },
-  task: { schema: 'ramify-agent.capability-task/1', body: capabilityTaskSchema },
-  plan: { schema: 'ramify-agent.capability-plan/1', body: capabilityPlanSchema },
-  exchange: { schema: 'ramify-agent.capability-exchange/1', body: capabilityExchangeSchema },
-  handback: { schema: 'ramify-agent.capability-handback/1', body: capabilityHandbackSchema },
+  request: { schema: 'ramify-agent.capability-request/2', body: capabilityRequestSchema },
+  task: { schema: 'ramify-agent.capability-task/2', body: capabilityTaskSchema },
+  plan: { schema: 'ramify-agent.capability-plan/2', body: capabilityPlanSchema },
+  exchange: { schema: 'ramify-agent.capability-exchange/2', body: capabilityExchangeSchema },
+  handback: { schema: 'ramify-agent.capability-handback/2', body: capabilityHandbackSchema },
 } as const;

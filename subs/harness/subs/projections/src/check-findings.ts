@@ -5,7 +5,7 @@ import type {
 } from '../../check-findings/src/interfaces/check-findings.js';
 import { replayCheckFindingState } from '../../../src/check-findings/state.js';
 import {
-  checkFindingDetailSchema, checkFindingListResponseSchema, checkFindingModuleCountsSchema, checkFindingProtocolVersion, descriptiveCheckFindingProtocolVersion,
+  checkFindingDetailSchema, checkFindingListResponseSchema, checkFindingModuleCountsSchema, checkFindingProtocolVersion,
   checkFindingWireLimits, reviewListResponseSchema,
   type CheckFindingActorView, type CheckFindingAttemptLink, type CheckFindingCountsView, type CheckFindingDecisionView,
   type CheckFindingDetail, type CheckFindingListResponse, type CheckFindingModuleCounts, type CheckFindingRepairLink,
@@ -74,9 +74,7 @@ export function runVersionOf(view: RunView): number {
   return view.entries.at(-1)?.sequence ?? 0;
 }
 
-function protocolOf(view: RunView): typeof checkFindingProtocolVersion | typeof descriptiveCheckFindingProtocolVersion {
-  return view.record.identityContract === 'descriptive' ? descriptiveCheckFindingProtocolVersion : checkFindingProtocolVersion;
-}
+function protocolOf(_view: RunView): typeof checkFindingProtocolVersion { return checkFindingProtocolVersion; }
 
 function basisOf(view: RunView): Basis {
   const unresolved = new Map<string, UnresolvedReasonView>();
@@ -104,15 +102,14 @@ function deviationsOf(view: RunView): Map<string, DeviationRecord> {
   for (const line of view.entries) {
     for (const record of line.transaction.records) {
       const schema = (record.body as { schema?: unknown } | null)?.schema;
-      if (schema === 'ramify-agent.plan-deviation/1' || schema === 'ramify-agent.plan-deviation/2') {
+      if (schema === 'ramify-agent.plan-deviation/2') {
         const parsed = planDeviationSchema.safeParse(record.body);
         if (parsed.success) deviations.set(parsed.data.checkFinding, parsed.data);
-      } else if ((schema === 'ramify-agent.nonfunctional-deviation/1' || schema === 'ramify-agent.nonfunctional-deviation/2')
-        && (line.transaction.event.type === 'nonfunctional-deviation-recorded' || line.transaction.event.type === 'nonfunctional-deviations-recorded')) {
+      } else if (schema === 'ramify-agent.nonfunctional-deviation/2'
+        && line.transaction.event.type === 'nonfunctional-deviations-recorded') {
         const parsed = nonfunctionalDeviationSchema.safeParse(record.body);
         const event = line.transaction.event;
-        const entries = event.type === 'nonfunctional-deviation-recorded'
-          ? [event.data] : event.data.deviations;
+        const entries = event.data.deviations;
         if (parsed.success && entries.some(entry => parsed.data.id === entry.deviation
           && parsed.data.origin.nfr === entry.nfr
           && parsed.data.origin.assessment === event.data.assessment

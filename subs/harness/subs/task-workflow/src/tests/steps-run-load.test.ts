@@ -44,8 +44,8 @@ test('S10: load skips a manual run and reports it; the implementation run beside
   cleanups.push(() => rm(scratch, { recursive: true, force: true }));
   const workItem = join(scratch, 'work-item.json');
   const assignment = join(scratch, 'assignment.json');
-  await writeFile(workItem, JSON.stringify({ schema: 'ramify-agent.work-item/1', id: 'manual-item', module: notes, origin: { entry: 'review-note' },
-    goal: 'Restate the note limit.', requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null }));
+  await writeFile(workItem, JSON.stringify({ schema: 'ramify-agent.work-item/2', id: 'work-item:manual-item', module: notes, origin: { entry: 'capability:review-note' },
+    goal: 'Restate the note limit.', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null }));
   await writeFile(assignment, JSON.stringify(assign(notes, {}, outline())));
   const inputs = join(scratch, 'inputs.json');
   const authored = await runStepCommandWith({ command: 'inputs', role: 'engineer', fromRun: undefined, invocation: undefined, projectRoot: root, out: inputs,

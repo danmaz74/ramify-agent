@@ -7,7 +7,7 @@ import { openUnchangedRuns as openRuns, assertUnchangedGit } from './helpers/unc
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, startRun } from './helpers/runs.js';
 
@@ -30,10 +30,10 @@ test.each(['continue', 'handoff'] as const)('native-like compaction review %s pr
   let engineerTurn = 0;
   const { service, agent } = await openRuns(fixture.root, {
     inputs: treeInputs(),
-    unchangedCheckpoints: [scenariosCommit('review-notes'), ...(action === 'continue' ? ['wi-001.i01'] : []), 'wi-001', 'final verification of plan "review-notes"'],
+    unchangedCheckpoints: [scenariosCommit('review-notes'), ...(action === 'continue' ? ['work-item:review-note.i01'] : []), 'work-item:review-note', 'final verification of plan "review-notes"'],
     script: (spec: SessionSpec): readonly ScriptStep[] => {
       if (spec.role === 'catalog-extractor') return [];
-      if (spec.role === 'initial-architect') return submit(analysis([entry('review-note', notes)]));
+      if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'));
       if (spec.submission.name === 'submit_compaction_review') return submit(review(action));
       if (spec.role === 'local-architect') return ++localTurn === 1
         ? submit(assign(notes, {}, outline())) : submit(requestCompletion());

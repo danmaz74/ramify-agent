@@ -24,7 +24,7 @@ import { fixtureRoot } from './fixture.js';
 export const badgePlan = 'status-badge-tone';
 export const sharedUi = 'collection-review/workspace/shared-ui';
 export const sharedUiDirectory = 'subs/workspace/subs/shared-ui';
-export const badgeFeature = `${sharedUiDirectory}/src/tests/features/${badgePlan}/${badgePlan}.feature`;
+export const badgeFeature = `${sharedUiDirectory}/src/tests/features/${badgePlan}/capability%3A${badgePlan}.feature`;
 export const badgeSteps = `${sharedUiDirectory}/src/tests/steps/${badgePlan}.steps.ts`;
 export const badgeDeclaration = `${sharedUiDirectory}/module.ramify`;
 
@@ -38,7 +38,7 @@ export async function badgePlanText(): Promise<string> {
  * two scenarios are the plan's, restated verbatim with the plan as origin.
  */
 export async function badgeAnalysis(): Promise<InitialAnalysisSubmission> {
-  const { scenarios } = extractPlanScenarios(await badgePlanText());
+  const { scenarios } = extractPlanScenarios(await badgePlanText(), 'document:status-badge-tone-plan');
   const badge = entry(badgePlan, sharedUi, 'The status badge takes a tone and carries it in its markup.');
   return analysis([badge], [], [],
     scenarios.map((scenario, index) => ({

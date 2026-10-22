@@ -189,7 +189,7 @@ export class RunQueries {
       throw new ExecutionPageError('stale-version', 'The capability detail belongs to another run version',
         view.entries.at(-1)?.sequence ?? 0);
     }
-    if (!executionCoreOf(view).nodes.some(node => node.key === `capability:${capability}`)) {
+    if (!executionCoreOf(view).nodes.some(node => node.key === capability)) {
       throw new ProjectionError('not-found', `No capability ${capability} in run ${runId}`);
     }
     return executionCapabilityDetailOf(view, capability);
@@ -202,7 +202,7 @@ export class RunQueries {
       throw new ExecutionPageError('stale-version', 'The scenario detail belongs to another run version',
         view.entries.at(-1)?.sequence ?? 0);
     }
-    if (!executionCoreOf(view).nodes.some(node => node.key === `scenario:${scenario}`)) {
+    if (!executionCoreOf(view).nodes.some(node => node.key === scenario)) {
       throw new ProjectionError('not-found', `No scenario ${scenario} in run ${runId}`);
     }
     return executionScenarioDetailOf(view, scenario);

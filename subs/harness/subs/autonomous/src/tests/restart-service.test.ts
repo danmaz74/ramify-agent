@@ -2,7 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { copyFixture } from '../../../../src/tests/helpers/fixture.js';
-import { analysis, entry } from '../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from '../../../../src/tests/helpers/analysis.js';
 import { byRole, submit, treeInputs } from '../../../../src/tests/helpers/iterations.js';
 import { mockGit } from '../../../../src/tests/helpers/mock-git.js';
 import { scriptedCandidates } from '../../subs/acceptance/src/tests/helpers/candidates.js';
@@ -22,7 +22,7 @@ async function failedTask() {
   });
   const options = { git, inputs: treeInputs(),
     candidates: scriptedCandidates(copied.root, { [tree]: { tree, base: 'base', files: {}, changes: [] }, base: { tree, base: 'base', files: {}, changes: [] } }),
-    script: byRole({ 'initial-architect': [submit(analysis([entry('review-notes', 'collection-review/workspace/reviews')]))],
+    script: byRole({ 'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', 'collection-review/workspace/reviews')]), 'document:review-notes-plan'))],
       'local-architect': [[{ kind: 'await' as const, until: () => { entered = true; return new Promise(() => undefined); } }]] }),
     afterWrite: async (write: string) => { if (write === 'analysis-accepted' && !interrupted) { interrupted = true; throw new Error('Historical service failure'); } },
   };

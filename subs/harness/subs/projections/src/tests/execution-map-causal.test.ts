@@ -6,16 +6,16 @@ import { entryAssignmentsSchema } from '../../../autonomous/subs/planning/src/re
 import { gateAttemptSchema } from '../../../autonomous/subs/acceptance/src/gate-records.js';
 import { at, constructedRecord, constructedRun, hash, item, obligation, registered, requirement, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 
-const provider = 'shared-provider';
-const first = 'first-consumer';
-const second = 'second-consumer';
-const contractId = 'ct-shared';
-const firstRequirement = 'rq-first';
-const secondRequirement = 'rq-second';
+const provider = 'capability:shared-provider';
+const first = 'capability:first-consumer';
+const second = 'capability:second-consumer';
+const contractId = 'contract:shared';
+const firstRequirement = 'consumer-requirement:first';
+const secondRequirement = 'consumer-requirement:second';
 
 function contract(revision: number, mode: 'fake-backed' | 'access-only' = 'fake-backed') {
   return contractRecordSchema.parse({
-    schema: 'ramify-agent.contract/2', id: contractId, revision,
+    schema: 'ramify-agent.contract/3', id: contractId, revision,
     capability: { id: provider, revision: 1, hash }, decision: null,
     authority: { kind: 'provider', owner: reviews, rationale: 'Provider owns the behavior.' },
     provider: reviews, behavior: 'Shared behavior.', mode,
@@ -25,10 +25,10 @@ function contract(revision: number, mode: 'fake-backed' | 'access-only' = 'fake-
 }
 
 const entries = entryAssignmentsSchema.parse({
-  schema: 'ramify-agent.entry-assignments/1', view: { status: 'placeholder' },
+  schema: 'ramify-agent.entry-assignments/2', view: { status: 'placeholder' },
   entries: [first, second].map(capability => ({
-    capability, description: `The ${capability} entry.`, owner: reviews,
-    requirementRefs: [], acceptanceRefs: [], contextRefs: [], citations: [],
+    capability: capability.slice('capability:'.length), capabilityId: capability, description: `The ${capability} entry.`, owner: reviews,
+    functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], citations: [],
   })),
 });
 
@@ -36,23 +36,23 @@ function base(): Line[] {
   return [
     { type: 'analysis-accepted', data: {}, records: [
       { path: 'analysis/entries.json', body: entries },
-      { path: at('registry', first), body: registered(first, { consumers: [{ capability: provider, workItem: 'wi-provider' }] }) },
+      { path: at('registry', first), body: registered(first, { consumers: [{ capability: provider, workItem: 'work-item:provider' }] }) },
       { path: at('registry', second), body: registered(second) },
       { path: at('registry', provider), body: registered(provider, {
-        origin: 'global-decision', consumers: [{ capability: first, workItem: 'wi-first' }, { capability: second, workItem: 'wi-second' }],
+        origin: 'global-decision', consumers: [{ capability: first, workItem: 'work-item:first' }, { capability: second, workItem: 'work-item:second' }],
       }) },
-      { path: at('work', 'wi-first'), body: item('wi-first', { entry: first }) },
-      { path: at('work', 'wi-second'), body: item('wi-second', { entry: second }) },
-      { path: at('work', 'wi-provider'), body: item('wi-provider', { obligation: { id: `ob-${contractId}`, revision: 1, hash } }) },
+      { path: at('work', 'work-item:first'), body: item('work-item:first', { entry: first }) },
+      { path: at('work', 'work-item:second'), body: item('work-item:second', { entry: second }) },
+      { path: at('work', 'work-item:provider'), body: item('work-item:provider', { obligation: { id: 'provider-obligation:shared', revision: 1, hash } }) },
     ] },
     { type: 'contract-registered', data: {
       contract: contractId, revision: 1, mode: 'fake-backed', iteration: 'it-contract',
-      obligation: `ob-${contractId}`, requirements: [firstRequirement, secondRequirement], providerWorkItem: 'wi-provider',
+      obligation: 'provider-obligation:shared', requirements: [firstRequirement, secondRequirement], providerWorkItem: 'work-item:provider',
     }, records: [
       { path: at('contracts', contractId), body: contract(1) },
-      { path: at('obligations', `ob-${contractId}`), body: obligation(contractId, provider) },
-      { path: at('requirements', firstRequirement), body: requirement(firstRequirement, 'wi-first', first, contractId) },
-      { path: at('requirements', secondRequirement), body: requirement(secondRequirement, 'wi-second', second, contractId) },
+      { path: at('obligations', 'provider-obligation:shared'), body: obligation(contractId, provider) },
+      { path: at('requirements', firstRequirement), body: requirement(firstRequirement, 'work-item:first', first, contractId) },
+      { path: at('requirements', secondRequirement), body: requirement(secondRequirement, 'work-item:second', second, contractId) },
     ] },
   ];
 }
@@ -74,8 +74,7 @@ describe('execution map causal projection', () => {
     const requirementId = 'consumer-requirement:use-preview';
     const descriptiveEntries = entryAssignmentsSchema.parse({ schema: 'ramify-agent.entry-assignments/2',
       view: { status: 'placeholder' }, entries: [providerId, consumerId].map(capability => ({
-        capability, capabilityId: capability, description: capability, owner: reviews,
-        requirementRefs: [], acceptanceRefs: [], contextRefs: [],
+        capability: capability.slice('capability:'.length), capabilityId: capability, description: capability, owner: reviews,
         functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], citations: [],
       })) });
     const agreement = contractRecordSchema.parse({ ...contract(1), schema: 'ramify-agent.contract/3', id: agreementId,
@@ -98,16 +97,16 @@ describe('execution map causal projection', () => {
       records: [{ path: at('contracts', agreementId), body: agreement },
         { path: at('obligations', obligationId), body: providerObligation },
         { path: at('requirements', requirementId), body: consumerRequirement }] },
-    ], constructedRecord({ identityContract: 'descriptive' }));
+    ], constructedRecord());
     const index = executionCoreOf(runView(run));
     expect(index.gaps).toEqual([]);
-    expect(node(index, `contract:${agreementId}`)).toMatchObject({ state: 'working' });
-    expect(node(index, `requirement:${requirementId}`)).toMatchObject({
-      contract: `contract:${agreementId}`, provider: `capability:${providerId}`, state: 'working',
+    expect(node(index, agreementId)).toMatchObject({ state: 'working' });
+    expect(node(index, requirementId)).toMatchObject({
+      contract: agreementId, provider: providerId, state: 'working',
     });
     expect(index.links).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'verification-of',
-      from: { coverage: 'shown', key: `requirement:${requirementId}` },
-      to: { coverage: 'shown', key: `contract:${agreementId}` } })]));
+      from: { coverage: 'shown', key: requirementId },
+      to: { coverage: 'shown', key: agreementId } })]));
   });
 
   it('closes an access-only agreement at registration without inventing provider work', () => {
@@ -121,40 +120,40 @@ describe('execution map causal projection', () => {
       records: [{ path: at('contracts', contractId), body: contract(1, 'access-only') }] },
     ]);
     const index = executionCoreOf(runView(run));
-    expect(node(index, `contract:${contractId}`)).toMatchObject({ mode: 'access-only', state: 'conformed' });
+    expect(node(index, contractId)).toMatchObject({ mode: 'access-only', state: 'conformed' });
     expect(index.nodes.some(candidate => candidate.kind === 'requirement' || candidate.kind === 'work-item')).toBe(false);
   });
 
   it('keeps one provider and separate current consumer verification stages, then reopens only current revisions', () => {
     const registered = projected();
-    expect(registered.nodes.filter(candidate => candidate.key === `capability:${provider}`)).toHaveLength(1);
-    expect(node(registered, `requirement:${firstRequirement}`)).toMatchObject({ state: 'working', providerStage: 'not-started', provider: `capability:${provider}` });
-    expect(registered.links.filter(link => link.kind === 'provider-for' && link.from.key === `capability:${provider}`)).toHaveLength(2);
-    const providerWorking = projected([{ type: 'work-item-started', data: { workItem: 'wi-provider', module: reviews, origin: 'obligation' } }]);
-    expect(node(providerWorking, `requirement:${firstRequirement}`)).toMatchObject({ state: 'working', providerStage: 'working' });
-    const conformed: Line = { type: 'provider-conformed', data: { obligation: `ob-${contractId}`, revision: 1,
-      workItem: 'wi-provider', iteration: 'it-provider', gate: 'ga-provider' } };
+    expect(registered.nodes.filter(candidate => candidate.key === provider)).toHaveLength(1);
+    expect(node(registered, firstRequirement)).toMatchObject({ state: 'working', providerStage: 'not-started', provider: provider });
+    expect(registered.links.filter(link => link.kind === 'provider-for' && link.from.key === provider)).toHaveLength(2);
+    const providerWorking = projected([{ type: 'work-item-started', data: { workItem: 'work-item:provider', module: reviews, origin: 'obligation' } }]);
+    expect(node(providerWorking, firstRequirement)).toMatchObject({ state: 'working', providerStage: 'working' });
+    const conformed: Line = { type: 'provider-conformed', data: { obligation: 'provider-obligation:shared', revision: 1,
+      workItem: 'work-item:provider', iteration: 'it-provider', gate: 'ga-provider' } };
     const verified: Line = { type: 'requirement-verified', data: { requirement: firstRequirement, revision: 1,
-      workItem: 'wi-first', iteration: 'it-first', gate: 'ga-first' } };
+      workItem: 'work-item:first', iteration: 'it-first', gate: 'ga-first' } };
     const beforeReopen = projected([conformed, verified]);
-    expect(node(beforeReopen, `requirement:${firstRequirement}`)).toMatchObject({ state: 'verified', verifiedRevision: 1, providerStage: 'conformed' });
-    expect(node(beforeReopen, `requirement:${secondRequirement}`)).toMatchObject({ state: 'provider-conformed', verifiedRevision: null, providerStage: 'conformed' });
+    expect(node(beforeReopen, firstRequirement)).toMatchObject({ state: 'verified', verifiedRevision: 1, providerStage: 'conformed' });
+    expect(node(beforeReopen, secondRequirement)).toMatchObject({ state: 'provider-conformed', verifiedRevision: null, providerStage: 'conformed' });
     expect(beforeReopen.links.filter(link => link.kind === 'depends-on' &&
-      link.from.key === `capability:${first}` && link.to.key === `capability:${provider}`)).toHaveLength(1);
+      link.from.key === first && link.to.key === provider)).toHaveLength(1);
     expect(beforeReopen.links.some(link => link.kind === 'depends-on' &&
-      link.from.key === `capability:${provider}` && link.to.key === `capability:${first}`)).toBe(true);
+      link.from.key === provider && link.to.key === first)).toBe(true);
     const reopened = projected([conformed, verified, { type: 'evidence-reopened', data: {
       cause: 'changed interface', contract: contractId, revision: 2, iteration: 'it-contract-2',
-      obligation: `ob-${contractId}`, requirements: [firstRequirement, secondRequirement], bindings: [], followUps: [], superseded: [],
+      obligation: 'provider-obligation:shared', requirements: [firstRequirement, secondRequirement], bindings: [], followUps: [], superseded: [],
     }, records: [
       { path: at('contracts', contractId, 2), body: contract(2) },
-      { path: at('obligations', `ob-${contractId}`, 2), body: obligation(contractId, provider, 2) },
-      { path: at('requirements', firstRequirement, 2), body: requirement(firstRequirement, 'wi-first', first, contractId, 2) },
-      { path: at('requirements', secondRequirement, 2), body: requirement(secondRequirement, 'wi-second', second, contractId, 2) },
+      { path: at('obligations', 'provider-obligation:shared', 2), body: obligation(contractId, provider, 2) },
+      { path: at('requirements', firstRequirement, 2), body: requirement(firstRequirement, 'work-item:first', first, contractId, 2) },
+      { path: at('requirements', secondRequirement, 2), body: requirement(secondRequirement, 'work-item:second', second, contractId, 2) },
     ] }]);
-    expect(node(reopened, `requirement:${firstRequirement}`)).toMatchObject({ state: 'reopened', currentRevision: 2, verifiedRevision: 1, providerStage: 'not-started' });
-    expect(node(reopened, `requirement:${secondRequirement}`)).toMatchObject({ state: 'working', currentRevision: 2, verifiedRevision: null, providerStage: 'not-started' });
-    expect(node(reopened, `capability:${first}`)).toMatchObject({ directRequirements: { verified: 0 } });
+    expect(node(reopened, firstRequirement)).toMatchObject({ state: 'reopened', currentRevision: 2, verifiedRevision: 1, providerStage: 'not-started' });
+    expect(node(reopened, secondRequirement)).toMatchObject({ state: 'working', currentRevision: 2, verifiedRevision: null, providerStage: 'not-started' });
+    expect(node(reopened, first)).toMatchObject({ directRequirements: { verified: 0 } });
   });
 
   it('shows a readiness gate only after a start event and clears Now on its recorded ending', () => {
@@ -193,7 +192,7 @@ describe('execution map causal projection', () => {
   it('keeps failed and repaired attempts as separate cards with a typed repair edge', () => {
     const gate = (id: string, repairRound: number, verdict: 'failed' | 'passed') => gateAttemptSchema.parse({
       schema: 'ramify-agent.gate-attempt/3', id, checkpoint: 'iteration',
-      subject: { workItem: 'wi-first', iteration: `it-${repairRound}` }, proposedBy: null,
+      subject: { workItem: 'work-item:first', iteration: `it-${repairRound}` }, proposedBy: null,
       repairRound, infrastructureAttempt: 0, head: 'head', commit: null, audited: null, evidence: null,
       guardedChanges: [], commands: [], verdict, cause: verdict === 'failed' ? 'check-failed' : null,
       next: verdict === 'failed' ? 'repair' : 'accept',

@@ -126,7 +126,7 @@ They are defined in the [glossary](../glossary.md).
 | Step definition | The TypeScript that Cucumber matches a step's text to. Agents write step definitions; they never write scenarios. |
 | Binding | The set of step definitions a run matched to a scenario's steps, read from the Cucumber run a gate's audit published. |
 | Scenario harness | The target project's world, driver, hooks and the configured Cucumber check of its committed audit definition that runs its scenarios. |
-| Identity tag | `@ramify-sc-NNN` on a legacy run or `@ramify-scenario-<name>` on a descriptive run; the tag names one tracked scenario in the source. |
+| Identity tag | `@ramify-scenario-<name>` names one tracked scenario in the source. |
 | Pending tag | `@ramify-pending`, the tag the harness keeps on a `pending` scenario, which the project's committed Cucumber profile excludes. |
 
 ## What v1 leaves out
@@ -287,9 +287,9 @@ audit's expected-file verification asks for ownership.
 
 The harness already copies the plan to `input/plan.md`. It now also parses
 every fenced code block whose info string is `gherkin`, with the Gherkin
-parser and no runner, and records each scenario it finds as a plan scenario
-`ps-01`, `ps-02`, and so on, in document order, with its `PlanRef` by line
-range. A `Background` in a block is folded into each of its scenarios, as
+parser and no runner, and records each scenario as `plan-scenario:<name>`
+with its captured `document:<name>` and source line range. Equal names in
+distinct locations receive stable source discriminators. A `Background` in a block is folded into each of its scenarios, as
 Cucumber's own pickles fold it; a `Scenario Outline` stays one scenario with
 its examples. A block that does not parse is a captured limitation, listed in
 the architect's briefing and in the run record, never a failure: the plan is
@@ -310,30 +310,30 @@ registered plan origins remain distinct from architect scenario keys and
 catalog element IDs. Catalog correction may repair an element reading and its
 citations; it never rewrites registered scenario text.
 
-`InitialAnalysisSubmission` becomes `initial-architect/2` and gains one array:
+The initial architect submits descriptive local keys and explicit references:
 
 ```yaml
 scenarios:
-  - key: send-email                 # unique within the submission
-    entry: send-customer-email       # an entry of this submission
-    origin: { kind: plan, planScenario: ps-01 }   # or { kind: architect }
+  - scenarioKey: draft:scenario:send-email
+    entryCapabilityKey: draft:capability:send-customer-email
+    origin: { kind: plan, planScenarioId: plan-scenario:a-customer-receives-the-email }
     gherkin: |                       # the Scenario block, tags excluded
       Scenario: A customer receives the email
         Given a customer with the address ada@example.com
         When the user activates email sending
         Then the customer ada@example.com receives one email
-  - key: history-lists-sent-email
-    entry: email-history
+  - scenarioKey: draft:scenario:history-lists-sent-email
+    entryCapabilityKey: draft:capability:email-history
     origin: { kind: architect }
-    partOf: ps-02                    # a sub-scenario of a plan scenario
+    partOfPlanScenarioId: plan-scenario:sent-emails-appear-in-the-history
     gherkin: |
       Scenario: Sent emails appear in the history
         Given an email to ada@example.com was sent
         When the user opens the email history
         Then the history lists one email to ada@example.com
 integrationScenarios:
-  - planScenario: ps-02
-    subScenarios: [send-email, history-lists-sent-email]
+  - planScenarioId: plan-scenario:sent-emails-appear-in-the-history
+    subScenarioKeys: [draft:scenario:send-email, draft:scenario:history-lists-sent-email]
 ```
 
 **Form rules.** `validateInitialAnalysis` rejects the submission, under the
@@ -357,8 +357,8 @@ rule broken:
    dry run, and readiness has not verified the runner yet. Such a step is
    picked verbatim into a sub-scenario, and its existing definition binds it
    there.
-6. Every legacy `acceptanceRefs` entry, or descriptive `functionalAcceptanceIds` entry, of every entry is cited by at least one
-   scenario, through `origin.planScenario` or an explicit `refs` list on an
+6. Every functional acceptance element of every entry is cited by at least one
+   scenario, through a plan origin or an explicit functional acceptance citation on an
    architect scenario. The analysis lists this rule with the others.
 
 **Warnings**, recorded on the accepted analysis and shown in the review, never
@@ -367,23 +367,20 @@ view records; a sub-scenario none of whose steps came from its integration
 scenario; more than one architect scenario per entry with identical steps.
 
 **Acceptance.** `analysis-accepted` commits, beside the entries, hypotheses,
-registry and work items, one `ScenarioRecord` per scenario. A legacy run assigns
-sequential IDs `sc-001`, `sc-002`, and so on, in submission order, with the integration
-scenarios after the entry scenarios. A descriptive run accepts `scenario:<name>` IDs
+registry and work items, one `ScenarioRecord` per scenario. Acceptance assigns `scenario:<name>` IDs
 derived from the submitted scenario keys. Each record holds its kind, entry, owner,
 origin, sub-scenarios or parent, name, source lines and a hash of those lines.
 An integration scenario's owner is the lowest common ancestor of its
 sub-scenarios' owners. Text is frozen from here on.
 
-Under the descriptive identity contract, capture assigns each plan origin a
+Capture assigns each plan origin a
 `plan-scenario:<name>` ID from its scenario name. Equal names in distinct
 source locations receive stable source discriminators. Incorporation derives
 companion discriminators from all captured plan documents, regardless of which
 ones it selects, and retains each root origin ID already recorded at capture.
 The discriminator uses the captured document ID and scenario line range, so
 selecting a companion with the same name cannot rename a root origin. The extraction records
-`ramify-agent.plan-scenario-extraction/2`; historical extractions retain their
-original shape. Initial analysis uses
+`ramify-agent.plan-scenario-extraction/2`. Initial analysis uses
 `scenarioKey: draft:scenario:<name>` and
 `entryCapabilityKey: draft:capability:<name>` for same-submission references,
 `planScenarioId` for a captured origin, `partOfPlanScenarioId` for a derived
@@ -392,10 +389,10 @@ Integration scenarios use `planScenarioId` and `subScenarioKeys`. Ordinary
 acceptance records `scenario:<name>` as the actual registered ID and
 `ramify-agent.scenario/2` as the record schema. Feature tags encode that ID as
 `@ramify-scenario-<name>`; the tag parser restores the colon form. Descriptive
-entry identities are percent encoded in feature filenames. The legacy
-`ps-NN`, `sc-NNN`, submission fields, records and feature tags continue for
-legacy runs. Both contracts retain the same form rules, source lines,
-ownership, state and completion authority.
+Entry identities are percent encoded in feature filenames. Readers reject
+other scenario record versions, numbered IDs and absent source references.
+The form rules, source lines, ownership, state and completion authority apply
+to this one contract.
 
 The analysis procedure for the plan architect gains the corresponding
 steps: read the plan scenarios first, since their `When` steps name what the
@@ -495,7 +492,7 @@ Feature: send-customer-email
   A user activates email sending for a customer, and that customer receives
   one email.
 
-  @ramify-sc-001 @ramify-pending
+  @ramify-scenario-send-email @ramify-pending
   Scenario: A customer receives the email
     Given a customer with the address ada@example.com
     When the user activates email sending
@@ -504,7 +501,7 @@ Feature: send-customer-email
 
 The feature name is the entry's capability slug and the description its
 recorded description. Scenario source lines are written verbatim from the
-record. The identity tag is `@ramify-` followed by the scenario ID. The
+record. The identity tag encodes `scenario:<name>` as `@ramify-scenario-<name>`. The
 pending tag is present exactly when the scenario is `pending`.
 
 **Idempotence.** Every later change to a feature file is a re-rendering: the
@@ -704,10 +701,10 @@ scenario by its identity tag and counts the project's own scenarios by
 outcome:
 
 ```yaml
-- id: sc-001
+- id: scenario:send-email
   check: scenarios                # the configured check, and the command that ran it
   status: passed                  # passed | failed | undefined | pending | ambiguous | skipped
-  file: subs/customers/src/tests/features/send-customer-email/send-customer-email.feature
+  file: subs/customers/src/tests/features/send-customer-email/capability%3Asend-customer-email.feature
   line: 9
   binding:
     - { step: "Given a customer with the address ada@example.com", definition: "subs/customers/src/tests/steps/customers.steps.ts:12" }
@@ -737,21 +734,22 @@ binding of each scenario it passed.
 
 ## Records, events and projections
 
-**Record** `ramify-agent.scenario/1`, at `scenarios/<id>.json`, immutable:
+**Record** `ramify-agent.scenario/2`, at `scenarios/<encoded-id>.json`, immutable:
 
 ```yaml
-schema: ramify-agent.scenario/1
-id: sc-001
+schema: ramify-agent.scenario/2
+id: scenario:send-email
 kind: entry            # entry | integration
-entry: send-customer-email   # null for integration
+entry: capability:send-customer-email   # null for integration
 owner: subs/customers        # LCA of the sub-scenarios' owners for integration
-origin: { kind: plan, planScenario: ps-01, ref: { lines: [42, 47] } }  # or { kind: architect, refs: [...] }
-partOf: null           # sc-004 for a sub-scenario
+origin: { kind: plan, planScenario: plan-scenario:a-customer-receives-the-email, ref: { document: document:email-plan, lines: [42, 47] } }
+citedElements: []
+partOf: null           # scenario:send-email-history for a sub-scenario
 subScenarios: []       # for integration
 name: A customer receives the email
 source: [ "Scenario: A customer receives the email", "Given ...", "When ...", "Then ..." ]
 hash: sha256:...
-file: subs/customers/src/tests/features/send-customer-email/send-customer-email.feature
+file: subs/customers/src/tests/features/send-customer-email/capability%3Asend-customer-email.feature
 ```
 
 **Events**, one line each in `events.jsonl`, and the states a pure reducer
@@ -874,8 +872,8 @@ alternative and decided the same day:
    v1, which also owns a composition failure.
 7. Following from 6: binding is recorded from the message stream and shown to
    the module architect, not policed by a harness rule.
-8. Decided by Dan, 2026-09-23: the tag names `@ramify-pending` and
-   `@ramify-sc-NNN`, and the path `src/tests/features/<planId>/`.
+8. The current tag names are `@ramify-pending` and
+   `@ramify-scenario-<name>`, with feature files beneath `src/tests/features/<planId>/`.
 9. Decided by Dan, 2026-09-23: no agent-proposed scenarios and no guarded
    step definitions in v1.
 

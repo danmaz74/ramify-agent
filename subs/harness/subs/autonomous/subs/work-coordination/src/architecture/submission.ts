@@ -3,10 +3,10 @@ import { findModule, type ArchitectIndex } from '../../../../../evidence/src/vie
 import { citationSchema, modulePathSchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import type { JsonSchema } from '../../../../../agent/src/interfaces/port.js';
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
-import { hypothesisChangeSchema, slugSchema, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
+import { hypothesisChangeSchema, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
 import { moduleProposalSchema, type ModuleProposal } from '../../../planning/src/records.js';
 import { hypothesisStanceSchema, placementOutcomeSchema, type PlacementDecision } from './records.js';
-import { deviationBodySchema, descriptiveDeviationBodySchema, environmentBodySchema, descriptiveEnvironmentBodySchema, type DeviationBody } from '../../../acceptance/src/deviations/records.js';
+import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '../../../acceptance/src/deviations/records.js';
 
 /*
  * What one fork of the plan architect submits, what a module architect
@@ -31,7 +31,8 @@ import { deviationBodySchema, descriptiveDeviationBodySchema, environmentBodySch
  */
 
 const text = z.string().min(1);
-const capabilityName = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const hypothesisId = z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const capabilityName = z.union([z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 const placementSubject = z.union([capabilityName, z.string().regex(/^capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 
 /** A `PlacementDecision` without the fields the harness assigns. */
@@ -90,7 +91,7 @@ export type RegistryChange = z.infer<typeof registryChangeSchema>;
  * revision 1 is never rewritten.
  */
 export const hypothesisRevisionSchema = z.object({
-  hypothesis: slugSchema,
+  hypothesis: hypothesisId,
   standing: z.enum(['tentative', 'confirmed', 'superseded']),
   /** Why this revision was made, which the revision's cause records. */
   reason: text,
@@ -99,18 +100,19 @@ export const hypothesisRevisionSchema = z.object({
   suggestedOwner: modulePathSchema.optional(),
   anticipatedConsumers: z.array(text).optional(),
   involvedModules: z.array(modulePathSchema).optional(),
-  dependsOn: z.array(slugSchema).optional(),
+  dependsOn: z.array(hypothesisId).optional(),
   confidence: z.enum(['low', 'medium', 'high']).optional(),
   rationale: text.optional(),
   assumptions: z.array(z.string()).optional(),
   uncertainties: z.array(z.string()).optional(),
   citations: z.array(citationSchema).optional(),
-  supersededBy: slugSchema.optional(),
+  supersededBy: hypothesisId.optional(),
 }).strict();
 export type HypothesisRevision = z.infer<typeof hypothesisRevisionSchema>;
 
 /** One decision a module architect makes within its own authority, with what it registers. */
 export const localDecisionSchema = z.object({
+  decisionKey: z.string().regex(/^draft:placement-decision:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   decision: decisionBodySchema,
   registry: z.array(registryChangeSchema),
 }).strict();
@@ -118,6 +120,7 @@ export type LocalDecisionBody = z.infer<typeof localDecisionSchema>;
 
 /** A `PlacementRequest` without the fields the harness assigns. */
 export const placementRequestBodySchema = z.object({
+  requestKey: z.string().regex(/^draft:placement-request:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   forCapability: placementSubject,
   question: text,
   requiredBehavior: text,
@@ -130,7 +133,7 @@ export const placementRequestBodySchema = z.object({
   unresolved: z.array(text),
   /** The hypotheses being tested; the harness supplies each one's revision and hash. */
   hypotheses: z.array(z.object({
-    hypothesis: slugSchema,
+    hypothesis: hypothesisId,
     stance: hypothesisStanceSchema,
     evidence: text,
   }).strict()),
@@ -170,13 +173,7 @@ export const forkSubmissionSchema = z.discriminatedUnion('kind', [
    */
   environmentBodySchema.extend({ kind: z.literal('environment') }).strict(),
 ]);
-export const descriptiveForkSubmissionSchema = z.discriminatedUnion('kind', [
-  forkSubmissionSchema.options[0]!, forkSubmissionSchema.options[1]!,
-  z.object({ kind: z.literal('deviation'), deviation: descriptiveDeviationBodySchema }).strict(),
-  forkSubmissionSchema.options[3]!,
-  descriptiveEnvironmentBodySchema.extend({ kind: z.literal('environment') }).strict(),
-]);
-export type ForkSubmission = z.infer<typeof forkSubmissionSchema> | z.infer<typeof descriptiveForkSubmissionSchema>;
+export type ForkSubmission = z.infer<typeof forkSubmissionSchema>;
 
 /** The members this iteration's package offers the role. */
 export const forkSubmissionKinds = ['decision', 'partial', 'deviation', 'nothing-possible', 'environment'] as const;
@@ -191,7 +188,6 @@ export const unresolvedConstraintLimits = { entries: 10, characters: 400 } as co
 
 /** The schema the agent's tool is given, taken from the same definition that validates. */
 export const forkJsonSchema = z.toJSONSchema(forkSubmissionSchema) as JsonSchema;
-export const descriptiveForkJsonSchema = z.toJSONSchema(descriptiveForkSubmissionSchema) as JsonSchema;
 
 export const forkToolName = 'submit_placement_decision';
 
@@ -231,8 +227,8 @@ export type ForkQuestion =
  * schema cannot hold. Nothing changes on a failure, and every error names
  * its path.
  */
-export function validateFork(input: unknown, evidence: PlacementEvidence, question: ForkQuestion = { kind: 'placement' }, identityContract: 'legacy' | 'descriptive' = 'legacy'): SubmissionValidation<ForkSubmission> {
-  const shape = validateAgainst(identityContract === 'descriptive' && question.kind === 'unresolved' ? descriptiveForkSubmissionSchema : forkSubmissionSchema, input);
+export function validateFork(input: unknown, evidence: PlacementEvidence, question: ForkQuestion = { kind: 'placement' }): SubmissionValidation<ForkSubmission> {
+  const shape = validateAgainst(forkSubmissionSchema, input);
   if (!shape.ok) return shape;
   if (shape.value.kind === 'partial') return shape;
   if (shape.value.kind === 'deviation' || shape.value.kind === 'nothing-possible' || shape.value.kind === 'environment') {
@@ -290,10 +286,10 @@ function unresolvedConstraintErrors(constraints: readonly string[], prefix: stri
 function deviationErrors(body: DeviationBody, question: Extract<ForkQuestion, { kind: 'unresolved' }>, prefix: string): SubmissionError[] {
   const errors: SubmissionError[] = [];
   body.amends.forEach((id, index) => {
-    if (question.elements.has(id)) return;
+    if (!id.startsWith('context:') && question.elements.has(id)) return;
     errors.push({
       path: `${prefix}.amends.${index}`,
-      message: id.startsWith('ctx-') ? `${id} is context, which no deviation amends` : `${id} is no element of the work item's package`,
+      message: id.startsWith('context:') ? `${id} is context, which no deviation amends` : `${id} is no element of the work item's package`,
       expected: 'a requirement or recommendation of the work item\'s package',
     });
   });

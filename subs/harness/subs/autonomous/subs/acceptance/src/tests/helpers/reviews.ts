@@ -7,7 +7,7 @@ import type { RunPolicy } from '../../../../../src/run/records.js';
 import type { RunWrite } from '../../../../../src/run/log.js';
 import type { ConfiguredAuditPort } from '../../../../../../audit/src/check-execution.js';
 import { reviewLayout, type ReviewAttempt } from '../../reviews/records.js';
-import { analysis, entry, requestCompletion } from '../../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../../src/tests/helpers/analysis.js';
 import { scriptedCandidates, testReviewPolicy, type ScriptedCandidates, type ScriptedCommit } from './candidates.js';
 import { copyFixture } from '../../../../../../../src/tests/helpers/fixture.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit } from './gate-git.js';
@@ -103,7 +103,7 @@ export interface ReviewRun {
   readonly now?: () => Date;
   /**
    * The module architect's reconciliation forks, by reconciliation ID
-   * (`wi-001.rc01`), or `<id>#<n>` for the nth start of one. A fork with none
+   * (`work-item:review-notes.rc01`), or `<id>#<n>` for the nth start of one. A fork with none
    * scripted ends without a submission.
    */
   readonly reconcilers?: Readonly<Record<string, readonly ScriptStep[]>>;
@@ -114,7 +114,7 @@ export interface ReviewRun {
   /** Run limits beside the test policy's, such as the reconciliation rounds. */
   readonly limits?: Partial<RunPolicy['limits']>;
   /**
-   * Every role's turns by work item, as `byWork` takes them (`engineer:wi-002`),
+   * Every role's turns by work item, as `byWork` takes them (`engineer:work-item:review-notes`),
    * in place of the one work item's analysis, architect and engineers: for a
    * scenario of several work items. `reviewers` and `reconcilers` still apply.
    */
@@ -130,7 +130,7 @@ export interface ReviewRun {
 export function reviewScript(scenario: Pick<ReviewRun, 'reviewers' | 'engineer' | 'architect' | 'reconcilers' | 'roles'>): (spec: SessionSpec) => readonly ScriptStep[] {
   const roles = (scenario.roles === undefined
     ? byRole({
-      'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', notes)]), 'document:review-notes-plan'))],
       'local-architect': scenario.architect?.map(turn => [...turn]) ?? [
         submit(assign(notes, { goal: 'Add the note store.' }, outline())),
         submit(assign(notes, { goal: 'State the note limit.' })),

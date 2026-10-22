@@ -18,6 +18,8 @@ import { architectScenario, elementsOf } from '../../../../../../src/tests/helpe
 import { demonstrationScript } from '../../../../../../src/http/server.js';
 import { extractPlanScenarios } from '../../../../../scenarios/src/extraction.js';
 import { join } from 'node:path';
+const extractScenarioFixture = (text: string) => extractPlanScenarios(text, 'document:fixture-plan');
+
 
 /*
  * Everything the plan architect tells the harness is validated JSON: the
@@ -46,18 +48,18 @@ const index: ArchitectIndex = {
 /** The captured documents: the root plan and one principles document. */
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const manifest = documentManifestSchema.parse({
-  schema: 'ramify-agent.document-manifest/1', root: 'doc-001',
+  schema: 'ramify-agent.document-manifest/2', root: 'document:shop-plan',
   documents: [
-    { id: 'doc-001', path: 'plans/shop/plan.md', kind: 'plan', sha256: hash('plan'), bytes: 4, storedAt: 'input/plan.md', revision: { commit: null, dirty: null } },
-    { id: 'doc-002', path: 'docs/orders.principles.md', kind: 'principle', sha256: hash('principles'), bytes: 10, storedAt: 'input/documents/doc-002.bin', revision: { commit: null, dirty: null } },
+    { id: 'document:shop-plan', path: 'plans/shop/plan.md', kind: 'plan', sha256: hash('plan'), bytes: 4, storedAt: 'input/plan.md', revision: { commit: null, dirty: null } },
+    { id: 'document:orders-principles', path: 'docs/orders.principles.md', kind: 'principle', sha256: hash('principles'), bytes: 10, storedAt: 'input/documents/orders-principles.bin', revision: { commit: null, dirty: null } },
   ],
   missing: [], principlesScan: { status: 'complete', unreadable: [] },
 });
 
 /** The catalog before the architect: the intake's non-functional requirement and a principles document's fixed one. */
 const intake = acceptElements(openElementCatalog(hash('manifest'), manifest), [
-  { key: 'fast', kind: 'non-functional', document: 'doc-001', text: 'Pages load within a second.', conditions: [], uncertainty: '' },
-  { key: 'audited', kind: 'fixed', document: 'doc-002', text: 'Every order change is audited.', conditions: [], uncertainty: '' },
+  { key: 'draft:non-functional-requirement:fast', kind: 'non-functional', document: 'document:shop-plan', text: 'Pages load within a second.', conditions: [], uncertainty: '' },
+  { key: 'draft:fixed-requirement:audited', kind: 'fixed', document: 'document:orders-principles', text: 'Every order change is audited.', conditions: [], uncertainty: '' },
 ]);
 if (!intake.ok) throw new Error(intake.errors.join('; '));
 const catalog = intake.catalog;
@@ -85,7 +87,7 @@ function forecast(extra: Record<string, unknown> = {}) {
 /** A submission of these entries, each with the one architect scenario the form rules require of it, and an element for every key they cite. */
 function submission(entries: ReadonlyArray<ReturnType<typeof entry>>, hypotheses: readonly unknown[] = []) {
   return {
-    elements: elementsOf(entries as unknown as Parameters<typeof elementsOf>[0]),
+    elements: elementsOf(entries as unknown as Parameters<typeof elementsOf>[0]).map(element => ({ ...element, document: 'document:shop-plan' })),
     entries: [...entries],
     hypotheses: [...hypotheses],
     coverageLimits: [],
@@ -99,8 +101,8 @@ function entry(capability: string, extra: Record<string, unknown> = {}) {
     capability,
     description: 'The page sends the customer an email.',
     owner: 'shop/orders',
-    requirementRefs: [`${capability}-request`],
-    acceptanceRefs: [`${capability}-acceptance`],
+    requirementRefs: [`draft:functional-requirement:${capability}-request`],
+    acceptanceRefs: [`draft:functional-requirement:${capability}-acceptance`],
     contextRefs: [] as string[],
     citations: [{ module: 'shop/orders' }],
     ...extra,
@@ -109,7 +111,7 @@ function entry(capability: string, extra: Record<string, unknown> = {}) {
 
 test('Plan 36: nonbehavioral acceptance cites a functional key and preserves intake constraints', () => {
   const input = submission([entry('render', { nonBehavioralAcceptance: [
-    { ref: 'render-acceptance', kind: 'non-behavioral', test: 'registered-render-check' },
+    { ref: 'draft:functional-requirement:render-acceptance', kind: 'non-behavioral', test: 'registered-render-check' },
   ] })]);
   const before = structuredClone(catalog);
   const evidence = { index, catalog, registeredTests: new Set(['registered-render-check']) };
@@ -118,13 +120,13 @@ test('Plan 36: nonbehavioral acceptance cites a functional key and preserves int
   if (!valid.ok) throw new Error(JSON.stringify(valid.errors));
   const accepted = acceptArchitectElements(catalog, valid.value);
   expect(accepted.analysis.entries[0]!.nonBehavioralAcceptance).toEqual([
-    { ref: 'fr-002', kind: 'non-behavioral', test: 'registered-render-check' },
+    { ref: 'functional-requirement:render-acceptance', kind: 'non-behavioral', test: 'registered-render-check' },
   ]);
   expect(accepted.catalog.elements.filter(element => element.kind === 'non-functional')).toEqual(
     before.elements.filter(element => element.kind === 'non-functional'),
   );
   const invalid = validateInitialAnalysis({ ...input, entries: [{ ...input.entries[0],
-    nonBehavioralAcceptance: [{ ref: 'nfr-001', kind: 'non-behavioral', test: 'registered-render-check' }],
+    nonBehavioralAcceptance: [{ ref: 'non-functional-requirement:fast', kind: 'non-behavioral', test: 'registered-render-check' }],
   }] }, evidence);
   expect(invalid).toMatchObject({ ok: false, errors: expect.arrayContaining([
     expect.objectContaining({ path: 'entries.0.nonBehavioralAcceptance.0', expected: expect.stringContaining('functional') }),
@@ -148,7 +150,7 @@ describe('the schema', () => {
     const unknown = validateInitialAnalysis({ ...submission([]), notes: 'x' }, { index, catalog });
     expect(unknown.ok).toBe(false);
 
-    const slug = validateInitialAnalysis(submission([entry('Send Email')]), { index, catalog });
+    const slug = validateInitialAnalysis(submission([entry('send-email', { capability: 'Send Email' })]), { index, catalog });
     expect(slug.ok).toBe(false);
     if (slug.ok) return;
     expect(slug.errors[0]!.path).toBe('entries.0.capability');
@@ -249,14 +251,14 @@ describe('the rules the schema cannot hold', () => {
 
     // The intake's elements are already IDs of the catalog; the architect cites only what it submits.
     const earlier = submission([entry('send-email')]);
-    earlier.entries[0]!.requirementRefs = ['nfr-001'];
+    earlier.entries[0]!.requirementRefs = ['non-functional-requirement:fast'];
     const byId = validateInitialAnalysis(earlier, { index, catalog });
     expect(byId.ok).toBe(false);
     if (byId.ok) return;
     expect(byId.errors.map(error => error.path)).toEqual(['entries.0.requirementRefs.0']);
 
     const idKey = submission([entry('send-email')]);
-    idKey.elements[0] = { ...idKey.elements[0]!, key: 'fr-009' };
+    idKey.elements[0] = { ...idKey.elements[0]!, key: 'functional-requirement:send-email-request' };
     const asId = validateInitialAnalysis(idKey, { index, catalog });
     expect(asId.ok).toBe(false);
     if (asId.ok) return;
@@ -264,19 +266,19 @@ describe('the rules the schema cannot hold', () => {
   });
 
   test('each citation names an element of the kind its field requires', () => {
-    const cited = submission([entry('send-email', { contextRefs: ['send-email-request'] })]);
+    const cited = submission([entry('send-email', { contextRefs: ['draft:functional-requirement:send-email-request'] })]);
     const context = validateInitialAnalysis(cited, { index, catalog });
     expect(context.ok).toBe(false);
     if (context.ok) return;
-    expect(context.errors).toEqual([{ path: 'entries.0.contextRefs.0', message: 'send-email-request is a functional element', expected: 'a context element' }]);
+    expect(context.errors).toEqual([{ path: 'entries.0.contextRefs.0', message: 'draft:functional-requirement:send-email-request is a functional element', expected: 'a context element' }]);
 
-    const background = submission([entry('send-email', { contextRefs: ['why-email'] })]);
+    const background = submission([entry('send-email', { contextRefs: ['draft:context:why-email'] })]);
     const accepted = validateInitialAnalysis(background, { index, catalog });
     expect(accepted.ok).toBe(true);
-    expect(background.elements.find(element => element.key === 'why-email')?.kind).toBe('context');
+    expect(background.elements.find(element => element.key === 'draft:context:why-email')?.kind).toBe('context');
     // Context is neither a requirement nor something a scenario verifies.
-    background.entries[0]!.acceptanceRefs = ['why-email'];
-    background.scenarios[0]!.refs = ['why-email'];
+    background.entries[0]!.acceptanceRefs = ['draft:context:why-email'];
+    background.scenarios[0]!.refs = ['draft:context:why-email'];
     const misused = validateInitialAnalysis(background, { index, catalog });
     expect(misused.ok).toBe(false);
     if (misused.ok) return;
@@ -287,28 +289,28 @@ describe('the rules the schema cannot hold', () => {
 
   test('the architect reads functional and context elements from captured plan documents only', () => {
     const principled = submission([entry('send-email')]);
-    principled.elements[0] = { ...principled.elements[0]!, document: 'doc-002' };
+    principled.elements[0] = { ...principled.elements[0]!, document: 'document:orders-principles' };
     const fromPrinciples = validateInitialAnalysis(principled, { index, catalog });
     expect(fromPrinciples.ok).toBe(false);
     if (fromPrinciples.ok) return;
-    expect(fromPrinciples.errors).toEqual([{ path: 'elements.0.document', message: 'doc-002 is not a captured plan document', expected: 'a captured plan document' }]);
+    expect(fromPrinciples.errors).toEqual([{ path: 'elements.0.document', message: 'document:orders-principles is not a captured plan document', expected: 'a captured plan document' }]);
 
     const uncaptured = submission([entry('send-email')]);
-    uncaptured.elements[1] = { ...uncaptured.elements[1]!, document: 'doc-009' };
+    uncaptured.elements[1] = { ...uncaptured.elements[1]!, document: 'document:uncaptured' };
     const nowhere = validateInitialAnalysis(uncaptured, { index, catalog });
     expect(nowhere.ok).toBe(false);
     if (nowhere.ok) return;
     expect(nowhere.errors.map(error => error.path)).toEqual(['elements.1.document']);
 
     const recommended = submission([entry('send-email')]);
-    recommended.elements.push({ key: 'use-a-queue', kind: 'recommendation', document: 'doc-001', text: 'Prefer a queue.', conditions: [], uncertainty: '' });
+    recommended.elements.push({ key: 'draft:recommendation:use-a-queue', kind: 'recommendation', document: 'document:shop-plan', text: 'Prefer a queue.', conditions: [], uncertainty: '' });
     const other = validateInitialAnalysis(recommended, { index, catalog });
     expect(other.ok).toBe(false);
     if (other.ok) return;
     expect(other.errors.map(error => error.path)).toEqual(['elements.2.kind']);
 
     const twice = submission([entry('send-email')]);
-    twice.elements[1] = { ...twice.elements[1]!, key: 'send-email-request' };
+    twice.elements[1] = { ...twice.elements[1]!, key: 'draft:functional-requirement:send-email-request' };
     const duplicate = validateInitialAnalysis(twice, { index, catalog });
     expect(duplicate.ok).toBe(false);
     if (duplicate.ok) return;
@@ -316,8 +318,8 @@ describe('the rules the schema cannot hold', () => {
   });
 
   test('scenario form rule 6: every acceptance element of an entry is in the refs of one of its scenarios', () => {
-    const uncited = submission([entry('send-email', { acceptanceRefs: ['send-email-acceptance', 'send-email-receipt'] })]);
-    uncited.scenarios[0]!.refs = ['send-email-acceptance'];
+    const uncited = submission([entry('send-email', { acceptanceRefs: ['draft:functional-requirement:send-email-acceptance', 'draft:functional-requirement:send-email-receipt'] })]);
+    uncited.scenarios[0]!.refs = ['draft:functional-requirement:send-email-acceptance'];
     const result = validateInitialAnalysis(uncited, { index, catalog });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -326,7 +328,7 @@ describe('the rules the schema cannot hold', () => {
     expect(result.errors[0]!.message).toContain('send-email-receipt');
 
     // A requirement need not be cited by a scenario; an acceptance element must.
-    uncited.scenarios[0]!.refs = ['send-email-acceptance', 'send-email-receipt'];
+    uncited.scenarios[0]!.refs = ['draft:functional-requirement:send-email-acceptance', 'draft:functional-requirement:send-email-receipt'];
     expect(validateInitialAnalysis(uncited, { index, catalog }).ok).toBe(true);
   });
 
@@ -459,8 +461,8 @@ describe('a rejected submission in a run', () => {
     const duplicate = {
       elements: [],
       entries: [
-        { capability: 'reviewer-note', description: 'A note.', owner: 'collection-review', requirementRefs: [], acceptanceRefs: [], contextRefs: [], citations: [] },
-        { capability: 'reviewer-note', description: 'The same slug again.', owner: 'collection-review', requirementRefs: [], acceptanceRefs: [], contextRefs: [], citations: [] },
+        { capabilityKey: 'draft:capability:reviewer-note', description: 'A note.', owner: 'collection-review', functionalRequirementKeys: [], functionalAcceptanceKeys: [], contextKeys: [], citations: [] },
+        { capabilityKey: 'draft:capability:reviewer-note', description: 'The same slug again.', owner: 'collection-review', functionalRequirementKeys: [], functionalAcceptanceKeys: [], contextKeys: [], citations: [] },
       ],
       hypotheses: [],
       coverageLimits: [],
@@ -473,7 +475,7 @@ describe('a rejected submission in a run', () => {
     const verdicts = agent!.sessions[1]!.verdicts;
     expect(verdicts).toHaveLength(5);
     const first = JSON.parse((verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { errors: Array<{ path: string; message: string }> };
-    expect(first.errors[0]!.path).toBe('entries.1.capability');
+    expect(first.errors[0]!.path).toBe('entries.1.capabilityKey');
     expect(first.errors[0]!.message).toContain('unique in the run');
     expect(verdicts.at(-1)).toEqual({ accepted: true });
 
@@ -515,7 +517,7 @@ describe('the scripted fake\'s demonstration, which `serve --agent fake` runs', 
 
   test('every submission it makes passes the real submission validator', async () => {
     const text = await readFile(join(fixtureRoot, 'plans', plan, 'plan.md'), 'utf8');
-    const planScenarios = extractPlanScenarios(text).scenarios;
+    const planScenarios = extractScenarioFixture(text).scenarios;
     const submissions = demonstrationScript().flatMap(step => (step.kind === 'submit' ? [step.input] : []));
 
     expect(submissions.length).toBeGreaterThan(0);
@@ -547,7 +549,7 @@ describe('the prompt package', () => {
     const { manifest } = await loadPromptPackages({ capabilityWorkflow: false });
     expect(Object.keys(manifest.packages).sort()).toEqual(['catalog-extractor', 'context-selector', 'contract-engineer', 'engineer', 'failure-analyst', 'global-fork', 'initial-architect', 'local-architect', 'nonfunctional-coordinator', 'nonfunctional-repair-engineer', 'reviewer']);
     const initial = manifest.packages['initial-architect']!;
-    expect(initial.package).toBe('initial-architect/7');
+    expect(initial.package).toBe('initial-architect/8');
     expect(initial.submissionKinds).toEqual(['initial-analysis']);
     expect(initial.files.map(file => file.kind).sort()).toEqual(expect.arrayContaining(['procedure', 'skill', 'submission-schema', 'system']));
     expect(initial.hash).toMatch(/^[0-9a-f]{64}$/);
@@ -563,7 +565,7 @@ describe('the prompt package', () => {
     expect(extractor.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const local = manifest.packages['local-architect']!;
-    expect(local.package).toBe('local-architect/22');
+    expect(local.package).toBe('local-architect/23');
     // The reconciliation fork's submission is the package's second.
     expect(local.submissionKinds).toEqual(['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved', 'reconciliation', 'work-orientation']);
 
@@ -573,7 +575,7 @@ describe('the prompt package', () => {
     expect(fork.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const engineer = manifest.packages['engineer']!;
-    expect(engineer.package).toBe('engineer/18');
+    expect(engineer.package).toBe('engineer/19');
     expect(engineer.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed']);
     expect(engineer.hash).toMatch(/^[0-9a-f]{64}$/);
 
@@ -604,27 +606,21 @@ describe('the prompt package', () => {
       .toEqual(['failure-analysis.procedure.md', 'failure-analysis.schema.json', 'failure-analyst.system.md']);
   });
 
-  test('capability runs add a contract agreement package only under the descriptive contract', async () => {
+  test('the current package set includes contract agreement and capability architecture', async () => {
     const { manifest } = await loadPromptPackages();
-    expect(manifest.packages['contract-engineer']).toBeUndefined();
-    const descriptive = await loadPromptPackages({ capabilityWorkflow: true, identityContract: 'descriptive' });
-    expect(descriptive.manifest.packages['contract-engineer']?.package).toBe('contract-engineer/5');
-    expect(descriptive.manifest.packages['local-architect']?.package).toBe('local-architect/23');
-    expect(descriptive.manifest.packages['local-architect']?.submissionKinds).toContain('yield-for-providers');
+    expect(manifest.packages['contract-engineer']?.package).toBe('contract-engineer/5');
+    expect(manifest.packages['local-architect']?.package).toBe('local-architect/23');
+    expect(manifest.packages['local-architect']?.submissionKinds).toContain('yield-for-providers');
     expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/10');
     expect(manifest.packages['context-selector']?.package).toBe('context-selector/4');
     expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/5');
-    expect(manifest.packages['engineer']?.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'capability-needed']);
-    expect(manifest.packages['local-architect']?.submissionKinds).toEqual([
-      'assign', 'request-placement', 'request-completion', 'unresolved', 'reconciliation', 'work-orientation',
-    ]);
+    expect(manifest.packages['engineer']?.submissionKinds).toContain('contract-needed');
   });
 
   test('every architect procedure that assigns a scope carries the one write-scope section, hashed with its package', async () => {
     const current = await loadPromptPackages();
-    const legacy = await loadPromptPackages({ capabilityWorkflow: false });
     const section = (await readFile(new URL('../../../../../../src/prompts/write-scope.procedure.md', import.meta.url), 'utf8')).split('\n').slice(1).join('\n').trim();
-    for (const loaded of [current.packages.get('local-architect')!, current.packages.get('capability-architect')!, legacy.packages.get('local-architect')!]) {
+    for (const loaded of [current.packages.get('local-architect')!, current.packages.get('capability-architect')!]) {
       expect(loaded.procedure).toContain(section);
       expect(loaded.procedure).not.toContain('{{writeScope}}');
       expect(loaded.files.some(file => file.kind === 'procedure' && file.path.endsWith('prompts/write-scope.procedure.md'))).toBe(true);
@@ -632,7 +628,7 @@ describe('the prompt package', () => {
     expect(current.packages.get('local-architect')!.procedure).not.toContain('Keep source and tests with their owners');
     expect(section).toContain('A directory inside the owner, such as its `src/tests`, is already part of\n  the base and is refused');
     expect(section).toContain('An included child module brings its whole subtree:');
-    expect(current.packages.get('local-architect')!.package).toBe('local-architect/22');
+    expect(current.packages.get('local-architect')!.package).toBe('local-architect/23');
     expect(current.packages.get('engineer')!.package).toBe('engineer/19');
     expect(current.packages.get('engineer')!.procedure).toContain('`edit` and `write` refuse those files unless your');
   });

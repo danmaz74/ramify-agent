@@ -10,7 +10,7 @@ import { modulePathSchema } from '../../../../../../src/interfaces/protocol/evid
 import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
 
 const text = z.string().min(1);
-const nfrId = z.string().regex(/^(?:(?:nfr|fix)-\d{3,}|(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/);
+const nfrId = z.string().regex(/^(?:non-functional-requirement|fixed-requirement):[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
 
 /** The agent supplies judgments; the harness assigns every identity and provenance field. */
 export const coordinatorAssessmentSubmissionSchema = z.object({
@@ -22,7 +22,6 @@ export const coordinatorAssessmentJsonSchema = z.toJSONSchema(coordinatorAssessm
 export const coordinatorAssessmentToolName = 'submit_nonfunctional_assessment';
 
 export interface AssessmentBinding {
-  readonly identityContract?: 'legacy' | 'descriptive';
   readonly catalog: ElementCatalog;
   readonly candidate: Candidate;
   /** A fresh preview after the coordinator invocation, before record commit. */
@@ -50,7 +49,7 @@ export function bindCoordinatorAssessment(input: unknown, binding: AssessmentBin
     errors.push({ path: 'candidate', message: 'Source changed after the candidate was prepared; assess a newly prepared tree' });
   }
   const record = assessmentSchema.safeParse({
-    schema: binding.identityContract === 'descriptive' ? 'ramify-agent.nonfunctional-assessment/2' : 'ramify-agent.nonfunctional-assessment/1', id: binding.id, candidate: binding.candidate,
+    schema: 'ramify-agent.nonfunctional-assessment/2', id: binding.id, candidate: binding.candidate,
     round: binding.round, phase: binding.phase, coordinatorInvocation: binding.coordinatorInvocation,
     results: binding.previous === undefined ? shape.value.results : [
       ...binding.previous.results.filter(result => result.result === 'satisfied'
@@ -75,12 +74,12 @@ export function bindCoordinatorAssessment(input: unknown, binding: AssessmentBin
 }
 
 const nfrList = z.array(nfrId).min(1);
-const deviationChoiceSchema = z.object({
+const deviationChoiceFields = {
   nfr: nfrId,
   proposedAlternative: text.nullable(),
   uncertainty: z.string(),
-}).strict();
-const descriptiveDeviationChoiceSchema = deviationChoiceSchema.extend({
+};
+const deviationChoiceSchema = z.object({ ...deviationChoiceFields,
   deviationKey: z.string().regex(/^draft:plan-deviation:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
   findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
 }).strict();
@@ -91,13 +90,8 @@ export const coordinatorActionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('repair'), nfrs: nfrList, startingModule: modulePathSchema, task: text, evidence: z.array(text), uncertainty: z.string() }).strict(),
   z.object({ kind: z.literal('close'), deviations: z.array(deviationChoiceSchema).min(1) }).strict(),
 ]);
-export const descriptiveCoordinatorActionSchema = z.discriminatedUnion('kind', [
-  coordinatorActionSchema.options[0]!, coordinatorActionSchema.options[1]!,
-  z.object({ kind: z.literal('close'), deviations: z.array(descriptiveDeviationChoiceSchema).min(1) }).strict(),
-]);
-export type CoordinatorAction = z.infer<typeof coordinatorActionSchema> | z.infer<typeof descriptiveCoordinatorActionSchema>;
+export type CoordinatorAction = z.infer<typeof coordinatorActionSchema>;
 export const coordinatorActionJsonSchema = z.toJSONSchema(coordinatorActionSchema);
-export const descriptiveCoordinatorActionJsonSchema = z.toJSONSchema(descriptiveCoordinatorActionSchema);
 export const coordinatorActionToolName = 'submit_nonfunctional_action';
 
 export interface ActionContext {
@@ -111,8 +105,8 @@ export interface ActionContext {
 }
 
 /** Check one action against the current committed round, without deciding semantic satisfaction. */
-export function validateCoordinatorAction(input: unknown, context: ActionContext, identityContract: 'legacy' | 'descriptive' = 'legacy'): SubmissionValidation<CoordinatorAction> {
-  const shape = validateAgainst(identityContract === 'descriptive' ? descriptiveCoordinatorActionSchema : coordinatorActionSchema, input);
+export function validateCoordinatorAction(input: unknown, context: ActionContext): SubmissionValidation<CoordinatorAction> {
+  const shape = validateAgainst(coordinatorActionSchema, input);
   if (!shape.ok) return shape;
   const value = shape.value;
   const errors: SubmissionError[] = [];
@@ -159,19 +153,16 @@ export function validateCoordinatorAction(input: unknown, context: ActionContext
       if (item.proposedAlternative === null && item.uncertainty.trim() === '') {
         errors.push({ path: `deviations.${index}.uncertainty`, message: 'State uncertainty when no alternative can be proposed' });
       }
-      if (identityContract === 'descriptive' && 'deviationKey' in item && typeof item.deviationKey === 'string'
-        && 'findingKey' in item && typeof item.findingKey === 'string') {
-        const deviation = item.deviationKey.slice('draft:'.length);
-        const finding = item.findingKey.slice('draft:'.length);
-        if (context.occupiedDeviationNames?.has(deviation)) errors.push({ path: `deviations.${index}.deviationKey`,
-          message: `${deviation} is already an accepted plan deviation; propose a distinct name` });
-        if (context.occupiedFindingNames?.has(finding)) errors.push({ path: `deviations.${index}.findingKey`,
-          message: `${finding} is already an accepted finding; propose a distinct name` });
-        if (value.deviations.some((other, otherIndex) => otherIndex < index && 'deviationKey' in other && other.deviationKey === item.deviationKey))
-          errors.push({ path: `deviations.${index}.deviationKey`, message: `${deviation} appears more than once in this close action` });
-        if (value.deviations.some((other, otherIndex) => otherIndex < index && 'findingKey' in other && other.findingKey === item.findingKey))
-          errors.push({ path: `deviations.${index}.findingKey`, message: `${finding} appears more than once in this close action` });
-      }
+      const deviation = item.deviationKey.slice('draft:'.length);
+      const finding = item.findingKey.slice('draft:'.length);
+      if (context.occupiedDeviationNames?.has(deviation)) errors.push({ path: `deviations.${index}.deviationKey`,
+        message: `${deviation} is already an accepted plan deviation; propose a distinct name` });
+      if (context.occupiedFindingNames?.has(finding)) errors.push({ path: `deviations.${index}.findingKey`,
+        message: `${finding} is already an accepted finding; propose a distinct name` });
+      if (value.deviations.some((other, otherIndex) => otherIndex < index && other.deviationKey === item.deviationKey))
+        errors.push({ path: `deviations.${index}.deviationKey`, message: `${deviation} appears more than once in this close action` });
+      if (value.deviations.some((other, otherIndex) => otherIndex < index && other.findingKey === item.findingKey))
+        errors.push({ path: `deviations.${index}.findingKey`, message: `${finding} appears more than once in this close action` });
     });
   }
   const ids = value.kind === 'close' ? [] : value.nfrs;

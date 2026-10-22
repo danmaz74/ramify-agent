@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import { extractDocumentScenarios, extractPlanScenarios } from '../extraction.js';
 import { scenarioSubmissionSchema, validateScenarioForm, type ScenarioFormEntry, type ScenarioFormResult, type ScenarioFormRule, type ScenarioFormSubmission } from '../form.js';
+const extractScenarioFixture = (text: string) => extractPlanScenarios(text, 'document:fixture-plan');
+
 
 /*
- * The plan of architecture §2's example: ps-01 belongs to one entry, ps-02
+ * The plan of architecture §2's example: the email scenario belongs to one entry; the history scenario
  * combines two. Each test breaks one rule of an otherwise valid submission.
  */
 const plan = [
@@ -24,7 +26,7 @@ const plan = [
   '## History',
   'The history lists sent emails.',
 ].join('\n');
-const { scenarios: planScenarios } = extractPlanScenarios(plan);
+const { scenarios: planScenarios } = extractScenarioFixture(plan);
 
 const entries: ScenarioFormEntry[] = [
   { capability: 'send-customer-email', acceptanceRefs: ['send-accepted'] },
@@ -37,7 +39,7 @@ function valid(): ScenarioFormSubmission {
       {
         key: 'send-email',
         entry: 'send-customer-email',
-        origin: { kind: 'plan', planScenario: 'ps-01' },
+        origin: { kind: 'plan', planScenario: 'plan-scenario:a-customer-receives-the-email' },
         refs: ['send-accepted'],
         gherkin: [
           'Scenario: A customer receives the email',
@@ -51,7 +53,7 @@ function valid(): ScenarioFormSubmission {
         key: 'history-lists-sent-email',
         entry: 'email-history',
         origin: { kind: 'architect' },
-        partOf: 'ps-02',
+        partOf: 'plan-scenario:a-sent-email-is-listed',
         refs: ['history-accepted'],
         gherkin: [
           'Scenario: Sent emails appear in the history',
@@ -61,7 +63,7 @@ function valid(): ScenarioFormSubmission {
         ].join('\n'),
       },
     ],
-    integrationScenarios: [{ planScenario: 'ps-02', subScenarios: ['send-email', 'history-lists-sent-email'] }],
+    integrationScenarios: [{ planScenario: 'plan-scenario:a-sent-email-is-listed', subScenarios: ['send-email', 'history-lists-sent-email'] }],
   };
 }
 
@@ -80,11 +82,11 @@ describe('Plan 23 catalog form contracts', () => {
     const accepted = validateScenarioForm(submission, planScenarios, entries);
     expect(accepted.ok).toBe(true); if (!accepted.ok) return;
     expect(accepted.form.scenarios[0]!.source).toEqual(planScenarios[0]!.source);
-    expect(accepted.form.scenarios[0]!.origin).toMatchObject({ kind: 'plan', planScenario: 'ps-01' });
+    expect(accepted.form.scenarios[0]!.origin).toMatchObject({ kind: 'plan', planScenario: 'plan-scenario:a-customer-receives-the-email' });
   });
   test('C02: identity-only scenarios require a known plan origin, while architect scenarios require their text', () => {
-    const submission = valid(); delete submission.scenarios[0]!.gherkin; submission.scenarios[0]!.origin = { kind: 'plan', planScenario: 'ps-99' };
-    expect(rejected(validateScenarioForm(submission, planScenarios, entries), 3, 'scenarios.0.origin.planScenario')).toContain('ps-99');
+    const submission = valid(); delete submission.scenarios[0]!.gherkin; submission.scenarios[0]!.origin = { kind: 'plan', planScenario: 'plan-scenario:unknown-email' };
+    expect(rejected(validateScenarioForm(submission, planScenarios, entries), 3, 'scenarios.0.origin.planScenario')).toContain('plan-scenario:unknown-email');
     const architect = valid(); delete architect.scenarios[1]!.gherkin;
     expect(scenarioSubmissionSchema.safeParse(architect.scenarios[1]).success).toBe(false);
     rejected(validateScenarioForm(architect, planScenarios, entries), 1, 'scenarios.1.gherkin');
@@ -96,7 +98,7 @@ describe('Plan 23 catalog form contracts', () => {
     // Neither classification nor whether this test proves the requirement is inferred.
     expect(rejected(validateScenarioForm(submission, planScenarios, entries, undefined, { registeredTests: new Set(['test-001']) }), 6, 'entries.1.acceptanceRefs.0')).toContain('history-accepted');
   });
-  test.each(['test-999', 'sc-001', 'src/tests/history.test.ts'])('C03: unknown or wrong-kind evidence %s is not a registered test', testId => {
+  test.each(['test-999', 'scenario:send-email', 'src/tests/history.test.ts'])('C03: unknown or wrong-kind evidence %s is not a registered test', testId => {
     const submission = valid(); submission.scenarios[1]!.refs = [];
     const declared: ScenarioFormEntry[] = [entries[0]!, { ...entries[1]!, nonBehavioralAcceptance: [{ ref: 'history-accepted', kind: 'non-behavioral', test: testId }] }];
     expect(rejected(validateScenarioForm(submission, planScenarios, declared, undefined, { registeredTests: new Set(['test-001']) }), 6, 'entries.1.nonBehavioralAcceptance.0.test')).toContain(testId);
@@ -120,14 +122,14 @@ describe('Plan 23 catalog form contracts', () => {
 describe('an accepted form', () => {
   test('identical headings and lines in two documents keep distinct origins and citations', () => {
     const text = '# Same\n```gherkin\nScenario: Same\n  Given one\n  Then done\n```\n';
-    const extracted = extractDocumentScenarios([{ id: 'doc-001', text }, { id: 'doc-002', text }]);
+    const extracted = extractDocumentScenarios([{ id: 'document:first', text }, { id: 'document:second', text }]);
     expect(extracted.scenarios.map(item => [item.id, item.document, item.lines])).toEqual([
-      ['ps-01', 'doc-001', [3, 5]], ['ps-02', 'doc-002', [3, 5]],
+      [extracted.scenarios[0]!.id, 'document:first', [3, 5]], [extracted.scenarios[1]!.id, 'document:second', [3, 5]],
     ]);
     const submission: ScenarioFormSubmission = {
       scenarios: [
-        { key: 'one', entry: 'first', origin: { kind: 'plan', planScenario: 'ps-01' }, refs: ['first-accepted'], gherkin: extracted.scenarios[0]!.source.join('\n') },
-        { key: 'two', entry: 'second', origin: { kind: 'plan', planScenario: 'ps-02' }, refs: ['second-accepted'], gherkin: extracted.scenarios[1]!.source.join('\n') },
+        { key: 'one', entry: 'first', origin: { kind: 'plan', planScenario: extracted.scenarios[0]!.id }, refs: ['first-accepted'], gherkin: extracted.scenarios[0]!.source.join('\n') },
+        { key: 'two', entry: 'second', origin: { kind: 'plan', planScenario: extracted.scenarios[1]!.id }, refs: ['second-accepted'], gherkin: extracted.scenarios[1]!.source.join('\n') },
       ], integrationScenarios: [],
     };
     const correct = [
@@ -136,7 +138,7 @@ describe('an accepted form', () => {
     ];
     const accepted = validateScenarioForm(submission, extracted.scenarios, correct);
     expect(accepted.ok).toBe(true);
-    if (accepted.ok) expect(accepted.form.scenarios[1]!.origin).toMatchObject({ document: 'doc-002' });
+    if (accepted.ok) expect(accepted.form.scenarios[1]!.origin).toMatchObject({ document: 'document:second' });
     expect(rejected(validateScenarioForm(submission, extracted.scenarios, [
       correct[0]!, { capability: 'second', acceptanceRefs: ['first-accepted'] },
     ]), 6, 'entries.1.acceptanceRefs.0')).toContain('cited by none');
@@ -146,13 +148,14 @@ describe('an accepted form', () => {
     if (!result.ok) throw new Error(result.message);
     expect(result.warnings).toEqual([]);
     expect(result.form.scenarios.map((scenario) => [scenario.key, scenario.origin.kind, scenario.partOf, scenario.name])).toEqual([
-      ['send-email', 'plan', 'ps-02', 'A customer receives the email'],
-      ['history-lists-sent-email', 'architect', 'ps-02', 'Sent emails appear in the history'],
+      ['send-email', 'plan', 'plan-scenario:a-sent-email-is-listed', 'A customer receives the email'],
+      ['history-lists-sent-email', 'architect', 'plan-scenario:a-sent-email-is-listed', 'Sent emails appear in the history'],
     ]);
     expect(result.form.scenarios[0]!.source).toEqual(planScenarios[0]!.source);
-    expect(result.form.scenarios[0]!.origin).toEqual({ kind: 'plan', planScenario: 'ps-01', lines: [4, 7] });
+    expect(result.form.scenarios[0]!.origin).toEqual({ kind: 'plan', planScenario: 'plan-scenario:a-customer-receives-the-email', document: 'document:fixture-plan', lines: [4, 7] });
     expect(result.form.integrations).toEqual([{
-      planScenario: 'ps-02',
+      planScenario: 'plan-scenario:a-sent-email-is-listed',
+      document: 'document:fixture-plan',
       lines: [9, 13],
       subScenarios: ['send-email', 'history-lists-sent-email'],
       name: 'A sent email is listed',
@@ -224,19 +227,19 @@ describe('rule 3: every plan scenario exactly once', () => {
     const submission = valid();
     submission.integrationScenarios = [];
     delete submission.scenarios[1]!.partOf;
-    expect(rejected(validateScenarioForm(submission, planScenarios, entries), 3, 'scenarios')).toContain('ps-02');
+    expect(rejected(validateScenarioForm(submission, planScenarios, entries), 3, 'scenarios')).toContain('plan-scenario:a-sent-email-is-listed');
   });
 
   test('a plan scenario that appears twice', () => {
     const submission = valid();
-    submission.integrationScenarios[0]!.planScenario = 'ps-01';
+    submission.integrationScenarios[0]!.planScenario = 'plan-scenario:a-customer-receives-the-email';
     delete submission.scenarios[1]!.partOf;
     expect(rejected(validateScenarioForm(submission, planScenarios, entries), 3, 'integrationScenarios.0.planScenario')).toContain('appears twice');
   });
 
   test('a plan scenario the plan does not have', () => {
     const submission = valid();
-    submission.scenarios[0]!.origin = { kind: 'plan', planScenario: 'ps-09' };
+    submission.scenarios[0]!.origin = { kind: 'plan', planScenario: 'plan-scenario:unknown-email' };
     rejected(validateScenarioForm(submission, planScenarios, entries), 3, 'scenarios.0.origin.planScenario');
   });
 
@@ -248,7 +251,7 @@ describe('rule 3: every plan scenario exactly once', () => {
   });
 
   test('normalization trims lines and collapses spaces, and nothing else: a doc string\'s blank line is text', () => {
-    const docPlan = extractPlanScenarios([
+    const docPlan = extractScenarioFixture([
       '```gherkin',
       'Scenario: A note is kept',
       '  When the user writes the note',
@@ -261,7 +264,7 @@ describe('rule 3: every plan scenario exactly once', () => {
     ].join('\n')).scenarios;
     const docEntries: ScenarioFormEntry[] = [{ capability: 'notes', acceptanceRefs: [] }];
     const submission = (gherkin: string): ScenarioFormSubmission => ({
-      scenarios: [{ key: 'note', entry: 'notes', origin: { kind: 'plan', planScenario: 'ps-01' }, gherkin }],
+      scenarios: [{ key: 'note', entry: 'notes', origin: { kind: 'plan', planScenario: 'plan-scenario:a-note-is-kept' }, gherkin }],
       integrationScenarios: [],
     });
     const spaced = 'Scenario:   A note is kept\n\t When the user  writes the note  \n      """\n  first\n\n second   \n   """';
@@ -338,7 +341,7 @@ describe('warnings', () => {
     submission.integrationScenarios[0]!.subScenarios = ['send-email'];
     delete submission.scenarios[1]!.partOf;
     submission.scenarios.push({
-      key: 'opens-history', entry: 'email-history', origin: { kind: 'architect' }, partOf: 'ps-02',
+      key: 'opens-history', entry: 'email-history', origin: { kind: 'architect' }, partOf: 'plan-scenario:a-sent-email-is-listed',
       gherkin: 'Scenario: Opening\n  When the user opens the email history\n  Then the history lists one email to ada@example.com',
     });
     submission.integrationScenarios[0]!.subScenarios.push('opens-history');

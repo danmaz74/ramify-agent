@@ -75,7 +75,10 @@ An earlier passing check does not establish a later candidate's correctness.
 
 Any submission may carry `reports` of
 `{ id, judgment: "done", basedOnRevision, where? }` and `registrations` of
-`{ kind: "test", description }` for a required test worth tracking separately.
+`{ kind: "test", testKey: "draft:test:<descriptive-name>", description }`
+for a required test worth tracking separately. The accepted ID is
+`test:<descriptive-name>`. If that name is occupied, correct `testKey` in
+the current turn.
 Report `done` only when you judge implementation correct and passing. Use the
 revision supplied in the briefing; revise an earlier done report with `bound`.
 `where` is optional navigation text that the harness does not interpret.

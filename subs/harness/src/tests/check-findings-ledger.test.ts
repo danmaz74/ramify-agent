@@ -15,8 +15,8 @@ import {
 import { temporaryDirectory } from './helpers/fixture.js';
 import { finishReview } from '../../subs/autonomous/subs/acceptance/src/review-finish.js';
 import { reviewLayout, type ReviewRequest } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
-import { descriptiveReviewSubmissionSchema } from '../../subs/reviews/src/interfaces/submissions.js';
-import { descriptiveForkSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
+import { reviewSubmissionSchema } from '../../subs/reviews/src/interfaces/submissions.js';
+import { forkSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
 import { deviationCommands } from '../../subs/autonomous/subs/acceptance/src/deviations/finding.js';
 import { deviationLayout, planDeviationSchema } from '../../subs/autonomous/subs/acceptance/src/deviations/records.js';
 
@@ -57,9 +57,9 @@ function committed(result: CheckFindingCommit): Extract<CheckFindingCommit, { ki
 describe('one CheckFinding transition is one ledger line', () => {
   test('an authored plan deviation records a named finding and its decision request together', async () => {
     const { root, target } = await running();
-    const authored = descriptiveForkSubmissionSchema.parse({ kind: 'deviation', deviation: {
+    const authored = forkSubmissionSchema.parse({ kind: 'deviation', deviation: {
       deviationKey: 'draft:plan-deviation:revise-preview-compatibility', findingKey: 'draft:finding:preview-compatibility-deviation',
-      amends: ['fr-001'], instead: 'Use the existing preview endpoint.', why: 'The proposed surface is unavailable.',
+      amends: ['functional-requirement:preview-surface'], instead: 'Use the existing preview endpoint.', why: 'The proposed surface is unavailable.',
       rejected: [{ alternative: 'Add another protocol', reason: 'It would exceed the plan.' }],
       loss: 'One external caller cannot use the new endpoint.', workItems: [], scenarios: [],
     } });
@@ -68,13 +68,13 @@ describe('one CheckFinding transition is one ledger line', () => {
     const deviation = planDeviationSchema.parse({ schema: 'ramify-agent.plan-deviation/2',
       id: authored.deviation.deviationKey.slice('draft:'.length), request: 'unresolved-request:preview-conflict',
       workItem: 'work-item:preview', invocation: 'inv-0003', plan: { path: 'plans/preview/plan.md', revision: 'sha256:plan' },
-      amends: [{ id: 'fr-001', path: 'plans/preview/plan.md', text: 'Provide the proposed surface.' }],
+      amends: [{ id: 'functional-requirement:preview-surface', path: 'plans/preview/plan.md', text: 'Provide the proposed surface.' }],
       instead: authored.deviation.instead, why: authored.deviation.why, rejected: authored.deviation.rejected,
       loss: authored.deviation.loss, workItems: ['work-item:preview'], modules: ['project/preview'], scenarios: [],
       checkFinding: authored.deviation.findingKey.slice('draft:'.length), held: false,
     });
     committed(await commitCheckFindingChange(target, ({ state }) => ({
-      commands: deviationCommands(state, deviation),
+      commands: deviationCommands(deviation),
       compose: decided => ({ event: { type: 'check-findings-recorded', data: {
         cause: { kind: 'producer', producer: 'plan:deviation', attempt: deviation.invocation }, checkFindings: [...decided.events] } },
         records: [{ path: deviationLayout.deviation(deviation.id), id: deviation.id, revision: 1, body: deviation }],
@@ -102,7 +102,7 @@ describe('one CheckFinding transition is one ledger line', () => {
       request: item.id, workItem: item.workItem, iteration: item.key.iteration,
       kind: item.key.kind, gate: item.gate, candidate: item.key.candidate,
     } });
-    const author = (key: string) => descriptiveReviewSubmissionSchema.parse({ inspected: ['src/cart.ts'], missing: [],
+    const author = (key: string) => reviewSubmissionSchema.parse({ inspected: ['src/cart.ts'], missing: [],
       concerns: [{ findingKey: key, summary: 'A discount is applied twice', consequence: 'The total is wrong',
         rationale: 'The candidate applies it twice', uncertainty: 'The test path is unverified', remedy: 'Apply it once',
         locations: [{ path: 'src/cart.ts', startLine: 10, endLine: 20 }], suggests: null, risk: 'medium', ground: null }],
@@ -115,15 +115,15 @@ describe('one CheckFinding transition is one ledger line', () => {
       requestedStart: 'fresh' as const, actualStart: 'fresh' as const });
     const result = { result: 'complete' as const, inspected: [{ path: 'src/cart.ts' }], concerns: 1 };
     expect(await finishReview(commit, () => new Date('2026-09-24T12:01:00.000Z'), first,
-      attempt('rq-0001.a01', first.id), result, true, author('draft:finding:double-discount'), binding, 'descriptive')).toBe('committed');
+      attempt('rq-0001.a01', first.id), result, true, author('draft:finding:double-discount'), binding)).toBe('committed');
     const occupied = await finishReview(commit, () => new Date('2026-09-24T12:02:00.000Z'), second,
-      attempt('rq-0002.a01', second.id), result, true, author('draft:finding:double-discount'), binding, 'descriptive');
+      attempt('rq-0002.a01', second.id), result, true, author('draft:finding:double-discount'), binding);
     expect(occupied).toBe('committed');
     expect(JSON.parse(await readFile(join(root, reviewLayout.attempt('rq-0002.a01')), 'utf8'))).toMatchObject({
       result: { result: 'not-verified', reason: 'name-conflict' }, settles: false, checkFindings: [],
     });
     expect(await finishReview(commit, () => new Date('2026-09-24T12:03:00.000Z'), second,
-      attempt('rq-0002.a02', second.id), result, true, author('draft:finding:wrong-total'), binding, 'descriptive')).toBe('committed');
+      attempt('rq-0002.a02', second.id), result, true, author('draft:finding:wrong-total'), binding)).toBe('committed');
     expect(JSON.parse(await readFile(join(root, reviewLayout.submission('rq-0002.a02')), 'utf8'))).toMatchObject({
       schema: 'ramify-agent.review-submission/2', concerns: [{ findingKey: 'draft:finding:wrong-total' }],
     });
@@ -172,18 +172,18 @@ describe('one CheckFinding transition is one ledger line', () => {
     const second = concern({ key: 'concern-02', summary: 'Rounding is duplicated in the same file' });
     const result = committed(await commitCheckFindingChange(target, recorded([report(first), report(second)])));
 
-    expect(result.decided.outcomes).toEqual([{ touched: ['cf-0001'], replayed: false }, { touched: ['cf-0002'], replayed: false }]);
+    expect(result.decided.outcomes).toEqual([{ touched: ['finding:case-0001'], replayed: false }, { touched: ['finding:case-0002'], replayed: false }]);
     expect(target.log.version).toBe(2);
     const line = target.log.ledger.replay().at(-1)!;
     expect(line.transaction.event).toMatchObject({ type: 'check-findings-recorded', data: { cause: { kind: 'producer', attempt: 'rq-0001.a01' } } });
     expect(line.transaction.event.type === 'check-findings-recorded' && line.transaction.event.data.checkFindings.map(event => [event.type, event.data]))
       .toEqual([
-        ['check-finding-opened', expect.objectContaining({ checkFinding: 'cf-0001', revision: 1 })],
-        ['check-finding-opened', expect.objectContaining({ checkFinding: 'cf-0002', revision: 1 })],
+        ['check-finding-opened', expect.objectContaining({ checkFinding: 'finding:case-0001', revision: 1 })],
+        ['check-finding-opened', expect.objectContaining({ checkFinding: 'finding:case-0002', revision: 1 })],
       ]);
     expect(line.transaction.records.map(record => record.path)).toEqual([
-      checkFindingLayout.report('cf-0001', 'cfr-0001'),
-      checkFindingLayout.report('cf-0002', 'cfr-0002'),
+      checkFindingLayout.report('finding:case-0001', 'cfr-0001'),
+      checkFindingLayout.report('finding:case-0002', 'cfr-0002'),
     ]);
 
     // The hash is the harness's: over the canonical content without the ingestion key.
@@ -194,10 +194,10 @@ describe('one CheckFinding transition is one ledger line', () => {
     const reversed = Object.fromEntries(Object.entries(first).reverse()) as typeof first;
     expect(checkFindingContentHash(reversed)).toBe(hash);
 
-    const read = await readCommitted(target.log.ledger, checkFindingLayout.report('cf-0001', 'cfr-0001'), checkFindingSchemas.report);
-    expect(read).toMatchObject({ kind: 'valid', value: { id: 'cfr-0001', checkFinding: 'cf-0001', revision: 1, contentHash: hash } });
-    expect(JSON.parse(await readFile(join(root, checkFindingLayout.report('cf-0002', 'cfr-0002')), 'utf8'))).toMatchObject({
-      schema: 'ramify-agent.check-finding-report/1', id: 'cfr-0002',
+    const read = await readCommitted(target.log.ledger, checkFindingLayout.report('finding:case-0001', 'cfr-0001'), checkFindingSchemas.report);
+    expect(read).toMatchObject({ kind: 'valid', value: { id: 'cfr-0001', checkFinding: 'finding:case-0001', revision: 1, contentHash: hash } });
+    expect(JSON.parse(await readFile(join(root, checkFindingLayout.report('finding:case-0002', 'cfr-0002')), 'utf8'))).toMatchObject({
+      schema: 'ramify-agent.check-finding-report/2', id: 'cfr-0002',
     });
   });
 
@@ -217,9 +217,9 @@ describe('one CheckFinding transition is one ledger line', () => {
     committed(await commitCheckFindingChange(target, build));
     expect(seen).toBe(1);
     expect(target.log.ledger.replay().at(-1)!.transaction.records.map(record => record.path)).toEqual([
-      'reviews/rq-0001/attempts/01/attempt.json', checkFindingLayout.report('cf-0001', 'cfr-0001'),
+      'reviews/rq-0001/attempts/01/attempt.json', checkFindingLayout.report('finding:case-0001', 'cfr-0001'),
     ]);
-    expect(target.log.ledger.replay().at(-1)!.transaction.records[0]!.body).toEqual({ schema: 'test/1', checkFindings: ['cf-0001'] });
+    expect(target.log.ledger.replay().at(-1)!.transaction.records[0]!.body).toEqual({ schema: 'test/1', checkFindings: ['finding:case-0001'] });
   });
 });
 
@@ -231,10 +231,10 @@ describe('CF01: exactly one CheckFinding per report key', () => {
     expect(deliveries.map(delivery => delivery.kind).sort()).toEqual(['committed', 'replayed', 'replayed', 'replayed', 'replayed']);
     for (const delivery of deliveries) {
       if (delivery.kind === 'refused') throw new Error('refused');
-      expect(delivery.decided.outcomes).toEqual([{ touched: ['cf-0001'], replayed: delivery.kind === 'replayed' }]);
+      expect(delivery.decided.outcomes).toEqual([{ touched: ['finding:case-0001'], replayed: delivery.kind === 'replayed' }]);
     }
     expect(carriers(target.log)).toHaveLength(1);
-    expect([...checkFindingStateOf(target.log.ledger).findings.keys()]).toEqual(['cf-0001']);
+    expect([...checkFindingStateOf(target.log.ledger).findings.keys()]).toEqual(['finding:case-0001']);
   });
 
   test('changed content under the same key is refused as a conflict, and nothing is appended', async () => {
@@ -251,23 +251,23 @@ describe('CF01: exactly one CheckFinding per report key', () => {
     const { target } = await running();
     const authority = { kind: 'user-decision' as const, ref: 'cfd-0000' };
     committed(await commitCheckFindingChange(target, recorded([
-      report(failure({ attempt: 'ga-0005', subject: 'scenario:sc-004', tree: 't-02' })),
-      report(failure({ attempt: 'ga-0006', subject: 'scenario:sc-004', tree: 't-02', revision: 2 })),
-      // An authorized obligation revision gives cf-0001 the scoped key cf-0002 already holds.
-      dispose('cf-0001', 1, decision({
+      report(failure({ attempt: 'ga-0005', subject: 'scenario:sc-004', tree: 't-02', findingKey: 'draft:finding:case-0001' })),
+      report(failure({ attempt: 'ga-0006', subject: 'scenario:sc-004', tree: 't-02', revision: 2, findingKey: 'draft:finding:case-0002' })),
+      // An authorized obligation revision gives finding:case-0001 the scoped key finding:case-0002 already holds.
+      dispose('finding:case-0001', 1, decision({
         action: 'revise-obligation', authority,
         from: { subject: 'scenario:sc-004', revision: 1 }, to: { subject: 'scenario:sc-004', revision: 2 },
       }, { actor: { kind: 'user', name: 'dana' } })),
     ], { kind: 'user-response', command: 'answer-1' })));
     const version = target.log.version;
 
-    const again = failure({ attempt: 'ga-0007', subject: 'scenario:sc-004', tree: 't-03', revision: 2 });
+    const again = failure({ attempt: 'ga-0007', subject: 'scenario:sc-004', tree: 't-03', revision: 2, findingKey: 'draft:finding:case-0003' });
     const ambiguous = await commitCheckFindingChange(target, recorded([report(again)]));
     expect(ambiguous).toMatchObject({ kind: 'refused', refusal: { reason: 'check-finding', rejection: { code: 'ambiguous-issue-key' } } });
     expect(target.log.version).toBe(version);
 
     const keyless = committed(await commitCheckFindingChange(target, recorded([report({ ...again, issueKey: null })])));
-    expect(keyless.decided.outcomes).toEqual([{ touched: ['cf-0003'], replayed: false }]);
+    expect(keyless.decided.outcomes).toEqual([{ touched: ['finding:case-0003'], replayed: false }]);
   });
 
   test('a transition commits all of its reports or none: a partial replay is refused', async () => {
@@ -282,7 +282,7 @@ describe('CF01: exactly one CheckFinding per report key', () => {
     const { target } = await running();
     const result = await commitCheckFindingChange(target, recorded([
       report(concern()),
-      dispose('cf-0001', 7, decision({ action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } })),
+      dispose('finding:case-0001', 7, decision({ action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } })),
     ]));
     expect(result).toMatchObject({ kind: 'refused', refusal: { reason: 'check-finding', command: 1, rejection: { code: 'stale-revision' } } });
     expect(target.log.version).toBe(1);
@@ -333,7 +333,7 @@ describe('the transition refuses without appending', () => {
     await expect(target.log.append({ type: 'check-findings-recorded', data: { cause: { kind: 'recovery', detail: 'bypass' }, checkFindings: [...events] } }))
       .rejects.toThrow(/only the CheckFinding transition commits/);
 
-    // A hand-copied carrier line repeats cf-0001: the log no longer replays.
+    // A hand-copied carrier line repeats finding:case-0001: the log no longer replays.
     const path = join(root, 'events.jsonl');
     const lines = (await readFile(path, 'utf8')).split('\n').filter(Boolean);
     const copy = JSON.parse(lines.at(-1)!) as { sequence: number; event: { sequence: number } };
@@ -349,7 +349,7 @@ describe('CF06 and CF11: crashes around the commit keep exactly-once history', (
   /** A report and the repair planned for it, committed together: a decision is never without its report or intent. */
   const withRepair: readonly CheckFindingCommand[] = [
     report(concern()),
-    dispose('cf-0001', 1, decision({ action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } })),
+    dispose('finding:case-0001', 1, decision({ action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } })),
   ];
 
   test('a crash at every file system operation of the commit leaves all of it or none; a redelivery then commits once', async () => {
@@ -391,7 +391,7 @@ describe('CF06 and CF11: crashes around the commit keep exactly-once history', (
         // Both events, never the decision alone.
         expect(lines[0]!.type === 'check-findings-recorded' && lines[0]!.data.checkFindings.map(event => event.type))
           .toEqual(['check-finding-opened', 'check-finding-decided']);
-        expect(state.findings.get('cf-0001')).toMatchObject({ reason: 'repair-planned', repair: { kind: 'intent', ref: 'wi-001.rc01' } });
+        expect(state.findings.get('finding:case-0001')).toMatchObject({ reason: 'repair-planned', repair: { kind: 'intent', ref: 'wi-001.rc01' } });
       } else {
         expect(state.findings.size).toBe(0);
       }
@@ -414,7 +414,7 @@ describe('CF06 and CF11: crashes around the commit keep exactly-once history', (
         expect(again.kind).toBe('committed');
       }
       expect(carriers(restarted.log)).toHaveLength(1);
-      expect([...checkFindingStateOf(restarted.log.ledger).findings.keys()]).toEqual(['cf-0001']);
+      expect([...checkFindingStateOf(restarted.log.ledger).findings.keys()]).toEqual(['finding:case-0001']);
     }
     // Some crashes precede the line and some follow it.
     console.log(`check-findings fault sweep: ${total} fault points in one commit, ${survived} of which left the committed line`);
@@ -437,15 +437,15 @@ describe('CF06 and CF11: crashes around the commit keep exactly-once history', (
     };
     committed(await commitCheckFindingChange(crashing, producer));
     const live = selectCheckFindings(checkFindingStateOf(crashing.log.ledger), { kind: 'list', owner: null, select: 'all' });
-    await expect(readFile(join(root, checkFindingLayout.report('cf-0001', 'cfr-0001')), 'utf8')).rejects.toThrow(/ENOENT/);
+    await expect(readFile(join(root, checkFindingLayout.report('finding:case-0001', 'cfr-0001')), 'utf8')).rejects.toThrow(/ENOENT/);
 
     const restarted = await checkFindingTarget(root);
     const rewritten = await restarted.log.ledger.materialize();
-    expect(rewritten.rewritten).toEqual([checkFindingLayout.report('cf-0001', 'cfr-0001'), checkFindingLayout.decision('cf-0001', 'cfd-0001')]);
-    expect(await readCommitted(restarted.log.ledger, checkFindingLayout.decision('cf-0001', 'cfd-0001'), checkFindingSchemas.decision))
-      .toMatchObject({ kind: 'valid', value: { checkFinding: 'cf-0001', revision: 2, decision: { action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } } } });
-    expect(JSON.parse(await readFile(join(root, checkFindingLayout.decision('cf-0001', 'cfd-0001')), 'utf8')).schema)
-      .toBe('ramify-agent.check-finding-decision/1');
+    expect(rewritten.rewritten).toEqual([checkFindingLayout.report('finding:case-0001', 'cfr-0001'), checkFindingLayout.decision('finding:case-0001', 'cfd-0001')]);
+    expect(await readCommitted(restarted.log.ledger, checkFindingLayout.decision('finding:case-0001', 'cfd-0001'), checkFindingSchemas.decision))
+      .toMatchObject({ kind: 'valid', value: { checkFinding: 'finding:case-0001', revision: 2, decision: { action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } } } });
+    expect(JSON.parse(await readFile(join(root, checkFindingLayout.decision('finding:case-0001', 'cfd-0001')), 'utf8')).schema)
+      .toBe('ramify-agent.check-finding-decision/2');
     expect(selectCheckFindings(checkFindingStateOf(restarted.log.ledger), { kind: 'list', owner: null, select: 'all' })).toEqual(live);
     expect(producerCalls).toBe(1);
   });
@@ -456,19 +456,19 @@ describe('CF06 and CF11: crashes around the commit keep exactly-once history', (
     await started(first.log);
     committed(await commitCheckFindingChange(first, recorded(withRepair)));
     committed(await commitCheckFindingChange(first, recorded([
-      dispose('cf-0001', 2, decision({ action: 'claim-repair', candidate: { kind: 'tree', id: 't-04' }, change: 'wi-001.i04' }, { source: { kind: 'tree', id: 't-04' } })),
+      dispose('finding:case-0001', 2, decision({ action: 'claim-repair', candidate: { kind: 'tree', id: 't-04' }, change: 'wi-001.i04' }, { source: { kind: 'tree', id: 't-04' } })),
     ], { kind: 'recovery', detail: 'the correction closed accepted' })));
 
     const restarted = await checkFindingTarget(root);
-    const claimed = checkFindingStateOf(restarted.log.ledger).findings.get('cf-0001')!;
+    const claimed = checkFindingStateOf(restarted.log.ledger).findings.get('finding:case-0001')!;
     expect(claimed).toMatchObject({ standing: 'open', reason: 'repair-claimed', revision: 3, repair: { kind: 'intent', ref: 'wi-001.rc01' } });
     const summary = selectCheckFindings(checkFindingStateOf(restarted.log.ledger), { kind: 'list', owner: null, select: 'attention' });
-    expect(summary).toMatchObject({ ok: true, view: { items: [{ id: 'cf-0001', standing: 'open', awaiting: 'assessment' }] } });
+    expect(summary).toMatchObject({ ok: true, view: { items: [{ id: 'finding:case-0001', standing: 'open', awaiting: 'assessment' }] } });
 
     committed(await commitCheckFindingChange(restarted, recorded([
-      dispose('cf-0001', 3, decision({ action: 'fix-by-assessment', reassessed: ['cfr-0001'] }, { source: { kind: 'tree', id: 't-04' } })),
+      dispose('finding:case-0001', 3, decision({ action: 'fix-by-assessment', reassessed: ['cfr-0001'] }, { source: { kind: 'tree', id: 't-04' } })),
     ], { kind: 'recovery', detail: 'fresh assessment' })));
-    expect(checkFindingStateOf(restarted.log.ledger).findings.get('cf-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
+    expect(checkFindingStateOf(restarted.log.ledger).findings.get('finding:case-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
   });
 });
 
@@ -479,7 +479,7 @@ describe('the CheckFinding projection is rebuilt from the ledger', () => {
     const early = checkFindingStateOf(target.log.ledger);
     committed(await commitCheckFindingChange(target, recorded([report(concern({ attempt: 'rq-0002.a01', summary: 'Scope differs' }))], { kind: 'producer', producer: 'review:scope', attempt: 'rq-0002.a01' })));
     committed(await commitCheckFindingChange(target, recorded([
-      dispose('cf-0001', 1, decision({ action: 'supersede', reassessed: ['cfr-0001'], replacement: 'a later iteration removed the second discount' })),
+      dispose('finding:case-0001', 1, decision({ action: 'supersede', reassessed: ['cfr-0001'], replacement: 'a later iteration removed the second discount' })),
     ], { kind: 'recovery', detail: 'assessed' })));
     const live = checkFindingStateOf(target.log.ledger);
     expect(live).not.toBe(early);
@@ -490,7 +490,7 @@ describe('the CheckFinding projection is rebuilt from the ledger', () => {
     expect(rebuilt).toEqual(live);
     expect(checkFindingStateOf(reopened.ledger)).toEqual(live);
     expect([...rebuilt.ingested.keys()]).toHaveLength(2);
-    for (const query of [{ kind: 'list', owner: null, select: 'all' }, { kind: 'detail', checkFinding: 'cf-0001' }] as const) {
+    for (const query of [{ kind: 'list', owner: null, select: 'all' }, { kind: 'detail', checkFinding: 'finding:case-0001' }] as const) {
       expect(selectCheckFindings(rebuilt, query)).toEqual(selectCheckFindings(live, query));
     }
   });
@@ -501,8 +501,8 @@ describe('the CheckFinding projection is rebuilt from the ledger', () => {
     committed(await commitCheckFindingChange(target, recorded([report(concern())])));
     await rm(join(root, 'check-findings'), { recursive: true });
     const reopened = await RunLog.open(join(root, 'events.jsonl'), runId);
-    expect(checkFindingStateOf(reopened.ledger).findings.get('cf-0001')).toMatchObject({ standing: 'open', reason: 'new' });
-    expect((await reopened.ledger.materialize()).rewritten).toEqual([checkFindingLayout.report('cf-0001', 'cfr-0001')]);
+    expect(checkFindingStateOf(reopened.ledger).findings.get('finding:case-0001')).toMatchObject({ standing: 'open', reason: 'new' });
+    expect((await reopened.ledger.materialize()).rewritten).toEqual([checkFindingLayout.report('finding:case-0001', 'cfr-0001')]);
     // A redelivery after the rebuild is still a replay.
     expect(await commitCheckFindingChange({ mutex: target.mutex, log: reopened }, recorded([reportCommand(concern())])))
       .toMatchObject({ kind: 'replayed' });

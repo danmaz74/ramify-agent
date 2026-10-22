@@ -2,10 +2,12 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { modulePathSchema, sha256Schema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import { recordRefSchema } from '../../../../../task-execution/src/records.js';
-import { slugSchema } from '../../../planning/src/records.js';
 import { testSelectionPolicySchema } from '../work/iterations.js';
 
-const capabilityIdSchema = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const capabilityIdSchema = z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const contractIdSchema = z.string().regex(/^contract:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const obligationIdSchema = z.string().regex(/^provider-obligation:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const requirementIdSchema = z.string().regex(/^consumer-requirement:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 /*
  * The durable records of one agreement between a consumer and a provider:
@@ -24,16 +26,12 @@ const capabilityIdSchema = z.union([slugSchema, z.string().regex(/^capability:[a
 
 const text = z.string().min(1);
 
-/** `ct-001`, the count of committed contracts. */
+/** Accepted agreement identity. */
 export type ContractId = string;
-/** `ob-ct-001`, derived from the contract it belongs to. */
+/** Accepted provider obligation identity. */
 export type ObligationId = string;
-/** `rq-001`, the count of committed requirements. */
+/** Accepted consumer requirement identity. */
 export type RequirementId = string;
-
-export const contractId = (count: number): ContractId => `ct-${String(count).padStart(3, '0')}`;
-export const obligationId = (contract: ContractId): ObligationId => `ob-${contract}`;
-export const requirementId = (count: number): RequirementId => `rq-${String(count).padStart(3, '0')}`;
 
 /**
  * Where the contract-authority rule places the agreement: with the
@@ -95,8 +93,8 @@ export type StandsFor = z.infer<typeof standsForSchema>;
 const fakeArtifact = artifact.extend({ standsFor: z.array(standsForSchema) }).strict();
 
 export const contractRecordSchema = z.object({
-  schema: z.enum(['ramify-agent.contract/2', 'ramify-agent.contract/3']),
-  id: text,
+  schema: z.literal('ramify-agent.contract/3'),
+  id: contractIdSchema,
   revision: z.int().positive(),
   /** The registry entry of the capability this agreement is for. */
   capability: recordRefSchema,
@@ -122,15 +120,12 @@ export const contractRecordSchema = z.object({
     exposure: z.array(z.object({ path: text, declaration: text }).strict()),
   }).strict(),
   establishedBy: z.object({ iteration: text, gate: text }).strict(),
-}).strict().superRefine((record, ctx) => {
-  if (record.schema === 'ramify-agent.contract/3' && !/^contract:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.id))
-    ctx.addIssue({ code: 'custom', path: ['id'], message: 'a contract:<name> ID is required' });
-});
+}).strict();
 export type ContractRecord = z.infer<typeof contractRecordSchema>;
 
 export const providerObligationSchema = z.object({
-  schema: z.enum(['ramify-agent.provider-obligation/1', 'ramify-agent.provider-obligation/2']),
-  id: text,
+  schema: z.literal('ramify-agent.provider-obligation/2'),
+  id: obligationIdSchema,
   /** Equal to the contract revision it was registered at. */
   revision: z.int().positive(),
   contract: recordRefSchema,
@@ -139,19 +134,12 @@ export const providerObligationSchema = z.object({
   behavior: text,
   /** The conformance suite, run against the real provider and against nothing else. */
   evidence: z.object({ conformance: z.array(text), against: z.literal('real') }).strict(),
-}).strict().superRefine((record, ctx) => {
-  if (record.schema === 'ramify-agent.provider-obligation/2') {
-    if (!/^provider-obligation:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.id))
-      ctx.addIssue({ code: 'custom', path: ['id'], message: 'a provider-obligation:<name> ID is required' });
-    if (!record.capability.startsWith('capability:'))
-      ctx.addIssue({ code: 'custom', path: ['capability'], message: 'an accepted capability:<name> ID is required' });
-  }
-});
+}).strict();
 export type ProviderObligation = z.infer<typeof providerObligationSchema>;
 
 export const consumerRequirementSchema = z.object({
-  schema: z.enum(['ramify-agent.consumer-requirement/1', 'ramify-agent.consumer-requirement/2']),
-  id: text,
+  schema: z.literal('ramify-agent.consumer-requirement/2'),
+  id: requirementIdSchema,
   /** Equal to the contract revision. */
   revision: z.int().positive(),
   /** The original consumer work item; the identity stays stable across revisions. */
@@ -159,7 +147,7 @@ export const consumerRequirementSchema = z.object({
   consumer: modulePathSchema,
   /** The capability the consumer is implementing: the tail of the dependency edge. */
   forCapability: capabilityIdSchema,
-  obligation: text,
+  obligation: obligationIdSchema,
   contractRevision: z.int().positive(),
   behavior: text,
   /** What verification replaces: the consumer's own tests, and where the fake is held. */
@@ -167,14 +155,7 @@ export const consumerRequirementSchema = z.object({
     tests: testSelectionPolicySchema,
     fakeInjections: z.array(text),
   }).strict(),
-}).strict().superRefine((record, ctx) => {
-  if (record.schema === 'ramify-agent.consumer-requirement/2') {
-    if (!/^consumer-requirement:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.id))
-      ctx.addIssue({ code: 'custom', path: ['id'], message: 'a consumer-requirement:<name> ID is required' });
-    if (!record.forCapability.startsWith('capability:'))
-      ctx.addIssue({ code: 'custom', path: ['forCapability'], message: 'an accepted capability:<name> ID is required' });
-  }
-});
+}).strict();
 export type ConsumerRequirement = z.infer<typeof consumerRequirementSchema>;
 
 /** Where an agreement's records are materialized, relative to the run's directory. */
@@ -186,13 +167,6 @@ export const contractsLayout = {
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const contractSchemas = {
-  contract: { schema: 'ramify-agent.contract/2', body: contractRecordSchema },
-  obligation: { schema: 'ramify-agent.provider-obligation/1', body: providerObligationSchema },
-  requirement: { schema: 'ramify-agent.consumer-requirement/1', body: consumerRequirementSchema },
-} as const;
-
-/** Exact supported record contracts, including the retained legacy readers. */
-export const descriptiveContractSchemas = {
   contract: { schema: 'ramify-agent.contract/3', body: contractRecordSchema },
   obligation: { schema: 'ramify-agent.provider-obligation/2', body: providerObligationSchema },
   requirement: { schema: 'ramify-agent.consumer-requirement/2', body: consumerRequirementSchema },

@@ -1,3 +1,4 @@
+import { currentAnalysis } from './helpers/analysis.js';
 import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import type { GitCheckpoint } from './helpers/scripted-git.js';
@@ -98,8 +99,8 @@ async function everyAnswer(server: RunningServer, runId: string): Promise<Record
     protocolPaths.runAnalysis(plan, runId),
     protocolPaths.runDecisions(plan, runId),
     protocolPaths.runWorkItems(plan, runId),
-    protocolPaths.runWorkItem(plan, runId, 'wi-001'),
-    protocolPaths.runWorkItem(plan, runId, 'wi-002'),
+    protocolPaths.runWorkItem(plan, runId, 'work-item:review-note'),
+    protocolPaths.runWorkItem(plan, runId, 'work-item:note-drafts'),
     protocolPaths.runCapabilities(plan, runId),
     protocolPaths.runMetrics(plan, runId),
   ];
@@ -222,35 +223,35 @@ describe('every query of a completed run, over HTTP', () => {
     expect(analysis.plan.markdown).toBe(await readFile(join(target.root, 'plans', plan, 'plan.md'), 'utf8'));
     if (analysis.analysis.status !== 'accepted') throw new Error('the analysis was accepted');
     expect(analysis.analysis.entries.map(entry => [entry.capability, entry.owner, entry.workItem])).toEqual([
-      ['review-note', notes, 'wi-001'],
-      ['note-drafts', drafts, 'wi-002'],
+      ['capability:review-note', notes, 'work-item:review-note'],
+      ['capability:note-drafts', drafts, 'work-item:note-drafts'],
     ]);
     expect(analysis.analysis.entries[1]!.proposed).toMatchObject({ parent: notes, directory: draftsDirectory });
     // The hypothesis is a forecast, shown with its standing and revision
     // beside what revision 1 forecast.
     expect(analysis.analysis.hypotheses).toEqual([expect.objectContaining({
-      id: 'note-search', revision: 1, standing: 'tentative', initial: { change: 'create', suggestedOwner: notes, rationale: 'Notes may need to be searched later.' }, decisions: [],
+      id: 'hypothesis:note-search', revision: 1, standing: 'tentative', initial: { change: 'create', suggestedOwner: notes, rationale: 'Notes may need to be searched later.' }, decisions: [],
     })]);
 
     // The decision list: each scope and each outline, from the records that hold them.
     const decisions = decisionListResponseSchema.parse((await get(server, protocolPaths.runDecisions(plan, runId))).body);
     expect(decisions.decisions.filter(decision => decision.kind === 'scope').map(decision => decision.kind === 'scope' && [decision.iteration, decision.modules])).toEqual([
-      ['wi-001.i01', [notes]],
-      ['wi-001.i02', ['collection-review/workspace/reviews']],
-      ['wi-002.i01', [drafts]],
+      ['work-item:review-note.i01', [notes]],
+      ['work-item:review-note.i02', ['collection-review/workspace/reviews']],
+      ['work-item:note-drafts.i01', [drafts]],
     ]);
     // Each outline revision is a plan decision: the one the assignment came
     // with, and the one the completion request committed.
     expect(decisions.decisions.filter(decision => decision.kind === 'plan-revision').map(decision => decision.kind === 'plan-revision' && [decision.workItem, decision.outlineRevision]))
-      .toEqual([['wi-001', 1], ['wi-001', 2], ['wi-002', 1], ['wi-002', 2]]);
+      .toEqual([['work-item:review-note', 1], ['work-item:review-note', 2], ['work-item:note-drafts', 1], ['work-item:note-drafts', 2]]);
     expect(decisions.total).toBe(decisions.decisions.length);
 
     const items = workItemListResponseSchema.parse((await get(server, protocolPaths.runWorkItems(plan, runId))).body);
     expect(items.workItems.map(item => [item.id, item.state, item.capability])).toEqual([
-      ['wi-001', 'completed', 'review-note'],
-      ['wi-002', 'completed', 'note-drafts'],
+      ['work-item:review-note', 'completed', 'capability:review-note'],
+      ['work-item:note-drafts', 'completed', 'capability:note-drafts'],
     ]);
-    const detail = workItemResponseSchema.parse((await get(server, protocolPaths.runWorkItem(plan, runId, 'wi-001'))).body);
+    const detail = workItemResponseSchema.parse((await get(server, protocolPaths.runWorkItem(plan, runId, 'work-item:review-note'))).body);
     expect(detail.iterations).toHaveLength(2);
     expect(detail.iterations[0]!.result?.outcome).toBe('partial');
     expect(detail.iterations[1]!.result?.outcome).toBe('accepted');
@@ -259,9 +260,9 @@ describe('every query of a completed run, over HTTP', () => {
 
     const capabilities = capabilityListResponseSchema.parse((await get(server, protocolPaths.runCapabilities(plan, runId))).body);
     expect(capabilities.capabilities.map(capability => [capability.capability, capability.state, capability.tentative])).toEqual([
-      ['review-note', 'completed', false],
-      ['note-drafts', 'completed', false],
-      ['note-search', 'todo', true],
+      ['capability:review-note', 'completed', false],
+      ['capability:note-drafts', 'completed', false],
+      ['capability:note-search', 'todo', true],
     ]);
 
     // The final gate asked the committed audit in full and plans no command
@@ -314,7 +315,7 @@ describe('commands over HTTP', () => {
   test('an identical retry returns its receipt; a conflicting reuse and a stale version are refused', async () => {
     const root = await commandTarget();
     const server = await serve(root, {
-      agent: createScriptedAgent(declaringScenarios([{ kind: 'submit', input: emptyAnalysis() }])),
+      agent: createScriptedAgent(declaringScenarios([{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }])),
       runs: { inputs: treeInputs(), policy: projectRoot => testPolicy(projectRoot), stopGraceMs: 500, warn: () => undefined },
     }, ['final verification of plan "review-notes"']);
     cleanups.push(() => server.close());
@@ -355,7 +356,7 @@ describe('commands over HTTP', () => {
     const root = await commandTarget();
     const server = await serve(
       root,
-      { agent: createScriptedAgent(declaringScenarios([{ kind: 'submit', input: emptyAnalysis() }])) },
+      { agent: createScriptedAgent(declaringScenarios([{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }])) },
       ['final verification of plan "review-notes"'],
     );
     cleanups.push(() => server.close());
@@ -386,7 +387,7 @@ describe('commands over HTTP', () => {
     const atBoundary = new Promise<void>(resolve => { reached = resolve; });
     const paused = new Promise<void>(resolve => { resume = resolve; });
     const opened = await openRuns(root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
+      script: [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }],
       afterWrite: async write => {
         if (write !== 'invocation-started') return;
         reached();
@@ -477,7 +478,7 @@ describe('commands over HTTP', () => {
     const paused = new Promise<void>(resolve => { resume = resolve; });
     const inputs = treeInputs();
     const opened = await openRuns(root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
+      script: [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }],
       inputs: {
         ...inputs,
         capture: async (...args) => {
@@ -513,7 +514,7 @@ describe('commands over HTTP', () => {
     const atBoundary = new Promise<void>(resolve => { reached = resolve; });
     const paused = new Promise<void>(resolve => { resume = resolve; });
     const opened = await openRuns(root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
+      script: [{ kind: 'submit', input: currentAnalysis(emptyAnalysis(), 'document:review-notes-plan') }],
       afterWrite: async write => {
         if (write !== 'invocation-started') return;
         reached();
@@ -538,37 +539,6 @@ describe('commands over HTTP', () => {
 });
 
 describe('a record of an unsupported version', () => {
-  test('an unavailable retained identity contract stays inspectable and refuses commands without changing the record', async () => {
-    const target = await scriptedTarget();
-    cleanups.push(target.remove);
-    const runId = '20990101T000000Z-abcdef';
-    const path = runPath(target.root, plan, runId, 'job.json');
-    await mkdir(runPath(target.root, plan, runId), { recursive: true });
-    const original = `${JSON.stringify(constructedRecord({ jobId: runId, identityContract: 'future-contract' as 'descriptive' }))}\n`;
-    await writeFile(path, original);
-
-    const server = await serve(target.root);
-    cleanups.push(() => server.close());
-    expect(server.recovery.skipped).toEqual([`${plan}/${runId}`]);
-    const queried = await get(server, protocolPaths.run(plan, runId));
-    expect(queried.status).toBe(422);
-    expect(errorResponseSchema.parse(queried.body).error).toMatchObject({
-      code: 'unsupported-version', message: expect.stringContaining('future-contract'),
-      evidence: [expect.stringContaining(`${runId}/job.json`)],
-    });
-    expect(runListResponseSchema.parse((await get(server, protocolPaths.runs(plan))).body).unserved)
-      .toEqual([{ jobId: runId, path: `plans/${plan}/.harness/jobs/${runId}/job.json`, code: 'unsupported-version',
-        message: expect.stringContaining('future-contract') }]);
-    const inspection = await get(server, protocolPaths.runRestart(plan, runId));
-    expect(inspection.status).toBe(422);
-    expect(errorResponseSchema.parse(inspection.body).error).toMatchObject({ code: 'unsupported-version', message: expect.stringContaining('future-contract') });
-    const stopped = await post(server, { commandId: 'stop-unsupported-contract', expectedVersion: 0,
-      type: 'stop-job', payload: { planId: plan, jobId: runId } });
-    expect(stopped.status).toBe(422);
-    expect(errorResponseSchema.parse(stopped.body).error).toMatchObject({ code: 'unsupported-version', message: expect.stringContaining('future-contract') });
-    expect(await readFile(path, 'utf8')).toBe(original);
-  });
-
   test('surfaces as unsupported-version with evidence, never as an absent run', async () => {
     const target = await scriptedTarget();
     cleanups.push(target.remove);

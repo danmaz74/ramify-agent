@@ -185,7 +185,6 @@ const engineerFields = {
   candidateBefore: text.optional(),
   /** Whether the run coordinates capability needs, which selects the handback the module engineer may submit. */
   capabilityWorkflow: z.boolean(),
-  identityContract: z.enum(['legacy', 'descriptive']).optional(),
   /** Whether the run's policy offers the capability submission. */
   capabilityPolicy: z.boolean(),
   workingDirectory: projectPathSchema,
@@ -339,8 +338,6 @@ export const selectorForkSchema = z.object({ ...selectorFields,
 const workTurnFields = {
   consultation: consultationInputsSchema.nullable().optional(),
   ...commonFields,
-  /** Captured only when the work turn can accept descriptive agreement actions. */
-  identityContract: z.enum(['legacy', 'descriptive']).optional(),
   /** A work turn's inputs are built without a run when an authored assignment is judged. */
   run: optionalRunSchema,
   role: z.literal('local-architect'),

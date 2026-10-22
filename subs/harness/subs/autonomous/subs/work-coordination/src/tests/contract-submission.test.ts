@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { outline, readDeclaredTree } from '../../../../../../src/tests/helpers/iterations.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { contractAuthorJsonSchema, contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, descriptiveContractJsonSchema, descriptiveContractSubmissionSchema, descriptiveContractIdentityErrors, validateContract } from '../contracts/submission.js';
+import { contractAuthorJsonSchema, contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, contractIdentityErrors, validateContract } from '../contracts/submission.js';
 import { fakeNamingViolations, isFakeFile } from '../contracts/naming.js';
 import { contractPublicationRefusal, executionRetirements, registerContract, registrationNeeded } from '../contracts/accept.js';
 import { consumerRequirementSchema, contractRecordSchema, executionRetirementSchema, providerObligationSchema } from '../contracts/records.js';
@@ -60,31 +60,39 @@ function established(extra: Record<string, unknown> = {}) {
   };
 }
 
+function fresh(extra: Record<string, unknown> = {}) {
+  const base = established(extra);
+  return base.mode === 'access-only'
+    ? { ...base, contractKey: 'draft:contract:note-limit' }
+    : { ...base, contractKey: 'draft:contract:note-limit',
+      providerObligationKey: 'draft:provider-obligation:note-limit',
+      consumerRequirementKey: 'draft:consumer-requirement:review-notes-note-limit' };
+}
+
 describe('the contract submission', () => {
   test('descriptive proposals are delivered in the tool schema and reject wrong namespaces at their fields', async () => {
     const proposal = { ...established(), contractKey: 'draft:contract:review-predecessor-resolution',
       providerObligationKey: 'draft:provider-obligation:provide-review-predecessor-resolution',
       consumerRequirementKey: 'draft:consumer-requirement:preview-resolves-review-predecessors' };
-    const delivered = JSON.stringify(descriptiveContractJsonSchema);
+    const delivered = JSON.stringify(contractJsonSchema);
     expect(delivered).toContain('draft:contract:<descriptive-name>');
     expect(delivered).toContain('draft:provider-obligation:<descriptive-name>');
     expect(delivered).toContain('draft:consumer-requirement:<descriptive-name>');
-    expect(descriptiveContractSubmissionSchema.safeParse({ kind: 'incomplete', done: [],
+    expect(contractSubmissionSchema.safeParse({ kind: 'incomplete', done: [],
       unfinished: ['The provider conformance suite remains unfinished.'], findings: [] }).success).toBe(true);
-    expect((await validateContract(proposal, await evidence(), 'descriptive')).ok).toBe(true);
-    const wrong = await validateContract({ ...proposal, consumerRequirementKey: 'provider-obligation:provide-review-predecessor-resolution' }, await evidence(), 'descriptive');
+    expect((await validateContract(proposal, await evidence())).ok).toBe(true);
+    const wrong = await validateContract({ ...proposal, consumerRequirementKey: 'provider-obligation:provide-review-predecessor-resolution' }, await evidence());
     expect(wrong.ok).toBe(false);
     if (!wrong.ok) expect(wrong.errors.map(error => error.path)).toContain('consumerRequirementKey');
-    expect((await validateContract(proposal, await evidence(), 'legacy')).ok).toBe(false);
-    const accepted = await validateContract(proposal, await evidence(), 'descriptive');
+    const accepted = await validateContract(proposal, await evidence());
     if (!accepted.ok || accepted.value.kind !== 'established') throw new Error('the descriptive agreement was rejected');
     const occupied = new Map([
       ['contract:review-predecessor-resolution', 'has an accepted agreement'],
       ['consumer-requirement:preview-resolves-review-predecessors', 'has a retired requirement'],
     ]);
-    expect(descriptiveContractIdentityErrors(accepted.value, occupied).map(error => error.path))
+    expect(contractIdentityErrors(accepted.value, occupied).map(error => error.path))
       .toEqual(['contractKey', 'consumerRequirementKey']);
-    expect(descriptiveContractIdentityErrors(accepted.value, occupied, new Set(['contract:review-predecessor-resolution']))
+    expect(contractIdentityErrors(accepted.value, occupied)
       .map(error => error.path)).toEqual(['contractKey', 'consumerRequirementKey']);
   });
   test('attachment and revision cite the accepted agreement before the gate', async () => {
@@ -93,32 +101,32 @@ describe('the contract submission', () => {
     const attached = { ...established(), ...current,
       consumerRequirementKey: 'draft:consumer-requirement:preview-resolves-review-predecessors' };
     const attachment = { kind: 'attach' as const, ...current };
-    const delivered = JSON.stringify(contractAuthorJsonSchema('descriptive', attachment));
+    const delivered = JSON.stringify(contractAuthorJsonSchema(attachment));
     expect(delivered).toContain('contractId');
     expect(delivered).not.toContain('contractKey');
-    expect((await validateContract(attached, await evidence(), 'descriptive', attachment)).ok).toBe(true);
-    const wrong = await validateContract({ ...attached, contractId: 'contract:another-agreement' }, await evidence(), 'descriptive', attachment);
+    expect((await validateContract(attached, await evidence(), attachment)).ok).toBe(true);
+    const wrong = await validateContract({ ...attached, contractId: 'contract:another-agreement' }, await evidence(), attachment);
     expect(wrong.ok).toBe(false);
     if (!wrong.ok) expect(wrong.errors.map(error => error.path)).toContain('contractId');
     const revision = { kind: 'revise' as const, ...current,
       consumerRequirementId: 'consumer-requirement:preview-resolves-review-predecessors' };
     const revised = { ...established(), ...current, consumerRequirementId: revision.consumerRequirementId };
-    expect((await validateContract(revised, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    expect((await validateContract(revised, await evidence(), revision)).ok).toBe(true);
     const redirected = await validateContract({ ...revised, consumerRequirementId: 'consumer-requirement:other' },
-      await evidence(), 'descriptive', revision);
+      await evidence(), revision);
     expect(redirected.ok).toBe(false);
     if (!redirected.ok) expect(redirected.errors.map(error => error.path)).toContain('consumerRequirementId');
     const keys = ['draft:consumer-requirement:preview-reads-parent', 'draft:consumer-requirement:preview-reads-sibling'];
     const split = { ...established(), ...current, consumerRequirementKeys: keys,
       retirements: [{ id: revision.consumerRequirementId, kind: 'consumer-requirement', replacementKeys: keys,
         reason: 'The two predecessor behaviors need separate verification.' }] };
-    expect((await validateContract(split, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    expect((await validateContract(split, await evidence(), revision)).ok).toBe(true);
     const wrongSource = await validateContract({ ...split, retirements: [{ ...split.retirements[0],
-      id: 'consumer-requirement:foreign' }] }, await evidence(), 'descriptive', revision);
+      id: 'consumer-requirement:foreign' }] }, await evidence(), revision);
     expect(wrongSource.ok).toBe(false);
     if (!wrongSource.ok) expect(wrongSource.errors.map(error => error.path)).toContain('retirements.0.id');
     const missing = await validateContract({ ...split, retirements: [{ ...split.retirements[0],
-      replacementKeys: keys.slice(0, 1) }] }, await evidence(), 'descriptive', revision);
+      replacementKeys: keys.slice(0, 1) }] }, await evidence(), revision);
     expect(missing.ok).toBe(false);
     const replacement = { ...established(), contractKey: 'draft:contract:review-predecessor-routing',
       providerObligationKey: 'draft:provider-obligation:provide-review-predecessor-routing',
@@ -130,15 +138,14 @@ describe('the contract submission', () => {
           replacementKeys: ['draft:provider-obligation:provide-review-predecessor-routing'],
           reason: 'The provider obligation follows the replacement agreement.' },
       ] };
-    expect((await validateContract(replacement, await evidence(), 'descriptive', revision)).ok).toBe(true);
-    const replacementAccepted = await validateContract(replacement, await evidence(), 'descriptive', revision);
+    expect((await validateContract(replacement, await evidence(), revision)).ok).toBe(true);
+    const replacementAccepted = await validateContract(replacement, await evidence(), revision);
     if (!replacementAccepted.ok || replacementAccepted.value.kind !== 'established') throw new Error('replacement was rejected');
     const occupied = new Map([
       ['contract:review-predecessor-routing', 'has an accepted agreement'],
       ['provider-obligation:provide-review-predecessor-routing', 'has a retired obligation'],
     ]);
-    expect(descriptiveContractIdentityErrors(replacementAccepted.value, occupied,
-      new Set([current.contractId, current.providerObligationId])).map(error => error.path))
+    expect(contractIdentityErrors(replacementAccepted.value, occupied).map(error => error.path))
       .toEqual(['contractKey', 'providerObligationKey']);
     const corrected = { ...replacementAccepted.value,
       contractKey: 'draft:contract:review-predecessor-routing-v2',
@@ -147,11 +154,11 @@ describe('the contract submission', () => {
         { ...replacement.retirements[0], replacementKeys: ['draft:contract:review-predecessor-routing-v2'] },
         { ...replacement.retirements[1], replacementKeys: ['draft:provider-obligation:provide-review-predecessor-routing-v2'] },
       ] };
-    expect(descriptiveContractIdentityErrors(corrected, occupied).map(error => error.path)).toEqual([]);
-    expect((await validateContract(corrected, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    expect(contractIdentityErrors(corrected as typeof replacementAccepted.value, occupied).map(error => error.path)).toEqual([]);
+    expect((await validateContract(corrected, await evidence(), revision)).ok).toBe(true);
     const foreignAgreement = await validateContract({ ...replacement, retirements: [
       { ...replacement.retirements[0], id: 'contract:foreign' }, replacement.retirements[1],
-    ] }, await evidence(), 'descriptive', revision);
+    ] }, await evidence(), revision);
     expect(foreignAgreement.ok).toBe(false);
     if (!foreignAgreement.ok) expect(foreignAgreement.errors.map(error => error.path)).toContain('retirements.0.id');
   });
@@ -159,17 +166,17 @@ describe('the contract submission', () => {
     const access = established({ mode: 'access-only',
       artifacts: { ...established().artifacts as object, fake: [], conformance: [] }, fakeInjections: [] });
     const fresh = { ...access, contractKey: 'draft:contract:expose-review-predecessors' };
-    expect((await validateContract(fresh, await evidence(), 'descriptive')).ok).toBe(true);
+    expect((await validateContract(fresh, await evidence())).ok).toBe(true);
     expect((await validateContract({ ...fresh, providerObligationKey: 'draft:provider-obligation:unused' },
-      await evidence(), 'descriptive')).ok).toBe(false);
+      await evidence())).ok).toBe(false);
     const current = { contractId: 'contract:expose-review-predecessors', providerObligationId: null };
     const attached = { ...access, contractId: current.contractId };
-    expect((await validateContract(attached, await evidence(), 'descriptive', { kind: 'attach', ...current })).ok).toBe(true);
-    expect((await validateContract(attached, await evidence(), 'descriptive',
+    expect((await validateContract(attached, await evidence(), { kind: 'attach', ...current })).ok).toBe(true);
+    expect((await validateContract(attached, await evidence(),
       { kind: 'revise', ...current, consumerRequirementId: null })).ok).toBe(true);
     expect((await validateContract({ ...attached, consumerRequirementKey: 'draft:consumer-requirement:unused' },
-      await evidence(), 'descriptive', { kind: 'attach', ...current })).ok).toBe(false);
-    expect(JSON.stringify(contractAuthorJsonSchema('descriptive', { kind: 'attach', ...current })))
+      await evidence(), { kind: 'attach', ...current })).ok).toBe(false);
+    expect(JSON.stringify(contractAuthorJsonSchema({ kind: 'attach', ...current })))
       .toContain('contractId');
   });
   test('a requirement merge stays with one consumer and preserves every named source', async () => {
@@ -186,13 +193,13 @@ describe('the contract submission', () => {
       scope: { consumerWorkItem: 'work-item:review-preview' },
       retirements: [first, second].map(id => ({ id, kind: 'consumer-requirement', replacementKeys: [key],
         reason: 'The same preview verification now covers both predecessor paths.' })) };
-    expect((await validateContract(merged, await evidence(), 'descriptive', revision)).ok).toBe(true);
+    expect((await validateContract(merged, await evidence(), revision)).ok).toBe(true);
     const foreign = await validateContract({ ...merged, retirements: [merged.retirements[0],
-      { ...merged.retirements[1], id: 'consumer-requirement:foreign' }] }, await evidence(), 'descriptive', revision);
+      { ...merged.retirements[1], id: 'consumer-requirement:foreign' }] }, await evidence(), revision);
     expect(foreign.ok).toBe(false);
     if (!foreign.ok) expect(foreign.errors.map(error => error.path)).toContain('retirements.1.id');
     const wrongScope = await validateContract({ ...merged, scope: { consumerWorkItem: 'work-item:another' } },
-      await evidence(), 'descriptive', revision);
+      await evidence(), revision);
     expect(wrongScope.ok).toBe(false);
     if (!wrongScope.ok) expect(wrongScope.errors.map(error => error.path)).toContain('scope.consumerWorkItem');
   });
@@ -213,22 +220,22 @@ describe('the contract submission', () => {
         { id: providerObligationId, kind: 'provider-obligation', replacementKeys: [key], reason: 'The real provider conformed.' },
         { id: requirementId, kind: 'consumer-requirement', replacementKeys: [key], reason: 'The consumer verified the existing behavior.' },
       ] };
-    expect((await validateContract(changed, await evidence(), 'descriptive', revision)).ok).toBe(true);
-    const blocked = await validateContract(changed, await evidence(), 'descriptive', { ...revision,
+    expect((await validateContract(changed, await evidence(), revision)).ok).toBe(true);
+    const blocked = await validateContract(changed, await evidence(), { ...revision,
       conversionBlockers: [`consumer requirement ${requirementId} has not been verified at its current revision`] });
     expect(blocked.ok).toBe(false);
     if (!blocked.ok) expect(blocked.errors.map(error => error.path)).toContain('scope');
     const omitted = await validateContract({ ...changed, retirements: changed.retirements.slice(0, 2) },
-      await evidence(), 'descriptive', revision);
+      await evidence(), revision);
     expect(omitted.ok).toBe(false);
     const bypass = await validateContract({ ...changed, providerObligationKey: 'draft:provider-obligation:unexpected',
-      consumerRequirementId: requirementId }, await evidence(), 'descriptive', revision);
+      consumerRequirementId: requirementId }, await evidence(), revision);
     expect(bypass.ok).toBe(false);
   });
   test('it is a union discriminated on kind, and has no field for an ID the harness knows', () => {
     const union = (contractJsonSchema as { anyOf?: unknown[]; oneOf?: unknown[] });
-    expect(union.anyOf ?? union.oneOf).toHaveLength(2);
-    const kinds = contractSubmissionSchema.options.map(option => option.shape.kind.value);
+    expect(union.anyOf ?? union.oneOf).toHaveLength(3);
+    const kinds = [...new Set(contractSubmissionSchema.options.map(option => option.shape.kind.value))];
     expect(kinds).toEqual(['established', 'incomplete']);
     expect([...contractSubmissionKinds]).toEqual(kinds);
     // The contract, its revision, the obligation, the requirement, the
@@ -249,11 +256,11 @@ describe('the contract submission', () => {
     if (judged.ok) return;
     expect(judged.errors.some(error => error.path === 'kind')).toBe(true);
 
-    const unknownKey = await validateContract({ ...established(), extra: 1 }, await evidence());
+    const unknownKey = await validateContract({ ...fresh(), extra: 1 }, await evidence());
     expect(unknownKey.ok).toBe(false);
     if (!unknownKey.ok) expect(unknownKey.errors.map(error => error.message).join(' ')).toContain('extra');
 
-    const corrected = await validateContract(established(), await evidence());
+    const corrected = await validateContract(fresh(), await evidence());
     expect(corrected.ok).toBe(true);
 
     const incomplete = await validateContract({
@@ -268,16 +275,16 @@ describe('the contract submission', () => {
   test('the rules the schema cannot hold', async () => {
     const known = await evidence();
 
-    const unplaced = await validateContract(established({ provider: 'collection-review/nowhere' }), known);
+    const unplaced = await validateContract(fresh({ provider: 'collection-review/nowhere' }), known);
     expect(unplaced.ok).toBe(false);
     if (!unplaced.ok) expect(unplaced.errors.map(error => error.path)).toContain('provider');
 
-    const absent = await validateContract(established(), { index: known.index, consumer: reviews, exists: async path => !path.endsWith('.fake.ts') });
+    const absent = await validateContract(fresh(), { index: known.index, consumer: reviews, exists: async path => !path.endsWith('.fake.ts') });
     expect(absent.ok).toBe(false);
     if (!absent.ok) expect(absent.errors[0]!.path).toBe('artifacts.fake.0.path');
 
     // A fake-backed agreement has executable evidence, or it delegates nothing.
-    const noFake = await validateContract(established({
+    const noFake = await validateContract(fresh({
       artifacts: { ...established().artifacts as object, fake: [] },
       fakeInjections: [],
     }), known);
@@ -285,13 +292,13 @@ describe('the contract submission', () => {
     if (!noFake.ok) expect(noFake.errors.map(error => error.path)).toEqual(expect.arrayContaining(['artifacts.fake', 'fakeInjections']));
 
     // Access-only establishes access to behavior that already exists.
-    const accessWithFake = await validateContract(established({ mode: 'access-only' }), known);
+    const accessWithFake = await validateContract(fresh({ mode: 'access-only' }), known);
     expect(accessWithFake.ok).toBe(false);
     if (!accessWithFake.ok) {
       expect(accessWithFake.errors.map(error => error.path)).toEqual(expect.arrayContaining(['artifacts.fake', 'fakeInjections', 'artifacts.conformance']));
     }
 
-    const accessOnly = await validateContract(established({
+    const accessOnly = await validateContract(fresh({
       mode: 'access-only',
       artifacts: { ...established().artifacts as object, fake: [], conformance: [] },
       fakeInjections: [],
@@ -299,7 +306,7 @@ describe('the contract submission', () => {
     expect(accessOnly.ok).toBe(true);
 
     // The harness writes the commit's trailers.
-    const trailer = await validateContract(established({ summary: 'Done.\nRamify-Gate: ga-0001' }), known);
+    const trailer = await validateContract(fresh({ summary: 'Done.\nRamify-Gate: ga-0001' }), known);
     expect(trailer.ok).toBe(false);
     if (!trailer.ok) expect(trailer.errors.map(error => error.path)).toContain('summary');
   });
@@ -307,7 +314,7 @@ describe('the contract submission', () => {
 
 describe('the need an engineer reports', () => {
   const need = {
-    capability: 'note-limit',
+    capability: 'capability:note-limit',
     useCases: ['a reviewer attaches a note to a completed review run'],
     inputs: ['the note text'],
     outputs: ['whether the note is within the limit'],
@@ -348,20 +355,20 @@ describe('the yield that waits for a provider', () => {
   });
 
   test('it waits only for an open requirement of this work item', () => {
-    const none = validateLocalArchitect({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'Waiting.' }, base);
+    const none = validateLocalArchitect({ kind: 'yield-for-providers', requirements: ['consumer-requirement:review-notes'], summary: 'Waiting.' }, base);
     expect(none.ok).toBe(false);
     if (!none.ok) expect(none.errors[0]!.message).toContain('no open requirement');
 
     const open = validateLocalArchitect(
-      { kind: 'yield-for-providers', requirements: ['rq-002'], summary: 'Waiting.' },
-      { ...base, openRequirements: new Set(['rq-001']) },
+      { kind: 'yield-for-providers', requirements: ['consumer-requirement:publish-notes'], summary: 'Waiting.' },
+      { ...base, openRequirements: new Set(['consumer-requirement:review-notes']) },
     );
     expect(open.ok).toBe(false);
-    if (!open.ok) expect(open.errors[0]!.expected).toBe('one of rq-001');
+    if (!open.ok) expect(open.errors[0]!.expected).toBe('one of consumer-requirement:review-notes');
 
     expect(validateLocalArchitect(
-      { kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'Waiting.' },
-      { ...base, openRequirements: new Set(['rq-001']) },
+      { kind: 'yield-for-providers', requirements: ['consumer-requirement:review-notes'], summary: 'Waiting.' },
+      { ...base, openRequirements: new Set(['consumer-requirement:review-notes']) },
     ).ok).toBe(true);
   });
 });
@@ -380,13 +387,13 @@ describe('the revision a consumer architect assigns directly', () => {
       citedElements: [],
       externalCapabilities: [],
       completionEvidence: 'The revised suite passes against the fake.',
-      revisesContract: 'ct-001',
+      revisesContract: 'contract:review-notes',
       ...extra,
     },
   });
 
   test('it names an agreement this work item consumes, and only a contract iteration carries one', () => {
-    const consuming = { index: null, registry: new Map(), contracts: new Set(['ct-001']) };
+    const consuming = { index: null, registry: new Map(), contracts: new Set(['contract:review-notes']) };
 
     expect(validateLocalArchitect(assignment(), consuming).ok).toBe(true);
 
@@ -399,9 +406,9 @@ describe('the revision a consumer architect assigns directly', () => {
     }
 
     // An agreement it does not consume is not its to revise.
-    const other = validateLocalArchitect(assignment({ revisesContract: 'ct-009' }), consuming);
+    const other = validateLocalArchitect(assignment({ revisesContract: 'contract:other-notes' }), consuming);
     expect(other.ok).toBe(false);
-    if (!other.ok) expect(other.errors[0]!.expected).toBe('one of ct-001');
+    if (!other.ok) expect(other.errors[0]!.expected).toBe('one of contract:review-notes');
 
     // A contract iteration without an agreement revises nothing.
     const unnamed = validateLocalArchitect(assignment({ revisesContract: undefined }), consuming);
@@ -471,50 +478,49 @@ describe('P2: the fake-naming rule', () => {
 });
 
 describe('registration is keyed by the obligation and the requirement revision', () => {
-  const key = { contract: 'ct-001', revision: 1, obligation: 'ob-ct-001', requirements: ['rq-001'] };
+  const key = { contract: 'contract:review-notes', revision: 1, obligation: 'provider-obligation:review-notes', requirements: ['consumer-requirement:review-notes'] };
 
   test('a registration already in the log is not appended again', () => {
     expect(registrationNeeded([], key)).toBe(true);
     expect(registrationNeeded([key], key)).toBe(false);
     // Another consumer of the same obligation revision still registers: it
     // adds its own requirement and reuses the provider work.
-    expect(registrationNeeded([key], { ...key, requirements: ['rq-002'] })).toBe(true);
+    expect(registrationNeeded([key], { ...key, requirements: ['consumer-requirement:publish-notes'] })).toBe(true);
     // A later revision of the same obligation is its own registration.
-    expect(registrationNeeded([key], { ...key, revision: 2, requirements: ['rq-003'] })).toBe(true);
+    expect(registrationNeeded([key], { ...key, revision: 2, requirements: ['consumer-requirement:render-notes'] })).toBe(true);
     // An access-only agreement has no obligation; the contract revision is its key.
-    const access = { contract: 'ct-002', revision: 1, obligation: null, requirements: [] };
+    const access = { contract: 'contract:publish-notes', revision: 1, obligation: null, requirements: [] };
     expect(registrationNeeded([key], access)).toBe(true);
     expect(registrationNeeded([key, access], access)).toBe(false);
   });
 
   test('a reopening carries the same key, so a repeat of it appends nothing', () => {
-    const attached = { ...key, requirements: ['rq-001', 'rq-002'] };
+    const attached = { ...key, requirements: ['consumer-requirement:review-notes', 'consumer-requirement:publish-notes'] };
     // A revision reopens every attached requirement at the new revision.
-    const reopened = { contract: 'ct-001', revision: 2, obligation: 'ob-ct-001', requirements: ['rq-001', 'rq-002'] };
+    const reopened = { contract: 'contract:review-notes', revision: 2, obligation: 'provider-obligation:review-notes', requirements: ['consumer-requirement:review-notes', 'consumer-requirement:publish-notes'] };
     expect(registrationNeeded([attached], reopened)).toBe(true);
     // The same transaction derived again, as a repeat after a crash derives
     // it, is already in the log.
     expect(registrationNeeded([attached, reopened], reopened)).toBe(false);
     // A consumer attaching at the revision it was registered under is a
     // registration of its own.
-    expect(registrationNeeded([attached, reopened], { ...reopened, requirements: ['rq-001', 'rq-002', 'rq-003'] })).toBe(true);
+    expect(registrationNeeded([attached, reopened], { ...reopened, requirements: ['consumer-requirement:review-notes', 'consumer-requirement:publish-notes', 'consumer-requirement:render-notes'] })).toBe(true);
   });
 });
 
 test('an integration work item derives a stable descriptive ID from its accepted scenario', () => {
   const scenario = { id: 'scenario:preview-binds-review-predecessors', name: 'Preview binds review predecessors', owner: reviews } as Parameters<typeof integrationWorkItem>[0];
-  const first = integrationWorkItem(scenario, 4, 'descriptive');
+  const first = integrationWorkItem(scenario);
   expect(first).toMatchObject({ schema: 'ramify-agent.work-item/2', id: 'work-item:bind-preview-binds-review-predecessors',
     functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [] });
-  expect(integrationWorkItem(scenario, 18, 'descriptive').id).toBe(first.id);
-  expect(integrationWorkItem(scenario, 4).id).toBe('wi-005');
+  expect(integrationWorkItem(scenario).id).toBe(first.id);
 });
 
 test('descriptive agreement and obligation survive record serialization with their relationship', async () => {
   const proposal = { ...established(), contractKey: 'draft:contract:review-predecessor-resolution',
     providerObligationKey: 'draft:provider-obligation:provide-review-predecessor-resolution',
     consumerRequirementKey: 'draft:consumer-requirement:preview-resolves-review-predecessors' };
-  const accepted = await validateContract(proposal, await evidence(), 'descriptive');
+  const accepted = await validateContract(proposal, await evidence());
   if (!accepted.ok || accepted.value.kind !== 'established') throw new Error('the agreement was rejected');
   const hashes = new Map<string, string>();
   for (const entry of [...proposal.artifacts.interface, ...proposal.artifacts.conformance,
@@ -671,79 +677,77 @@ describe('the dependency graph has capabilities for nodes', () => {
   test('a capability that transitively depends on itself is a cycle, and a chain through one module is not', () => {
     // Change 1 in module A needs change 2 in module B, which needs change 3
     // in module A: three capabilities, no cycle.
-    const chain = [edge('one', 'two', 'rq-001', 'wi-001')];
-    expect(cycleClosedBy(chain, edge('two', 'three', 'rq-002', 'wi-002'))).toBeNull();
+    const chain = [edge('one', 'two', 'consumer-requirement:review-notes', 'work-item:review-notes')];
+    expect(cycleClosedBy(chain, edge('two', 'three', 'consumer-requirement:publish-notes', 'work-item:publish-notes'))).toBeNull();
 
     const closed = cycleClosedBy(
-      [edge('one', 'two', 'rq-001', 'wi-001'), edge('two', 'three', 'rq-002', 'wi-002')],
-      edge('three', 'one', 'rq-003', 'wi-003'),
+      [edge('one', 'two', 'consumer-requirement:review-notes', 'work-item:review-notes'), edge('two', 'three', 'consumer-requirement:publish-notes', 'work-item:publish-notes')],
+      edge('three', 'one', 'consumer-requirement:render-notes', 'work-item:render-notes'),
     );
     expect(closed).not.toBeNull();
     expect(closed!.members).toEqual(['one', 'two', 'three']);
-    expect(closed!.requirements).toEqual(['rq-001', 'rq-002', 'rq-003']);
+    expect(closed!.requirements).toEqual(['consumer-requirement:review-notes', 'consumer-requirement:publish-notes', 'consumer-requirement:render-notes']);
 
     // The same cycle written from another edge reads the same way, which is
     // what makes "the same cycle again" a comparison and not a guess.
     const other = cycleClosedBy(
-      [edge('two', 'three', 'rq-002', 'wi-002'), edge('three', 'one', 'rq-003', 'wi-003')],
-      edge('one', 'two', 'rq-001', 'wi-001'),
+      [edge('two', 'three', 'consumer-requirement:publish-notes', 'work-item:publish-notes'), edge('three', 'one', 'consumer-requirement:render-notes', 'work-item:render-notes')],
+      edge('one', 'two', 'consumer-requirement:review-notes', 'work-item:review-notes'),
     );
     expect(cycleIdentity(other!)).toBe(cycleIdentity(closed!));
 
     // A capability that depends on itself is the shortest cycle there is.
-    expect(cycleClosedBy([], edge('one', 'one', 'rq-004', 'wi-004'))!.members).toEqual(['one']);
+    expect(cycleClosedBy([], edge('one', 'one', 'consumer-requirement:self-notes', 'work-item:verify-notes'))!.members).toEqual(['one']);
   });
 });
 
 describe('scheduling is depth-first', () => {
   const item = (id: string, startedFor: string | null): WorkItem => ({
-    schema: 'ramify-agent.work-item/1',
+    schema: 'ramify-agent.work-item/2',
     id,
     module: `m/${id}`,
-    origin: { entry: 'a-capability' },
+    origin: { entry: 'capability:review-notes' },
     goal: 'do the work',
-    requirementRefs: [],
-    acceptanceRefs: [],
-    contextRefs: [],
+    functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [],
     startedFor,
   });
 
   test('the deepest open item runs first, and a resumable consumer comes before an independent entry item', () => {
-    const items = [item('wi-001', null), item('wi-002', null), item('wi-003', 'wi-001'), item('wi-004', 'wi-003')];
+    const items = [item('work-item:review-notes', null), item('work-item:publish-notes', null), item('work-item:render-notes', 'work-item:review-notes'), item('work-item:verify-notes', 'work-item:render-notes')];
     expect([...depthOf(items).values()]).toEqual([0, 0, 1, 2]);
 
     const requirement = {
-      schema: 'ramify-agent.consumer-requirement/1' as const,
-      id: 'rq-001', revision: 1, workItem: 'wi-001', consumer: 'm/wi-001',
-      forCapability: 'a-capability', obligation: 'ob-ct-001', contractRevision: 1,
+      schema: 'ramify-agent.consumer-requirement/2' as const,
+      id: 'consumer-requirement:review-notes', revision: 1, workItem: 'work-item:review-notes', consumer: 'm/work-item:review-notes',
+      forCapability: 'capability:review-notes', obligation: 'provider-obligation:review-notes', contractRevision: 1,
       behavior: 'the agreed behavior',
       evidence: { tests: { policy: 'owned-by-scope' as const, exactOwners: [], subtrees: [], extraSuites: [] }, fakeInjections: [] },
     };
     const base = {
       items,
       completed: new Set<string>(),
-      requirements: new Map([['rq-001', requirement]]),
+      requirements: new Map([['consumer-requirement:review-notes', requirement]]),
       bindings: new Map<string, string>(),
       reopened: new Set<string>(),
     };
 
-    // wi-001 has yielded; the deepest provider runs, not the next entry item.
-    const waiting = { ...base, yielded: new Map([['wi-001', ['rq-001']]]), conformed: new Set<string>() };
-    expect(nextWorkItem(waiting)!.item.id).toBe('wi-004');
+    // work-item:review-notes has yielded; the deepest provider runs, not the next entry item.
+    const waiting = { ...base, yielded: new Map([['work-item:review-notes', ['consumer-requirement:review-notes']]]), conformed: new Set<string>() };
+    expect(nextWorkItem(waiting)!.item.id).toBe('work-item:verify-notes');
 
-    // Once the provider has conformed, the consumer comes back before wi-002.
-    const released = { ...base, yielded: new Map([['wi-001', ['rq-001']]]), conformed: new Set(['ob-ct-001@1']) };
+    // Once the provider has conformed, the consumer comes back before work-item:publish-notes.
+    const released = { ...base, yielded: new Map([['work-item:review-notes', ['consumer-requirement:review-notes']]]), conformed: new Set(['provider-obligation:review-notes@1']) };
     const next = nextWorkItem(released)!;
-    expect(next.item.id).toBe('wi-001');
-    expect(next.resumes).toEqual(['rq-001']);
+    expect(next.item.id).toBe('work-item:review-notes');
+    expect(next.resumes).toEqual(['consumer-requirement:review-notes']);
 
     // With nothing yielded, the committed order is the order.
-    expect(nextWorkItem({ ...base, yielded: new Map(), conformed: new Set<string>() })!.item.id).toBe('wi-004');
+    expect(nextWorkItem({ ...base, yielded: new Map(), conformed: new Set<string>() })!.item.id).toBe('work-item:verify-notes');
     expect(nextWorkItem({
       ...base,
-      items: [item('wi-001', null), item('wi-002', null)],
+      items: [item('work-item:review-notes', null), item('work-item:publish-notes', null)],
       yielded: new Map(),
       conformed: new Set<string>(),
-    })!.item.id).toBe('wi-001');
+    })!.item.id).toBe('work-item:review-notes');
   });
 });

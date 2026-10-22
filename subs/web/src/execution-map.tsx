@@ -60,7 +60,7 @@ function moduleText(node: ExecutionNode, byKey: ReadonlyMap<string, ExecutionNod
   if (node.kind === 'capability') return node.owner ?? moduleNotRecorded;
   if (node.kind === 'work-item' || node.kind === 'iteration') return node.module ?? moduleNotRecorded;
   if (node.kind === 'gate' && node.subject.workItem !== null && !node.modules.length) {
-    const item = byKey.get(`work-item:${node.subject.workItem}`);
+    const item = byKey.get(node.subject.workItem);
     return item?.kind === 'work-item' && item.module !== null ? item.module : moduleNotRecorded;
   }
   if (node.kind === 'session' && (node.reach.kind === 'work-item' || node.reach.kind === 'module' || node.reach.kind === 'capability-task')) return node.reach.module ?? moduleNotRecorded;
@@ -206,9 +206,9 @@ function Detail({ node, map, client, planId, runId, onOpenGate, onOpenSession }:
   client: ProtocolClient; planId: string; runId: string; onOpenGate: (gate: string) => void; onOpenSession: (id: string) => void }) {
   const key = node?.key ?? '';
   const capability = useQuery(`capability-detail:${runId}:${map.runVersion}:${key}`, () =>
-    node?.kind === 'capability' ? client.getExecutionCapability(planId, runId, key.slice('capability:'.length), map.runVersion) : Promise.resolve(null));
+    node?.kind === 'capability' ? client.getExecutionCapability(planId, runId, key, map.runVersion) : Promise.resolve(null));
   const scenario = useQuery(`scenario-detail:${runId}:${map.runVersion}:${key}`, () =>
-    node?.kind === 'scenario' ? client.getExecutionScenario(planId, runId, key.slice('scenario:'.length), map.runVersion) : Promise.resolve(null));
+    node?.kind === 'scenario' ? client.getExecutionScenario(planId, runId, key, map.runVersion) : Promise.resolve(null));
   const gate = useQuery(`gate-detail:${runId}:${map.runVersion}:${key}`, () =>
     node?.kind === 'gate' && !node.active ? client.getGate(planId, runId, key.slice('gate:'.length)) : Promise.resolve(null));
   if (!node) return <p className="muted">Select a map card, scenario name, session or gate for its recorded detail.</p>;
@@ -394,7 +394,7 @@ function Canvas({ map, events, client, planId, runId, onOpenGate, selected, onSe
       flash: flash === p.key,
       related: directMatches.has(p.key),
       hasChildren: hasChildren.has(p.key),
-      awaitingDecision: byKey.get(p.key)?.kind === 'work-item' && waitingWorkItems.has(p.key.slice('work-item:'.length)),
+      awaitingDecision: byKey.get(p.key)?.kind === 'work-item' && waitingWorkItems.has(p.key),
       startedAt: startedAt(p.key),
       step: p.key === map.current.runningGate && map.current.gateCommand
         ? map.current.gateCommand.waitingLine ?? gateStep(map.current.gateCommand) : null,

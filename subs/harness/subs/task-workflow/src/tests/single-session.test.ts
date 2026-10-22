@@ -346,11 +346,12 @@ describe('a single engineer session', () => {
     const capabilityNeeded = {
       kind: 'capability-needed',
       request: {
+        requestKey: 'draft:capability-request:long-note-limit',
         need: 'Refuse a note longer than the provider limit.',
         usage: [{ path: notesSource, use: 'The note validator calls the limit provider.', prospective: false }],
         constraints: [],
         knownInterface: { kind: 'none-known' },
-        examples: [{ title: 'Long note', code: 'expect(validateNote(longNote)).toBe(false)', designation: 'pseudocode' }],
+        examples: [{ key: 'draft:capability-example:long-note-limit', title: 'Long note', code: 'expect(validateNote(longNote)).toBe(false)', designation: 'pseudocode' }],
       },
       summary: 'The limit is owned by another module.',
     };
@@ -375,10 +376,11 @@ describe('a single engineer session', () => {
     const root = await project();
     const future = `${notesDirectory}/src/new.ts`;
     const need = (module: string) => ({ kind: 'capability-needed', summary: 'Need a note limit', request: {
+      requestKey: 'draft:capability-request:long-note-limit',
       need: 'Refuse notes longer than the configured limit',
       usage: [{ path: future, use: 'Test configured limits', prospective: true, module }], constraints: [],
       knownInterface: { kind: 'none-known' },
-      examples: [{ title: 'Long note', code: 'expect(validateNote(longNote)).toBe(false)', designation: 'pseudocode' }],
+      examples: [{ key: 'draft:capability-example:long-note-limit', title: 'Long note', code: 'expect(validateNote(longNote)).toBe(false)', designation: 'pseudocode' }],
     } });
     const { result, events } = await session(root, [
       { kind: 'submit', input: need('collection-review/integration-tests') },
@@ -522,7 +524,7 @@ describe('the session\'s records', () => {
     const observations = await observationsOf(records);
     expect(observations.map(line => line.type)).toEqual(expect.arrayContaining(['activity', 'guard', 'mutation', 'hook-check', 'coverage-gap']));
     const { schema, ...submitted } = JSON.parse(await readFile(paths.submission, 'utf8')) as Record<string, unknown>;
-    expect(schema).toBe('ramify-agent.engineer-submission/1');
+    expect(schema).toBe('ramify-agent.engineer-submission/2');
     engineerSubmissionSchema.parse(submitted);
     const outcome = await outcomeOf(records);
     expect(outcome).toMatchObject({ ended: 'submitted' });

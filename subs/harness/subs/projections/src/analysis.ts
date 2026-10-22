@@ -41,10 +41,8 @@ export async function analysisOf(view: RunView): Promise<AnalysisResponse> {
       ? null
       : { parent: entry.proposed.parent, directory: entry.proposed.directory, purpose: entry.proposed.purpose, tags: [...entry.proposed.tags] },
     workItem: workItemOf.get(acceptedEntryCapability(assignments, entry)) ?? null,
-    ...(assignments.schema === 'ramify-agent.entry-assignments/2'
-      ? { capabilityId: entry.capabilityId!, functionalRequirementIds: [...entry.functionalRequirementIds!],
-          functionalAcceptanceIds: [...entry.functionalAcceptanceIds!], contextIds: [...entry.contextIds!] }
-      : { requirementRefs: [...entry.requirementRefs], acceptanceRefs: [...entry.acceptanceRefs], contextRefs: [...entry.contextRefs] }),
+    capabilityId: entry.capabilityId, functionalRequirementIds: [...entry.functionalRequirementIds],
+    functionalAcceptanceIds: [...entry.functionalAcceptanceIds], contextIds: [...entry.contextIds],
   }));
 
   const hypotheses = hypothesesOf(view);
@@ -142,7 +140,7 @@ export function decisionsOf(view: RunView): DecisionView[] {
   const committed = new Map<string, { sequence: number; at: string; sourceRun?: string }>();
   for (const line of view.entries) {
     for (const record of line.transaction.records) {
-      if (['ramify-agent.placement-decision/1', 'ramify-agent.placement-decision/2'].includes(String((record.body as { schema?: unknown } | null)?.schema))) {
+      if ((record.body as { schema?: unknown } | null)?.schema === 'ramify-agent.placement-decision/2') {
         committed.set((record.body as { id: string }).id, { ...publicSequence(view.entries, line.sequence), at: line.at });
       }
     }

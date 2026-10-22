@@ -40,23 +40,14 @@ const request = (jobId: string, commandId = 'assess-1') => ({ planId: 'sample', 
   candidate: other, kind: 'iteration' as const, brief: 'Implemented the first change.', acceptance: ['scenario-1'], requirementDocuments: [], commandId });
 
 describe('assisted jobs and assessments', () => {
-  it('defaults fresh registrations to descriptive while explicit legacy and retained records keep their original bytes', async () => {
-    const { root, open } = await fixture();
+  it('registers one current assisted job and returns the same registration after reopening', async () => {
+    const { open } = await fixture();
     let service = await open();
-    const legacy = await service.planStart({ planId: 'sample', commandId: 'legacy-start', identityContract: 'legacy' });
-    const fresh = await service.planStart({ planId: 'sample', commandId: 'fresh-start' });
-    const named = await service.planStart({ planId: 'sample', commandId: 'named-start', identityContract: 'descriptive' });
-    const jobFile = (id: string) => join(root, 'plans', 'sample', '.harness', 'jobs', id, 'job.json');
-    expect(JSON.parse(await readFile(jobFile(legacy.jobId), 'utf8'))).not.toHaveProperty('identityContract');
-    expect(JSON.parse(await readFile(jobFile(named.jobId), 'utf8'))).toHaveProperty('identityContract', 'descriptive');
-    expect(JSON.parse(await readFile(jobFile(fresh.jobId), 'utf8'))).toHaveProperty('identityContract', 'descriptive');
-    await expect(service.planStart({ planId: 'sample', commandId: 'named-start', identityContract: 'legacy' })).rejects.toThrow('different command');
+    const first = await service.planStart({ planId: 'sample', commandId: 'start' });
     await service.close();
     services.splice(services.indexOf(service), 1);
     service = await open();
-    expect(service.assistedJob('sample', named.jobId).identityContract).toBe('descriptive');
-    expect(service.assistedJob('sample', legacy.jobId).identityContract).toBeUndefined();
-    expect(await service.planStart({ planId: 'sample', commandId: 'legacy-start' })).toEqual(legacy);
+    expect(await service.planStart({ planId: 'sample', commandId: 'start' })).toEqual(first);
   });
   it('captures a plan once, returns the original registration on retry after reopening, and discovers mixed kinds', async () => {
     const { root, open } = await fixture();
@@ -171,10 +162,10 @@ describe('assisted jobs and assessments', () => {
     const assessor: Assessor = async context => {
       await context.checkpoint('protection', { candidateCommit: context.assessment.request.candidate, violations: ['plan.md'] });
       const evidence = { kind: 'assessment-stage', ref: `assessments/${context.assessment.id}/stages/protection.json`, hash: null };
-      const report = reportCommand({ ...concern({ tree: context.assessment.request.candidate }), owner: { kind: 'run' },
+      const report = reportCommand({ ...concern({ tree: context.assessment.request.candidate, findingKey: 'draft:finding:review-concern-01' }), owner: { kind: 'run' },
         observation: { kind: 'review-concern', summary: 'Protected file changed', evidence: [evidence], locations: [] } });
       await context.recordFindings([report], 'protection:report');
-      await context.recordFindings([{ type: 'dispose', checkFinding: 'cf-0001', expectedRevision: 1, decision: {
+      await context.recordFindings([{ type: 'dispose', checkFinding: 'finding:review-concern-01', expectedRevision: 1, decision: {
         actor: { kind: 'agent', role: 'reconciler', invocation: 'assessment-1' }, source: { kind: 'tree', id: context.assessment.request.candidate },
         rationale: 'The protected change needs an authorized choice', evidence: [evidence], communication: { mode: 'quiet' },
         decision: { action: 'request-user-decision', authority: { kind: 'governing-record', ref: 'plan.md' },
@@ -182,7 +173,7 @@ describe('assisted jobs and assessments', () => {
           options: [{ id: 'accept-exact-change', summary: 'Accept exact change', consequence: 'This candidate may retain it' },
             { id: 'restore', summary: 'Restore file', consequence: 'Worker repairs candidate' }] },
       } }], 'protection:choice');
-      return { gate: 'action-required', summary: 'Protected change needs decision', repairs: [], decisions: ['cf-0001'], gaps: [], evidence: [evidence.ref] };
+      return { gate: 'action-required', summary: 'Protected change needs decision', repairs: [], decisions: ['finding:review-concern-01'], gaps: [], evidence: [evidence.ref] };
     };
     const { root, open } = await fixture(assessor);
     const service = await open();
@@ -192,7 +183,7 @@ describe('assisted jobs and assessments', () => {
     const path = join(root, 'plans', 'sample', '.harness', 'jobs', job.jobId, 'assessments', admitted.assessmentId, 'stages', 'protection.json');
     expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({ candidateCommit: other });
     const answer = { planId: 'sample', jobId: job.jobId, assessmentId: admitted.assessmentId,
-      checkFinding: 'cf-0001', request: 'cfd-0001', option: 'accept-exact-change', userName: 'Owner', authority: 'decision-42', commandId: 'answer-1' };
+      checkFinding: 'finding:review-concern-01', request: 'cfd-0001', option: 'accept-exact-change', userName: 'Owner', authority: 'decision-42', commandId: 'answer-1' };
     const first = await service.findingAnswer(answer);
     expect(await service.findingAnswer(answer)).toEqual(first);
     expect(service.findings('sample', job.jobId)[0]?.reason).toBe('user-decision-answered');
@@ -229,7 +220,7 @@ describe('assisted jobs and assessments', () => {
         violations: [{ path: 'plan.md', status: 'M', before: { kind: 'file', objectId: '1'.repeat(40) }, after: { kind: 'file', objectId: '2'.repeat(40) }, authorizedBy: null }] };
       await context.checkpoint('protection', stage);
       await context.recordFindings([reportCommand({ producer: 'check:protection', attempt: context.assessment.id,
-        reportKey: 'protected:plan.md', owner: { kind: 'run' }, source: { kind: 'tree', id: context.assessment.request.candidate },
+        reportKey: 'protected:plan.md', findingKey: 'draft:finding:protected-plan', owner: { kind: 'run' }, source: { kind: 'tree', id: context.assessment.request.candidate },
         issueKey: 'protected:plan.md', verification: { kind: 'check', producer: 'check:protection',
           obligation: { subject: 'protected:plan.md', revision: 1 }, selection: 'rules-v1', required: true },
         observation: { kind: 'check-failed', summary: 'Protected file changed',
@@ -248,7 +239,7 @@ describe('assisted jobs and assessments', () => {
     const first = await service.protectionAccept(input);
     expect(first.finalization).toBeUndefined();
     expect(service.assessmentResult('sample', job.jobId, admitted.assessmentId)?.gate).toBe('action-required');
-    expect(first).toMatchObject({ path: 'plan.md', checkFinding: 'cf-0001', request: 'cfd-0001', option: 'accept-exact-change' });
+    expect(first).toMatchObject({ path: 'plan.md', checkFinding: 'finding:protected-plan', request: 'cfd-0001', option: 'accept-exact-change' });
     expect(await service.protectionAccept(input)).toEqual(first);
     expect(service.findings('sample', job.jobId)[0]?.reason).toBe('user-decision-answered');
     await service.close();

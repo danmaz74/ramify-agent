@@ -15,7 +15,7 @@ import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { copyFixture } from './helpers/fixture.js';
 import { defaultTurn, withDefaultTurns } from './helpers/declarations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { openRunsWithoutProcesses, expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
@@ -60,23 +60,23 @@ test('functional work cites one NFR while the coordinator assesses the complete 
   let localTurn = 0;
   const script = withDefaultTurns(spec => {
     if (spec.submission.name === intakeToolName) {
-      documents = [...spec.prompt.matchAll(/^- (doc-\d{3,}) \(plan\): ([^;]+);/gmu)].map(match => ({ id: match[1]!, path: match[2]! }));
+      documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\): ([^;]+);/gmu)].map(match => ({ id: match[1]!, path: match[2]! }));
       const audit = documents.find(document => document.path === 'plans/revision-diff/audit.md')!.id;
       const input = (defaultTurn(spec)![0] as { readonly input: Record<string, unknown> }).input;
       return submit({ ...input, elements: [
-        { key: 'timeout', kind: 'non-functional', document: 'doc-001', text: selectedQuote, conditions: [], uncertainty: '' },
-        { key: 'audit', kind: 'non-functional', document: audit, text: uncitedQuote, conditions: [], uncertainty: '' },
-        { key: 'redis', kind: 'recommendation', document: 'doc-001', text: advice, conditions: [], uncertainty: 'Optional.' },
+        { key: 'draft:non-functional-requirement:timeout', kind: 'non-functional', document: 'document:revision-diff-plan', text: selectedQuote, conditions: [], uncertainty: '' },
+        { key: 'draft:non-functional-requirement:audit-record', kind: 'non-functional', document: audit, text: uncitedQuote, conditions: [], uncertainty: '' },
+        { key: 'draft:recommendation:redis', kind: 'recommendation', document: 'document:revision-diff-plan', text: advice, conditions: [], uncertainty: 'Optional.' },
       ] });
     }
-    if (spec.role === 'initial-architect') return submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core', 'Summarizes a review.')]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('review-summary', 'collection-review/workspace/reviews/core', 'Summarizes a review.')]), 'document:revision-diff-plan'));
     if (spec.submission.name === 'submit_work_item_result') return localTurn++ === 0
-      ? submit(assign('collection-review/workspace/reviews/core', { citedElements: ['fr-001', 'nfr-001'], obligations: ['sc-001'] }, outline()))
-      : submit({ ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] });
-    if (spec.role === 'engineer') return submit(completionProposed('The behavior satisfies the assignment.', { bindings: [{ id: 'sc-001' }] }));
+      ? submit(assign('collection-review/workspace/reviews/core', { citedElements: ['functional-requirement:review-summary-request', 'non-functional-requirement:timeout'], obligations: ['scenario:review-summary-is-used'] }, outline()))
+      : submit({ ...requestCompletion(), reports: [{ id: 'scenario:review-summary-is-used', judgment: 'done', basedOnRevision: 0 }] });
+    if (spec.role === 'engineer') return submit(completionProposed('The behavior satisfies the assignment.', { bindings: [{ id: 'scenario:review-summary-is-used' }] }));
     if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [
-      { nfr: 'nfr-001', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Timeout source inspected.'], uncertainty: '' },
-      { nfr: 'nfr-002', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Audit record source inspected.'], uncertainty: '' },
+      { nfr: 'non-functional-requirement:timeout', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Timeout source inspected.'], uncertainty: '' },
+      { nfr: 'non-functional-requirement:audit-record', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Audit record source inspected.'], uncertainty: '' },
     ] });
     return [];
   });
@@ -84,15 +84,15 @@ test('functional work cites one NFR while the coordinator assesses the complete 
     if (spec.submission.name !== contextSelectorToolName) return typeof script === 'function' ? script(spec) : script;
     const parent = agent.sessions.find(session => session.spec.submission.name === workOrientationToolName);
     if (!parent || !agent.loseSession(JSON.parse(parent.ref))) throw new Error('Expected retained orientation point');
-    return submit({ selected: [{ id: 'nfr-001', reason: 'Needed by this assignment', conditions: [], uncertainty: '' }] });
+    return submit({ selected: [{ id: 'non-functional-requirement:timeout', reason: 'Needed by this assignment', conditions: [], uncertainty: '' }] });
   });
   const scenario = scenariosCommit('revision-diff');
   const tree = 'a'.repeat(40);
   const git = scriptedGit(fixture.root, {
     head: 'unchanged-fixture-revision',
     checkpoints: [scenario,
-      { subject: 'wi-001.i01', commit: null, changes: [] },
-      { subject: 'wi-001', commit: null, changes: [] },
+      { subject: 'work-item:review-summary.i01', commit: null, changes: [] },
+      { subject: 'work-item:review-summary', commit: null, changes: [] },
       { subject: 'final verification of plan "revision-diff"', commit: null, changes: [] }],
     previews: Array.from({ length: 5 }, () => ({ repositoryRoot: fixture.root, head: scenario.commit!, tree })),
   });
@@ -116,14 +116,14 @@ test('functional work cites one NFR while the coordinator assesses the complete 
   expect(accepted?.data.catalog).toEqual({ context: 0, functional: 2, nonFunctional: 2, fixed: 0, recommendation: 1 });
   const catalog = elementCatalogSchema.parse(JSON.parse(await readFile(join(directory, accepted!.data.evidence!.catalog.path), 'utf8')));
   expect(catalog.elements.map(element => [element.id, element.kind])).toEqual([
-    ['nfr-001', 'non-functional'], ['nfr-002', 'non-functional'], ['rec-001', 'recommendation'], ['fr-001', 'functional'], ['fr-002', 'functional'],
+    ['non-functional-requirement:timeout', 'non-functional'], ['non-functional-requirement:audit-record', 'non-functional'], ['recommendation:redis', 'recommendation'], ['functional-requirement:review-summary-request', 'functional'], ['functional-requirement:review-summary-acceptance', 'functional'],
   ]);
   const engineers = agent.sessions.filter(session => session.spec.role === 'engineer');
   expect(engineers).toHaveLength(1);
   expect(engineers[0]!.spec.prompt).toContain(selectedQuote);
   expect(engineers[0]!.spec.prompt).not.toContain(uncitedQuote);
   expect(engineers[0]!.spec.prompt).not.toContain(advice);
-  expect(catalog.elements.find(element => element.id === 'nfr-001')!.document).not.toBe(catalog.elements.find(element => element.id === 'nfr-002')!.document);
+  expect(catalog.elements.find(element => element.id === 'non-functional-requirement:timeout')!.document).not.toBe(catalog.elements.find(element => element.id === 'non-functional-requirement:audit-record')!.document);
   expect(documents.some(document => document.path === 'plans/revision-diff/audit.md')).toBe(true);
   const coordinator = agent.sessions.filter(session => session.spec.role === 'nonfunctional-coordinator');
   expect(coordinator).toHaveLength(1);
@@ -132,11 +132,11 @@ test('functional work cites one NFR while the coordinator assesses the complete 
   expect(coordinator[0]!.spec.prompt).toContain(`\"tree\":\"${tree}\"`);
   expect(coordinator[0]!.spec.prompt).toContain('\"changedPaths\":[]');
   expect(coordinator[0]!.spec.prompt).toContain(uncitedQuote);
-  expect(coordinator[0]!.spec.prompt).toContain('### nfr-002');
+  expect(coordinator[0]!.spec.prompt).toContain('### non-functional-requirement:audit-record');
   expect(coordinator[0]!.spec.prompt).not.toContain(advice);
-  expect(coordinator[0]!.spec.prompt).not.toContain('rec-001');
+  expect(coordinator[0]!.spec.prompt).not.toContain('recommendation:redis');
   const assessment = JSON.parse(await readFile(join(directory, runLayout.assessment('nfa-001')), 'utf8'));
-  expect(assessment.results.map((item: { nfr: string }) => item.nfr)).toEqual(['nfr-001', 'nfr-002']);
+  expect(assessment.results.map((item: { nfr: string }) => item.nfr)).toEqual(['non-functional-requirement:timeout', 'non-functional-requirement:audit-record']);
   expect(assessment.candidate.tree).toBe(tree);
   expect(events.find(event => event.type === 'candidate-prepared')?.data.tree).toBe(tree);
   const bound = events.find(event => event.type === 'candidate-bound-to-gate');
@@ -152,10 +152,10 @@ test('functional work cites one NFR while the coordinator assesses the complete 
   if (exportPath !== undefined) {
     const selected = events.find(event => event.type === 'context-selection-recorded');
     expect(selected?.data.selectionHash).toBeDefined();
-    const selectionPath = runLayout.selectionVersion('wi-001', selected!.data.selectionHash!);
+    const selectionPath = runLayout.selectionVersion('work-item:review-summary', selected!.data.selectionHash!);
     const selectionBytes = await readFile(join(directory, selectionPath));
     const selection = JSON.parse(selectionBytes.toString('utf8'));
-    const assignmentBytes = await readFile(join(directory, iterationLayout.assignment('wi-001', 1)));
+    const assignmentBytes = await readFile(join(directory, iterationLayout.assignment('work-item:review-summary', 1)));
     const assignment = iterationAssignmentSchema.parse(JSON.parse(assignmentBytes.toString('utf8')));
     const catalogBytes = await readFile(join(directory, accepted!.data.evidence!.catalog.path));
     const assessmentBytes = await readFile(join(directory, runLayout.assessment('nfa-001')));

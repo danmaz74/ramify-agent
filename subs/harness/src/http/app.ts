@@ -290,7 +290,7 @@ export function createApp(options: AppOptions): express.Express {
     if (!checkFindingWireIdSchema.safeParse(checkFinding).success) {
       const reason = checkFinding.startsWith('draft:finding:')
         ? `${checkFinding} is a submission-local finding key; the detail path needs its accepted finding:<descriptive-name> ID`
-        : `${checkFinding} is not an accepted CheckFinding ID (cf-0001 or finding:<descriptive-name>)`;
+        : `${checkFinding} is not an accepted CheckFinding ID (finding:<descriptive-name>)`;
       throw new ProtocolFailure('not-found', reason);
     }
     send(response, checkFindingDetailSchema, await projected(() => queries.checkFinding(planId, runId, checkFinding, version)));
@@ -456,7 +456,7 @@ function optionalText(value: unknown, name: string): string | null {
 
 function optionalCheckFinding(value: unknown, name: string): string | null {
   const given = optionalText(value, name);
-  if (given !== null && !checkFindingWireIdSchema.safeParse(given).success) throw new ProtocolFailure('invalid-request', `"${name}" must name an accepted CheckFinding, cf-0001 or finding:<descriptive-name>`);
+  if (given !== null && !checkFindingWireIdSchema.safeParse(given).success) throw new ProtocolFailure('invalid-request', `"${name}" must name an accepted CheckFinding, finding:<descriptive-name>`);
   return given;
 }
 

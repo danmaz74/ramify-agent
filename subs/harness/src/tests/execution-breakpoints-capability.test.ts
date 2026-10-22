@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'vitest';
 import type { Script } from '../../subs/agent/src/scripted.js';
-import { analysis, entry } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { assign, outline, submit, treeInputs } from './helpers/iterations.js';
 import { recoveryBoundaries } from './helpers/recovery-boundaries.js';
@@ -21,20 +21,21 @@ test('B01 B09 B14: a delegated capability engineer parks at a new occurrence and
   const a = 'capability-coordination/a';
   const b = 'capability-coordination/b';
   const script: Script = spec => {
-    if (spec.role === 'initial-architect') return submit(analysis([entry('a-reads-b', a)]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('a-reads-b', a)]), 'document:need-plan'));
     if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, {}, outline()));
     if (spec.role === 'engineer') return submit({ kind: 'capability-needed', summary: 'A needs B source', request: {
+      requestKey: 'draft:capability-request:source-fact',
       need: 'B fact with source for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Display source', prospective: false }],
       constraints: [], knownInterface: { kind: 'none-known' },
-      examples: [{ title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
+      examples: [{ key: 'draft:capability-example:source-shown', title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
     } });
     if (spec.submission.name === 'submit_capability_qualification') {
-      const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+      const ids = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
+      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], taskKey: 'draft:capability-task:source-fact', provider: b,
         placementReason: 'B owns the fact', constraints: [], requirementRefs: [] });
     }
     if (spec.role === 'capability-architect') {
-      const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+      const ids = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
       return submit({ task: ids[1], planRevision: Number(ids[2]), invocation: ids[3], kind: 'assign',
         assignment: assign(b, { goal: 'Return B source', approach: 'Extend B result', completionEvidence: 'B source appears in A' }).assignment });
     }
@@ -62,7 +63,7 @@ test('B01 B09 B14: a delegated capability engineer parks at a new occurrence and
   await until(() => first.service.debugState('need', receipt.jobId)?.state === 'paused');
   const delegated = first.service.debugState('need', receipt.jobId)!;
   expect(delegated.pauseId).not.toBe(original.pauseId);
-  expect(delegated.work).toMatchObject({ iteration: 'cap-001.i01' });
+  expect(delegated.work).toMatchObject({ iteration: 'capability-task:source-fact.i01' });
   expect(delegated.goal).toBe('Return B source');
   expect(first.agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
   await first.service.close();

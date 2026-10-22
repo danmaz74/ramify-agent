@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
@@ -192,7 +192,7 @@ async function run(
   const final = finalCandidate(root, finalHead);
   const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits], previews: final.previews });
   const opened = await openRuns(root, {
-    script: byRole(plan), inputs: treeInputs(), git, candidates: final.candidates,
+    script: byRole({ 'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })], ...plan }), inputs: treeInputs(), git, candidates: final.candidates,
      ...options,
   });
   cleanups.push(() => opened.service.close());
@@ -202,7 +202,7 @@ async function run(
 }
 
 const need = {
-  capability: 'note-limit',
+  capability: 'capability:note-limit',
   useCases: ['a reviewer attaches a note to a review run, and a note over the limit is refused'],
   inputs: ['the note text'],
   outputs: ['whether the note is within the limit'],
@@ -222,6 +222,9 @@ const contractNeeded = {
 /** The `established` submission, as the contract sub-session writes it. */
 const establishedContract = {
   kind: 'established' as const,
+  contractKey: 'draft:contract:note-limit',
+  providerObligationKey: 'draft:provider-obligation:note-limit',
+  consumerRequirementKey: 'draft:consumer-requirement:notes-note-limit',
   mode: 'fake-backed' as const,
   authority: {
     kind: 'provider' as const,
@@ -254,16 +257,16 @@ const contractWrites = [
 ];
 
 /** The local decision that places the capability the consumer needs. */
-const placeTheLimit = localDecision(
+const placeTheLimit = { ...localDecision(
   {
     question: 'Where does the note limit belong?',
     outcome: 'reuse',
-    capability: 'note-limit',
+    capability: 'capability:note-limit',
     owner: provider,
     rationale: 'The limit is a rule of its own, and this subtree is mine to place work in.',
   },
-  [registryChange({ capability: 'note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
-);
+  [registryChange({ capability: 'capability:note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
+), decisionKey: 'draft:placement-decision:note-limit' };
 
 /** The files each side of the seam owns, as the scenario's Git answers name them. */
 const seam = {
@@ -281,11 +284,11 @@ const seam = {
  * tree for the gates that follow a commit without a write of their own.
  */
 const delegationCommits = (verification: string): CommitResponse[] => [
-  accepted('wi-001.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
-  accepted('wi-002.i01', 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
-  unchanged('wi-002'),
+  accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
+  accepted('work-item:provide-note-limit.i01', 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
+  unchanged('work-item:provide-note-limit'),
   accepted(verification, 'revision-03', modified(seam.consumer)),
-  unchanged('wi-001'),
+  unchanged('work-item:review-notes'),
   unchanged('final verification of plan "review-notes"'),
 ];
 
@@ -305,10 +308,10 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
   test('K4: the contract gate runs the suite against the fake and the provider gate runs it against the real provider', async () => {
     const root = await target();
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
-        submit({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'Waiting for the real limit.' }),
+        submit({ kind: 'yield-for-providers', requirements: ['consumer-requirement:notes-note-limit'], summary: 'Waiting for the real limit.' }),
         submit(assign(provider, {}, outline({ changes: 'Implement the agreed limit.' }))),
         submit(requestCompletion()),
         submit(assign(consumer, { kind: 'verification', goal: 'Replace the fake with the real note limit.' })),
@@ -326,7 +329,7 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
       // A retained real boundary: this scenario is about what the gate's
       // own commands ran and printed, so the project's test runner really
       // runs. Git and the command line remain answered.
-    }, delegationCommits('wi-001.i03'), 'revision-03', { configuredAudit: ownersAudit(root) });
+    }, delegationCommits('work-item:review-notes.i03'), 'revision-03', { configuredAudit: ownersAudit(root) });
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
 
     const log = await events(root, runId);
@@ -353,16 +356,16 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
 
     // The provider's gate ran the same suite, and its assignment carried the
     // obligation that says it runs against the real implementation.
-    const providerAssignment = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('wi-002', 1));
+    const providerAssignment = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('work-item:provide-note-limit', 1));
     expect(providerAssignment.evidenceObligations).toEqual([{
-      obligation: { id: 'ob-ct-001', revision: 1, hash: expect.any(String) },
+      obligation: { id: 'provider-obligation:note-limit', revision: 1, hash: expect.any(String) },
       suite: [suite],
       against: 'real',
     }]);
     expect(providerAssignment.gate.tests.extraSuites).toEqual([suite]);
 
     const providerGate = attempts.find(attempt =>
-      attempt.subject.iteration === 'wi-002.i01' && attempt.checkpoint === 'iteration')!;
+      attempt.subject.iteration === 'work-item:provide-note-limit.i01' && attempt.checkpoint === 'iteration')!;
     expect(providerGate.verdict).toBe('passed');
     expect(testsOutput(providerGate)).toContain(`ok ${suite}`);
     // The same file, and a different subject: the real provider was in the
@@ -375,10 +378,10 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
 
     // Neither substitutes for the other: the verification gate runs it again
     // with the consumer's own tests and the fake gone.
-    const verification = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('wi-001', 3));
+    const verification = await readJson<IterationAssignment>(root, runId, iterationLayout.assignment('work-item:review-notes', 3));
     expect(verification.kind).toBe('verification');
     expect(verification.evidenceObligations).toEqual([{
-      requirement: { id: 'rq-001', revision: 1, hash: expect.any(String) },
+      requirement: { id: 'consumer-requirement:notes-note-limit', revision: 1, hash: expect.any(String) },
       suite: [suite],
       against: 'real',
     }]);

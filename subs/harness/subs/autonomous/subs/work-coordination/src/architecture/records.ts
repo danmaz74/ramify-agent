@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { citationSchema, modulePathSchema, viewIdentitySchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import { moduleProposalSchema } from '../../../planning/src/records.js';
 import { globalForkSourceSchema, recordRefSchema } from '../../../../../task-execution/src/records.js';
-import { slugSchema } from '../../../planning/src/records.js';
 
 /*
  * The records of capability identity and placement: the request a module
@@ -21,22 +20,18 @@ import { slugSchema } from '../../../planning/src/records.js';
  */
 
 const text = z.string().min(1);
-const capabilityName = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const capabilityName = z.union([z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), z.string().regex(/^capability-request:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
 const placementSubject = z.union([capabilityName, z.string().regex(/^capability-task:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+const requestIdSchema = z.string().regex(/^placement-request:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const decisionIdSchema = z.string().regex(/^placement-decision:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
-/** `pr-003`, the count of committed placement requests. */
-export const requestId = (count: number): string => `pr-${String(count).padStart(3, '0')}`;
-export const descriptivePlacementRequestId = (workItem: string, capability: string, count: number): string =>
-  `placement-request:place-${capability.replace(':', '-')}-for-${workItem.replace(':', '-')}-request-${count}`;
-
-/** `gd-003` for request `pr-003`: one decision per request, derived from it. */
-export const globalDecisionId = (request: string): string => request.startsWith('placement-request:')
-  ? `placement-decision:${request.slice('placement-request:'.length)}` : `gd-${request.replace(/^pr-/, '')}`;
-
-/** `ld-wi-001-02`, from the work item and the count of its committed local decisions. */
-export const localDecisionId = (workItem: string, count: number): string => `ld-${workItem}-${String(count).padStart(2, '0')}`;
-export const descriptiveLocalDecisionId = (workItem: string, capability: string, count: number): string =>
-  `placement-decision:place-${capability.replace(':', '-')}-for-${workItem.replace(':', '-')}-local-${count}`;
+/** A global decision derives a family-distinct name from its accepted request. */
+export const globalDecisionId = (request: string): string => {
+  const placement = requestIdSchema.safeParse(request);
+  if (placement.success) return `placement-decision:placement-${placement.data.slice('placement-request:'.length)}`;
+  const unresolved = z.string().regex(/^unresolved-request:[a-z0-9]+(?:-[a-z0-9]+)*$/).parse(request);
+  return `placement-decision:unresolved-${unresolved.slice('unresolved-request:'.length)}`;
+};
 
 /** What the retired `extend` value is answered with, in the terms the role submits. */
 export const extensionIsANewCapability = 'An existing capability is never revised to cover more. Register the extended behavior as a new capability named for itself, with outcome "create" and the existing module as its owner, and set "changesExistingSymbols" to true where implementing it changes symbols that already have consumers';
@@ -65,8 +60,8 @@ export const hypothesisStanceSchema = z.enum(['supports', 'contradicts', 'depart
 export type HypothesisStance = z.infer<typeof hypothesisStanceSchema>;
 
 export const placementRequestSchema = z.object({
-  schema: z.enum(['ramify-agent.placement-request/1', 'ramify-agent.placement-request/2']),
-  id: text,
+  schema: z.literal('ramify-agent.placement-request/2'),
+  id: requestIdSchema,
   workItem: text,
   requester: modulePathSchema,
   /** The consumer capability being implemented, which this request is made for. */
@@ -86,15 +81,12 @@ export const placementRequestSchema = z.object({
   localDecisions: z.array(text),
   /** Required by current producers; absent input cannot select a moving parent. */
   globalSource: globalForkSourceSchema.optional(),
-}).strict().superRefine((request, context) => {
-  if (request.schema.endsWith('/2') !== request.id.startsWith('placement-request:')) context.addIssue({ code: 'custom', path: ['id'], message: 'placement request ID disagrees with contract version' });
-  if (request.schema.endsWith('/1') && request.forCapability.includes(':')) context.addIssue({ code: 'custom', path: ['forCapability'], message: 'Legacy placement cannot cite a descriptive subject' });
-});
+}).strict();
 export type PlacementRequest = z.infer<typeof placementRequestSchema>;
 
 export const placementDecisionSchema = z.object({
-  schema: z.enum(['ramify-agent.placement-decision/1', 'ramify-agent.placement-decision/2']),
-  id: text,
+  schema: z.literal('ramify-agent.placement-decision/2'),
+  id: decisionIdSchema,
   authority: decisionAuthoritySchema,
   /** Null for a local decision: no request was made of the plan architect. */
   request: z.string().nullable(),
@@ -137,9 +129,7 @@ export const placementDecisionSchema = z.object({
   hypothesisRevisions: z.array(recordRefSchema),
   /** Global decisions only: the text appended to the parent context. */
   brief: text.optional(),
-}).strict().superRefine((decision, context) => {
-  if (decision.schema.endsWith('/2') !== decision.id.startsWith('placement-decision:')) context.addIssue({ code: 'custom', path: ['id'], message: 'placement decision ID disagrees with contract version' });
-});
+}).strict();
 export type PlacementDecision = z.infer<typeof placementDecisionSchema>;
 
 /** Where the architecture's records are materialized, relative to the run's directory. */
@@ -150,8 +140,6 @@ export const architectureLayout = {
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const architectureSchemas = {
-  request: { schema: 'ramify-agent.placement-request/1', body: placementRequestSchema },
-  requestDescriptive: { schema: 'ramify-agent.placement-request/2', body: placementRequestSchema },
-  decision: { schema: 'ramify-agent.placement-decision/1', body: placementDecisionSchema },
-  decisionDescriptive: { schema: 'ramify-agent.placement-decision/2', body: placementDecisionSchema },
+  request: { schema: 'ramify-agent.placement-request/2', body: placementRequestSchema },
+  decision: { schema: 'ramify-agent.placement-decision/2', body: placementDecisionSchema },
 } as const;

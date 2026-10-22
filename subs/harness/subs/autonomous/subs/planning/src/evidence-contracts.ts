@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const text = z.string().min(1);
-const documentId = z.string().regex(/^(?:doc-\d{3,}|document:[a-z0-9]+(?:-[a-z0-9]+)*)$/);
+const documentId = z.string().regex(/^document:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 /**
  * The intake's accepted judgment of which captured plan documents supply
@@ -22,12 +22,11 @@ const incorporationFields = {
 } as const;
 export const submittedIncorporationSchema = z.object(incorporationFields).strict();
 export const incorporationSchema = z.object({
-  schema: z.enum(['ramify-agent.document-incorporation/2', 'ramify-agent.document-incorporation/3']),
+  schema: z.literal('ramify-agent.document-incorporation/3'),
   ...incorporationFields,
 }).strict().superRefine((record, ctx) => {
-  const descriptive = record.schema.endsWith('/3');
   record.documents.forEach((choice, index) => {
-    if (choice.document.startsWith('document:') !== descriptive)
+    if (!choice.document.startsWith('document:'))
       ctx.addIssue({ code: 'custom', path: ['documents', index, 'document'], message: 'document ID disagrees with incorporation contract' });
   });
 });

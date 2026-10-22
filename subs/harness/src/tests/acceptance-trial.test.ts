@@ -10,7 +10,7 @@ import { createQuerySource } from '../http/query-source.js';
 import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type ReadinessAttempt } from '../../subs/autonomous/subs/acceptance/src/readiness-records.js';
-import { requestCompletion } from './helpers/analysis.js';
+import { currentAnalysis, requestCompletion } from './helpers/analysis.js';
 import {
   badgeAnalysis, badgeFeature, badgeImplementation, badgePlan, badgeStepFile, badgeSteps, sharedUi,
 } from './helpers/badge-scenarios.js';
@@ -81,16 +81,16 @@ const noteLimit: Seam = {
 };
 const note = paths(noteLimit);
 
-const placeTheLimit = localDecision(
+const placeTheLimit = { ...localDecision(
   {
     question: 'Where does the note limit belong?',
     outcome: 'reuse',
-    capability: 'note-limit',
+    capability: 'capability:note-limit',
     owner: limits,
     rationale: 'The limit is a rule of its own, in a subtree this architect may place work in.',
   },
-  [registryChange({ capability: 'note-limit', owner: limits, behavior: 'The module provides note-limit.' })],
-);
+  [registryChange({ capability: 'capability:note-limit', owner: limits, behavior: 'The module provides note-limit.' })],
+), decisionKey: 'draft:placement-decision:note-limit' };
 
 /** A copy of the fixture with the trial's modules and plan scenario, and the toolchain its gates run. */
 async function trialProject(): Promise<string> {
@@ -119,9 +119,9 @@ function runnableScenarios(root: string): ScriptedScenario[] {
     .sort();
   return files.flatMap(file => readFileSync(join(root, file), 'utf8').split('\n').flatMap((text, index) => {
     const tags = text.trim().split(/\s+/);
-    const identity = tags.find(tag => /^@ramify-sc-\d{3,}$/.test(tag));
+    const identity = tags.find(tag => /^@ramify-scenario-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(tag));
     if (identity === undefined || tags.includes('@ramify-pending')) return [];
-    return [{ id: identity.slice('@ramify-'.length), status: 'passed' as const, file, line: index + 1 }];
+    return [{ id: `scenario:${identity.slice('@ramify-scenario-'.length)}`, status: 'passed' as const, file, line: index + 1 }];
   }));
 }
 
@@ -223,65 +223,65 @@ function course(log: readonly RunEvent[]): string[] {
 
 /** The trial's agents, per work item. */
 const trialScript = (root: string) => ({
-  'initial-architect': [submit(integrationAnalysis())],
-  // wi-001, the note: a contract for the limit, the sub-scenario bound
+  'initial-architect': [submit(currentAnalysis(integrationAnalysis(), 'document:review-notes-plan'))],
+  // work-item:review-note, the note: a contract for the limit, the sub-scenario bound
   // against its fake, a yield, and the verification that rebinds it for real.
-  'local-architect:wi-001': [
+  'local-architect:work-item:review-note': [
     submit({ ...assign(notes, {}, outline()), localDecisions: [placeTheLimit] }),
-    submit(assign(notes, { goal: 'Bind the note\'s sub-scenario against the fake.', obligations: ['sc-001'] })),
-    submit({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'This work item runs against its fake and waits for the real limit.' }),
-    submit(assign(notes, { kind: 'verification', goal: 'Replace the fake with the real limit, and bind the sub-scenario.', obligations: ['sc-001'] })),
+    submit(assign(notes, { goal: 'Bind the note\'s sub-scenario against the fake.', obligations: ['scenario:note-for-tags'] })),
+    submit({ kind: 'yield-for-providers', requirements: ['consumer-requirement:notes-note-limit'], summary: 'This work item runs against its fake and waits for the real limit.' }),
+    submit(assign(notes, { kind: 'verification', goal: 'Replace the fake with the real limit, and bind the sub-scenario.', obligations: ['scenario:note-for-tags'] })),
     submit(requestCompletion()),
   ],
-  'engineer:wi-001': [
+  'engineer:work-item:review-note': [
     submit(contractNeeded(noteLimit)),
-    submit(completionProposed('The sub-scenario runs against the fake.', { bindings: [{ id: 'sc-001', fakes: [`create${noteLimit.name}Fake`] }] }),
+    submit(completionProposed('The sub-scenario runs against the fake.', { bindings: [{ id: 'scenario:note-for-tags', fakes: [`create${noteLimit.name}Fake`] }] }),
       write('tests/steps/review-note.steps.ts', noteStepFile)),
     submit(partialReport(['the step file'], ['the last step'])),
-    submit(completionProposed('The notes use the real limit, and the sub-scenario is bound.', { bindings: [{ id: 'sc-001' }] }),
+    submit(completionProposed('The notes use the real limit, and the sub-scenario is bound.', { bindings: [{ id: 'scenario:note-for-tags' }] }),
       write('notes.ts', consumerAgainstReal(noteLimit))),
   ],
   'contract-engineer': [submit(established(noteLimit), ...contractWrites(noteLimit))],
-  // wi-002, the tags: the first iteration spends its repair rounds and the
+  // work-item:review-tags, the tags: the first iteration spends its repair rounds and the
   // scenario stays bound; a repair iteration binds it again.
-  'local-architect:wi-002': [
-    submit(assign(tags, { obligations: ['sc-002'] }, outline())),
-    submit(assign(tags, { kind: 'repair', goal: 'Bind the last step of the tags\' sub-scenario for real.', obligations: ['sc-002'] })),
+  'local-architect:work-item:review-tags': [
+    submit(assign(tags, { obligations: ['scenario:tags-on-note'] }, outline())),
+    submit(assign(tags, { kind: 'repair', goal: 'Bind the last step of the tags\' sub-scenario for real.', obligations: ['scenario:tags-on-note'] })),
     submit(requestCompletion()),
   ],
-  'engineer:wi-002': [
-    submit(completionProposed('The tags\' sub-scenario is bound, I believe.', { bindings: [{ id: 'sc-002' }] }), write('tests/steps/review-tags.steps.ts', tagStepFile)),
-    submit(completionProposed('Bound, I still believe.', { bindings: [{ id: 'sc-002' }] })),
-    submit(completionProposed('Bound, once more.', { bindings: [{ id: 'sc-002' }] })),
-    submit(completionProposed('The tags\' sub-scenario is bound.', { bindings: [{ id: 'sc-002' }] }), write('tests/steps/review-tags.steps.ts', `${tagStepFile}// bound\n`)),
+  'engineer:work-item:review-tags': [
+    submit(completionProposed('The tags\' sub-scenario is bound, I believe.', { bindings: [{ id: 'scenario:tags-on-note' }] }), write('tests/steps/review-tags.steps.ts', tagStepFile)),
+    submit(completionProposed('Bound, I still believe.', { bindings: [{ id: 'scenario:tags-on-note' }] })),
+    submit(completionProposed('Bound, once more.', { bindings: [{ id: 'scenario:tags-on-note' }] })),
+    submit(completionProposed('The tags\' sub-scenario is bound.', { bindings: [{ id: 'scenario:tags-on-note' }] }), write('tests/steps/review-tags.steps.ts', `${tagStepFile}// bound\n`)),
   ],
-  // wi-003, the limit's provider.
-  'local-architect:wi-003': [submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))), submit(requestCompletion())],
-  'engineer:wi-003': [submit(completionProposed('The real limit is implemented.'), ...providerWrites(noteLimit, root))],
-  // wi-004, the integration work item at the common ancestor.
-  'local-architect:wi-004': [submit(bindAtAncestor), submit(requestCompletion())],
-  'engineer:wi-004': [bindTurn],
+  // work-item:provide-note-limit, the limit's provider.
+  'local-architect:work-item:provide-note-limit': [submit(assign(limits, {}, outline({ changes: 'Implement the agreed limit.' }))), submit(requestCompletion())],
+  'engineer:work-item:provide-note-limit': [submit(completionProposed('The real limit is implemented.'), ...providerWrites(noteLimit, root))],
+  // work-item:bind-a-written-note-is-shown-with-its-tag, the integration work item at the common ancestor.
+  'local-architect:work-item:bind-a-written-note-is-shown-with-its-tag': [submit(bindAtAncestor), submit(requestCompletion())],
+  'engineer:work-item:bind-a-written-note-is-shown-with-its-tag': [bindTurn],
 });
 
 const trialCommits: CommitResponse[] = [
-  accepted('wi-001.i02', 'revision-01', [...added(note.contract, note.fake, note.subjects, note.conformance), ...modified(note.consumer)]),
-  accepted('wi-001.i03', 'revision-02', [...added(noteSteps), ...modified(noteFeature)]),
-  accepted('wi-003.i01', 'revision-03', [...added(note.real), ...modified(note.subjects)]),
-  unchanged('wi-003'),
-  accepted('wi-001.i04', 'revision-04', modified(note.consumer)),
-  unchanged('wi-001'),
-  accepted('wi-002.i01', 'revision-05', [...added(tagSteps), ...modified(tagFeature)]),
-  unchanged('wi-002.i01'),
-  unchanged('wi-002.i01'),
-  accepted('wi-002.i02', 'revision-06', modified(tagSteps)),
-  unchanged('wi-002'),
-  accepted('wi-004.i01', 'revision-07', [...added(ancestorSteps), ...modified(notesModule, tagsModule, integrationFeature)]),
-  unchanged('wi-004'),
+  accepted('work-item:review-note.i02', 'revision-01', [...added(note.contract, note.fake, note.subjects, note.conformance), ...modified(note.consumer)]),
+  accepted('work-item:review-note.i03', 'revision-02', [...added(noteSteps), ...modified(noteFeature)]),
+  accepted('work-item:provide-note-limit.i01', 'revision-03', [...added(note.real), ...modified(note.subjects)]),
+  unchanged('work-item:provide-note-limit'),
+  accepted('work-item:review-note.i04', 'revision-04', modified(note.consumer)),
+  unchanged('work-item:review-note'),
+  accepted('work-item:review-tags.i01', 'revision-05', [...added(tagSteps), ...modified(tagFeature)]),
+  unchanged('work-item:review-tags.i01'),
+  unchanged('work-item:review-tags.i01'),
+  accepted('work-item:review-tags.i02', 'revision-06', modified(tagSteps)),
+  unchanged('work-item:review-tags'),
+  accepted('work-item:bind-a-written-note-is-shown-with-its-tag.i01', 'revision-07', [...added(ancestorSteps), ...modified(notesModule, tagsModule, integrationFeature)]),
+  unchanged('work-item:bind-a-written-note-is-shown-with-its-tag'),
   unchanged(finalSubject(plan)),
 ];
 
 /** The iteration gates that fail a scenario: the note's first, the tags' first three. */
-const trialFailures = { 'sc-001': 1, 'sc-002': 3 };
+const trialFailures = { 'scenario:note-for-tags': 1, 'scenario:tags-on-note': 3 };
 
 /** What the trial asserts. */
 async function expectTrial(trial: Trial): Promise<void> {
@@ -308,32 +308,32 @@ async function expectTrial(trial: Trial): Promise<void> {
     'analysis-approved by dana@example.com',
     'readiness-passed',
     'scenarios-materialized',
-    'work-item-started wi-001 (entry)',
-    'iteration-closed wi-001.i01 partial',
-    'contract-registered rq-001 (provider wi-003)',
-    'bound sc-001 (createNoteLimitFake)',
-    'iteration-closed wi-001.i03 partial',
-    'work-item-yielded wi-001',
-    'work-item-started wi-003 (obligation)',
-    'provider-conformed wi-003',
-    'work-item-completed wi-003',
-    'work-item-resumed wi-001',
-    'bound sc-001 (no fakes)',
-    'requirement-verified rq-001',
-    'reported sc-001 done',
-    'work-item-completed wi-001',
-    'work-item-started wi-002 (entry)',
-    'bound sc-002 (no fakes)',
-    'bound sc-002 (no fakes)',
-    'bound sc-002 (no fakes)',
-    'iteration-closed wi-002.i01 partial',
-    'bound sc-002 (no fakes)',
-    'reported sc-002 done',
-    'work-item-completed wi-002',
-    'work-item-started wi-004 (integration sc-003)',
-    'bound sc-003 (no fakes)',
-    'reported sc-003 done',
-    'work-item-completed wi-004',
+    'work-item-started work-item:review-note (entry)',
+    'iteration-closed work-item:review-note.i01 partial',
+    'contract-registered consumer-requirement:notes-note-limit (provider work-item:provide-note-limit)',
+    'bound scenario:note-for-tags (createNoteLimitFake)',
+    'iteration-closed work-item:review-note.i03 partial',
+    'work-item-yielded work-item:review-note',
+    'work-item-started work-item:provide-note-limit (obligation)',
+    'provider-conformed work-item:provide-note-limit',
+    'work-item-completed work-item:provide-note-limit',
+    'work-item-resumed work-item:review-note',
+    'bound scenario:note-for-tags (no fakes)',
+    'requirement-verified consumer-requirement:notes-note-limit',
+    'reported scenario:note-for-tags done',
+    'work-item-completed work-item:review-note',
+    'work-item-started work-item:review-tags (entry)',
+    'bound scenario:tags-on-note (no fakes)',
+    'bound scenario:tags-on-note (no fakes)',
+    'bound scenario:tags-on-note (no fakes)',
+    'iteration-closed work-item:review-tags.i01 partial',
+    'bound scenario:tags-on-note (no fakes)',
+    'reported scenario:tags-on-note done',
+    'work-item-completed work-item:review-tags',
+    'work-item-started work-item:bind-a-written-note-is-shown-with-its-tag (integration scenario:a-written-note-is-shown-with-its-tag)',
+    'bound scenario:a-written-note-is-shown-with-its-tag (no fakes)',
+    'reported scenario:a-written-note-is-shown-with-its-tag done',
+    'work-item-completed work-item:bind-a-written-note-is-shown-with-its-tag',
     'job-completed',
   ]);
 
@@ -348,20 +348,20 @@ async function expectTrial(trial: Trial): Promise<void> {
   expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 3 });
   const list = scenarioListResponseSchema.parse(await new RunQueries(createQuerySource(service)).scenarios(plan, trial.runId));
   expect(list.scenarios.map(scenario => `${scenario.id} ${scenario.kind} ${scenario.state} ${scenario.workItem} ${scenario.owner}`)).toEqual([
-    `sc-001 entry done wi-001 ${notes}`,
-    `sc-002 entry done wi-002 ${tags}`,
-    `sc-003 integration done wi-004 ${reviews}`,
+    `scenario:note-for-tags entry done work-item:review-note ${notes}`,
+    `scenario:tags-on-note entry done work-item:review-tags ${tags}`,
+    `scenario:a-written-note-is-shown-with-its-tag integration done work-item:bind-a-written-note-is-shown-with-its-tag ${reviews}`,
   ]);
-  for (const [file, id] of [[noteFeature, 'sc-001'], [tagFeature, 'sc-002'], [integrationFeature, 'sc-003']] as const) {
-    expect(readFileSync(join(root, file), 'utf8')).toContain(`  @ramify-${id}\n`);
-    expect(readFileSync(join(root, file), 'utf8')).not.toMatch(/^ +@ramify-sc-\d+ @ramify-pending$/mu);
+  for (const [file, id] of [[noteFeature, 'scenario:note-for-tags'], [tagFeature, 'scenario:tags-on-note'], [integrationFeature, 'scenario:a-written-note-is-shown-with-its-tag']] as const) {
+    expect(readFileSync(join(root, file), 'utf8')).toContain(`  @ramify-scenario-${id.slice('scenario:'.length)}\n`);
+    expect(readFileSync(join(root, file), 'utf8')).not.toMatch(/^ +@ramify-scenario-[a-z0-9-]+ @ramify-pending$/mu);
   }
   const final = await gateOf(trial, (log.find(event => event.type === 'job-completed')!.data as { gate: string }).gate);
   expect(final.checkpoint).toBe('final');
   expect(final.commands).toEqual([]);
   expect(final.audit).toMatchObject({ mode: 'full', status: 'completed', verdict: 'pass' });
   expect(scenarioResultsOf(final).map(result => `${result.id} ${result.status} ${result.check} ${result.file}`).sort()).toEqual([
-    `sc-001 passed scenarios ${noteFeature}`, `sc-002 passed scenarios ${tagFeature}`, `sc-003 passed scenarios ${integrationFeature}`,
+    `scenario:a-written-note-is-shown-with-its-tag passed scenarios ${integrationFeature}`, `scenario:note-for-tags passed scenarios ${noteFeature}`, `scenario:tags-on-note passed scenarios ${tagFeature}`,
   ]);
   // Plan 11's disk-backed provider witness: query the same completed scripted
   // run that drove real workflow records, then cross one bounded page boundary.
@@ -373,10 +373,10 @@ async function expectTrial(trial: Trial): Promise<void> {
     .toContain('capability:note-limit');
   expect(execution.nodes.filter(node => node.kind === 'session').length).toBeGreaterThan(0);
   expect(execution.nodes.filter(node => node.kind === 'gate').length).toBeGreaterThan(1);
-  expect(execution.nodes.find(node => node.key === 'requirement:rq-001')).toMatchObject({ state: 'verified', providerStage: 'conformed' });
+  expect(execution.nodes.find(node => node.key === 'consumer-requirement:notes-note-limit')).toMatchObject({ state: 'verified', providerStage: 'conformed' });
   expect(execution.links.some(link => link.kind === 'provider-for' && link.from.key === 'capability:note-limit')).toBe(true);
-  expect((await queries.executionCapabilityDetail(plan, trial.runId, 'review-note', execution.runVersion)).detail.state).toBe('available');
-  const noteScenario = await queries.executionScenarioDetail(plan, trial.runId, 'sc-001', execution.runVersion);
+  expect((await queries.executionCapabilityDetail(plan, trial.runId, 'capability:review-note', execution.runVersion)).detail.state).toBe('available');
+  const noteScenario = await queries.executionScenarioDetail(plan, trial.runId, 'scenario:note-for-tags', execution.runVersion);
   expect(noteScenario.detail).toMatchObject({ state: 'available' });
   if (noteScenario.detail.state === 'available') {
     expect(noteScenario.detail.source.join('\n')).toContain('Scenario:');
@@ -399,12 +399,12 @@ async function expectTrial(trial: Trial): Promise<void> {
       cursor = page.nextCursor ?? undefined;
     } while (cursor);
     const capabilities = Object.fromEntries(await Promise.all(execution.nodes.filter(node => node.kind === 'capability').map(async node => [
-      node.key.slice('capability:'.length), await queries.executionCapabilityDetail(plan, trial.runId,
-        node.key.slice('capability:'.length), execution.runVersion),
+      node.key, await queries.executionCapabilityDetail(plan, trial.runId,
+        node.key, execution.runVersion),
     ] as const)));
     const scenarios = Object.fromEntries(await Promise.all(execution.nodes.filter(node => node.kind === 'scenario').map(async node => [
-      node.key.slice('scenario:'.length), await queries.executionScenarioDetail(plan, trial.runId,
-        node.key.slice('scenario:'.length), execution.runVersion),
+      node.key, await queries.executionScenarioDetail(plan, trial.runId,
+        node.key, execution.runVersion),
     ] as const)));
     await writeFile(process.env.PLAN11_EXECUTION_EXPORT, JSON.stringify({ planId: plan, runId: trial.runId,
       pages, capabilities, scenarios }, null, 2));
@@ -416,24 +416,24 @@ async function expectTrial(trial: Trial): Promise<void> {
 async function badgeRun(root: string): Promise<Trial> {
   const implementation = await badgeImplementation();
   return reviewedRun(root, badgePlan, {
-    'initial-architect': [submit(await badgeAnalysis())],
-    'local-architect:wi-001': [
-      submit(assign(sharedUi, { goal: 'Give the status badge a tone, with tests of its own, and bind the plan\'s two scenarios.', obligations: ['sc-001', 'sc-002'] }, outline({
+    'initial-architect': [submit(currentAnalysis(await badgeAnalysis(), 'document:status-badge-tone-plan'))],
+    'local-architect:work-item:status-badge-tone': [
+      submit(assign(sharedUi, { goal: 'Give the status badge a tone, with tests of its own, and bind the plan\'s two scenarios.', obligations: ['scenario:badge-tone-1', 'scenario:badge-tone-2'] }, outline({
         changes: 'The badge takes an optional tone and carries it as data-tone; it reads as neutral without one.',
       }))),
       submit(requestCompletion()),
     ],
-    'engineer:wi-001': [submit(
-      completionProposed('The badge carries its tone, neutral by default, and both scenarios bind to its step file.', { bindings: [{ id: 'sc-001' }, { id: 'sc-002' }] }),
+    'engineer:work-item:status-badge-tone': [submit(
+      completionProposed('The badge carries its tone, neutral by default, and both scenarios bind to its step file.', { bindings: [{ id: 'scenario:badge-tone-1' }, { id: 'scenario:badge-tone-2' }] }),
       ...Object.entries(implementation).map(([path, content]) => write(join(root, path), content)),
       write(join(root, badgeSteps), badgeStepFile),
     )],
   }, [
-    accepted('wi-001.i01', 'revision-01', [
+    accepted('work-item:status-badge-tone.i01', 'revision-01', [
       ...added(badgeSteps, ...Object.keys(implementation).filter(path => path.includes('/tests/'))),
       ...modified(badgeFeature, ...Object.keys(implementation).filter(path => !path.includes('/tests/'))),
     ]),
-    unchanged('wi-001'),
+    unchanged('work-item:status-badge-tone'),
     unchanged(finalSubject(badgePlan)),
   ], {});
 }
@@ -444,18 +444,18 @@ async function expectBadgeRun(trial: Trial): Promise<void> {
   expect(snapshot.state).toBe('completed');
   expect(course(trial.log)).toEqual([
     'analysis-accepted 2 scenarios', 'review-requested', 'analysis-approved by dana@example.com', 'readiness-passed', 'scenarios-materialized',
-    'work-item-started wi-001 (entry)',
-    'bound sc-001 (no fakes)', 'bound sc-002 (no fakes)',
-    'reported sc-001 done', 'reported sc-002 done',
-    'work-item-completed wi-001', 'job-completed',
+    'work-item-started work-item:status-badge-tone (entry)',
+    'bound scenario:badge-tone-1 (no fakes)', 'bound scenario:badge-tone-2 (no fakes)',
+    'reported scenario:badge-tone-1 done', 'reported scenario:badge-tone-2 done',
+    'work-item-completed work-item:status-badge-tone', 'job-completed',
   ]);
   // The plan's own text, in the badge owner's feature file.
   const feature = readFileSync(join(trial.root, badgeFeature), 'utf8');
-  expect(feature).toContain('  @ramify-sc-001\n  Scenario: A badge given a tone carries that tone in its markup\n');
+  expect(feature).toContain('  @ramify-scenario-badge-tone-1\n  Scenario: A badge given a tone carries that tone in its markup\n');
   expect(feature).toContain('    Then its markup carries the tone "neutral"\n');
   const final = await gateOf(trial, (trial.log.find(event => event.type === 'job-completed')!.data as { gate: string }).gate);
   expect(final.audit).toMatchObject({ mode: 'full', status: 'completed', verdict: 'pass' });
-  expect(scenarioResultsOf(final).map(result => `${result.id} ${result.status} ${result.file}`)).toEqual([`sc-001 passed ${badgeFeature}`, `sc-002 passed ${badgeFeature}`]);
+  expect(scenarioResultsOf(final).map(result => `${result.id} ${result.status} ${result.file}`)).toEqual([`scenario:badge-tone-1 passed ${badgeFeature}`, `scenario:badge-tone-2 passed ${badgeFeature}`]);
   trial.git.assertAnswered();
 }
 

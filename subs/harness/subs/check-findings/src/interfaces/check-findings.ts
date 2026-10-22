@@ -14,8 +14,7 @@ import { z } from 'zod';
  */
 
 /** The version every event of this contract carries. */
-export const checkFindingEventVersion = 1;
-export const descriptiveCheckFindingEventVersion = 2;
+export const checkFindingEventVersion = 2;
 /** The version every view and selection of this contract carries. */
 export const checkFindingViewVersion = 'check-finding-view/1';
 
@@ -26,13 +25,9 @@ const ref = z.string().min(1).max(500);
 const name = z.string().min(1).max(200);
 const hashSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/, 'A sha256: digest in lowercase hexadecimal');
 
-// Identifiers. Each is allocated from the replayed state, so a decision
-// repeated over the same state allocates the same one.
-
-/** `cf-0001`, one more than the CheckFindings the state holds. */
-export const descriptiveCheckFindingIdSchema = z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/, 'A finding:<descriptive-name> ID');
+// A finding's accepted identity is the author's validated proposal.
 export const draftCheckFindingKeySchema = z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/, 'A draft:finding:<descriptive-name> key');
-export const checkFindingIdSchema = z.union([z.string().regex(/^cf-\d{4,}$/), descriptiveCheckFindingIdSchema]);
+export const checkFindingIdSchema = z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/, 'A finding:<descriptive-name> ID');
 export type CheckFindingId = z.infer<typeof checkFindingIdSchema>;
 /** `cfr-0001`, one more than the reports the state holds. */
 export const checkFindingReportIdSchema = z.string().regex(/^cfr-\d{4,}$/);
@@ -91,7 +86,7 @@ export const checkFindingLocationSchema = z.object({
 }).strict();
 export type CheckFindingLocation = z.infer<typeof checkFindingLocationSchema>;
 
-/** A verification obligation: what must pass, such as `scenario:sc-004`, at its frozen revision. */
+/** A verification obligation: what must pass, such as `scenario:reject-missing-predecessor`, at its frozen revision. */
 export const checkFindingObligationSchema = z.object({
   subject: ref,
   revision: z.int().positive(),
@@ -224,7 +219,7 @@ export const checkFindingReportInputSchema = z.object({
   producer: checkFindingProducerSchema,
   attempt: ref,
   reportKey: ref,
-  /** Author's local proposal on descriptive runs; absent in legacy deliveries. */
+  /** The local proposal for a new finding; an issue-key attachment may omit it. */
   findingKey: draftCheckFindingKeySchema.optional(),
   contentHash: hashSchema,
   owner: checkFindingOwnerSchema,
@@ -440,7 +435,7 @@ export type CheckFindingCommand = z.infer<typeof checkFindingCommandSchema>;
 
 // Events.
 
-const version = z.union([z.literal(checkFindingEventVersion), z.literal(descriptiveCheckFindingEventVersion)]);
+const version = z.literal(checkFindingEventVersion);
 
 /** A new CheckFinding at revision 1 with its first report. */
 export const checkFindingOpenedDataSchema = z.object({

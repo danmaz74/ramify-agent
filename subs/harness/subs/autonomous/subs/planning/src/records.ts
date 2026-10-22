@@ -24,8 +24,7 @@ const text = z.string().min(1);
 
 /** A heading anchor or line range of the captured plan. */
 export const planRefSchema = z.object({
-  /** Absent on old runs: resolve against the captured root plan. */
-  document: z.string().regex(/^doc-\d{3,}$/).optional(),
+  document: z.string().regex(/^document:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   anchor: text.optional(),
   lines: z.tuple([z.int().nonnegative(), z.int().nonnegative()]).optional(),
 }).strict();
@@ -39,31 +38,21 @@ export const moduleProposalSchema = z.object({
 export type ModuleProposal = z.infer<typeof moduleProposalSchema>;
 
 export const entryAssignmentsSchema = z.object({
-  schema: z.enum(['ramify-agent.entry-assignments/1', 'ramify-agent.entry-assignments/2']),
+  schema: z.literal('ramify-agent.entry-assignments/2'),
   view: viewIdentitySchema,
   entries: z.array(z.object({
     capability: text,
     description: text,
     owner: modulePathSchema,
     proposed: moduleProposalSchema.optional(),
-    requirementRefs: z.array(elementIdSchema),
-    acceptanceRefs: z.array(elementIdSchema),
-    contextRefs: z.array(elementIdSchema),
-    capabilityId: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
-    functionalRequirementIds: z.array(elementIdSchema).optional(),
-    functionalAcceptanceIds: z.array(elementIdSchema).optional(),
-    contextIds: z.array(elementIdSchema).optional(),
+    capabilityId: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    functionalRequirementIds: z.array(elementIdSchema),
+    functionalAcceptanceIds: z.array(elementIdSchema),
+    contextIds: z.array(elementIdSchema),
     citations: z.array(citationSchema),
     nonBehavioralAcceptance: z.array(nonBehavioralAcceptanceSchema).optional(),
   }).strict()),
-}).strict().superRefine((record, ctx) => {
-  if (record.schema !== 'ramify-agent.entry-assignments/2') return;
-  record.entries.forEach((entry, index) => {
-    for (const field of ['capabilityId', 'functionalRequirementIds', 'functionalAcceptanceIds', 'contextIds'] as const) {
-      if (entry[field] === undefined) ctx.addIssue({ code: 'custom', path: ['entries', index, field], message: 'descriptive records require explicit accepted references' });
-    }
-  });
-});
+}).strict();
 export type EntryAssignments = z.infer<typeof entryAssignmentsSchema>;
 
 
@@ -89,12 +78,12 @@ export const hypothesisChangeSchema = z.enum(['reuse', 'create', 'create-by-extr
 export type HypothesisChange = z.infer<typeof hypothesisChangeSchema>;
 
 export const hypothesisSchema = z.object({
-  schema: z.enum(['ramify-agent.hypothesis/1', 'ramify-agent.hypothesis/2']),
-  id: z.union([slugSchema, z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/)]),
+  schema: z.literal('ramify-agent.hypothesis/2'),
+  id: z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   revision: z.int().positive(),
   standing: z.enum(['tentative', 'confirmed', 'superseded']),
   /** The forecast capability. It is not a registry entry. */
-  capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]),
+  capability: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   change: hypothesisChangeSchema,
   /**
    * Whether implementing the forecast capability is expected to change
@@ -107,7 +96,7 @@ export const hypothesisSchema = z.object({
   /** Which module architects receive it, beside the anticipated consumers. */
   involvedModules: z.array(modulePathSchema),
   /** Forecast dependency links, all tentative. */
-  dependsOn: z.array(z.union([slugSchema, z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/)])),
+  dependsOn: z.array(z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/)),
   confidence: z.enum(['low', 'medium', 'high']),
   rationale: text,
   assumptions: z.array(z.string()),
@@ -118,14 +107,14 @@ export const hypothesisSchema = z.object({
     z.object({ initial: text }).strict(),
     z.object({ decision: text, reason: text }).strict(),
   ]),
-  supersededBy: z.union([slugSchema, z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/)]).optional(),
+  supersededBy: z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   confirmedBy: text.optional(),
 }).strict();
 export type Hypothesis = z.infer<typeof hypothesisSchema>;
 
 export const registryEntrySchema = z.object({
-  schema: z.enum(['ramify-agent.capability/1', 'ramify-agent.capability/2']),
-  capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]),
+  schema: z.literal('ramify-agent.capability/2'),
+  capability: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   revision: z.int().positive(),
   behavior: text,
   owner: modulePathSchema,
@@ -134,7 +123,7 @@ export const registryEntrySchema = z.object({
   /** Null for an entry assignment; a decision's ID otherwise. */
   decision: z.string().nullable(),
   /** Confirmed consumer-to-dependency links this revision adds. */
-  consumers: z.array(z.object({ capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]), workItem: text }).strict()),
+  consumers: z.array(z.object({ capability: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/), workItem: z.string().regex(/^work-item:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict()),
   previousOwner: modulePathSchema.optional(),
 }).strict();
 export type RegistryEntry = z.infer<typeof registryEntrySchema>;
@@ -163,7 +152,7 @@ export type RecordedScenarioWarning = z.infer<typeof scenarioWarningSchema>;
  */
 export const catalogFindingSchema = z.object({
   /** The captured document whose reading was checked. */
-  document: z.string().regex(/^doc-\d{3,}$/),
+  document: z.string().regex(/^document:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   invocation: text,
   action: z.enum(['add', 'rewrite', 'replace']),
   reason: text,
@@ -181,8 +170,6 @@ export const analysisLayout = {
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const analysisSchemas = {
-  hypothesis: { schema: 'ramify-agent.hypothesis/1', body: hypothesisSchema },
-  hypothesisDescriptive: { schema: 'ramify-agent.hypothesis/2', body: hypothesisSchema },
-  registry: { schema: 'ramify-agent.capability/1', body: registryEntrySchema },
-  registryDescriptive: { schema: 'ramify-agent.capability/2', body: registryEntrySchema },
+  hypothesis: { schema: 'ramify-agent.hypothesis/2', body: hypothesisSchema },
+  registry: { schema: 'ramify-agent.capability/2', body: registryEntrySchema },
 } as const;

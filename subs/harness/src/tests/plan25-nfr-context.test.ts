@@ -9,7 +9,7 @@ import { intakeToolName, principleToolName } from '../../subs/autonomous/subs/pl
 import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { mockGit } from './helpers/mock-git.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { notes, notesDirectory, reviewTarget, store } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
@@ -108,7 +108,7 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
     [repairedCommit]: { tree: repairedTree, files: bFiles, base: B, changes: [{ status: 'M', path: store }] },
   });
   const git = gateGit(project, { head: A, commits: [scenariosCommit('review-notes', 'scenarios-00', A), { commit: B, changes: [{ status: 'A', path: store }] }, { commit: null }, { commit: null }, { commit: null }, { commit: repair ? repairedCommit : null, changes: repair ? [{ status: 'M', path: store }] : [] }], previews: Array.from({ length: repair ? 8 : 5 }, (_, index) => ({ repositoryRoot: project, head: repair && index === 7 ? repairedCommit : B, tree: repair && index >= 3 ? repairedTree : C })) });
-  const roles = byRole({ 'initial-architect': [submit(analysis([item1, item2]))],
+  const roles = byRole({ 'initial-architect': [submit(currentAnalysis(analysis([item1, item2]), 'document:review-notes-plan'))],
     'local-architect': [submit(assign(notes, { startingPoints: [{ path: caller, note: 'Omitted-tone caller; inspect compatibility' }, { path: 'src/.ramify/api.json', note: 'excluded view' }] }, outline())), submit(requestCompletion()),
       submit(assign(core, { startingPoints: [{ path: caller, note: 'Second work item caller' }] }, outline())), submit(requestCompletion())],
     'engineer': [submit(completionProposed('Badge implemented', { startingPoints: [{ path: store, note: 'Badge source; prior acceptance is not satisfaction' }, { path: testPath, note: 'Owned omitted-tone test' }, { path: 'missing.ts', note: 'absent optional hint' }, { path: 'plans/.harness/run.json', note: 'excluded run' }] }), write(store, bFiles[store]!)),
@@ -116,11 +116,11 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
   });
   let assessmentCount = 0;
   const script = (spec: Parameters<Exclude<typeof roles, readonly unknown[]>>[0]) => {
-    if (spec.submission.name === intakeToolName) return submit({ goal: 'Preserve badge compatibility.', elements: [{ key: 'tone', kind: 'non-functional', document: 'doc-001', text: nfr, conditions: [{ text: 'when tone is omitted', source: 'stated' }], uncertainty: '' }], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } });
-    if (spec.submission.name === principleToolName) return submit({ elements: [{ key: 'readable', kind: 'fixed', document: 'doc-002', text: fixed, conditions: [], uncertainty: '' }] });
-    if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: ['nfr-001', 'fix-001'].map(nfr => ({ nfr, result: repair && nfr === 'nfr-001' && assessmentCount++ === 0 ? 'not-satisfied' : 'satisfied', inspectedScope: [store, caller], evidence: ['Independent scripted candidate inspection'], uncertainty: '' })) },
+    if (spec.submission.name === intakeToolName) return submit({ goal: 'Preserve badge compatibility.', elements: [{ key: 'draft:non-functional-requirement:tone', kind: 'non-functional', document: 'document:review-notes-plan', text: nfr, conditions: [{ text: 'when tone is omitted', source: 'stated' }], uncertainty: '' }], incorporation: { documents: [{ document: 'document:review-notes-plan', scenarios: true, uncertainty: '' }], missing: [] } });
+    if (spec.submission.name === principleToolName) return submit({ elements: [{ key: 'draft:fixed-requirement:readable', kind: 'fixed', document: 'document:badge-principles', text: fixed, conditions: [], uncertainty: '' }] });
+    if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: ['non-functional-requirement:tone', 'fixed-requirement:readable'].map(nfr => ({ nfr, result: repair && nfr === 'non-functional-requirement:tone' && assessmentCount++ === 0 ? 'not-satisfied' : 'satisfied', inspectedScope: [store, caller], evidence: ['Independent scripted candidate inspection'], uncertainty: '' })) },
       { kind: 'tool', tool: 'snapshot_read', input: { path: caller } }, { kind: 'tool', tool: 'snapshot_diff', input: { path: store } }, { kind: 'tool', tool: 'snapshot_diff', input: { comparison: 'accepted-boundary' } });
-    if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['nfr-001'], startingModule: notes, task: 'Repair badge tone preserving callers', evidence: ['Candidate source inspected'], uncertainty: '' });
+    if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['non-functional-requirement:tone'], startingModule: notes, task: 'Repair badge tone preserving callers', evidence: ['Candidate source inspected'], uncertainty: '' });
     if (spec.submission.name === nonfunctionalRepairToolName) return submit({ kind: 'completed', summary: 'Repaired badge', evidence: ['Current source edited'], remaining: [] }, write(store, 'export const store = new Map(); // repaired\n'));
     return typeof roles === 'function' ? roles(spec) : roles;
   };
@@ -214,7 +214,7 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
   expect(sourceBrief.comparisons).toEqual([{ name: 'run-start', base: A, target: C, changedPaths: changes.slice(0,3).sort((a,b) => a.path.localeCompare(b.path)) }, { name: 'accepted-boundary', base: B, target: C, changedPaths: [] }]);
   expect(sourceBrief.originalSource).toEqual({ commit: A, dirty: true });
   expect(sourceBrief.defaultComparison).toBe('run-start');
-  for (const value of [nfr, fixed, 'when tone is omitted', 'Omitted-tone caller', 'Badge source', 'Owned omitted-tone test', 'Second work item caller', 'Second accepted result caller', 'assigned module/source/test locations', '"workItem":"wi-001"', '"workItem":"wi-002"']) expect(text).toContain(value);
+  for (const value of [nfr, fixed, 'when tone is omitted', 'Omitted-tone caller', 'Badge source', 'Owned omitted-tone test', 'Second work item caller', 'Second accepted result caller', 'assigned module/source/test locations', '"workItem":"work-item:badge"', '"workItem":"work-item:caller"']) expect(text).toContain(value);
   for (const value of ['excluded view', 'excluded run', 'absent optional hint', project]) expect(packet.additions.find(item => item.key === 'brief:support:starting-points')!.text).not.toContain(value);
   expect(text).toContain('Make your own semantic judgment for each selected element'); expect(text).toContain('Explore beyond stale or unhelpful hints.');
   expect(text).toContain('no pathless diff is required'); expect(text).toContain('Dirty original capture excludes uncommitted starting bytes');

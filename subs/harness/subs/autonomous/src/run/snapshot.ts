@@ -2,7 +2,6 @@ import type { JobState } from '../../../../src/interfaces/protocol/jobs.js';
 import type { BreakpointSelector, Role, RunFailureReason, RunPhase, RunReview } from '../../../../src/interfaces/protocol/runs.js';
 import type { RunEvent } from './log.js';
 import type { RunRecord } from './records.js';
-import { scenarioIdOf } from '../../../scenarios/src/records.js';
 import {
   applyScenarioEvent, countScenarioStates, initialScenarioStates, scenarioEventTypes,
   type ScenarioEvent, type ScenarioState, type ScenarioStates,
@@ -118,9 +117,6 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
   const notices: RunNotice[] = [];
   const completedItems = new Set<string>();
   let scenarios: ScenarioStates = initialScenarioStates([]);
-  // Earlier descriptive analysis events retained only the count. Allocate
-  // anonymous pending slots until each accepted scenario event reveals its ID.
-  let unnamedDescriptiveScenarios: string[] = [];
   let review: RunReview = 'not-reviewed';
 
   for (const event of events) {
@@ -145,12 +141,7 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
         break;
       case 'analysis-accepted':
         workItems = event.data.workItems;
-        // Descriptive analysis records exact IDs; historical events retain the numbered names.
-        unnamedDescriptiveScenarios = record.identityContract === 'descriptive' && event.data.scenarioIds === undefined
-          ? Array.from({ length: event.data.scenarios ?? 0 }, (_, index) => `unidentified-scenario-${index + 1}`) : [];
-        scenarios = initialScenarioStates(event.data.scenarioIds ?? (unnamedDescriptiveScenarios.length > 0
-          ? unnamedDescriptiveScenarios
-          : Array.from({ length: event.data.scenarios ?? 0 }, (_, index) => scenarioIdOf(index + 1))));
+        scenarios = initialScenarioStates(event.data.scenarioIds);
         phase = 'readiness';
         break;
       case 'review-requested':
@@ -245,14 +236,6 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
         // another kind of obligation moves none.
         if ((scenarioEventTypes as readonly string[]).includes(event.type)) {
           const scenarioEvent = event as unknown as ScenarioEvent;
-          if (record.identityContract === 'descriptive' && scenarioEvent.data.id.startsWith('scenario:')
-            && !scenarios.has(scenarioEvent.data.id) && unnamedDescriptiveScenarios.length > 0) {
-            const slot = unnamedDescriptiveScenarios.shift()!;
-            const named = new Map(scenarios);
-            named.delete(slot);
-            named.set(scenarioEvent.data.id, 'pending');
-            scenarios = named;
-          }
           scenarios = applyScenarioEvent(scenarios, scenarioEvent);
         }
         break;

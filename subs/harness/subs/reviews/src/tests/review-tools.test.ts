@@ -142,7 +142,7 @@ describe('exact candidate text evidence', () => {
 
 describe('a reviewer submission', () => {
   const concern = (path: string, ground: { path: string } | null = null) => ({
-    summary: 'Behavior fails', consequence: 'A caller loses its result', rationale: 'The source returns too early',
+    findingKey: 'draft:finding:review-concern', summary: 'Behavior fails', consequence: 'A caller loses its result', rationale: 'The source returns too early',
     uncertainty: 'Observed from code', remedy: 'Complete the operation', locations: [{ path, startLine: 1, endLine: 2 }],
     suggests: null, risk: 'medium', ground,
   });
@@ -170,15 +170,15 @@ describe('a reviewer submission', () => {
     expect(validateReview({ concerns: [concern('src/gone.ts')] }, evidence).ok).toBe(true);
   });
 
-  test('descriptive reviews require distinct local finding keys and keep legacy submissions readable', async () => {
+  test('reviews require distinct local finding keys', async () => {
     const { snapshot: candidate } = await snapshot();
     const evidence = { snapshot: candidate, inspected: new Set<string>(), read: new Map<string, string>(), maxConcerns: 2 };
     const named = { ...concern('src/a.ts'), findingKey: 'draft:finding:missing-companion-export' };
-    expect(validateReview({ concerns: [named] }, evidence, 'descriptive').ok).toBe(true);
-    expect(validateReview({ concerns: [concern('src/a.ts')] }, evidence, 'legacy').ok).toBe(true);
-    expect(validateReview({ concerns: [concern('src/a.ts')] }, evidence, 'descriptive')).toMatchObject({ ok: false });
-    expect(validateReview({ concerns: [{ ...named, findingKey: 'finding:missing-companion-export' }] }, evidence, 'descriptive')).toMatchObject({ ok: false });
-    expect(validateReview({ concerns: [named, named] }, evidence, 'descriptive')).toMatchObject({
+    expect(validateReview({ concerns: [named] }, evidence).ok).toBe(true);
+    expect(validateReview({ concerns: [{ ...concern('src/a.ts'), findingKey: undefined }] }, evidence).ok).toBe(false);
+    expect(validateReview({ concerns: [{ ...concern('src/a.ts'), findingKey: undefined }] }, evidence)).toMatchObject({ ok: false });
+    expect(validateReview({ concerns: [{ ...named, findingKey: 'finding:missing-companion-export' }] }, evidence)).toMatchObject({ ok: false });
+    expect(validateReview({ concerns: [named, named] }, evidence)).toMatchObject({
       ok: false, errors: [expect.objectContaining({ path: 'concerns.1.findingKey' })],
     });
   });

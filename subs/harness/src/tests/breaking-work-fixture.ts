@@ -360,7 +360,7 @@ export const base = 'revision-00';
  * readiness has passed; every later boundary is asked against it.
  */
 export const materialized = 'scenarios-00';
-export const scenarios = scenariosCommit(plan, materialized, base, [`${dirA}/src/tests/features/${plan}/reviewer-identity.feature`]);
+export const scenarios = scenariosCommit(plan, materialized, base, [`${dirA}/src/tests/features/${plan}/capability%3Areviewer-identity.feature`]);
 
 /** A boundary Git reports as unchanged, which commits nothing. */
 export const unchanged: GateCommit = { commit: null };

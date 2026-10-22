@@ -28,12 +28,9 @@ const handbackChanges = [...providerChanges, ...consumerChanges, ...exposedChang
 
 /** Explicit external answers for this multi-owner workflow, never inferred from live source. */
 export function acceptanceBoundaries(root: string, mode: string, recovery = false) {
-  const descriptive = mode === 'descriptive';
-  const scenarioPaths = descriptive
-    ? ['subs/a/src/tests/features/need/capability%3Aricher-a-fact.feature', 'subs/b/src/tests/features/need/capability%3Ab-entry.feature']
-    : ['subs/a/src/tests/features/need/richer-a-fact.feature', 'subs/b/src/tests/features/need/b-entry.feature'];
-  const task = descriptive ? 'capability-task:provide-source-fact' : 'cap-001';
-  const work = descriptive ? 'work-item:richer-a-fact' : 'wi-001';
+  const scenarioPaths = ['subs/a/src/tests/features/need/capability%3Aricher-a-fact.feature', 'subs/b/src/tests/features/need/capability%3Ab-entry.feature'];
+  const task = 'capability-task:provide-source-fact';
+  const work = 'work-item:richer-a-fact';
   let state: Stage = 'initial';
   let head = initial;
   let branch: string | undefined;
@@ -232,11 +229,11 @@ export function acceptanceBoundaries(root: string, mode: string, recovery = fals
       }
       expect(candidateCalls.some(call => call.startsWith('diffPatch'))).toBe(true);
       // A resumed consumer is verified through its ordinary iteration gate.
-      const iterationAttempts = mode === 'deferred' || mode === 'descriptive' || mode === 'restart' ? 3 : 2;
+      const iterationAttempts = mode === 'deferred' || mode === 'reload' || mode === 'restart' ? 3 : 2;
       expect(auditChecks.filter(call => call.startsWith('iteration:'))).toEqual(Array.from({ length: iterationAttempts }, () => ['iteration:tests', 'iteration:type-check', 'iteration:ramify-check']).flat());
       // Readiness answers no commands; completion uses the explicitly stated
       // configured policy response for each bounded attempt.
-      const completionAttempts = mode === 'repair-exhaustion' ? 4 : mode === 'deferred' || mode === 'descriptive' ? 2 : 1;
+      const completionAttempts = mode === 'repair-exhaustion' ? 4 : mode === 'deferred' || mode === 'reload' ? 2 : 1;
       expect(auditChecks.filter(call => call.startsWith('work-item:'))).toEqual(Array.from({ length: completionAttempts }, () => ['work-item:tests', 'work-item:type-check', 'work-item:ramify-check']).flat());
       expect(audit.requests).toHaveLength(1 + iterationAttempts + completionAttempts);
       for (const call of ramify.calls.filter(call => call.operation === 'run')) {

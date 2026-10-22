@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { scriptedCandidates } from '../../../acceptance/src/tests/helpers/candidates.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
@@ -17,7 +17,7 @@ import type { RunEvent } from '../../../../src/run/log.js';
 import { contractsLayout, executionRetirementPath, type ConsumerRequirement, type ContractRecord,
   type ExecutionRetirement, type ProviderObligation } from '../contracts/records.js';
 import { workLayout, type WorkItem } from '../work/records.js';
-import { descriptiveLocalArchitectJsonSchema } from '../work/submission.js';
+import { localArchitectJsonSchema } from '../work/submission.js';
 import { iterationLayout, type IterationResult } from '../work/iterations.js';
 import { runLayout } from '../../../../src/run/records.js';
 import type { GateAttempt } from '../../../acceptance/src/checks/records.js';
@@ -214,7 +214,7 @@ async function run(
 }
 
 const need = {
-  capability: 'note-limit',
+  capability: 'capability:note-limit',
   useCases: ['a reviewer attaches a note to a review run, and a note over the limit is refused'],
   inputs: ['the note text'],
   outputs: ['whether the note is within the limit'],
@@ -234,6 +234,9 @@ const contractNeeded = {
 /** The `established` submission, as the contract sub-session writes it. */
 const establishedContract = {
   kind: 'established' as const,
+  contractKey: 'draft:contract:note-limit',
+  providerObligationKey: 'draft:provider-obligation:note-limit',
+  consumerRequirementKey: 'draft:consumer-requirement:notes-note-limit',
   mode: 'fake-backed' as const,
   authority: {
     kind: 'provider' as const,
@@ -270,12 +273,13 @@ const placeTheLimit = localDecision(
   {
     question: 'Where does the note limit belong?',
     outcome: 'reuse',
-    capability: 'note-limit',
+    capability: 'capability:note-limit',
     owner: provider,
     rationale: 'The limit is a rule of its own, and this subtree is mine to place work in.',
   },
-  [registryChange({ capability: 'note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
+  [registryChange({ capability: 'capability:note-limit', owner: provider, behavior: 'A note of at most 500 characters is within the limit.' })],
 );
+placeTheLimit.decisionKey = 'draft:placement-decision:note-limit';
 
 /** The files each side of the seam owns, as the scenario's Git answers name them. */
 const seam = {
@@ -293,16 +297,31 @@ const seam = {
  * tree for the gates that follow a commit without a write of their own.
  */
 const delegationCommits = (verification: string): CommitResponse[] => [
-  accepted('wi-001.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
-  accepted('wi-002.i01', 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
-  unchanged('wi-002'),
+  accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.interface, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
+  accepted('work-item:provide-note-limit.i01', 'revision-02', [...added(seam.real), ...modified(seam.subjects)]),
+  unchanged('work-item:provide-note-limit'),
   accepted(verification, 'revision-03', modified(seam.consumer)),
-  unchanged('wi-001'),
+  unchanged('work-item:review-notes'),
   unchanged('final verification of plan "review-notes"'),
 ];
 
 async function events(root: string, runId: string): Promise<RunEvent[]> {
   return runEventsOnDisk(root, 'review-notes', runId);
+}
+
+function withoutLegacyFakeKeys(seam: typeof establishedContract) {
+  const { providerObligationKey: _providerObligationKey, consumerRequirementKey: _consumerRequirementKey, ...access } = seam;
+  return access;
+}
+
+function withoutRequirementProposal<T extends { consumerRequirementKey: string }>(seam: T) {
+  const { consumerRequirementKey: _consumerRequirementKey, ...revision } = seam;
+  return revision;
+}
+
+function withoutContractProposal(seam: ReturnType<typeof seamEstablished>) {
+  const { contractKey: _contractKey, providerObligationKey: _providerObligationKey, ...attached } = seam;
+  return attached;
 }
 
 function typesOf(log: readonly RunEvent[]): string[] {
@@ -316,15 +335,15 @@ async function readJson<T>(root: string, runId: string, path: string): Promise<T
 describe('P1: one consumer delegates, resumes after provider conformance and verifies against the real provider', () => {
   test('the delegation runs end to end and only the real provider closes it', async () => {
     const root = await target();
-    const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+    const { service, runId, git, agent } = await run(root, {
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         // The consumer's own turn: it places the capability within its own
         // authority and assigns the work that discovers the need.
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
         // The agreement is registered; the consumer has done what it can
         // against the fake and waits for the provider.
-        submit({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'The consumer runs against the fake and waits for the real limit.' }),
+        submit({ kind: 'yield-for-providers', requirements: ['consumer-requirement:notes-note-limit'], summary: 'The consumer runs against the fake and waits for the real limit.' }),
         // The provider work item the registration started.
         submit(assign(provider, {}, outline({ changes: 'Implement the agreed limit and run the conformance suite against it.' }))),
         submit(requestCompletion()),
@@ -341,9 +360,9 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
           write(join(root, consumerDirectory, 'src/notes.ts'), verified)),
       ],
       'contract-engineer': [submit(establishedContract, ...contractWrites)],
-    }, delegationCommits('wi-001.i03'));
+    }, delegationCommits('work-item:review-notes.i03'));
 
-    expect(onlyRun(service, 'review-notes').state, JSON.stringify(onlyRun(service, 'review-notes').failure)).toBe('completed');
+    expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure, sessions: agent?.sessions.map(session => ({ role: session.spec.role, verdicts: session.verdicts })) })).toBe('completed');
     const log = await events(root, runId);
     const types = typesOf(log);
 
@@ -353,34 +372,34 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
     expect(types.filter(type => type === 'contract-registered')).toHaveLength(1);
     const registered = log.find(event => event.type === 'contract-registered')!;
     expect(registered.data).toMatchObject({
-      contract: 'ct-001',
+      contract: 'contract:note-limit',
       revision: 1,
       mode: 'fake-backed',
-      obligation: 'ob-ct-001',
-      requirements: ['rq-001'],
-      providerWorkItem: 'wi-002',
+      obligation: 'provider-obligation:note-limit',
+      requirements: ['consumer-requirement:notes-note-limit'],
+      providerWorkItem: 'work-item:provide-note-limit',
     });
 
-    const contract = await readJson<ContractRecord>(root, runId, contractsLayout.contract('ct-001', 1));
+    const contract = await readJson<ContractRecord>(root, runId, contractsLayout.contract('contract:note-limit', 1));
     expect(contract.provider).toBe(provider);
     expect(contract.authority.kind).toBe('provider');
     expect(contract.mode).toBe('fake-backed');
     // The hashes are the harness's, taken from the files the gate passed over.
     expect(contract.artifacts.fake[0]!.hash).toMatch(/^[0-9a-f]{64}$/);
 
-    const obligation = await readJson<ProviderObligation>(root, runId, contractsLayout.obligation('ob-ct-001', 1));
+    const obligation = await readJson<ProviderObligation>(root, runId, contractsLayout.obligation('provider-obligation:note-limit', 1));
     expect(obligation.evidence.against).toBe('real');
     expect(obligation.evidence.conformance).toEqual([`${providerDirectory}/src/tests/note-limit.conformance.test.ts`]);
 
-    const requirement = await readJson<ConsumerRequirement>(root, runId, contractsLayout.requirement('rq-001', 1));
+    const requirement = await readJson<ConsumerRequirement>(root, runId, contractsLayout.requirement('consumer-requirement:notes-note-limit', 1));
     expect(requirement.consumer).toBe(consumer);
-    expect(requirement.forCapability).toBe('review-notes');
+    expect(requirement.forCapability).toBe('capability:review-notes');
     expect(requirement.evidence.fakeInjections).toEqual([`${consumerDirectory}/src/notes.ts`]);
 
-    const providerItem = await readJson<WorkItem>(root, runId, workLayout.item('wi-002'));
+    const providerItem = await readJson<WorkItem>(root, runId, workLayout.item('work-item:provide-note-limit'));
     expect(providerItem.module).toBe(provider);
-    expect(providerItem.startedFor).toBe('wi-001');
-    expect(providerItem.origin).toEqual({ obligation: { id: 'ob-ct-001', revision: 1, hash: expect.any(String) } });
+    expect(providerItem.startedFor).toBe('work-item:review-notes');
+    expect(providerItem.origin).toEqual({ obligation: { id: 'provider-obligation:note-limit', revision: 1, hash: expect.any(String) } });
 
     // The consumer yields, the provider runs, and the consumer comes back
     // only once the provider has conformed. The requirement is still open
@@ -391,14 +410,14 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
     // The provider work item ran between the yield and the resumption.
     const yielded = types.indexOf('work-item-yielded');
     const resumed = types.indexOf('work-item-resumed');
-    const started = log.findIndex(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002');
+    const started = log.findIndex(event => event.type === 'work-item-started' && event.data.workItem === 'work-item:provide-note-limit');
     expect(started).toBeGreaterThan(yielded);
     expect(started).toBeLessThan(resumed);
 
     const conformed = log.find(event => event.type === 'provider-conformed')!;
-    expect(conformed.data).toMatchObject({ obligation: 'ob-ct-001', revision: 1, workItem: 'wi-002' });
+    expect(conformed.data).toMatchObject({ obligation: 'provider-obligation:note-limit', revision: 1, workItem: 'work-item:provide-note-limit' });
     const closed = log.find(event => event.type === 'requirement-verified')!;
-    expect(closed.data).toMatchObject({ requirement: 'rq-001', revision: 1, workItem: 'wi-001' });
+    expect(closed.data).toMatchObject({ requirement: 'consumer-requirement:notes-note-limit', revision: 1, workItem: 'work-item:review-notes' });
 
     // The consumer's source no longer reaches the fake, which is what
     // `requirement-verified` required.
@@ -433,11 +452,12 @@ test.each(['fake-backed', 'access-only'] as const)(
     obligation: 'provider-obligation:provide-note-limit', requirement: 'consumer-requirement:review-notes-use-limit',
     accessContract: 'contract:review-note-limit-access',
   };
-  const placement = localDecision({
+  const placement = { ...localDecision({
     question: 'Where does the note limit belong?', outcome: 'reuse', capability: names.capability,
     owner: provider, rationale: 'The limit belongs to the existing limits module.',
   }, [registryChange({ capability: names.capability, owner: provider,
-    behavior: 'A note of at most 500 characters is within the limit.' })]);
+    behavior: 'A note of at most 500 characters is within the limit.' })]),
+    decisionKey: 'draft:placement-decision:note-limit' };
   const dependency = { capability: names.capability, owner: provider, role: 'request' as const };
   const { outline: _unchangedOutline, ...unchangedCompletion } = requestCompletion();
   const plan = byRole({
@@ -483,7 +503,7 @@ test.each(['fake-backed', 'access-only'] as const)(
     'contract-engineer': [submit({ ...establishedContract,
       contractKey: `draft:${names.contract}`, providerObligationKey: `draft:${names.obligation}`,
       consumerRequirementKey: `draft:${names.requirement}`,
-    }, ...contractWrites), ...(access ? [submit({ ...establishedContract, mode: 'access-only',
+    }, ...contractWrites), ...(access ? [submit({ ...withoutLegacyFakeKeys(establishedContract), mode: 'access-only',
       contractKey: `draft:${names.accessContract}`,
       artifacts: { ...establishedContract.artifacts, conformance: [], fake: [] }, fakeInjections: [],
       scope: { consumerWorkItems: [names.work] },
@@ -525,15 +545,14 @@ test.each(['fake-backed', 'access-only'] as const)(
     }
     return steps;
   };
-  const { service, runId, git, agent } = await run(root, {}, commits, { production: !access, identityContract: access ? 'descriptive' : undefined, script });
+  const { service, runId, git, agent } = await run(root, {}, commits, { production: !access, script });
   if (!access) {
-    const captured = await readJson<{ identityContract: string; prompts: Record<string, unknown>; policy: { context: Record<string, unknown> } }>(root, runId, runLayout.record);
-    expect(captured.identityContract).toBe('descriptive');
+    const captured = await readJson<{ prompts: Record<string, unknown>; policy: { context: Record<string, unknown> } }>(root, runId, runLayout.record);
     expect(captured.prompts['contract-engineer']).toBeDefined();
     expect(captured.policy.context['contract-engineer']).toBeDefined();
     expect(omittedCompletionDeclarations.length).toBeGreaterThanOrEqual(1);
     for (const declaration of omittedCompletionDeclarations) {
-      expect(declaration).toContain(JSON.stringify(descriptiveLocalArchitectJsonSchema));
+      expect(declaration).toContain(JSON.stringify(localArchitectJsonSchema));
     }
   }
   expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure,
@@ -577,7 +596,7 @@ test.each(['fake-backed', 'access-only'] as const)(
   expect(log.filter(event => ['work-item-yielded', 'provider-conformed', 'work-item-resumed', 'requirement-verified'].includes(event.type))
     .map(event => event.type)).toEqual(['work-item-yielded', 'provider-conformed', 'work-item-resumed', 'requirement-verified']);
   await service.close();
-  const reopened = await openRuns(root, { production: !access, identityContract: access ? 'descriptive' : undefined,
+  const reopened = await openRuns(root, { production: !access,
     script, inputs: treeInputs(), git });
   cleanups.push(() => reopened.service.close());
   expect(reopened.service.events('review-notes', runId)?.filter(event => event.type === 'contract-registered')).toHaveLength(1);
@@ -637,11 +656,12 @@ test.each(['split', 'replacement', 'merge'] as const)(
     tagsLimitRequirement: 'consumer-requirement:review-tags-enforce-trimmed-limit',
     tagsMergedRequirement: 'consumer-requirement:review-tags-trimmed-limit',
   };
-  const placement = localDecision({
+  const placement = { ...localDecision({
     question: 'Where does the note limit belong?', outcome: 'reuse', capability: 'capability:note-limit',
     owner: provider, rationale: 'The limit belongs to the existing limits module.',
   }, [registryChange({ capability: 'capability:note-limit', owner: provider,
-    behavior: 'A note of at most 500 characters is within the limit.' })]);
+    behavior: 'A note of at most 500 characters is within the limit.' })]),
+    decisionKey: 'draft:placement-decision:note-limit' };
   const dependency = { capability: 'capability:note-limit', owner: provider, role: 'request' as const };
   const reports = (scenario: string, basedOnRevision = 0) => ({ ...requestCompletion(),
     reports: [{ id: scenario, judgment: 'done', basedOnRevision }] });
@@ -649,10 +669,10 @@ test.each(['split', 'replacement', 'merge'] as const)(
     need: { ...seamContractNeeded(seam).need, capability: 'capability:note-limit' } });
   const fresh = { ...seamEstablished(base), contractKey: `draft:${names.contract}`,
     providerObligationKey: `draft:${names.obligation}`, consumerRequirementKey: `draft:${names.notesRequirement}` };
-  const attached = { ...seamEstablished(second), contractId: names.contract,
+  const attached = { ...withoutContractProposal(seamEstablished(second)), contractId: names.contract,
     providerObligationId: names.obligation, consumerRequirementKey: `draft:${names.tagsRequirement}` };
   const revision = replacement
-    ? { ...seamEstablished(revised), contractKey: `draft:${names.replacementContract}`,
+    ? { ...withoutRequirementProposal(seamEstablished(revised)), contractKey: `draft:${names.replacementContract}`,
       providerObligationKey: `draft:${names.replacementObligation}`, consumerRequirementId: names.tagsRequirement,
       retirements: [
         { id: names.contract, kind: 'contract', replacementKeys: [`draft:${names.replacementContract}`],
@@ -660,7 +680,7 @@ test.each(['split', 'replacement', 'merge'] as const)(
         { id: names.obligation, kind: 'provider-obligation', replacementKeys: [`draft:${names.replacementObligation}`],
           reason: 'The new agreement needs its own provider obligation.' },
       ] }
-    : { ...seamEstablished(revised), contractId: names.contract,
+    : { ...withoutRequirementProposal(withoutContractProposal(seamEstablished(revised))), contractId: names.contract,
       providerObligationId: names.obligation,
       consumerRequirementKeys: [`draft:${names.tagsTrimRequirement}`, `draft:${names.tagsLimitRequirement}`],
       retirements: [{ id: names.tagsRequirement, kind: 'consumer-requirement',
@@ -675,8 +695,8 @@ test.each(['split', 'replacement', 'merge'] as const)(
         reason: 'The new agreement needs its own provider obligation.' },
     ],
   } : null;
-  const merged = { ...seamEstablished({ ...revised,
-    behavior: 'One requirement covers trimming a tag before applying the 500 character limit.' }),
+  const merged = { ...withoutContractProposal(seamEstablished({ ...revised,
+    behavior: 'One requirement covers trimming a tag before applying the 500 character limit.' })),
     contractId: names.contract, providerObligationId: names.obligation,
     consumerRequirementKey: `draft:${names.tagsMergedRequirement}`,
     scope: { consumerWorkItem: names.tags },
@@ -802,7 +822,7 @@ test.each(['split', 'replacement', 'merge'] as const)(
     accepted(`${names.notesFollowUp}.i01`, merging ? 'revision-09' : 'revision-08', modified(paths.consumer)), unchanged(names.notesFollowUp),
     unchanged('final verification of plan "review-notes"'),
   ];
-  const { service, runId, git, agent } = await run(root, {}, commits, { identityContract: 'descriptive', script });
+  const { service, runId, git, agent } = await run(root, {}, commits, { script });
   const log = await events(root, runId);
   expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure,
     tagsTurns, progress: log.filter(event => ['evidence-reopened', 'work-item-yielded', 'work-item-resumed',
@@ -882,7 +902,7 @@ test.each(['split', 'replacement', 'merge'] as const)(
       : merging ? [`${names.tagsMergedRequirement}@3`] : [`${names.tagsTrimRequirement}@2`, `${names.tagsLimitRequirement}@2`]),
       `${names.notesRequirement}@${merging ? 3 : 2}`]);
   await service.close();
-  const loaded = await openRuns(root, { identityContract: 'descriptive', script, inputs: treeInputs(), git });
+  const loaded = await openRuns(root, { script, inputs: treeInputs(), git });
   cleanups.push(() => loaded.service.close());
   expect(loaded.service.events('review-notes', runId)?.filter(event => event.type === 'evidence-reopened'))
     .toHaveLength(merging ? 2 : 1);
@@ -903,7 +923,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
   test('a compaction handoff returns the unfinished contract once without another engineer tool', async () => {
     const root = await target();
     const plan = {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
         submit(assign(consumer, { goal: 'Carry the limit in this module after the unfinished agreement.' })),
@@ -928,7 +948,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     };
     const ordinary = byRole(plan);
     const { service, agent, runId, git } = await run(root, plan, [
-      accepted('wi-001', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
+      accepted('work-item:review-notes', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
       unchanged('final verification of plan "review-notes"'),
     ], { script: spec => spec.submission.name === 'submit_compaction_review'
       ? submit({ action: 'handoff', reason: 'The agreement needs a new approach.' })
@@ -941,7 +961,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     expect(agent!.sessions.filter(session => session.spec.role === 'contract-engineer')).toHaveLength(1);
     expect(existsSync(join(root, providerDirectory, 'src/after-handoff.ts'))).toBe(false);
     expect(log.filter(event => event.type === 'invocation-ended' && event.data.ended === 'checkpoint-pending')).toHaveLength(1);
-    const result = await readJson<IterationResult>(root, runId, iterationLayout.result('wi-001', 2));
+    const result = await readJson<IterationResult>(root, runId, iterationLayout.result('work-item:review-notes', 2));
     expect(result.outcome).toBe('partial');
     expect(result.findings.some(finding => finding.includes('The agreement needs a new approach.'))).toBe(true);
     expect(typesOf(log)).not.toContain('contract-registered');
@@ -952,7 +972,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
   test('the contract iteration closes partial with the failure, and the run continues', async () => {
     const root = await target();
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
         submit(assign(consumer, { goal: 'Carry the limit in this module, since the agreement was not established.' })),
@@ -974,7 +994,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
         { kind: 'fail', error: 'the provider refused the request' },
       ]],
     }, [
-      accepted('wi-001', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
+      accepted('work-item:review-notes', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
       unchanged('final verification of plan "review-notes"'),
     ]);
 
@@ -983,10 +1003,10 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     expect(types).toContain('contract-requested');
     expect(types).not.toContain('contract-registered');
 
-    const result = await readJson<IterationResult>(root, runId, iterationLayout.result('wi-001', 2));
+    const result = await readJson<IterationResult>(root, runId, iterationLayout.result('work-item:review-notes', 2));
     expect(result.outcome).toBe('partial');
     expect(result.findings).toContain(
-      `the module engineer (contract) of wi-001.i02 ended without a result (failed: the provider refused the request; invocation ${result.invocations[0]}); nothing was registered`,
+      `the module engineer (contract) of work-item:review-notes.i02 ended without a result (failed: the provider refused the request; invocation ${result.invocations[0]}); nothing was registered`,
     );
     // Its module architect is briefed with the digest and the analysis, as for a module engineer.
     expect(result.failure?.digest).toMatchObject({ invocation: result.invocations[0], role: 'contract-engineer', ended: 'failed' });
@@ -996,7 +1016,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     // later work-item gate uses both actual recorded assignment authorities.
     const attempted = (await events(root, runId)).filter((event): event is Extract<RunEvent, { type: 'gate-attempted' }> => event.type === 'gate-attempted');
     const attempts = await Promise.all(attempted.map(event => readJson<GateAttempt>(root, runId, runLayout.gate(event.data.gate))));
-    expect(attempts.find(gate => gate.subject.iteration === 'wi-001.i03')).toMatchObject({ commit: null, rules: expect.arrayContaining([expect.objectContaining({ rule: 'write-scope', outcome: 'failed' })]) });
+    expect(attempts.find(gate => gate.subject.iteration === 'work-item:review-notes.i03')).toMatchObject({ commit: null, rules: expect.arrayContaining([expect.objectContaining({ rule: 'write-scope', outcome: 'failed' })]) });
     expect(attempts.find(gate => gate.checkpoint === 'work-item')).toMatchObject({ commit: 'revision-01', rules: expect.arrayContaining([expect.objectContaining({ rule: 'write-scope', outcome: 'passed' })]) });
     expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01']);
     git.assertAnswered();
@@ -1007,7 +1027,7 @@ describe('X1b: a contract sub-session that returns incomplete registers nothing'
   test('no contract and no obligation are committed, and its caller accounts for the partial work', async () => {
     const root = await target();
     const { service, runId, git } = await run(root, {
-      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
       'local-architect': [
         submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
         // Nothing was registered, so there is no requirement to wait for.
@@ -1035,7 +1055,7 @@ describe('X1b: a contract sub-session that returns incomplete registers nothing'
       // Nothing was committed while the agreement was open, so the first
       // commit of the run carries the interface the unfinished session left
       // beside the work its caller carried itself.
-      accepted('wi-001', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
+      accepted('work-item:review-notes', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
       unchanged('final verification of plan "review-notes"'),
     ]);
 
@@ -1053,7 +1073,7 @@ describe('X1b: a contract sub-session that returns incomplete registers nothing'
     // The caller accounts for the partial work: the contract iteration's own
     // result is `partial` and says what is unfinished, and the requesting
     // work item's architect was told.
-    const result = await readJson<{ outcome: string; findings: string[] }>(root, runId, iterationLayout.result('wi-001', 2));
+    const result = await readJson<{ outcome: string; findings: string[] }>(root, runId, iterationLayout.result('work-item:review-notes', 2));
     expect(result.outcome).toBe('partial');
     expect(result.findings.join(' ')).toContain('registered nothing');
     expect(result.findings.join(' ')).toContain('the fake does not pass the conformance suite yet');
@@ -1065,10 +1085,10 @@ describe('X1b: a contract sub-session that returns incomplete registers nothing'
     // later work-item gate uses both actual recorded assignment authorities.
     const attempted = (await events(root, runId)).filter((event): event is Extract<RunEvent, { type: 'gate-attempted' }> => event.type === 'gate-attempted');
     const attempts = await Promise.all(attempted.map(event => readJson<GateAttempt>(root, runId, runLayout.gate(event.data.gate))));
-    expect(attempts.find(gate => gate.subject.iteration === 'wi-001.i03')).toMatchObject({ commit: null, rules: expect.arrayContaining([expect.objectContaining({ rule: 'write-scope', outcome: 'failed' })]) });
+    expect(attempts.find(gate => gate.subject.iteration === 'work-item:review-notes.i03')).toMatchObject({ commit: null, rules: expect.arrayContaining([expect.objectContaining({ rule: 'write-scope', outcome: 'failed' })]) });
     expect(attempts.find(gate => gate.checkpoint === 'work-item')).toMatchObject({ commit: 'revision-01', rules: expect.arrayContaining([expect.objectContaining({ rule: 'write-scope', outcome: 'passed' })]) });
     expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01']);
-    expect(git.subjects()).toEqual(['Scenarios of review-notes', 'wi-001', 'final verification of plan \"review-notes\"']);
+    expect(git.subjects()).toEqual(['Scenarios of review-notes', 'work-item:review-notes', 'final verification of plan \"review-notes\"']);
     git.assertAnswered();
   }, 60_000);
 });

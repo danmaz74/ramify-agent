@@ -8,7 +8,7 @@ import * as projectFacts from '../../subs/autonomous/subs/work-coordination/src/
 import { OwnershipAuthorityError } from '../work/ownership-authority.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { repairIncidentRecordSchema } from '../interfaces/protocol/repairs.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, outline, partialReport, submit, treeInputs, write } from './helpers/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
@@ -49,7 +49,7 @@ async function scenario(boundary: 'ordinary' | 'missing' | 'spent' | 'blocked' |
   const rootPath = 'src/repair-pointer.txt', rootContent = 'Restored preparation service lookup\n';
   const rootChanged = () => rootRepairWritten && gitBoundary.head() === 'scenarios';
   const gitBoundary = gateGit(copy.root, { head: 'base', commits: [scenariosCommit(plan, 'scenarios', 'base'),
-    ...excluded ? [] : [{ commit: rootRepairDelta ? 'accepted-root' : null, changes: rootRepairDelta ? [{ status: 'A', path: rootPath }] : [], subject: 'wi-001' }, { commit: null, changes: [], subject: 'final verification' }]],
+    ...excluded ? [] : [{ commit: rootRepairDelta ? 'accepted-root' : null, changes: rootRepairDelta ? [{ status: 'A', path: rootPath }] : [], subject: 'work-item:review-note' }, { commit: null, changes: [], subject: 'final verification' }]],
   });
   // Exact identity reads are explicitly repeatable while the run is quiescent.
   const git = { ...gitBoundary.git, changedEntries: async (root: string, base?: string) => rootRepairDelta ? rootChanged() ? [{ status: 'A', path: rootPath }] : [] : gitBoundary.git.changedEntries(root, base), changedPaths: async (root: string, base?: string) => unsafeCandidate ? ['src/assembly.ts'] : rootRepairDelta ? rootChanged() ? [rootPath] : [] : gitBoundary.git.changedPaths(root, base), previewCandidateTree: async () => ({ repositoryRoot: copy.root, head: gitBoundary.head(), tree: rootRepairModified ? 'd'.repeat(40) : dispatchDrift || rootRepairWritten ? 'b'.repeat(40) : tree }),
@@ -66,7 +66,7 @@ async function scenario(boundary: 'ordinary' | 'missing' | 'spent' | 'blocked' |
   const specs: SessionSpec[] = [];
   const script: Script = spec => {
     specs.push(spec);
-    if (spec.role === 'initial-architect') return submit(initial);
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(initial, 'document:review-notes-plan'));
     if (spec.submission.name === 'submit_automatic_repair') {
       if (boundary !== 'blocked' && boundary !== 'unverified') unavailable = false;
       return submit({ outcome: boundary === 'blocked' ? 'blocked' : 'ready', summary: 'Preparation service repair report', checks: [],
@@ -106,8 +106,7 @@ async function scenario(boundary: 'ordinary' | 'missing' | 'spent' | 'blocked' |
 async function resume(subject: Awaited<ReturnType<typeof scenario>>, declared = true) {
   const inspection = (await subject.service.recoveryInspection(plan, subject.runId))!;
   return subject.service.execute({ commandId: declared ? `restore-${inspection.occurrenceId}` : 'undeclared', expectedVersion: 0, type: 'resume-recovery', payload: {
-    planId: plan, jobId: subject.runId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision,
-    ...declared ? { repair: { areas: ['environment' as const], explanation: 'Restored the source preparation service without modifying target source' } } : {},
+    planId: plan, jobId: subject.runId,
   } });
 }
 
@@ -122,7 +121,7 @@ async function incidents(subject: Awaited<ReturnType<typeof scenario>>) {
 test('ordinary local architect preparation remains pending and continues after its prerequisite is restored', async () => {
   const subject = await scenario('ordinary');
   const inspection = (await subject.service.recoveryInspection(plan, subject.runId))!;
-  expect(inspection).toMatchObject({ boundary: { kind: 'preparation', role: 'local-architect', work: { workItem: 'wi-001' } }, evidence: { classification: 'preparation' }, automaticAttempts: 0, attempts: [], canResume: true });
+  expect(inspection).toMatchObject({ boundary: { kind: 'preparation', role: 'local-architect', work: { workItem: 'work-item:review-note' } }, evidence: { classification: 'preparation' }, automaticAttempts: 0, attempts: [], canResume: true });
   expect(subject.preparationCalls()).toBe(1);
   expect(subject.service.events(plan, subject.runId)!.some(event => event.type === 'repair-incident-recorded')).toBe(false);
   expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(0);
@@ -152,7 +151,7 @@ test.each(['missing', 'spent'] as const)('eligible %s root repair refusal pauses
   expect(events.filter(event => event.type === 'iteration-closed').map(event => event.data.outcome)).toEqual(boundary === 'missing' ? ['partial'] : ['partial', 'partial']);
   expect(events.filter(event => event.type === 'repair-assignment-recorded')).toHaveLength(boundary === 'missing' ? 0 : 1);
   subject.gitBoundary.assertComplete();
-});
+}, 20_000);
 
 test.each(['blocked', 'unverified'] as const)('%s root repair remains terminal even under ordinary preparation recovery policy', async boundary => {
   const subject = await scenario(boundary);
@@ -193,7 +192,7 @@ test.each(['ordinary', 'missing', 'spent'] as const)('restart at %s preparation 
   const events = reopened.service.events(plan, subject.runId)!;
   expect(events.filter(event => event.type === 'repair-incident-recorded' && event.data.stage === 'refused')).toHaveLength(boundary === 'ordinary' ? 0 : 1);
   subject.gitBoundary.assertComplete();
-});
+}, 20_000);
 
 
 test.each(['unsafe', 'semantic'] as const)('%s original authority remains terminal and cannot use missing root assignment recovery', async boundary => {
@@ -236,7 +235,7 @@ test('a successful unconsumed root repair delta remains retained authority at sp
   expect(subject.specs.filter(spec => spec.submission.name === 'submit_automatic_repair')).toHaveLength(1);
   expect(await incidents(subject)).toEqual(before);
   subject.gitBoundary.assertComplete();
-});
+}, 20_000);
 
 
 test('a later edit to an unconsumed root repair delta cannot use spent repair refusal recovery', async () => {

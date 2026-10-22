@@ -22,9 +22,8 @@ import { commandIdSchema, jobVersionSchema } from './jobs.js';
  * that accepts them after its run has ended.
  */
 
-export const checkFindingProtocolVersion = 'check-findings/1';
-export const descriptiveCheckFindingProtocolVersion = 'check-findings/2';
-const checkFindingProtocolSchema = z.union([z.literal(checkFindingProtocolVersion), z.literal(descriptiveCheckFindingProtocolVersion)]);
+export const checkFindingProtocolVersion = 'check-findings/2';
+const checkFindingProtocolSchema = z.literal(checkFindingProtocolVersion);
 
 /** The bounds of every list and detail. */
 export const checkFindingWireLimits = { defaultLimit: 50, maxLimit: 100, detailHistory: 200 } as const;
@@ -33,11 +32,8 @@ const text = z.string().min(1);
 const count = z.int().nonnegative();
 const version = z.int().nonnegative();
 
-/** An accepted CheckFinding ID: legacy `cf-0001` or descriptive `finding:<name>`. */
-export const checkFindingWireIdSchema = z.union([
-  z.string().regex(/^cf-\d{4,}$/),
-  z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
-]);
+/** An accepted CheckFinding ID. */
+export const checkFindingWireIdSchema = z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
 /** A CheckFinding decision's ID, `cfd-0001`. */
 export const checkFindingDecisionWireIdSchema = z.string().regex(/^cfd-\d{4,}$/);
 

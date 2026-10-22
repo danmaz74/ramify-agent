@@ -14,7 +14,7 @@ const requirement = (key: string) => ({ key, kind: 'functional' as const, docume
 
 describe('descriptive element catalog', () => {
   it('accepts the proposed name as the actual ID and preserves its complete package content', () => {
-    const open = openElementCatalog(sha256, manifest, 'descriptive');
+    const open = openElementCatalog(sha256, manifest);
     const accepted = acceptElements(open, [requirement('draft:functional-requirement:reject-missing-predecessor')]);
     expect(accepted.ok).toBe(true);
     if (!accepted.ok) return;
@@ -25,7 +25,7 @@ describe('descriptive element catalog', () => {
   });
 
   it('rejects an entire batch for active or retired collisions, and permits a meaningful qualifier', () => {
-    const open = openElementCatalog(sha256, manifest, 'descriptive');
+    const open = openElementCatalog(sha256, manifest);
     const first = acceptElements(open, [requirement('draft:functional-requirement:preview-input')]);
     if (!first.ok) throw new Error(first.errors.join('\n'));
     const collision = acceptElements(first.catalog, [requirement('draft:functional-requirement:another'), requirement('draft:functional-requirement:preview-input')]);
@@ -44,7 +44,7 @@ describe('descriptive element catalog', () => {
   });
 
   it('distinguishes draft, accepted, wrong kind, unknown, and retired citations at the field path', () => {
-    const open = openElementCatalog(sha256, manifest, 'descriptive');
+    const open = openElementCatalog(sha256, manifest);
     const first = acceptElements(open, [requirement('draft:functional-requirement:preview-input')]);
     if (!first.ok) throw new Error(first.errors.join('\n'));
     const errors = validateElementReferences([

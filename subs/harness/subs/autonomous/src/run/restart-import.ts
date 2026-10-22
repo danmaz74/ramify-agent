@@ -38,7 +38,6 @@ export const restartImportSchema = z.object({
   }).strict(),
   preserved: z.array(text), inapplicable: z.array(text), outstanding: z.array(text),
   sourceIdentity: recoveryIdentitySchema.optional(), recognizedEffects: z.array(restartRecognizedEffectSchema),
-  policyTransition: z.object({ from: z.enum(['run-policy/7', 'run-policy/8']), to: z.literal('run-policy/8') }).strict(),
   digest: hash,
 }).strict();
 export interface RestartImport extends Omit<z.infer<typeof restartImportSchema>, 'inventory'> {
@@ -46,7 +45,7 @@ export interface RestartImport extends Omit<z.infer<typeof restartImportSchema>,
 }
 /** Lifecycle evidence remains source history; it never licenses successor execution. */
 const lifecycle = new Set(['job-started', 'job-continued', 'job-completed', 'job-failed', 'job-stopped', 'job-interrupted', 'stop-requested',
-  'session-finished', 'continuity-policy-adopted', 'operation-recovery-attempt', 'operation-recovery-pausing',
+  'session-finished', 'operation-recovery-attempt', 'operation-recovery-pausing',
   'operation-recovery-paused', 'operation-recovery-replied',
   'debug-pausing', 'debug-paused', 'debug-exchange-admitted', 'debug-exchange-settled', 'debug-resumed']);
 

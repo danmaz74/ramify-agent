@@ -16,7 +16,7 @@ import { runSessionCommand } from '../../subs/task-workflow/src/sessions/command
 import type { SessionProgress } from '../../subs/task-workflow/src/sessions/single.js';
 import { copyCapabilityFixture } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { auditDefinition, commandCheck } from './helpers/configured-repository.js';
 import {
   addModule, assign, completionProposed, edit, failureAnalystFake, installMiniRunner, outline, partialReport, submit, viewedInputs, write,
@@ -113,7 +113,7 @@ function production(roles: (spec: SessionSpec) => readonly ScriptStep[] | undefi
 const forgotten = { ...requestCompletion(), reports: [] };
 const done = (prompt: string, id: string, where?: string) =>
   ({ id, judgment: 'done' as const, basedOnRevision: revisionOf(prompt, id), ...(where === undefined ? {} : { where }) });
-const registration = { kind: 'test' as const, description: 'The notes test states the plan limit' };
+const registration = { kind: 'test' as const, testKey: 'draft:test:note-limit', description: 'The notes test states the plan limit' };
 
 /** The notes project with its nested report project, committed on main. */
 async function notesProject(): Promise<string> {
@@ -209,16 +209,16 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
         reachedCorrection();
         return [{ kind: 'wait', ms: 60_000 }];
       }
-      if (spec.role === 'initial-architect') return submit(analysis([entry('review-note', notes)]));
+      if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'));
       if (spec.submission.name === 'submit_work_item_result') {
         firstArchitect += 1;
         if (firstArchitect === 1) {
-          return submit({ ...assign(notes, { goal: 'Raise the note limit to 500 characters.', obligations: ['sc-001'], scope }, outline()),
+          return submit({ ...assign(notes, { goal: 'Raise the note limit to 500 characters.', obligations: ['scenario:review-note-is-used'], scope }, outline()),
             registrations: [registration] });
         }
-        witnessed['run1-completion-briefing'] = { sc001: stateOf(spec.prompt, 'sc-001'), test001: stateOf(spec.prompt, 'test-001') };
+        witnessed['run1-completion-briefing'] = { sc001: stateOf(spec.prompt, 'scenario:review-note-is-used'), test001: stateOf(spec.prompt, 'test:note-limit') };
         return [...submit(forgotten), ...submit({ ...requestCompletion(), reports: [
-          done(spec.prompt, 'sc-001', 'notes.test.ts — the note limit test'), done(spec.prompt, 'test-001'),
+          done(spec.prompt, 'scenario:review-note-is-used', 'notes.test.ts — the note limit test'), done(spec.prompt, 'test:note-limit'),
         ] })];
       }
       if (spec.role === 'engineer') {
@@ -230,7 +230,7 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
             edit('../report/limit.json', '400', '500'),
             { kind: 'submit', input: completionProposed('Raised the limit.') },
             { kind: 'submit', input: completionProposed('Raised the limit and the report\'s stated limit.', {
-              bindings: [{ id: 'sc-001', fakes: ['FakeReportReader'] }] }) },
+              bindings: [{ id: 'scenario:review-note-is-used', fakes: ['FakeReportReader'] }] }) },
           ];
         }
         witnessed['run1-repair'] = {
@@ -238,12 +238,12 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
           gateDigest: spec.prompt.includes('## The gate did not pass'),
           scratchKept: existsSync(join(root, notesDirectory, 'src/tmp/draft.txt')),
         };
-        return submit(completionProposed('The test states the new limit.', { bindings: [{ id: 'sc-001', fakes: ['FakeReportReader'] }] }),
+        return submit(completionProposed('The test states the new limit.', { bindings: [{ id: 'scenario:review-note-is-used', fakes: ['FakeReportReader'] }] }),
           edit('tests/notes.test.ts', 'toBe(400)', 'toBe(500)'));
       }
       return undefined;
     });
-    const opened = await openRuns(root, { production: true, identityContract: 'legacy', ...external, script: first });
+    const opened = await openRuns(root, { production: true, ...external, script: first });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun(plan));
     // Explicitly stop at the correction decision so this native two-run witness
@@ -268,16 +268,16 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
 
     // PB3-D11: the proposal without its binding was rejected before any gate.
     const engineerSessions = sessions.filter(session => session.spec.role === 'engineer');
-    expect(verdicts(engineerSessions[0]!)[0]).toContain('sc-001');
+    expect(verdicts(engineerSessions[0]!)[0]).toContain('scenario:review-note-is-used');
     expect(witnessed['run1-repair']).toEqual({ continued: 'continue', gateDigest: true, scratchKept: true });
     // PB3-C01: the completion request without its reports was rejected naming both IDs.
     const architectSessions = sessions.filter(session => session.spec.submission.name === 'submit_work_item_result');
-    expect(verdicts(architectSessions.at(-1)!)[0]).toContain('leaves sc-001, test-001 without a done report');
-    // PB3-D03: the passing iteration gate left sc-001 bound; only the report made it done.
+    expect(verdicts(architectSessions.at(-1)!)[0]).toContain('leaves scenario:review-note-is-used, test:note-limit without a done report');
+    // PB3-D03: the passing iteration gate left scenario:review-note-is-used bound; only the report made it done.
     expect(witnessed['run1-completion-briefing']).toEqual({ sc001: 'bound', test001: 'pending' });
     expect(obligationLines(failedEvents)).toEqual([
-      'registered test-001', 'bound sc-001 (FakeReportReader)', 'bound sc-001 (FakeReportReader)',
-      'reported sc-001 done with where', 'reported test-001 done',
+      'registered test:note-limit', 'bound scenario:review-note-is-used (FakeReportReader)', 'bound scenario:review-note-is-used (FakeReportReader)',
+      'reported scenario:review-note-is-used done with where', 'reported test:note-limit done',
     ]);
 
     // Readiness and iteration gates asked the root's default; the
@@ -311,28 +311,28 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
     await git(root, 'checkout', '--quiet', '-B', 'main');
     let secondEngineer = 0;
     const architectTurns: Array<(spec: SessionSpec) => readonly ScriptStep[]> = [
-      () => submit({ ...assign(notes, { goal: 'Raise the note limit to 500 characters, report included.', obligations: ['sc-001'], scope }, outline()),
+      () => submit({ ...assign(notes, { goal: 'Raise the note limit to 500 characters, report included.', obligations: ['scenario:review-note-is-used'], scope }, outline()),
         registrations: [registration] }),
       spec => {
         witnessed['run2-after-partial'] = { unfinished: spec.prompt.includes('The report project still states 400') };
-        return submit(assign(notes, { goal: 'Finish the report project\'s limits.', obligations: ['sc-001'], scope }));
+        return submit(assign(notes, { goal: 'Finish the report project\'s limits.', obligations: ['scenario:review-note-is-used'], scope }));
       },
       // A done report over a binding that names a fake is accepted.
-      spec => submit({ ...assign(notes, { goal: 'Replace the fake report reader.', obligations: ['sc-001'], scope }),
-        reports: [done(spec.prompt, 'sc-001', 'notes.test.ts')] }),
+      spec => submit({ ...assign(notes, { goal: 'Replace the fake report reader.', obligations: ['scenario:review-note-is-used'], scope }),
+        reports: [done(spec.prompt, 'scenario:review-note-is-used', 'notes.test.ts')] }),
       spec => {
-        witnessed['run2-reassessment-briefing'] = { sc001: stateOf(spec.prompt, 'sc-001'), test001: stateOf(spec.prompt, 'test-001') };
+        witnessed['run2-reassessment-briefing'] = { sc001: stateOf(spec.prompt, 'scenario:review-note-is-used'), test001: stateOf(spec.prompt, 'test:note-limit') };
         // Reassessment: the architect revises its earlier done to bound.
-        return submit({ ...assign(notes, { goal: 'State the limit at its edge.', obligations: ['sc-001'], scope }),
-          reports: [{ id: 'sc-001', judgment: 'bound', basedOnRevision: revisionOf(spec.prompt, 'sc-001') }] });
+        return submit({ ...assign(notes, { goal: 'State the limit at its edge.', obligations: ['scenario:review-note-is-used'], scope }),
+          reports: [{ id: 'scenario:review-note-is-used', judgment: 'bound', basedOnRevision: revisionOf(spec.prompt, 'scenario:review-note-is-used') }] });
       },
       spec => [...submit(forgotten), ...submit({ ...requestCompletion(), reports: [
-        done(spec.prompt, 'sc-001', 'notes.test.ts — both limit tests'), done(spec.prompt, 'test-001'),
+        done(spec.prompt, 'scenario:review-note-is-used', 'notes.test.ts — both limit tests'), done(spec.prompt, 'test:note-limit'),
       ] })],
     ];
     let architectTurn = 0;
     const second = production(spec => {
-      if (spec.role === 'initial-architect') return submit(analysis([entry('review-note', notes)]));
+      if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:review-notes-plan'));
       if (spec.submission.name === 'submit_work_item_result') {
         return architectTurns[architectTurn++]!(spec);
       }
@@ -343,19 +343,19 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
             edit('notes.ts', 'noteLimit = 400', 'noteLimit = 500'), edit('tests/notes.test.ts', 'toBe(400)', 'toBe(500)'));
         }
         if (secondEngineer === 2) {
-          return submit(completionProposed('The report states and expects 500.', { bindings: [{ id: 'sc-001', fakes: ['FakeReportReader'] }] }),
+          return submit(completionProposed('The report states and expects 500.', { bindings: [{ id: 'scenario:review-note-is-used', fakes: ['FakeReportReader'] }] }),
             edit('../report/limit.json', '400', '500'), edit('../report/expected.json', '400', '500'));
         }
         if (secondEngineer === 3) {
-          return submit(completionProposed('The notes read the real report.', { bindings: [{ id: 'sc-001' }] }),
+          return submit(completionProposed('The notes read the real report.', { bindings: [{ id: 'scenario:review-note-is-used' }] }),
             edit('notes.ts', 'noteLimit = 500;', 'noteLimit = 500; // the report states the same limit'));
         }
-        return submit(completionProposed('The limit holds at its edge.', { bindings: [{ id: 'sc-001' }] }),
+        return submit(completionProposed('The limit holds at its edge.', { bindings: [{ id: 'scenario:review-note-is-used' }] }),
           edit('tests/notes.test.ts', '});\n', '});\n\ntest(\'a note at the limit fits\', () => {\n  expect(noteLimit - 500).toBe(0);\n});\n'));
       }
       return undefined;
     });
-    const reopened = await openRuns(root, { production: true, identityContract: 'legacy', ...external, script: second });
+    const reopened = await openRuns(root, { production: true, ...external, script: second });
     cleanups.push(() => reopened.service.close());
     const secondReceipt = await reopened.service.execute(startRun(plan));
     const repairedRun = secondReceipt.jobId;
@@ -373,18 +373,18 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
     // and every assignment kept the scope with its included project tree.
     expect(witnessed['run2-reassessment-briefing']).toEqual({ sc001: 'done', test001: 'pending' });
     const assignments = await Promise.all(repairedEvents.filter(event => event.type === 'iteration-assigned').map(async (_event, index) =>
-      JSON.parse(await readFile(runPath(root, plan, repairedRun, iterationLayout.assignment('wi-001', index + 1)), 'utf8')) as IterationAssignment));
+      JSON.parse(await readFile(runPath(root, plan, repairedRun, iterationLayout.assignment('work-item:review-note', index + 1)), 'utf8')) as IterationAssignment));
     expect(assignments).toHaveLength(4);
     expect(assignments.map(assignment => assignment.scope.resolved.included.map(entry => [entry.kind, entry.directory])))
       .toEqual(Array.from({ length: 4 }, () => [['owned-nested-project', report]]));
     // PB3-D12, PB3-C06: done over a fake, a rebinding that leaves it done,
     // the architect's revision back to bound, the rebinding and the final report.
     expect(obligationLines(repairedEvents)).toEqual([
-      'registered test-001', 'bound sc-001 (FakeReportReader)', 'reported sc-001 done with where', 'bound sc-001 (no fakes)',
-      'reported sc-001 bound', 'bound sc-001 (no fakes)', 'reported sc-001 done with where', 'reported test-001 done',
+      'registered test:note-limit', 'bound scenario:review-note-is-used (FakeReportReader)', 'reported scenario:review-note-is-used done with where', 'bound scenario:review-note-is-used (no fakes)',
+      'reported scenario:review-note-is-used bound', 'bound scenario:review-note-is-used (no fakes)', 'reported scenario:review-note-is-used done with where', 'reported test:note-limit done',
     ]);
     const repairedSessions = reopened.agent!.sessions.filter(session => session.spec.submission.name === 'submit_work_item_result');
-    expect(verdicts(repairedSessions.at(-1)!)[0]).toContain('leaves sc-001, test-001 without a done report');
+    expect(verdicts(repairedSessions.at(-1)!)[0]).toContain('leaves scenario:review-note-is-used, test:note-limit without a done report');
 
     // PB3-R03: the full nested final gate passed on the repaired commit, and
     // the failing record of the first run remains retrievable beside it.
@@ -438,22 +438,22 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
     let capabilityArchitect = 0;
     let localArchitect = 0;
     const script = production(spec => {
-      if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', consumer)]));
+      if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('richer-a-fact', consumer)]), 'document:need-plan'));
       if (spec.submission.name === 'submit_capability_qualification') {
-        const [, request, invocation] = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
-        return submit({ kind: 'delegate-capability', request, invocation, provider,
+        const [, request, invocation] = [...spec.prompt.matchAll(/Use request (capability-request:[a-z0-9-]+) and invocation (inv-\d+)/gu)].at(-1)!;
+        return submit({ kind: 'delegate-capability', request, invocation, taskKey: 'draft:capability-task:provide-sourced-fact', provider,
           placementReason: 'B owns the fact and its interface', constraints: [], requirementRefs: [] });
       }
       if (spec.submission.name === 'submit_work_item_result') {
         localArchitect += 1;
-        if (localArchitect === 1) return submit({ ...assign(consumer, { goal: 'Show the fact with its source.', obligations: ['sc-001'] }, outline()) });
+        if (localArchitect === 1) return submit({ ...assign(consumer, { goal: 'Show the fact with its source.', obligations: ['scenario:richer-a-fact-is-used'] }, outline()) });
         // PB3-D10: the delegated outcome was reported done; the consumer's
         // own scenario is bound, its architect's to judge.
-        witnessed['consumer-completion-briefing'] = { sc001: stateOf(spec.prompt, 'sc-001') };
-        return [...submit(forgotten), ...submit({ ...requestCompletion(), reports: [done(spec.prompt, 'sc-001', 'subs/a/src/tests/caller.test.ts')] })];
+        witnessed['consumer-completion-briefing'] = { sc001: stateOf(spec.prompt, 'scenario:richer-a-fact-is-used') };
+        return [...submit(forgotten), ...submit({ ...requestCompletion(), reports: [done(spec.prompt, 'scenario:richer-a-fact-is-used', 'subs/a/src/tests/caller.test.ts')] })];
       }
       if (spec.role === 'capability-architect') {
-        const [, task, revision, invocation] = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+        const [, task, revision, invocation] = [...spec.prompt.matchAll(/Use task (capability-task:[a-z0-9-]+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
         const basis = { task, planRevision: Number(revision), invocation };
         capabilityArchitect += 1;
         if (capabilityArchitect === 1) {
@@ -474,7 +474,7 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
       if (spec.role === 'engineer') {
         const objective = [...spec.prompt.matchAll(/^Perform [^\n]+ for (\{[^\n]*\}); use the current evidence and designated submission\.$/gmu)].at(-1);
         const work = objective === undefined ? {} : JSON.parse(objective[1]!) as { iteration?: string };
-        if (work.iteration?.startsWith('cap-') && spec.scope.workingDirectory === join(root, 'subs/b/src')) {
+        if (work.iteration?.startsWith('capability-task:') && spec.scope.workingDirectory === join(root, 'subs/b/src')) {
           return submit(completionProposed('readFact names its source on request.'),
             write('fact.ts', 'export function readFact(withSource = false): string { return withSource ? \'old from B\' : \'old\'; }\n'),
             write('tests/fact.test.ts', [
@@ -488,10 +488,11 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
         consumerTurn += 1;
         if (consumerTurn === 1) {
           return submit({ kind: 'capability-needed', summary: 'A needs the fact with its source', request: {
+            requestKey: 'draft:capability-request:sourced-fact',
             need: 'Read the fact together with its source',
             usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Render the sourced fact', prospective: false }],
             constraints: ['D keeps the old text'], knownInterface: { kind: 'none-known' },
-            examples: [{ title: 'shows the source', code: 'expect(renderSourced()).toBe(\'Fact: old from B\')', designation: 'pseudocode' }],
+            examples: [{ key: 'draft:capability-example:shows-source', title: 'shows the source', code: 'expect(renderSourced()).toBe(\'Fact: old from B\')', designation: 'pseudocode' }],
           } }, write('tmp/draft.txt', 'scratch kept through the suspension\n'),
           edit('caller.ts', 'export function renderA', '// renderSourced waits for B.\nexport function renderA'));
         }
@@ -510,7 +511,7 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
           scratchKept: existsSync(join(root, 'subs/a/src/tmp/draft.txt')),
           suspendedEditKept: readFileSyncText(join(root, 'subs/a/src/caller.ts')).includes('renderSourced waits for B'),
         };
-        return submit(completionProposed('A renders the sourced fact from B.', { bindings: [{ id: 'sc-001' }] }),
+        return submit(completionProposed('A renders the sourced fact from B.', { bindings: [{ id: 'scenario:richer-a-fact-is-used' }] }),
           write('caller.ts', [
             'import { readFact } from \'../../b/src/fact.js\';',
             'export function renderA(value: string): string { return `Fact: ${value}`; }',
@@ -527,7 +528,7 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
       }
       return undefined;
     });
-    const opened = await openRuns(root, { production: true, identityContract: 'legacy', ...external, script });
+    const opened = await openRuns(root, { production: true, ...external, script });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun(capabilityPlan));
     const runId = receipt.jobId;
@@ -544,7 +545,7 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
     expect(beforeRestart.filter(event => event.type === 'job-failed'), JSON.stringify(beforeRestart.slice(-12))).toEqual([]);
     await opened.service.close();
 
-    const reopened = await openRuns(root, { production: true, identityContract: 'legacy', ...external, script });
+    const reopened = await openRuns(root, { production: true, ...external, script });
     cleanups.push(() => reopened.service.close());
     // Existing run authority resumes the settled consumer without a repair approval.
     expect(await reopened.service.recoveryInspection(capabilityPlan, runId)).toBeNull();
@@ -579,25 +580,25 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
     expect(job.policy.version).toBe('run-policy/8');
     // PB3-C01: the handback without the outcome's report was rejected naming it.
     const capabilitySessions = suspendedSessions.filter(session => session.spec.role === 'capability-architect');
-    expect(capabilitySessions.flatMap(session => verdicts(session)).join('\n')).toContain('cap-001');
+    expect(capabilitySessions.flatMap(session => verdicts(session)).join('\n')).toContain('capability-task:provide-sourced-fact');
     // PB3-D08, PB3-D10: the handback followed the architect's done report on
     // its outcome only; the consumer's scenario was its own architect's.
-    const outcome = events.find(event => event.type === 'obligation-reported' && event.data.id === 'cap-001');
+    const outcome = events.find(event => event.type === 'obligation-reported' && event.data.id === 'capability-task:provide-sourced-fact');
     const back = events.find(event => event.type === 'capability-handed-back')!;
     expect(outcome!.sequence).toBeLessThan(back.sequence);
     expect(events.filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
     expect(witnessed['consumer-completion-briefing']).toEqual({ sc001: 'bound' });
     const consumerArchitects = reopened.agent!.sessions.filter(session => session.spec.submission.name === 'submit_work_item_result');
-    expect(verdicts(consumerArchitects.at(-1)!)[0]).toContain('leaves sc-001 without a done report');
-    expect(obligationLines(events)).toEqual(['reported cap-001 done with where', 'bound sc-001 (no fakes)', 'reported sc-001 done with where']);
+    expect(verdicts(consumerArchitects.at(-1)!)[0]).toContain('leaves scenario:richer-a-fact-is-used without a done report');
+    expect(obligationLines(events)).toEqual(['reported capability-task:provide-sourced-fact done with where', 'bound scenario:richer-a-fact-is-used (no fakes)', 'reported scenario:richer-a-fact-is-used done with where']);
     // Restart preserves the original logical assignment and its scenario obligation.
-    expect(events.flatMap(event => event.type === 'iteration-closed' && event.data.workItem === 'wi-001'
-      ? [[event.data.iteration, event.data.outcome]] : [])).toEqual([['cap-001.i01', 'accepted'], ['wi-001.i01', 'accepted']]);
+    expect(events.flatMap(event => event.type === 'iteration-closed' && event.data.workItem === 'work-item:richer-a-fact'
+      ? [[event.data.iteration, event.data.outcome]] : [])).toEqual([['capability-task:provide-sourced-fact.i01', 'accepted'], ['work-item:richer-a-fact.i01', 'accepted']]);
     // PB3-S08: the consumer's scratch and suspended edit lived through the
     // suspension, the provider's closed iteration and the restart; the
     // scratch remains available to its successor until the original assignment closes.
     expect(witnessed['consumer-continued']).toEqual({ handback: true, scratchKept: true, suspendedEditKept: true });
-    expect(witnessed['consumer-resumed']).toEqual({ assignment: 'wi-001.i01', scratchKept: true, suspendedEditKept: true });
+    expect(witnessed['consumer-resumed']).toEqual({ assignment: 'work-item:richer-a-fact.i01', scratchKept: true, suspendedEditKept: true });
     // PB3-R03, PB3-R04: the full nested final gate passed on the integrated commit.
     expect(final?.verdict).toBe('passed');
     expect(final!.audit).toMatchObject({ mode: 'full', nested: true, verdict: 'pass' });

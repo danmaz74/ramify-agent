@@ -69,7 +69,6 @@ export function factualFindingKey(producer: `check:${string}`, subject: string):
 /** Factual findings can close only with a matching, complete check witness on this candidate. */
 export function factualFindingCommands(input: {
   state: CheckFindingState; assessment: string; tree: string; audit: AssistedAuditOutcome;
-  identityContract?: 'legacy' | 'descriptive';
   protection: ProtectionComparison; protectionSelection: string; evidence: CheckFindingEvidence; protectionEvidence?: CheckFindingEvidence;
 }): CheckFindingCommand[] {
   const commands: CheckFindingCommand[] = [];
@@ -88,7 +87,7 @@ export function factualFindingCommands(input: {
     const verification: CheckFindingVerification = { kind: 'check', producer: check.producer,
       obligation: { subject: check.subject, revision: 1 }, selection: check.selection, required: true };
     if (check.failed) commands.push(reportCommand({ producer: check.producer, attempt: input.assessment, reportKey: check.subject,
-      ...(input.identityContract === 'descriptive' ? { findingKey: factualFindingKey(check.producer, check.subject) } : {}),
+      findingKey: factualFindingKey(check.producer, check.subject),
       owner: { kind: 'run' }, source: { kind: 'tree', id: input.tree }, issueKey: check.subject, verification,
       observation: { kind: 'check-failed', summary: check.summary.slice(0, 4000) || `${check.subject} failed`, evidence: [evidence],
         locations: check.path ? [{ path: check.path, startLine: null, endLine: null }] : [] },
@@ -150,7 +149,7 @@ export function acceptedProtectionExceptions(state: CheckFindingState, assessmen
       if (!comparison || !assessment || comparison.candidateCommit !== assessment.request.candidate || !change) continue;
       exceptions.push({ path, before: change.before, after: change.after,
         authority: { id: answer.id, revision: 1,
-          hash: createHash('sha256').update(`${JSON.stringify({ schema: 'ramify-agent.check-finding-decision/1', ...answer,
+          hash: createHash('sha256').update(`${JSON.stringify({ schema: 'ramify-agent.check-finding-decision/2', ...answer,
             checkFinding: entry.id, revision: answer.considered + 1 }, null, 2)}\n`).digest('hex') } });
     }
   }

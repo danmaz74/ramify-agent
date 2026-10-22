@@ -157,10 +157,7 @@ async function compareDelivery(projectRoot: string, recorded: StepInputs, option
   if (delivered === null) return { status: 'not-compared', reason: `no delivery is recorded for invocation ${options.invocation}` };
   let rendered: RenderedStep;
   try {
-    const identityContract = 'identityContract' in recorded && (recorded.identityContract === 'legacy' || recorded.identityContract === 'descriptive')
-      ? recorded.identityContract : undefined;
     const { packages } = await loadPromptPackages({ capabilityWorkflow: recorded.capabilityWorkflow,
-      identityContract,
       ...(options.skillDirectory === undefined ? {} : { skillDirectory: options.skillDirectory }) });
     const step = constructStep(recorded, { projectRoot, packages });
     rendered = await renderStep(step, { projectRoot, packages, builtinDeclarations: options.builtinDeclarations, operationId: options.invocation, sessionOperations });

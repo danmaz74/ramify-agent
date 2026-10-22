@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { findModule, type ArchitectIndex } from '../../../../../evidence/src/views.js';
 import { modulePathSchema } from '../../../../../../src/interfaces/protocol/evidence.js';
 import type { SubmissionError } from '../../../../../task-execution/src/submissions.js';
-import { slugSchema, type RegistryEntry } from '../../../planning/src/records.js';
+import { type RegistryEntry } from '../../../planning/src/records.js';
 import { assignedBoundsSchema, type AssignedBounds } from './iterations.js';
 import { extraPurposeSchema } from '../../../../../../src/work/scope.js';
 import { includedConfigurationPaths, within } from '../../../../../../src/work/scope.js';
@@ -30,7 +30,7 @@ import { startingPointsSchema } from './starting-points.js';
 
 const text = z.string().min(1);
 /** An assignment cites an accepted registration, never a draft name. */
-export const assignedCapabilitySchema = z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]);
+export const assignedCapabilitySchema = z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 /**
  * The kinds a module architect may assign. `integration` arrives with a later
@@ -131,9 +131,9 @@ export const assignmentBodySchema = z.object({
    * with the plan deviations recorded so far.
    */
   citedElements: z.array(text).describe(
-    'Plan-catalog element IDs the module engineer must honor, such as fr-001 or nfr-001. Work-item assignments use their '
+    'Plan-catalog element IDs the module engineer must honor, such as functional-requirement:preview-checks or nonfunctional-requirement:fast-preview. Work-item assignments use their '
     + 'selected package; capability assignments may cite the full frozen run catalog. Capability example and use-case '
-    + 'IDs such as need-001.ex01 are request context, not plan-catalog elements, and do not belong here. '
+    + 'IDs such as capability-example:preview-visible are request context, not plan-catalog elements, and do not belong here. '
     + 'Plan deviations are supplied separately by the harness.',
   ),
   externalCapabilities: z.array(z.object({

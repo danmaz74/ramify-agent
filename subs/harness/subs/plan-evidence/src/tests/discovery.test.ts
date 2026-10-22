@@ -31,7 +31,7 @@ test('captures nested, linked and extensionless text once with exact bytes and s
     'plans/p/plan.md', 'plans/p/docs/notes.yaml', 'plans/p/extra.json', 'plans/shared/guide',
   ]);
   expect(found.manifest.missing).toEqual([]);
-  expect(found.bytes.get('doc-001')).toEqual(await readFile(join(root, 'plans/p/plan.md')));
+  expect(found.bytes.get('document:p-plan')).toEqual(await readFile(join(root, 'plans/p/plan.md')));
   expect(found.manifest.documents[0]!.sha256).toMatch(/^[0-9a-f]{64}$/);
 });
 
@@ -39,8 +39,8 @@ test('descriptive capture uses stable document IDs and encoded stored paths', as
   const root = await fixture();
   await put(root, 'plans/p/plan.md', '# P\n');
   await put(root, 'plans/p/companion.md', '# Companion\n');
-  const first = await discoverDocuments(root, 'p', revision, undefined, undefined, 'descriptive');
-  const again = await discoverDocuments(root, 'p', revision, undefined, undefined, 'descriptive');
+  const first = await discoverDocuments(root, 'p', revision, undefined, undefined);
+  const again = await discoverDocuments(root, 'p', revision, undefined, undefined);
   expect(first.manifest).toEqual(again.manifest);
   expect(first.manifest).toMatchObject({ schema: 'ramify-agent.document-manifest/2', root: 'document:p-plan' });
   expect(first.manifest.documents.map(document => document.id)).toEqual(['document:p-plan', 'document:p-companion']);
@@ -67,7 +67,7 @@ test('keeps the root plan identity when its file is an internal symlink', async 
   await symlink('actual.md', join(root, 'plans/p/plan.md'));
   const found = await discoverDocuments(root, 'p', revision);
   expect(found.manifest.documents.map(document => document.path)).toEqual(['plans/p/plan.md']);
-  expect(found.bytes.get('doc-001')).toEqual(await readFile(join(root, 'plans/p/actual.md')));
+  expect(found.bytes.get('document:p-plan')).toEqual(await readFile(join(root, 'plans/p/actual.md')));
 });
 
 test('plan bytes report unknown Git status when a companion may be edited', async () => {
@@ -85,7 +85,7 @@ test('reports missing local links with source offsets and refuses symlink escape
   const root = await fixture();
   await put(root, 'plans/p/plan.md', '# P\n[need](missing.md)\n');
   const found = await discoverDocuments(root, 'p', revision);
-  expect(found.manifest.missing).toMatchObject([{ from: 'doc-001', target: 'plans/p/missing.md', judgment: 'unjudged' }]);
+  expect(found.manifest.missing).toMatchObject([{ from: 'document:p-plan', target: 'plans/p/missing.md', judgment: 'unjudged' }]);
   expect(found.manifest.missing[0]!.source.start).toBe(Buffer.byteLength('# P\n'));
   const outside = await mkdtemp(join(tmpdir(), 'outside-'));
   roots.push(outside);

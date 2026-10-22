@@ -5,7 +5,7 @@ import type { AgentPort, SessionSpec } from '../../subs/agent/src/interfaces/por
 import { createScriptedAgent, type ScriptStep } from '../../subs/agent/src/scripted.js';
 import { createPiAgent, piReadiness } from '../../subs/agent/subs/pi/src/pi-agent.js';
 import { privateRamify, type RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
-import type { InitialAnalysisSubmission } from '../../subs/autonomous/subs/planning/src/submission.js';
+import type { DescriptiveInitialAnalysisSubmission } from '../../subs/autonomous/subs/planning/src/descriptive.js';
 import {
   checkToolName, intakeToolName, principleToolName, type CheckSubmission, type IntakeSubmission, type PrincipleSubmission,
 } from '../../subs/autonomous/subs/planning/src/extraction.js';
@@ -126,7 +126,7 @@ export function demonstrationScript(spec?: SessionSpec): ScriptStep[] {
   const submit = (input: unknown): ScriptStep[] => [{ kind: 'submit', input }];
   switch (spec?.submission.name) {
     case intakeToolName: {
-      const plans = [...spec.prompt.matchAll(/^- (doc-\d{3,}) \(plan\):/gmu)].map(match => match[1]!);
+      const plans = [...spec.prompt.matchAll(/^- (document:[a-z0-9]+(?:-[a-z0-9]+)*) \(plan\):/gmu)].map(match => match[1]!);
       const intake: IntakeSubmission = {
         goal: 'The scripted fake reads nothing of the plan.',
         elements: [],
@@ -138,7 +138,7 @@ export function demonstrationScript(spec?: SessionSpec): ScriptStep[] {
     case checkToolName: return submit({ corrections: [], entries: [], scenarios: [] } satisfies CheckSubmission);
     default: break;
   }
-  const analysis: InitialAnalysisSubmission = {
+  const analysis: DescriptiveInitialAnalysisSubmission = {
     elements: [],
     entries: [],
     hypotheses: [],

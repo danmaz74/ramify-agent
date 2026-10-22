@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scenarioRecordSchema, scenarioSourceHash } from '../../../scenarios/src/records.js';
+import { identityTagOf } from '../../../scenarios/src/rendering.js';
 import { gateAttemptSchema, gateAuditOutcomeSchema } from '../../../autonomous/subs/acceptance/src/gate-records.js';
 import { entryAssignmentsSchema } from '../../../autonomous/subs/planning/src/records.js';
 import { iterationAssignmentSchema, iterationResultSchema } from '../../../autonomous/subs/work-coordination/src/work/iterations.js';
@@ -16,12 +17,12 @@ import { at, constructedRun, hash, item, registered, reviews, type Line } from '
 const description = `The full capability description.\n${'Retain this sentence. '.repeat(300)}`;
 const source = ['Scenario: A complete block', '  Given the state is recorded', '  When the work runs', '  Then the whole block remains available'];
 const scenario = scenarioRecordSchema.parse({
-  schema: 'ramify-agent.scenario/1', id: 'sc-001', kind: 'entry', entry: 'full-description', owner: reviews,
-  origin: { kind: 'architect', refs: ['fr-002'] }, partOf: null, subScenarios: [],
+  schema: 'ramify-agent.scenario/2', id: 'scenario:case-001', kind: 'entry', entry: 'capability:full-description', owner: reviews,
+  origin: { kind: 'architect', refs: ['functional-requirement:case-002'] }, citedElements: ['functional-requirement:case-002'], partOf: null, subScenarios: [],
   name: 'A complete block', source, hash: scenarioSourceHash(source), file: 'subs/reviews/src/tests/features/full.feature',
 });
-const entries = entryAssignmentsSchema.parse({ schema: 'ramify-agent.entry-assignments/1', view: { status: 'placeholder' },
-  entries: [{ capability: 'full-description', description, owner: reviews, requirementRefs: [], acceptanceRefs: [], contextRefs: [], citations: [] }],
+const entries = entryAssignmentsSchema.parse({ schema: 'ramify-agent.entry-assignments/2', view: { status: 'placeholder' },
+  entries: [{ capability: 'full-description', description, owner: reviews, capabilityId: 'capability:full-description', functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], citations: [] }],
 });
 
 /**
@@ -29,14 +30,14 @@ const entries = entryAssignmentsSchema.parse({ schema: 'ramify-agent.entry-assig
  * the provider's raw check record lists it; `unrun` is a gate whose audit ran
  * no scenario at all.
  */
-function gate(id: string, status: 'passed' | 'failed', unrun: boolean, checkpoint: 'iteration' | 'readiness' | 'final' = 'iteration', scenarioId = 'sc-001') {
+function gate(id: string, status: 'passed' | 'failed', unrun: boolean, checkpoint: 'iteration' | 'readiness' | 'final' = 'iteration', scenarioId = 'scenario:case-001') {
   const ran = {
-    uri: scenario.file, line: 1, name: scenarioId, tags: [`@ramify-${scenarioId}`], outcome: status, messages: [],
+    uri: scenario.file, line: 1, name: scenarioId, tags: [identityTagOf(scenarioId)], outcome: status, messages: [],
     steps: status === 'failed' ? [{ text: source[3], status: 'FAILED', definitionLocations: [], errorMessage: 'failed' }] : [],
   };
   return gateAttemptSchema.parse({
     schema: 'ramify-agent.gate-attempt/3', id, checkpoint,
-    subject: checkpoint === 'iteration' ? { workItem: 'wi-001', iteration: 'wi-001.i01' } : {},
+    subject: checkpoint === 'iteration' ? { workItem: 'work-item:case-001', iteration: 'it-case-001' } : {},
     proposedBy: null, repairRound: 0, infrastructureAttempt: 0, head: 'before', commit: null,
     audited: checkpoint === 'readiness' ? null : 'audited-commit',
     evidence: checkpoint === 'readiness' ? null : { runRef: 'refs/audited/run', reportCommit: 'report', treeRef: 'refs/audited/tree' },
@@ -51,18 +52,18 @@ function recordedRun(extra: Line[] = []) {
   return constructedRun([
     { type: 'analysis-accepted', data: {}, records: [
       { path: 'analysis/entries.json', body: entries },
-      { path: at('registry', 'full-description'), body: registered('full-description') },
+      { path: at('registry', 'capability:full-description'), body: registered('capability:full-description') },
       { path: 'scenarios/sc-001.json', body: scenario },
-      { path: 'work-items/wi-001/item.json', body: item('wi-001', { entry: 'full-description' }) },
+      { path: 'work-items/wi-001/item.json', body: item('work-item:case-001', { entry: 'capability:full-description' }) },
     ] },
-    { type: 'obligation-reported', data: { id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-001', submission: 'a'.repeat(64) } },
+    { type: 'obligation-reported', data: { id: 'scenario:case-001', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-001', submission: 'a'.repeat(64) } },
     ...extra,
   ]);
 }
 
 function assignment(id: string, workItem: string, revision: number) {
   return iterationAssignmentSchema.parse({
-    schema: 'ramify-agent.iteration-assignment/1', id, workItem,
+    schema: 'ramify-agent.iteration-assignment/2', id, workItem,
     outline: { id: workItem, revision, hash }, stage: 0, kind: 'ordinary', goal: `Do ${id}`, approach: 'Implement it.',
     scope: { revision, base: { module: reviews, included: [] },
       extra: [{ path: `subs/reviews/src/${id}.ts`, purpose: 'contract' }], read: [], bootstrap: [], rationale: 'Recorded scope.',
@@ -76,18 +77,18 @@ function assignment(id: string, workItem: string, revision: number) {
 describe('execution core from committed run records', () => {
   it('targets ordered gate history for a scenario beyond the capped list', () => {
     const many = Array.from({ length: 501 }, (_, index) => {
-      const id = `sc-${String(index + 1).padStart(3, '0')}`;
+      const id = `scenario:case-${String(index + 1).padStart(3, '0')}`;
       return { path: `scenarios/${id}.json`, body: scenarioRecordSchema.parse({ ...scenario, id }) };
     });
     const run = constructedRun([
       { type: 'analysis-accepted', data: {}, records: many },
-      { type: 'gate-attempted', data: {}, records: [{ path: 'gates/ga-last/attempt.json', body: gate('ga-last', 'failed', false, 'iteration', 'sc-501') }] },
-      { type: 'gate-attempted', data: {}, records: [{ path: 'gates/ga-repaired/attempt.json', body: gate('ga-repaired', 'passed', false, 'iteration', 'sc-501') }] },
+      { type: 'gate-attempted', data: {}, records: [{ path: 'gates/ga-last/attempt.json', body: gate('ga-last', 'failed', false, 'iteration', 'scenario:case-501') }] },
+      { type: 'gate-attempted', data: {}, records: [{ path: 'gates/ga-repaired/attempt.json', body: gate('ga-repaired', 'passed', false, 'iteration', 'scenario:case-501') }] },
     ]);
     const view = runView(run);
     expect(scenarioListOf(view).scenarios).toHaveLength(500);
-    expect(scenarioListOf(view).scenarios.some(row => row.id === 'sc-501')).toBe(false);
-    const detail = executionScenarioDetailSchema.parse(executionScenarioDetailOf(view, 'sc-501')).detail;
+    expect(scenarioListOf(view).scenarios.some(row => row.id === 'scenario:case-501')).toBe(false);
+    const detail = executionScenarioDetailSchema.parse(executionScenarioDetailOf(view, 'scenario:case-501')).detail;
     expect(detail.state).toBe('available');
     if (detail.state === 'available') expect(detail.gates.map(row => [row.gate, row.status])).toEqual([
       ['ga-last', 'failed'], ['ga-repaired', 'passed'],
@@ -143,7 +144,7 @@ describe('execution core from committed run records', () => {
     const run = recordedRun([
       { type: 'session-opened', data: { session: 'ses-initial', role: 'initial-architect', work: {}, executor: 'scripted', model: null } },
       { type: 'session-finished', data: { session: 'ses-initial', reason: 'replaced' } },
-      { type: 'session-opened', data: { session: 'ses-local', role: 'local-architect', work: { workItem: 'wi-001' }, executor: 'scripted', model: null,
+      { type: 'session-opened', data: { session: 'ses-local', role: 'local-architect', work: { workItem: 'work-item:case-001' }, executor: 'scripted', model: null,
         replaces: { session: 'ses-initial', reason: 'reconstructed' } } },
       { type: 'gate-attempted', data: {}, records: [{ path: 'gates/ga-unrun/attempt.json', body: gate('ga-unrun', 'passed', true) }] },
       { type: 'gate-attempted', data: {}, records: [{ path: 'gates/ga-real/attempt.json', body: gate('ga-real', 'passed', false) }] },
@@ -161,64 +162,64 @@ describe('execution core from committed run records', () => {
     expect(index.nodes.filter(node => node.kind === 'gate').map(node => node.key)).toEqual([
       'gate:ga-unrun', 'gate:ga-real', 'gate:ga-later', 'gate:ga-ready',
     ]);
-    expect(index.nodes.find(node => node.key === 'scenario:sc-001')).toMatchObject({ state: 'done', latestRealResult: 'failed' });
+    expect(index.nodes.find(node => node.key === 'scenario:case-001')).toMatchObject({ state: 'done', latestRealResult: 'failed' });
     expect(index.nodes.find(node => node.key === 'capability:full-description')).toMatchObject({ scenarios: { failed: 1, passed: 0 } });
     expect(index.nodes.find(node => node.key === 'gate:ga-later')).toMatchObject({ verdict: 'failed', audit: 'unavailable', evidencePresent: true,
-      cause: 'check-failed', subject: { workItem: 'wi-001', iteration: 'wi-001.i01' } });
+      cause: 'check-failed', subject: { workItem: 'work-item:case-001', iteration: 'it-case-001' } });
     // A readiness gate that recorded no audit reads as one that has not started its audit.
     expect(index.nodes.find(node => node.key === 'gate:ga-ready')).toMatchObject({ audit: 'not-started' });
     expect(index.gaps).toContain('Audit result for gate ga-later is unavailable: the gate retains publication refs but no overall outcome.');
-    expect(index.links.some(link => link.kind === 'tracks-scenario' && link.to.key === 'scenario:sc-001')).toBe(true);
-    expect(executionCapabilityDetailSchema.parse(executionCapabilityDetailOf(view, 'full-description')).detail).toMatchObject({
+    expect(index.links.some(link => link.kind === 'tracks-scenario' && link.to.key === 'scenario:case-001')).toBe(true);
+    expect(executionCapabilityDetailSchema.parse(executionCapabilityDetailOf(view, 'capability:full-description')).detail).toMatchObject({
       state: 'available', description,
     });
-    expect(executionScenarioDetailSchema.parse(executionScenarioDetailOf(view, 'sc-001')).detail).toMatchObject({
+    expect(executionScenarioDetailSchema.parse(executionScenarioDetailOf(view, 'scenario:case-001')).detail).toMatchObject({
       state: 'available', source,
     });
     expect(executionCapabilityDetailOf(view, 'missing').detail.state).toBe('unavailable');
-    expect(executionScenarioDetailOf(view, 'sc-999').detail.state).toBe('unavailable');
+    expect(executionScenarioDetailOf(view, 'scenario:case-999').detail.state).toBe('unavailable');
     expect(executionCoreOf(runView(run)).nodes).toEqual(index.nodes); // durable replay, no mutable cache
   });
 
   it('does not let a passing gate whose audit ran no scenario color it green', () => {
     const view = runView(recordedRun([{ type: 'gate-attempted', data: {}, records: [{ path: 'gates/ga-unrun/attempt.json', body: gate('ga-unrun', 'passed', true) }] }]));
-    expect(executionCoreOf(view).nodes.find(node => node.key === 'scenario:sc-001')).toMatchObject({ latestRealResult: 'no-real-run' });
+    expect(executionCoreOf(view).nodes.find(node => node.key === 'scenario:case-001')).toMatchObject({ latestRealResult: 'no-real-run' });
   });
 
   it('enumerates beyond the existing bounded work-item list', () => {
     const workItems = Array.from({ length: 205 }, (_, index) => {
-      const id = `wi-${String(index + 1).padStart(3, '0')}`;
-      return { path: `work-items/${id}/item.json`, body: item(id, { entry: 'full-description' }) };
+      const id = `work-item:case-${String(index + 1).padStart(3, '0')}`;
+      return { path: `work-items/${id}/item.json`, body: item(id, { entry: 'capability:full-description' }) };
     });
     const view = runView(constructedRun([{ type: 'analysis-accepted', data: {}, records: [
       { path: 'analysis/entries.json', body: entries },
-      { path: at('registry', 'full-description'), body: registered('full-description') }, ...workItems,
+      { path: at('registry', 'capability:full-description'), body: registered('capability:full-description') }, ...workItems,
     ] }]));
     const index = executionCoreOf(view);
     expect(index.nodes.filter(node => node.kind === 'work-item')).toHaveLength(205);
-    expect(index.nodes.filter(node => node.kind === 'work-item').at(-1)?.key).toBe('work-item:wi-205');
+    expect(index.nodes.filter(node => node.kind === 'work-item').at(-1)?.key).toBe('work-item:case-205');
   });
 
   it('keeps two accepted roots, a lower provider, ordered assignments, final and active gates', () => {
     const secondEntries = entryAssignmentsSchema.parse({ ...entries, entries: [
       ...entries.entries,
-      { capability: 'second-root', description: 'The second full description.', owner: reviews,
-        requirementRefs: [], acceptanceRefs: [], contextRefs: [], citations: [] },
+      { capability: 'second-root', capabilityId: 'capability:second-root', description: 'The second full description.', owner: reviews,
+        functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], citations: [] },
     ] });
-    const first = assignment('wi-001.i01', 'wi-001', 1);
-    const second = assignment('wi-001.i02', 'wi-001', 2);
+    const first = assignment('it-case-001', 'work-item:case-001', 1);
+    const second = assignment('it-case-002', 'work-item:case-001', 2);
     const result = iterationResultSchema.parse({ schema: 'ramify-agent.iteration-result/1', iteration: first.id,
       outcome: 'accepted', invocations: [], gate: 'ga-first', commit: 'accepted-commit', findings: [], changedAssumptions: [], artifacts: [] });
     const run = constructedRun([
       { type: 'analysis-accepted', data: {}, records: [
         { path: 'analysis/entries.json', body: secondEntries },
-        { path: at('registry', 'full-description'), body: registered('full-description') },
-        { path: at('registry', 'second-root'), body: registered('second-root') },
-        { path: 'work-items/wi-001/item.json', body: item('wi-001', { entry: 'full-description' }) },
-        { path: 'work-items/wi-002/item.json', body: item('wi-002', { entry: 'second-root' }) },
+        { path: at('registry', 'capability:full-description'), body: registered('capability:full-description') },
+        { path: at('registry', 'capability:second-root'), body: registered('capability:second-root') },
+        { path: 'work-items/wi-001/item.json', body: item('work-item:case-001', { entry: 'capability:full-description' }) },
+        { path: 'work-items/wi-002/item.json', body: item('work-item:case-002', { entry: 'capability:second-root' }) },
       ] },
-      { type: 'contract-registered', data: {}, records: [{ path: at('registry', 'shared-provider'),
-        body: registered('shared-provider', { origin: 'global-decision', behavior: 'Full provider behavior.',
+      { type: 'contract-registered', data: {}, records: [{ path: at('registry', 'capability:shared-provider'),
+        body: registered('capability:shared-provider', { origin: 'global-decision', behavior: 'Full provider behavior.',
           owner: `${reviews}/theme`, proposed: { parent: reviews, directory: 'subs/reviews/subs/theme', purpose: 'Own the shared theme.', tags: [] } }) }] },
       { type: 'iteration-assigned', data: {}, records: [{ path: 'work-items/wi-001/iterations/01/assignment.json', body: first }] },
       { type: 'iteration-closed', data: {}, records: [{ path: 'work-items/wi-001/iterations/01/result.json', body: result }] },
@@ -233,28 +234,28 @@ describe('execution core from committed run records', () => {
     ]);
     // A capability is labelled with its id as registered, never a title made from it, and carries its registered behavior.
     expect(index.nodes.find(node => node.key === 'capability:shared-provider')).toMatchObject({
-      label: 'shared-provider', behavior: 'Full provider behavior.',
+      label: 'capability:shared-provider', behavior: 'Full provider behavior.',
       owner: `${reviews}/theme`, proposed: { parent: reviews, directory: 'subs/reviews/subs/theme' },
     });
     expect(index.nodes.filter(node => node.kind === 'iteration').map(node => [node.key, node.ordinal, node.outlineRevision, node.state, node.module])).toEqual([
-      ['iteration:wi-001.i01', 1, 1, 'completed', reviews], ['iteration:wi-001.i02', 2, 2, 'assigned', reviews],
+      ['iteration:it-case-001', 1, 1, 'completed', reviews], ['iteration:it-case-002', 2, 2, 'assigned', reviews],
     ]);
-    expect(index.nodes.find(node => node.key === 'iteration:wi-001.i02')).toMatchObject({ scopeExceptions: [{ path: 'subs/reviews/src/wi-001.i02.ts', purpose: 'contract' }] });
+    expect(index.nodes.find(node => node.key === 'iteration:it-case-002')).toMatchObject({ scopeExceptions: [{ path: 'subs/reviews/src/it-case-002.ts', purpose: 'contract' }] });
     expect(index.nodes.filter(node => node.kind === 'gate').map(node => [node.key, node.active, node.verdict])).toEqual([
       ['gate:ga-final', false, 'passed'], ['gate:ga-running', true, null],
     ]);
-    expect(executionCapabilityDetailOf(view, 'shared-provider').detail).toMatchObject({ state: 'available', level: 'lower', description: 'Full provider behavior.' });
+    expect(executionCapabilityDetailOf(view, 'capability:shared-provider').detail).toMatchObject({ state: 'available', level: 'lower', description: 'Full provider behavior.' });
   });
 });
 
 
 it('projects inherited reports with original source identity while the successor remains paused', () => {
   const sourceId = '20260921T080000Z-source';
-  const source = recordedRun([{ type: 'work-item-completed', data: { workItem: 'wi-001', gate: 'ga-1' } }]);
+  const source = recordedRun([{ type: 'work-item-completed', data: { workItem: 'work-item:case-001', gate: 'ga-1' } }]);
   const imported = source.entries.map((entry, index) => ({ ...entry, sequence: index - source.entries.length,
     source: { runId: sourceId, sequence: entry.sequence }, transaction: { ...entry.transaction,
       event: { ...entry.transaction.event, sequence: index - source.entries.length, jobId: sourceId,
-        ...(entry.transaction.event.type === 'analysis-accepted' ? { data: { invocation: 'inv-001', entries: 1, hypotheses: 0, registry: 1, workItems: 1, scenarios: 1, warnings: [] } } : {}) } as RunEvent } }));
+        ...(entry.transaction.event.type === 'analysis-accepted' ? { data: { invocation: 'inv-001', entries: 1, hypotheses: 0, registry: 1, workItems: 1, scenarios: 1, scenarioIds: ['scenario:case-001'], warnings: [] } } : {}) } as RunEvent } }));
   const successor = constructedRun([
     { type: 'job-started', data: {} },
     { type: 'operation-recovery-paused', data: { occurrenceId: 'rec-1', revision: 1, group: 0 } },
@@ -262,7 +263,7 @@ it('projects inherited reports with original source identity while the successor
   const view = runView({ ...successor, entries: [...imported, ...successor.entries] });
   const list = scenarioListResponseSchema.parse(scenarioListOf(view));
   expect(list.obligations[0]?.report).toMatchObject({ sequence: 2, sourceRun: sourceId, judgment: 'done' });
-  const detail = executionCapabilityDetailSchema.parse(executionCapabilityDetailOf(view, 'full-description'));
+  const detail = executionCapabilityDetailSchema.parse(executionCapabilityDetailOf(view, 'capability:full-description'));
   expect(detail.detail).toMatchObject({ source: { sequence: 1, sourceRun: sourceId } });
   const snapshot = runSnapshotSchema.parse(snapshotOf(view));
   expect(snapshot).toMatchObject({ state: 'running', version: 2, counts: { workItems: 1, completedWorkItems: 1, scenarios: { done: 1 } },

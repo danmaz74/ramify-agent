@@ -94,7 +94,7 @@ describe('assisted review preparation', () => {
     const prepared = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 20,
       briefing: { id: 'review-overflow', iteration: 'iteration-1', snapshot, outcome: 'Assess all defects.', audit: { status: 'passed' },
         principles: [], requirements: [{ ref: 'feature', text: 'Feature works' }] } });
-    const concern = (index: number) => ({ summary: `Defect ${index}`, consequence: 'Behavior fails.', rationale: 'Candidate source shows it.',
+    const concern = (index: number) => ({ findingKey: `draft:finding:defect-${index}`, summary: `Defect ${index}`, consequence: 'Behavior fails.', rationale: 'Candidate source shows it.',
       uncertainty: 'Needs repair.', remedy: 'Correct the behavior.', locations: [{ path: 'src/feature.ts', startLine: 1, endLine: 1 }],
       suggests: null, risk: 'medium', ground: null });
     const report = { inspected: ['src/feature.ts'], missing: [], concerns: Array.from({ length: 20 }, (_, index) => concern(index + 1)),

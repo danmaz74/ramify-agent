@@ -167,8 +167,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
    * Commits `EntryAssignments`, every `Hypothesis` at revision 1, one
    * `RegistryEntry` per entry capability, one `WorkItem` per entry
    * capability and one `ScenarioRecord` per scenario, every one `pending`.
-   * Legacy records use `sc-001` to `sc-<scenarios>`; descriptive records
-   * carry their exact scenario IDs in `scenarioIds`. One event holds every record of
+   * Their exact scenario IDs are in `scenarioIds`. One event holds every record of
    * the phase, and the warnings the scenarios' form rules gave.
    */
   event('analysis-accepted', z.object({
@@ -178,8 +177,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     registry: z.int().nonnegative(),
     workItems: z.int().nonnegative(),
     scenarios: z.int().nonnegative(),
-    /** New descriptive runs name the exact scenarios the snapshot replays; absent in legacy records. */
-    scenarioIds: z.array(text).optional(),
+    scenarioIds: z.array(text),
     warnings: z.array(scenarioWarningSchema),
     /** The frozen catalog's elements by kind. */
     catalog: z.object({
@@ -235,10 +233,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     /** Accepted coordinator close submission for unresolved choices; absent where the round closed without one. */
     actionInvocation: text.optional(),
   }).strict()),
-  event('nonfunctional-deviation-recorded', z.object({ deviation: text, nfr: text, assessment: text, checkFinding: text,
-    checkFindings: checkFindingEventsField,
-  }).strict()),
-  /** A descriptive exhausted close publishes every unresolved requirement in one finding transition. */
+  /** An exhausted close publishes every unresolved requirement in one finding transition. */
   event('nonfunctional-deviations-recorded', z.object({ assessment: text, actionInvocation: text,
     deviations: z.array(z.object({ deviation: text, nfr: text, checkFinding: text }).strict()).min(1),
     checkFindings: checkFindingEventsField,

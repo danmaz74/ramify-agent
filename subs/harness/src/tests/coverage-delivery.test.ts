@@ -45,10 +45,10 @@ test('local orientation packet bounds coverage and separates ordinary/testing id
   const { packages } = await loadPromptPackages({ capabilityWorkflow: false });
   const step = constructOrientationStep({ schema: 'ramify-agent.step-inputs/1', run: { planId: 'P', runId: 'R' }, attempt: 1,
     capabilityWorkflow: false, limits: policy.limits, context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 },
-    role: 'local-architect', phase: 'orientation', work: { workItem: 'W' }, workingDirectory: { project: 'pkg/src' }, start: { kind: 'fresh' },
+    role: 'local-architect', phase: 'orientation', work: { workItem: 'work-item:inspect-module' }, workingDirectory: { project: 'pkg/src' }, start: { kind: 'fresh' },
     requirements: ['Inspect relevant module coverage'], known: { declaredChecks: { checks: [], paths: [] }, modules: [], testAreas: [], scenarioFeatures: [], stepDirectories: [] },
-    architectView: views, briefing: { item: { schema: 'ramify-agent.work-item/1', id: 'W', module: f.module, origin: { entry: 'work' }, goal: 'Inspect module',
-      requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null }, onboarding: { path: 'pkg/README.md', purpose: null },
+    architectView: views, briefing: { item: { schema: 'ramify-agent.work-item/2', id: 'work-item:inspect-module', module: f.module, origin: { entry: 'capability:inspect-module' }, goal: 'Inspect module',
+      functionalRequirementIds: [], functionalAcceptanceIds: [], contextIds: [], startedFor: null }, onboarding: { path: 'pkg/README.md', purpose: null },
       views: { evidence: null, unavailable: 'Fixture API pages are provided through current view references' }, hypotheses: [], registry: [], decisions: [], outlines: [] },
   }, { projectRoot: f.root, packages });
   expect(step.equipment.builtinTools).toEqual(['read', 'grep', 'ls']);

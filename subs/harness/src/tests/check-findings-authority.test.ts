@@ -62,15 +62,15 @@ describe('waive and revoke authority', () => {
 describe('a person\'s command as one child decision', () => {
   const state = decided([
     report(concern()),
-    report(failure({ attempt: 'ga-0005', subject: 'scenario:sc-004', tree: 't-02' })),
-    dispose('cf-0001', 1, decision({ action: 'waive', authority: { kind: 'work-item-assessment', ref: 'wi-001.rc01' }, acceptedRisk: 'medium', uncertainty: 'little' })),
+    report(failure({ attempt: 'ga-0005', subject: 'scenario:review-notes-is-used', tree: 't-02', findingKey: 'draft:finding:case-0002' })),
+    dispose('finding:case-0001', 1, decision({ action: 'waive', authority: { kind: 'work-item-assessment', ref: 'work-item:review-notes.rc01' }, acceptedRisk: 'medium', uncertainty: 'little' })),
   ]);
   const payload = { planId: 'review-notes', jobId: 'run-1', responder: 'dan' };
 
   test('a revocation of the architect\'s waiver is the person\'s, against the latest source, and names the command', () => {
     const change = userCheckFindingChange({ commandId: 'c-1', expectedVersion: 4, type: 'revoke-check-finding-waiver',
-      payload: { ...payload, checkFinding: 'cf-0001', expectedRevision: 2, reason: 'The duplicate will drift' } }, state.findings.get('cf-0001'));
-    expect(change).toEqual({ ok: true, command: { type: 'dispose', checkFinding: 'cf-0001', expectedRevision: 2, decision: {
+      payload: { ...payload, checkFinding: 'finding:case-0001', expectedRevision: 2, reason: 'The duplicate will drift' } }, state.findings.get('finding:case-0001'));
+    expect(change).toEqual({ ok: true, command: { type: 'dispose', checkFinding: 'finding:case-0001', expectedRevision: 2, decision: {
       actor: user, source: { kind: 'tree', id: 't-01' }, rationale: 'The duplicate will drift',
       evidence: [{ kind: 'user-command', ref: 'c-1', hash: null }], communication: { mode: 'quiet' },
       decision: { action: 'revoke-waiver', reason: 'The duplicate will drift' },
@@ -79,7 +79,7 @@ describe('a person\'s command as one child decision', () => {
 
   test('a waiver accepts the current risk under the command\'s authority; the child then refuses it for a required check', () => {
     const change = userCheckFindingChange({ commandId: 'c-2', expectedVersion: 4, type: 'waive-check-finding',
-      payload: { ...payload, checkFinding: 'cf-0002', expectedRevision: 1, reason: 'flaky' } }, state.findings.get('cf-0002'));
+      payload: { ...payload, checkFinding: 'finding:case-0002', expectedRevision: 1, reason: 'flaky' } }, state.findings.get('finding:case-0002'));
     expect(change).toMatchObject({ ok: true, command: { decision: { decision: { action: 'waive', authority: { kind: 'user-decision', ref: 'c-2' }, acceptedRisk: 'high' } } } });
     if (!change.ok) throw new Error('refused');
     expect(decideCheckFindingChange(state, change.command)).toMatchObject({ ok: false, rejection: { code: 'required-obligation' } });
@@ -87,12 +87,12 @@ describe('a person\'s command as one child decision', () => {
 
   test('an unknown CheckFinding, a moved revision and an answer to no pending request are refused before the child', () => {
     expect(userCheckFindingChange({ commandId: 'c-3', expectedVersion: 4, type: 'waive-check-finding',
-      payload: { ...payload, checkFinding: 'cf-0009', expectedRevision: 1, reason: 'x' } }, undefined)).toMatchObject({ ok: false, code: 'not-found' });
+      payload: { ...payload, checkFinding: 'finding:case-0009', expectedRevision: 1, reason: 'x' } }, undefined)).toMatchObject({ ok: false, code: 'not-found' });
     expect(userCheckFindingChange({ commandId: 'c-4', expectedVersion: 4, type: 'revoke-check-finding-waiver',
-      payload: { ...payload, checkFinding: 'cf-0001', expectedRevision: 1, reason: 'x' } }, state.findings.get('cf-0001')))
-      .toEqual({ ok: false, code: 'conflict', message: expect.stringContaining('revision 2, not 1'), evidence: ['cf-0001 is at revision 2'] });
+      payload: { ...payload, checkFinding: 'finding:case-0001', expectedRevision: 1, reason: 'x' } }, state.findings.get('finding:case-0001')))
+      .toEqual({ ok: false, code: 'conflict', message: expect.stringContaining('revision 2, not 1'), evidence: ['finding:case-0001 is at revision 2'] });
     expect(userCheckFindingChange({ commandId: 'c-5', expectedVersion: 4, type: 'respond-to-check-finding',
-      payload: { ...payload, checkFinding: 'cf-0002', expectedRevision: 1, request: 'cfd-0001', option: 'keep' } }, state.findings.get('cf-0002')))
+      payload: { ...payload, checkFinding: 'finding:case-0002', expectedRevision: 1, request: 'cfd-0001', option: 'keep' } }, state.findings.get('finding:case-0002')))
       .toMatchObject({ ok: false, code: 'conflict', message: expect.stringContaining('awaits none') });
   });
 });

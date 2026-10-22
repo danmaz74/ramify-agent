@@ -6,7 +6,7 @@ const source = { kind: 'document' as const, id: 'plans/example/plan.md@revision-
 const request = {
   id: 'cfd-0001', considered: 1, actor: { kind: 'harness', reason: 'person decides' }, source,
   rationale: 'Ask the person', evidence: [], communication: { mode: 'quiet' },
-  decision: { action: 'request-user-decision', authority: { kind: 'governing-record', ref: 'deviations/pd-001.json' },
+  decision: { action: 'request-user-decision', authority: { kind: 'governing-record', ref: 'deviations/plan-deviation:case-001.json' },
     conflicts: [{ text: 'Preserve the limit', document: 'plans/example/plan.md', revision: 'revision-a' }],
     options: [{ id: 'accept', summary: 'Accept', consequence: 'It stands' },
       { id: 'reject', summary: 'Reject', consequence: 'Follow up' }] },
@@ -26,7 +26,7 @@ const rejected = {
 
 function entry(decision: typeof accepted | typeof rejected, changes: Record<string, unknown> = {}): CheckFindingEntry {
   return {
-    id: 'cf-0001', revision: 3, owner: { kind: 'run' }, standing: decision === accepted ? 'closed' : 'open',
+    id: 'finding:case-0001', revision: 3, owner: { kind: 'run' }, standing: decision === accepted ? 'closed' : 'open',
     reason: decision === accepted ? 'waived' : 'user-decision-answered', settledBy: decision === accepted ? decision.id : null,
     pendingUserDecision: null, reports: [{ source, observation: { kind: 'plan-deviation' } }],
     decisions: [request, decision], ...changes,

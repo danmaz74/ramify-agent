@@ -16,7 +16,7 @@ import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';
 import { declaringScenarios } from './helpers/declarations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { placementDecisionFixture as decision, forkDecision, forkEnvironment, registryChange, unresolved } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, until } from './helpers/runs.js';
 import { byRole, submit, treeInputs } from './helpers/iterations.js';
@@ -44,7 +44,7 @@ afterEach(async () => {
 const plan = 'revision-diff';
 const core = 'collection-review/workspace/catalog/core';
 const panel = 'collection-review/workspace/catalog/ui';
-const completed = [scenariosCommit(plan), 'wi-001', 'wi-002', `final verification of plan "${plan}"`] as const;
+const completed = [scenariosCommit(plan), 'work-item:compare-revisions', 'work-item:compare-panel', `final verification of plan "${plan}"`] as const;
 const conflict = 'The work-item gate fails before any test runs: `npm test` cannot resolve `dist/src`, which no engineer of this module can produce.';
 const { diagnosis, suggestion } = forkEnvironment() as Extract<ForkSubmission, { kind: 'environment' }>;
 
@@ -56,10 +56,10 @@ async function target(): Promise<string> {
 }
 
 function analysed() {
-  return analysis([
+  return currentAnalysis(analysis([
     entry('compare-revisions', core, 'Compares two revisions of one record, field by field.'),
     entry('compare-panel', panel, 'Shows the comparison of two revisions on the record card.'),
-  ]);
+  ]), 'document:revision-diff-plan');
 }
 
 function types(events: readonly RunEvent[]): string[] {
@@ -117,15 +117,15 @@ describe('an unresolved request answered with an environment problem', () => {
     const receipt = await opened.service.execute(startRun(plan));
     const runId = receipt.jobId;
 
-    // The report is recorded, and the run holds wi-001 for the operator.
+    // The report is recorded, and the run holds work-item:compare-revisions for the operator.
     await until(async () => (await runEventsOnDisk(project, plan, runId)).some(event => event.type === 'environment-reported'));
     const reported = (await runEventsOnDisk(project, plan, runId)).find(event => event.type === 'environment-reported')!;
-    expect(reported.data).toMatchObject({ request: 'ur-001', problem: 'ep-001', workItem: 'wi-001', checkFinding: 'cf-0001' });
+    expect(reported.data).toMatchObject({ request: 'unresolved-request:missing-mcp', problem: 'environment-problem:missing-build', workItem: 'work-item:compare-revisions', checkFinding: 'finding:missing-build' });
     const held = runResponseSchema.parse(await get(origin, protocolPaths.run(plan, runId))).run;
     expect(held).toMatchObject({
       state: 'running',
-      decisionRequests: { open: 1, waiting: true, workItems: [{ workItem: 'wi-001', requests: [{ checkFinding: 'cf-0001', request: 'cfd-0001' }] }] },
-      environmentProblems: [{ problem: 'ep-001', request: 'ur-001', workItem: 'wi-001', checkFinding: 'cf-0001', diagnosis, suggestion, answer: 'waiting' }],
+      decisionRequests: { open: 1, waiting: true, workItems: [{ workItem: 'work-item:compare-revisions', requests: [{ checkFinding: 'finding:missing-build', request: 'cfd-0001' }] }] },
+      environmentProblems: [{ problem: 'environment-problem:missing-build', request: 'unresolved-request:missing-mcp', workItem: 'work-item:compare-revisions', checkFinding: 'finding:missing-build', diagnosis, suggestion, answer: 'waiting' }],
       planDeviations: { recorded: 0, toReview: 0 },
     });
     const before = agent.sessions.length;
@@ -137,21 +137,21 @@ describe('an unresolved request answered with an environment problem', () => {
     expect(types(recorded)).not.toContain('plan-deviation-recorded');
     expect(types(recorded)).not.toContain('decision-accepted');
     expect(await readFile(`${project}/plans/${plan}/plan.md`, 'utf8')).toBe(await readFile(runPath(project, plan, runId, 'input', 'plan.md'), 'utf8'));
-    const record = JSON.parse(await readFile(runPath(project, plan, runId, deviationLayout.environment('ep-001')), 'utf8')) as EnvironmentProblem;
-    expect(record).toMatchObject({ schema: 'ramify-agent.environment-problem/1', request: 'ur-001', workItem: 'wi-001', diagnosis, suggestion, checkFinding: 'cf-0001' });
+    const record = JSON.parse(await readFile(runPath(project, plan, runId, deviationLayout.environment('environment-problem:missing-build')), 'utf8')) as EnvironmentProblem;
+    expect(record).toMatchObject({ schema: 'ramify-agent.environment-problem/2', request: 'unresolved-request:missing-mcp', workItem: 'work-item:compare-revisions', diagnosis, suggestion, checkFinding: 'finding:missing-build' });
 
     // Its CheckFinding is the run's, asks the operator to resume or end, and its judgment carries the diagnosis and the suggestion.
     const list = checkFindingListResponseSchema.parse(await get(origin, protocolPaths.runCheckFindings(plan, runId, { select: 'all' })));
     expect(list.items[0]).toMatchObject({
-      id: 'cf-0001', workItem: null, reason: 'awaiting-user-decision', risk: 'high', credibility: 'agent-generated',
+      id: 'finding:missing-build', workItem: null, reason: 'awaiting-user-decision', risk: 'high', credibility: 'agent-generated',
       producers: ['plan:environment'], modules: [core], userCommands: ['respond'], planDeviation: null,
     });
     expect(list.items[0]!.pendingUserDecision?.options.map(option => option.id)).toEqual(['resume', 'end']);
     const page = await get(origin, protocolPaths.runEvents(plan, runId, 0)) as { events: Array<{ transition: string; summary: string }> };
-    expect(page.events.find(event => event.transition === 'environment-reported')!.summary).toContain('environment problem ep-001');
+    expect(page.events.find(event => event.transition === 'environment-reported')!.summary).toContain('environment problem environment-problem:missing-build');
 
     // The operator corrects the environment and resumes the run.
-    await respond(opened.service, runId, 'cf-0001', 'cfd-0001', 'resume', 'Added a build step; dist/src is built before the gate.');
+    await respond(opened.service, runId, 'finding:missing-build', 'cfd-0001', 'resume', 'Added a build step; dist/src is built before the gate.');
     await opened.service.settled(plan, runId);
     expect(onlyRun(opened.service, plan).state).toBe('completed');
 
@@ -172,7 +172,7 @@ describe('an unresolved request answered with an environment problem', () => {
 
     // The status keeps the problem, answered.
     const after = runResponseSchema.parse(await get(origin, protocolPaths.run(plan, runId))).run;
-    expect(after).toMatchObject({ state: 'completed', decisionRequests: { open: 0, waiting: false }, environmentProblems: [{ problem: 'ep-001', answer: 'resumed' }] });
+    expect(after).toMatchObject({ state: 'completed', decisionRequests: { open: 0, waiting: false }, environmentProblems: [{ problem: 'environment-problem:missing-build', answer: 'resumed' }] });
     const settled = checkFindingListResponseSchema.parse(await get(origin, protocolPaths.runCheckFindings(plan, runId, { select: 'all' }))).items[0]!;
     expect(settled).toMatchObject({ standing: 'closed', reason: 'waived', settlement: { kind: 'waived', by: { kind: 'user', name: 'dan' } } });
   }, 120_000);
@@ -181,8 +181,8 @@ describe('an unresolved request answered with an environment problem', () => {
     const project = await target();
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
-      'local-architect': [submit(unresolved(conflict)), submit(unresolved(`${conflict} It failed again after the resume.`)), submit(requestCompletion()), submit(requestCompletion())],
-      'global-fork': [submit(forkEnvironment())],
+      'local-architect': [submit(unresolved(conflict)), submit({ ...unresolved(`${conflict} It failed again after the resume.`), requestKey: 'draft:unresolved-request:missing-mcp-again' }), submit(requestCompletion()), submit(requestCompletion())],
+      'global-fork': [submit(forkEnvironment()), submit({ ...forkEnvironment(), problemKey: 'draft:environment-problem:missing-build-again', findingKey: 'draft:finding:missing-build-again' })],
     })));
     const opened = await openRuns(project, { agent, inputs: treeInputs(), unchangedCheckpoints: completed });
     cleanups.push(() => opened.service.close());
@@ -191,17 +191,17 @@ describe('an unresolved request answered with an environment problem', () => {
     const reports = async () => (await runEventsOnDisk(project, plan, runId)).filter(event => event.type === 'environment-reported').length;
 
     await until(async () => await reports() === 1);
-    await respond(opened.service, runId, 'cf-0001', 'cfd-0001', 'resume');
+    await respond(opened.service, runId, 'finding:missing-build', 'cfd-0001', 'resume');
     await until(async () => await reports() === 2);
     const again = opened.service.getRun(plan, runId)!;
     expect(again.state).toBe('running');
     const forks = agent.sessions.filter(session => session.spec.role === 'global-fork');
     expect(forks).toHaveLength(2);
     expect(forks[1]!.spec.prompt).toContain('## Environment problems already reported');
-    expect(forks[1]!.spec.prompt).toContain('`ep-001`, for ur-001 of wi-001');
+    expect(forks[1]!.spec.prompt).toContain('`environment-problem:missing-build`, for unresolved-request:missing-mcp of work-item:compare-revisions');
     expect(forks[1]!.spec.prompt).toContain('The operator resumed the run');
 
-    await respond(opened.service, runId, 'cf-0002', 'cfd-0003', 'resume');
+    await respond(opened.service, runId, 'finding:missing-build-again', 'cfd-0003', 'resume');
     await opened.service.settled(plan, runId);
     expect(onlyRun(opened.service, plan).state).toBe('completed');
   }, 120_000);
@@ -219,7 +219,7 @@ describe('an unresolved request answered with an environment problem', () => {
     const receipt = await opened.service.execute(startRun(plan));
     const runId = receipt.jobId;
     await until(async () => (await runEventsOnDisk(project, plan, runId)).some(event => event.type === 'environment-reported'));
-    await respond(opened.service, runId, 'cf-0001', 'cfd-0001', 'end', 'The gate needs a new toolchain; not this week.');
+    await respond(opened.service, runId, 'finding:missing-build', 'cfd-0001', 'end', 'The gate needs a new toolchain; not this week.');
     await opened.service.settled(plan, runId);
     expect(onlyRun(opened.service, plan).state).toBe('failed');
     expect((await runEventsOnDisk(project, plan, runId)).at(-1)).toMatchObject({
@@ -227,18 +227,18 @@ describe('an unresolved request answered with an environment problem', () => {
       data: {
         reason: 'unresolvable-requirement',
         message: expect.stringContaining('The gate needs a new toolchain; not this week.'),
-        evidence: [deviationLayout.environment('ep-001'), deviationLayout.request('ur-001')],
+        evidence: [deviationLayout.environment('environment-problem:missing-build'), deviationLayout.request('unresolved-request:missing-mcp')],
       },
     });
     expect((await runEventsOnDisk(project, plan, runId)).at(-1)!.data).toMatchObject({ message: expect.stringContaining(diagnosis) });
     const snapshot = runResponseSchema.parse(await get(origin, protocolPaths.run(plan, runId))).run;
-    expect(snapshot.environmentProblems).toMatchObject([{ problem: 'ep-001', answer: 'ended' }]);
+    expect(snapshot.environmentProblems).toMatchObject([{ problem: 'environment-problem:missing-build', answer: 'ended' }]);
   }, 120_000);
 });
 
 describe('the environment answer\'s validation', () => {
   const evidence = { index: null, registry: new Map(), hypotheses: new Map(), decisions: new Map(), workItems: new Set<string>() };
-  const question = { kind: 'unresolved' as const, elements: new Set(['fr-001', 'fr-002']), workItems: new Set(['wi-001']), scenarios: new Map<string, string>() };
+  const question = { kind: 'unresolved' as const, elements: new Set(['functional-requirement:compare-revisions-request', 'functional-requirement:compare-revisions-acceptance']), workItems: new Set(['work-item:compare-revisions']), scenarios: new Map<string, string>() };
 
   test('an environment answer without a diagnosis, or past its bounds, is refused, and a placement request is never answered with one', () => {
     expect(validateFork(forkEnvironment(), evidence, question)).toMatchObject({ ok: true });
@@ -253,7 +253,7 @@ describe('the environment answer\'s validation', () => {
   test('a placement answer to an unresolved request gives a few short constraints; a placement request is not held to that', () => {
     const answer = (constraints: string[]) => forkDecision({
       decision: decision({ owner: core, constraints }),
-      registry: [registryChange({ capability: 'send-email', owner: core })],
+      registry: [registryChange({ capability: 'capability:send-email', owner: core })],
     });
     expect(validateFork(answer(['Expose `compare` from the core to the panel.']), evidence, question)).toMatchObject({ ok: true });
     const long = validateFork(answer(['x'.repeat(401)]), evidence, question);

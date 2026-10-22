@@ -4,11 +4,9 @@ import type { JsonSchema } from '../../../../agent/src/interfaces/port.js';
 import type { DocumentManifest } from '../../../../plan-evidence/src/interfaces/contracts.js';
 import {
   acceptElements, createPackage, elementRewriteSchema, resolveCitations, reviseCatalog, submittedElementSchema,
-  descriptiveSubmittedElementSchema,
   type ElementCatalog, type ElementKind,
 } from '../../../../plan-evidence/src/interfaces/catalog.js';
 import { extractPlanScenarios, type PlanScenario } from '../../../../scenarios/src/extraction.js';
-import { nonBehavioralAcceptanceSchema } from '../../../../scenarios/src/form.js';
 import type { SubmissionError, SubmissionValidation } from '../../../../task-execution/src/submissions.js';
 import { incorporationSchema, submittedIncorporationSchema, type Incorporation } from './evidence-contracts.js';
 import type { CatalogFinding } from './records.js';
@@ -35,18 +33,12 @@ export const intakeSubmissionSchema = z.object({
 export type IntakeSubmission = z.infer<typeof intakeSubmissionSchema>;
 export const intakeToolName = 'submit_intake';
 export const intakeJsonSchema = z.toJSONSchema(intakeSubmissionSchema) as JsonSchema;
-export const descriptiveIntakeSubmissionSchema = intakeSubmissionSchema.extend({ elements: z.array(descriptiveSubmittedElementSchema) }).strict();
-export const descriptiveIntakeJsonSchema = z.toJSONSchema(descriptiveIntakeSubmissionSchema) as JsonSchema;
 
 /** One principles document's fixed requirements and recommendations that bear on this plan. */
 export const principleSubmissionSchema = z.object({ elements: z.array(submittedElementSchema) }).strict();
 export type PrincipleSubmission = z.infer<typeof principleSubmissionSchema>;
 export const principleToolName = 'submit_principle_elements';
 export const principleJsonSchema = z.toJSONSchema(principleSubmissionSchema) as JsonSchema;
-export const descriptivePrincipleSubmissionSchema = principleSubmissionSchema.extend({ elements: z.array(descriptiveSubmittedElementSchema) }).strict();
-export const descriptivePrincipleJsonSchema = z.toJSONSchema(descriptivePrincipleSubmissionSchema) as JsonSchema;
-
-const citationList = z.array(text);
 
 /** One correction of the checker, with its reason. */
 export const correctionSchema = z.discriminatedUnion('action', [
@@ -59,43 +51,22 @@ export const correctionSchema = z.discriminatedUnion('action', [
 ]);
 export type Correction = z.infer<typeof correctionSchema>;
 
-export const checkSubmissionSchema = z.object({
-  corrections: z.array(correctionSchema),
-  /** Entries whose citations change, with their complete new lists. */
-  entries: z.array(z.object({
-    capability: text, requirementRefs: citationList, acceptanceRefs: citationList, contextRefs: citationList,
-    /** Complete declarations when a correction changes non-behavioral acceptance. */
-    nonBehavioralAcceptance: z.array(nonBehavioralAcceptanceSchema).optional(),
-  }).strict()),
-  /** Scenarios whose citations change, by the architect's scenario key, with their complete new list. */
-  scenarios: z.array(z.object({ key: text, refs: citationList }).strict()),
-}).strict();
-export type CheckSubmission = z.infer<typeof checkSubmissionSchema>;
 export const checkToolName = 'submit_catalog_check';
-export const checkJsonSchema = z.toJSONSchema(checkSubmissionSchema) as JsonSchema;
-const descriptiveCorrectionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('add'), reason: text, elements: z.array(descriptiveSubmittedElementSchema).min(1) }).strict(),
-  z.object({ action: z.literal('rewrite'), reason: text, element: elementRewriteSchema }).strict(),
-  z.object({ action: z.literal('replace'), reason: text, retire: z.array(text).min(1), elements: z.array(descriptiveSubmittedElementSchema) }).strict(),
+const functionalCitation = z.union([
+  z.object({ functionalRequirementId: z.string().regex(/^functional-requirement:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
+  z.object({ functionalRequirementKey: z.string().regex(/^draft:functional-requirement:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
 ]);
-const descriptiveCitation = (family: 'functionalRequirement' | 'context') => {
-  const namespace = family === 'context' ? 'context' : 'functional-requirement';
-  const accepted = z.string().regex(new RegExp(`^${namespace}:[a-z0-9]+(?:-[a-z0-9]+)*$`));
-  const draft = z.string().regex(new RegExp(`^draft:${namespace}:[a-z0-9]+(?:-[a-z0-9]+)*$`));
-  return z.union([
-    z.object({ [`${family}Id`]: accepted }).strict(),
-    z.object({ [`${family}Key`]: draft }).strict(),
-  ]);
-};
-const functionalCitation = descriptiveCitation('functionalRequirement');
-const contextCitation = descriptiveCitation('context');
+const contextCitation = z.union([
+  z.object({ contextId: z.string().regex(/^context:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
+  z.object({ contextKey: z.string().regex(/^draft:context:[a-z0-9]+(?:-[a-z0-9]+)*$/) }).strict(),
+]);
 const descriptiveNonBehavioralAcceptance = z.object({
   functionalAcceptanceCitation: functionalCitation,
   kind: z.literal('non-behavioral'),
   test: text,
 }).strict();
-export const descriptiveCheckSubmissionSchema = z.object({
-  corrections: z.array(descriptiveCorrectionSchema),
+export const checkSubmissionSchema = z.object({
+  corrections: z.array(correctionSchema),
   entries: z.array(z.object({ capabilityId: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/),
     functionalRequirementCitations: z.array(functionalCitation), functionalAcceptanceCitations: z.array(functionalCitation),
     contextCitations: z.array(contextCitation),
@@ -105,9 +76,11 @@ export const descriptiveCheckSubmissionSchema = z.object({
   scenarios: z.array(z.object({ scenarioKey: z.string().regex(/^draft:scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/),
     functionalAcceptanceCitations: z.array(functionalCitation) }).strict()),
 }).strict();
-export type DescriptiveCheckSubmission = z.infer<typeof descriptiveCheckSubmissionSchema>;
-export const descriptiveCheckJsonSchema = z.toJSONSchema(descriptiveCheckSubmissionSchema) as JsonSchema;
-export function normalizeDescriptiveCheck(value: DescriptiveCheckSubmission): CheckSubmission {
+export type CheckSubmission = z.infer<typeof checkSubmissionSchema>;
+export const checkJsonSchema = z.toJSONSchema(checkSubmissionSchema) as JsonSchema;
+type ResolvedCheck = { corrections: CheckSubmission['corrections']; entries: Array<{ capability: string; requirementRefs: string[]; acceptanceRefs: string[]; contextRefs: string[];
+  nonBehavioralAcceptance: Array<{ ref: string; kind: 'non-behavioral'; test: string }> }>; scenarios: Array<{ key: string; refs: string[] }> };
+function resolveCheckCitations(value: CheckSubmission): ResolvedCheck {
   const citation = (value: Record<string, string>) => Object.values(value)[0]!;
   return { corrections: value.corrections, entries: value.entries.map(entry => ({
     capability: entry.capabilityId.slice('capability:'.length), requirementRefs: entry.functionalRequirementCitations.map(citation),
@@ -131,7 +104,7 @@ export function acceptIntake(catalog: ElementCatalog, manifest: DocumentManifest
   const accepted = acceptElements(catalog, value.elements);
   if (!accepted.ok) return { ok: false, errors: accepted.errors.map(error => toError('elements', error)) };
   return { ok: true, catalog: accepted.catalog, incorporation: incorporationSchema.parse({
-    schema: catalog.schema.endsWith('/2') ? 'ramify-agent.document-incorporation/3' : 'ramify-agent.document-incorporation/2',
+    schema: 'ramify-agent.document-incorporation/3',
     ...value.incorporation,
   }) };
 }
@@ -159,6 +132,7 @@ export interface CheckState {
  */
 export function applyCheck(state: CheckState, document: string, invocation: string, value: CheckSubmission, evidence: AnalysisEvidence):
   Accepted<CheckState & { readonly findings: readonly CatalogFinding[] }> {
+  const cited = resolveCheckCitations(value);
   const errors: SubmissionError[] = [];
   const own = new Set(state.catalog.elements.filter(element => element.document === document).map(element => element.id));
   const added: unknown[] = [];
@@ -181,13 +155,11 @@ export function applyCheck(state: CheckState, document: string, invocation: stri
     });
   });
   if (errors.length > 0) return { ok: false, errors };
-  const replacements = state.catalog.schema.endsWith('/2')
-    ? value.corrections.filter(correction => correction.action === 'replace').flatMap(correction =>
-      correction.retire.map(retired => ({ retired, with: correction.elements.map(element => element.key) })))
-    : undefined;
-  const revised = reviseCatalog(state.catalog, { rewrite, retire, add: added, ...(replacements === undefined ? {} : { replacements }),
-    references: analysisElementReferences({ entries: value.entries.map(entry => ({ ...entry, description: '', owner: '', citations: [] })),
-      scenarios: value.scenarios.map(scenario => ({ ...scenario, entry: '', origin: { kind: 'architect' as const }, gherkin: '' })) }) });
+  const replacements = value.corrections.filter(correction => correction.action === 'replace').flatMap(correction =>
+    correction.retire.map(retired => ({ retired, with: correction.elements.map(element => element.key) })));
+  const revised = reviseCatalog(state.catalog, { rewrite, retire, add: added, replacements,
+    references: analysisElementReferences({ entries: cited.entries.map(entry => ({ ...entry, description: '', owner: '', citations: [] })),
+      scenarios: cited.scenarios.map(scenario => ({ ...scenario, entry: '', origin: { kind: 'architect' as const }, gherkin: '' })) }) });
   if (!revised.ok) return { ok: false, errors: revised.errors.map(error => toError(error.startsWith('entries.') || error.startsWith('scenarios.') ? '' : 'corrections', error)) };
 
   const active = new Set(revised.catalog.elements.map(element => element.id));
@@ -198,23 +170,23 @@ export function applyCheck(state: CheckState, document: string, invocation: stri
     return [...citations];
   };
   const capabilities = new Set(state.analysis.entries.map(entry => entry.capability));
-  const entries = new Map(value.entries.map((entry, index) => {
-    if (value.entries.slice(0, index).some(prior => prior.capability === entry.capability)) errors.push({ path: `entries.${index}.capability`, message: 'Duplicate entry correction' });
-    if (!capabilities.has(entry.capability)) errors.push({ path: `entries.${index}.capability`, message: `No entry "${entry.capability}"`, expected: 'an entry of the analysis' });
+  const entries = new Map(cited.entries.map((entry, index) => {
+    if (cited.entries.slice(0, index).some(prior => prior.capability === entry.capability)) errors.push({ path: `entries.${index}.capabilityId`, message: 'Duplicate entry correction' });
+    if (!capabilities.has(entry.capability)) errors.push({ path: `entries.${index}.capabilityId`, message: `No entry "${entry.capability}"`, expected: 'an entry of the analysis' });
     return [entry.capability, {
-      requirementRefs: resolve(entry.requirementRefs, `entries.${index}.requirementRefs`),
-      acceptanceRefs: resolve(entry.acceptanceRefs, `entries.${index}.acceptanceRefs`),
-      contextRefs: resolve(entry.contextRefs, `entries.${index}.contextRefs`),
+      requirementRefs: resolve(entry.requirementRefs, `entries.${index}.functionalRequirementCitations`),
+      acceptanceRefs: resolve(entry.acceptanceRefs, `entries.${index}.functionalAcceptanceCitations`),
+      contextRefs: resolve(entry.contextRefs, `entries.${index}.contextCitations`),
       ...(entry.nonBehavioralAcceptance === undefined ? {} : { nonBehavioralAcceptance: entry.nonBehavioralAcceptance.map((item, position) => ({
-        ...item, ref: resolve([item.ref], `entries.${index}.nonBehavioralAcceptance.${position}.ref`)[0]!,
+        ...item, ref: resolve([item.ref], `entries.${index}.nonBehavioralAcceptance.${position}.functionalAcceptanceCitation`)[0]!,
       })) }),
     }] as const;
   }));
   const keys = new Set(state.analysis.scenarios.map(scenario => scenario.key));
-  const scenarios = new Map(value.scenarios.map((scenario, index) => {
-    if (value.scenarios.slice(0, index).some(prior => prior.key === scenario.key)) errors.push({ path: `scenarios.${index}.key`, message: 'Duplicate scenario correction' });
-    if (!keys.has(scenario.key)) errors.push({ path: `scenarios.${index}.key`, message: `No scenario "${scenario.key}"`, expected: 'a scenario key of the analysis' });
-    return [scenario.key, resolve(scenario.refs, `scenarios.${index}.refs`)] as const;
+  const scenarios = new Map(cited.scenarios.map((scenario, index) => {
+    if (cited.scenarios.slice(0, index).some(prior => prior.key === scenario.key)) errors.push({ path: `scenarios.${index}.scenarioKey`, message: 'Duplicate scenario correction' });
+    if (!keys.has(scenario.key)) errors.push({ path: `scenarios.${index}.scenarioKey`, message: `No scenario "${scenario.key}"`, expected: 'a scenario key of the analysis' });
+    return [scenario.key, resolve(scenario.refs, `scenarios.${index}.functionalAcceptanceCitations`)] as const;
   }));
   if (errors.length > 0) return { ok: false, errors };
 
@@ -369,7 +341,7 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
     ids.length === 0 ? 'No element was read from it.' : `The ${ids.length === 1 ? 'element' : `${ids.length} elements`} read from it, as every later reader receives them:`, '',
     ...(ids.length === 0 ? [] : [rendered.text]),
     ...(plan ? ['', '# Scenario-origin mapping', '',
-      'Correction scenarios[].key names the architect scenario key. Registered plan origins (ps-NN) identify captured scenarios; partOf relates architect sub-scenarios to an integration origin. Source intervals below are 1-based captured-document lines. Frozen scenario text is unchanged.', '',
+      'Correction scenarios[].scenarioKey names the architect scenario key. Registered plan origins use plan-scenario:<name>; partOf relates architect sub-scenarios to an integration origin. Source intervals below are 1-based captured-document lines. Frozen scenario text is unchanged.', '',
       ...(origins.length === 0 ? ['No registered plan-origin mapping is available for this document in the supplied registry. Do not infer identities from scenario order.'] : origins.map(origin => {
         const keys = state.analysis.scenarios.filter(scenario => scenario.origin.kind === 'plan'
           ? scenario.origin.planScenario === origin.id : scenario.partOf === origin.id);

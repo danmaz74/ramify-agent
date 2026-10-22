@@ -76,7 +76,7 @@ describe('optional run issue administration lifecycle', () => {
     expect(phases).toContain('analysis-accepted');
     expect(finish.outcome).toBe('job-completed');
     expect(finish.context).toContain('ramify-agent.prepared-candidate/1');
-    expect(finish.context).toContain('ramify-agent.nonfunctional-assessment/1');
+    expect(finish.context).toContain('ramify-agent.nonfunctional-assessment/2');
     expect(finish.context).toContain('ramify-agent.gate-attempt/');
     expect(finish.context).not.toContain(auditDetails);
     expect(finish.context).not.toContain('"provider":');

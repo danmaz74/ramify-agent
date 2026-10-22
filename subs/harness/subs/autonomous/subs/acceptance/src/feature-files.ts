@@ -74,15 +74,15 @@ function replayScenarios(lines: readonly ScenarioLedgerLine[]): TrackedScenarios
   for (const line of lines) {
     for (const record of line.transaction.records) {
       const schema = (record.body as { schema?: unknown } | null)?.schema;
-      if (schema === 'ramify-agent.scenario/1' || schema === 'ramify-agent.scenario/2') {
+      if (schema === 'ramify-agent.scenario/2') {
         // A plan deviation's rewording revises a record in place: the latest wins.
         const scenario = scenarioRecordSchema.parse(record.body);
         const at = records.findIndex(held => held.id === scenario.id);
         if (at < 0) records.push(scenario);
         else records[at] = scenario;
       }
-      if (schema === 'ramify-agent.entry-assignments/1' || schema === 'ramify-agent.entry-assignments/2') {
-        entries = entryAssignmentsSchema.parse(record.body).entries.map(entry => ({ capability: entry.capabilityId ?? entry.capability, description: entry.description }));
+      if (schema === 'ramify-agent.entry-assignments/2') {
+        entries = entryAssignmentsSchema.parse(record.body).entries.map(entry => ({ capability: entry.capabilityId, description: entry.description }));
       }
     }
     const event = line.transaction.event as { readonly type: string };
@@ -253,7 +253,7 @@ export function scenarioNameOf(source: readonly string[]): string | null {
 }
 
 /**
- * The message of a rewording commit, "Reword sc-003", written mechanically
+ * The message of a rewording commit, such as "Reword scenario:reject-missing-predecessor", written mechanically
  * from the intent: the plan deviation that rewords the pending scenarios,
  * and their files.
  */

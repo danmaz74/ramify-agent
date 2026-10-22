@@ -31,19 +31,23 @@ export async function executionMapOf(view: RunView, tree: ModuleTree): Promise<E
   return { ...core, moduleMap: executionModuleMapOf(view, tree, core.nodes, captured) };
 }
 
-const key = (kind: ExecutionNode['kind'], id: string): string => `${kind}:${id}`;
+const key = (kind: ExecutionNode['kind'], id: string): string => {
+  if (kind === 'iteration' || kind === 'session' || kind === 'gate') return `${kind}:${id}`;
+  if (kind === 'contract' && id.startsWith('provider-obligation:')) return `contract:${id.slice('provider-obligation:'.length)}`;
+  return id;
+};
 const count = (total: number) => ({ state: 'complete' as const, known: total, total });
 /** A role or checkpoint token in title case; a capability keeps its id as its label. */
 const label = (name: string) => name.replace(/(^|[-\s])\S/g, part => part.toUpperCase()).replaceAll('-', ' ');
 
 /** First commit establishes placement in the run; the latest revision supplies displayed data. */
-function recordSource(view: RunView, schema: string | readonly string[], id: string, kind: ExecutionSourceRef['kind'], latest = false): ExecutionSourceRef | null {
+function recordSource(view: RunView, schema: string, id: string, kind: ExecutionSourceRef['kind'], latest = false): ExecutionSourceRef | null {
   const lines = latest ? [...view.entries].reverse() : view.entries;
   for (const line of lines) {
     const records = latest ? [...line.transaction.records].reverse() : line.transaction.records;
     for (const record of records) {
       const body = record.body as { schema?: string; id?: string; capability?: string; workItem?: string };
-      if ((typeof schema === 'string' ? body.schema === schema : schema.includes(body.schema ?? '')) &&
+      if (body.schema === schema &&
           (body.id ?? body.capability ?? body.workItem) === id) {
         return { kind, id, ...publicSequence(view.entries, line.sequence), revision: record.revision > 0 ? record.revision : null };
       }
@@ -57,7 +61,7 @@ function eventSource(view: RunView, sequence: number): ExecutionSourceRef {
   return { kind: 'run-event', id: `${source.sourceRun ? `${source.sourceRun}:` : ''}event-${source.sequence}`, ...source, revision: null };
 }
 
-function sourceOf(view: RunView, schema: string | readonly string[], id: string, kind: ExecutionSourceRef['kind']): ExecutionSourceRef {
+function sourceOf(view: RunView, schema: string, id: string, kind: ExecutionSourceRef['kind']): ExecutionSourceRef {
   const source = recordSource(view, schema, id, kind);
   if (source === null) throw new Error(`Committed ${schema} ${id} has no source line`);
   return source;
@@ -67,7 +71,7 @@ function scenarioSources(view: RunView): Map<string, ExecutionSourceRef> {
   const sources = new Map<string, ExecutionSourceRef>();
   for (const line of view.entries) for (const record of line.transaction.records) {
     const body = record.body as { schema?: string; id?: string };
-    if ((body.schema === 'ramify-agent.scenario/1' || body.schema === 'ramify-agent.scenario/2') && body.id !== undefined && !sources.has(body.id)) {
+    if (body.schema === 'ramify-agent.scenario/2' && body.id !== undefined && !sources.has(body.id)) {
       sources.set(body.id, { kind: 'tracked-scenario', id: body.id, ...publicSequence(view.entries, line.sequence), revision: null });
     }
   }
@@ -131,7 +135,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   for (const capability of progress) {
     const registry = view.records.registry.find(entry => entry.capability === capability.capability);
     if (registry === undefined) continue;
-    const source = sourceOf(view, ['ramify-agent.capability/1', 'ramify-agent.capability/2'], registry.capability, 'capability-record');
+    const source = sourceOf(view, 'ramify-agent.capability/2', registry.capability, 'capability-record');
     const member = byEntry.get(registry.capability) ?? [];
     const bucket = { passed: 0, failed: 0, other: 0, noRealRun: 0, unavailable: 0 };
     for (const scenario of member) {
@@ -173,7 +177,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   }
 
   for (const summary of allWorkItemsOf(view)) {
-    const source = sourceOf(view, ['ramify-agent.work-item/1', 'ramify-agent.work-item/2'], summary.id, 'work-item');
+    const source = sourceOf(view, 'ramify-agent.work-item/2', summary.id, 'work-item');
     add({ ...base(key('work-item', summary.id), summary.goal, source), kind: 'work-item',
       state: summary.state, module: summary.module, goal: summary.goal,
       modules: summary.module === null ? [] : [{ module: summary.module, role: 'owner', source }],
@@ -266,7 +270,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   // node's current color, never the identity of its provider or old gates.
   const known = () => new Set(nodes.map(node => node.key));
   for (const request of view.records.requests.values()) {
-    const source = sourceOf(view, ['ramify-agent.placement-request/1', 'ramify-agent.placement-request/2'], request.id, 'placement-request');
+    const source = sourceOf(view, 'ramify-agent.placement-request/2', request.id, 'placement-request');
     add({ ...base(key('placement-request', request.id), request.question, source), kind: 'placement-request',
       state: [...view.records.decisions.values()].some(decision => decision.request === request.id) ? 'decided' : 'open',
       requestedBy: key('work-item', request.workItem),
@@ -275,7 +279,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     if (known().has(key('work-item', request.workItem))) relate('requested-by', key('placement-request', request.id), key('work-item', request.workItem), source);
   }
   for (const contract of view.records.contracts.values()) {
-    const source = recordSource(view, ['ramify-agent.contract/2', 'ramify-agent.contract/3'], contract.id, 'contract', true);
+    const source = recordSource(view, 'ramify-agent.contract/3', contract.id, 'contract', true);
     if (source === null) { gaps.push(`Contract ${contract.id} has no retained source.`); continue; }
     const obligation = [...view.records.obligations.values()].find(candidate =>
       candidate.contract.id === contract.id && candidate.revision === contract.revision);
@@ -303,7 +307,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     }
   }
   for (const requirement of view.records.requirements.values()) {
-    const source = recordSource(view, ['ramify-agent.consumer-requirement/1', 'ramify-agent.consumer-requirement/2'], requirement.id, 'requirement', true);
+    const source = recordSource(view, 'ramify-agent.consumer-requirement/2', requirement.id, 'requirement', true);
     if (source === null) { gaps.push(`Requirement ${requirement.id} has no retained source.`); continue; }
     const obligation = view.records.obligations.get(requirement.obligation);
     const contractId = obligation?.contract.id ?? null;
@@ -346,12 +350,12 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     if (registry.decision !== null) {
       const decision = view.records.decisions.get(registry.decision);
       if (decision?.request !== null && decision?.request !== undefined && known().has(key('placement-request', decision.request))) {
-        const source = sourceOf(view, ['ramify-agent.capability/1', 'ramify-agent.capability/2'], registry.capability, 'capability-record');
+        const source = sourceOf(view, 'ramify-agent.capability/2', registry.capability, 'capability-record');
         relate('proposed-by', key('capability', registry.capability), key('placement-request', decision.request), source);
       }
     }
     for (const consumer of registry.consumers) if (known().has(key('capability', consumer.capability))) {
-      const source = sourceOf(view, ['ramify-agent.capability/1', 'ramify-agent.capability/2'], registry.capability, 'capability-record');
+      const source = sourceOf(view, 'ramify-agent.capability/2', registry.capability, 'capability-record');
       const from = key('capability', consumer.capability), to = key('capability', registry.capability);
       if (!links.some(link => link.kind === 'depends-on' && link.from.key === from && link.to.key === to)) relate('depends-on', from, to, source);
     }
@@ -371,7 +375,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     previous.set(assignment.body.workItem, assignment.body.id);
   }
   for (const item of view.records.workItems) if (item.follows !== undefined && known().has(key('work-item', item.follows))) {
-    relate('follows', key('work-item', item.follows), key('work-item', item.id), sourceOf(view, ['ramify-agent.work-item/1', 'ramify-agent.work-item/2'], item.id, 'work-item'));
+    relate('follows', key('work-item', item.follows), key('work-item', item.id), sourceOf(view, 'ramify-agent.work-item/2', item.id, 'work-item'));
   }
   for (const session of runSessionViews(view)) {
     if (session.reaches.kind === 'request' && known().has(key('placement-request', session.reaches.request))) {
@@ -465,7 +469,7 @@ export function executionCapabilityDetailOf(view: RunView, capability: string): 
   }
   const registry = view.records.registry.find(candidate => candidate.capability === capability);
   if (registry !== undefined && registry.origin !== 'entry') {
-    const source = recordSource(view, ['ramify-agent.capability/1', 'ramify-agent.capability/2'], capability, 'capability-record', true);
+    const source = recordSource(view, 'ramify-agent.capability/2', capability, 'capability-record', true);
     if (source !== null) return { schema: 'execution-map/1', runVersion, key: key('capability', capability),
       detail: { state: 'available', level: 'lower', description: registry.behavior, source } };
   }

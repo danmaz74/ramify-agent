@@ -24,7 +24,6 @@ import {
 } from './contracts.js';
 
 const planStartSchema = z.object({ planId: planIdSchema, commandId: commandIdSchema,
-  identityContract: z.enum(['legacy', 'descriptive']).optional(),
   protection: z.object({ explicitPaths: z.array(z.string()).optional(), excludedPaths: z.array(z.string()).optional(),
     guardedPaths: z.array(z.string()).optional(), additions: z.enum(['protect', 'allow']).optional() }).strict().optional(),
 }).strict();
@@ -153,21 +152,10 @@ export class AssistanceService {
   /** Register an execution around the exact conventional plan. Retry returns the same job. */
   async planStart(input: PlanStartRequest): Promise<PlanStartResponse> {
     const request = planStartSchema.parse(input);
-    const identityContract = request.identityContract ?? 'descriptive';
     return this.write(async () => {
-      const earlierShape = { commandId: request.commandId, expectedVersion: 0, type: 'plan-start', planId: request.planId,
+      const command = { commandId: request.commandId, expectedVersion: 0, type: 'plan-start', planId: request.planId,
         execution: 'assisted', protection: request.protection };
-      const command = identityContract === 'legacy' ? earlierShape : { ...earlierShape, identityContract };
-      let admitted;
-      try { admitted = this.commands.admit(command); }
-      catch (error) {
-        if (request.identityContract !== undefined || !(error instanceof CommandRejection) || error.code !== 'conflict') throw error;
-        // An omitted contract used to mean legacy. Its accepted command stays
-        // retryable after the fresh default changes, without changing the job.
-        const retained = this.commands.admit(earlierShape);
-        if (retained.kind !== 'repeat') throw error;
-        admitted = retained;
-      }
+      const admitted = this.commands.admit(command);
       if (admitted.kind === 'repeat') {
         const original = [...this.stores.values()].find(store => store.job.jobId === admitted.receipt.jobId);
         if (!original) throw new Error('Accepted registration no longer has its job');
@@ -187,7 +175,6 @@ export class AssistanceService {
         schema: jobSchemaVersion, kind: 'assisted', planId: request.planId, jobId,
         createdAt: this.now().toISOString(), projectRoot: this.projectRoot,
         plan: { path: plan.path, storedAt: 'input/plan.md', sha256: planHash }, protection,
-        ...(identityContract === 'descriptive' ? { identityContract } : {}),
       };
       const accepted = this.commands.accept(command, admitted.contentHash, jobId, 1, this.now());
       const store = await AssistedStore.create(this.projectRoot, job, plan.markdown, accepted);
@@ -273,7 +260,7 @@ export class AssistanceService {
     });
   }
 
-  /** Shared admission and assessor composition for legacy and recorded iterations. Caller holds the writer. */
+  /** Shared admission and assessor composition for assisted iterations. Caller holds the writer. */
   private async admitAssessment(request: AssessmentRequest, command: { commandId: string; expectedVersion: number; [key: string]: unknown },
     metadata: Pick<AssistedAssessment['request'], 'iterationId' | 'focusModule' | 'additionalContext'> = {}): Promise<AssessmentAdmission> {
     const store = this.requireStore(request.planId, request.jobId);
@@ -499,7 +486,9 @@ export class AssistanceService {
       // Reproject only these retained briefs. Later candidates cannot erase a
       // failed required check or introduce new issues into this historical result.
       const selectedAway = (text: string) => {
-        const prefix = text.slice(0, text.indexOf(':'));
+        const boundary = text.indexOf(': ');
+        if (boundary < 0) return false;
+        const prefix = text.slice(0, boundary);
         const ids = prefix.split(', ');
         return ids.length > 0 && ids.every(id => {
           const entry = state.findings.get(id);

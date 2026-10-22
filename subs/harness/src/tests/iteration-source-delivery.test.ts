@@ -16,7 +16,7 @@ import { runLayout, runRecordSchema } from '../../subs/autonomous/src/run/record
 import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { defaultTurn, withDefaultTurns } from './helpers/declarations.js';
-import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { localDecision, registryChange } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { contractNeeded, type Seam } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts.js';
@@ -37,7 +37,7 @@ afterEach(async () => {
 /** The default intake over the captured plan, reading the given elements of the root plan. */
 function intake(spec: SessionSpec, elements: ReadonlyArray<Omit<SubmittedElement, 'document'>>): readonly ScriptStep[] {
   const input = (defaultTurn(spec)![0] as { readonly input: Record<string, unknown> }).input;
-  return submit({ ...input, elements: elements.map(element => ({ ...element, document: 'doc-001' })) });
+  return submit({ ...input, elements: elements.map(element => ({ ...element, document: 'document:revision-diff-plan' })) });
 }
 
 /**
@@ -81,25 +81,25 @@ test('an assigned non-functional element reaches the engineer once per session, 
   const advice = 'Use Redis if practical.';
   await writeFile(join(fixture.root, 'plans/revision-diff/plan.md'), `# Request\n\n${quote}\n${advice}\n\n# Acceptance\n\nThe scenario passes.\n`);
   let localTurn = 0;
-  const agent: ScriptedAgent = createScriptedAgent(selectingAfterLoss(() => agent, ['nfr-001'], spec => {
+  const agent: ScriptedAgent = createScriptedAgent(selectingAfterLoss(() => agent, ['non-functional-requirement:timeout'], spec => {
     if (spec.submission.name === intakeToolName) return intake(spec, [
-      { key: 'timeout', kind: 'non-functional', text: quote, conditions: [{ text: 'for the service', source: 'stated' }], uncertainty: '' },
-      { key: 'redis', kind: 'recommendation', text: advice, conditions: [], uncertainty: 'Optional.' },
+      { key: 'draft:non-functional-requirement:timeout', kind: 'non-functional', text: quote, conditions: [{ text: 'for the service', source: 'stated' }], uncertainty: '' },
+      { key: 'draft:recommendation:redis', kind: 'recommendation', text: advice, conditions: [], uncertainty: 'Optional.' },
     ]);
-    if (spec.role === 'initial-architect') return submit(analysis([entry('review-summary', 'collection-review/workspace/reviews/core', 'Summarizes a review.')]));
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('review-summary', 'collection-review/workspace/reviews/core', 'Summarizes a review.')]), 'document:revision-diff-plan'));
     if (spec.submission.name === 'submit_work_item_result') return localTurn++ === 0
-      ? submit(assign('collection-review/workspace/reviews/core', { citedElements: ['fr-001', 'fr-002', 'nfr-001'], obligations: ['sc-001'] }, outline()))
-      : submit({ ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] });
-    if (spec.role === 'engineer') return submit(completionProposed('The existing behavior satisfies the assignment.', { bindings: [{ id: 'sc-001' }] }));
+      ? submit(assign('collection-review/workspace/reviews/core', { citedElements: ['functional-requirement:review-summary-request', 'functional-requirement:review-summary-acceptance', 'non-functional-requirement:timeout'], obligations: ['scenario:review-summary-is-used'] }, outline()))
+      : submit({ ...requestCompletion(), reports: [{ id: 'scenario:review-summary-is-used', judgment: 'done', basedOnRevision: 0 }] });
+    if (spec.role === 'engineer') return submit(completionProposed('The existing behavior satisfies the assignment.', { bindings: [{ id: 'scenario:review-summary-is-used' }] }));
     if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [
-      { nfr: 'nfr-001', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'],
+      { nfr: 'non-functional-requirement:timeout', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'],
         evidence: ['The scripted timeout check passes.'], uncertainty: '' },
     ] });
     return [];
   }));
   let firstIterationAttempt: string | undefined;
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(), previewCount: 5,
-    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'wi-001.i01', 'wi-001.i01', 'wi-001', 'final verification of plan "revision-diff"'],
+    unchangedCheckpoints: [scenariosCommit('revision-diff'), 'work-item:review-summary.i01', 'work-item:review-summary.i01', 'work-item:review-summary', 'final verification of plan "revision-diff"'],
     checkScript: ({ check, context }) => {
       if (context.checkpoint !== 'iteration') return {};
       firstIterationAttempt ??= context.attemptId;
@@ -111,12 +111,12 @@ test('an assigned non-functional element reaches the engineer once per session, 
   await opened.service.settled('revision-diff', receipt.jobId);
   const events = await runEventsOnDisk(fixture.root, 'revision-diff', receipt.jobId);
   expect(onlyRun(opened.service, 'revision-diff').state, JSON.stringify({ failures: events.filter(event => event.type === 'job-failed'), sessions: agent.sessions.map(session => [session.spec.role, session.spec.submission.name, session.start, session.verdicts, session.outcome]) })).toBe('completed');
-  const { assignment, text, delivered } = await assignmentPackage(fixture.root, receipt.jobId, events, 'wi-001', 1);
-  expect(assignment.source).toMatchObject({ elements: ['fr-001', 'fr-002', 'nfr-001'], deviations: [] });
+  const { assignment, text, delivered } = await assignmentPackage(fixture.root, receipt.jobId, events, 'work-item:review-summary', 1);
+  expect(assignment.source).toMatchObject({ elements: ['functional-requirement:review-summary-request', 'functional-requirement:review-summary-acceptance', 'non-functional-requirement:timeout'], deviations: [] });
   expect(assignment).not.toHaveProperty('citedItems');
   expect(assignment).not.toHaveProperty('requirementRefs');
   expect(text).toContain(quote);
-  expect(text).toContain('### nfr-001: non-functional requirement of the plan from plans/revision-diff/plan.md');
+  expect(text).toContain('### non-functional-requirement:timeout: non-functional requirement of the plan from plans/revision-diff/plan.md');
   expect(text).toContain('stated: for the service');
   expect(text).not.toContain(advice);
   // The assignment cites its whole work-item package, so the module architect's package and the module engineer's are the same bytes.
@@ -146,7 +146,7 @@ test('an assigned non-functional element reaches the engineer once per session, 
   expect(engineers[0]!.spec.prompt).toContain('The tests this assignment owns are those of collection-review/workspace/reviews/core, in:\n'
     + '- `subs/workspace/subs/reviews/subs/core/src/tests/` (`collection-review/workspace/reviews/core`)');
   expect(engineers[0]!.spec.prompt).toContain('A whole-suite run is refused there: the gate\'s audit runs it.');
-  expect(engineers[0]!.spec.prompt).toContain('### sc-001 (pending): A person uses review-summary');
+  expect(engineers[0]!.spec.prompt).toContain('### scenario:review-summary-is-used (pending): A person uses review-summary');
   const continued = engineers[1]!.spec.session;
   expect(continued.mode).toBe('continue');
   expect(continued.mode === 'continue' && JSON.parse(continued.ref).sessionId).toBe(JSON.parse(engineers[0]!.ref).sessionId);
@@ -158,8 +158,8 @@ test('an assigned non-functional element reaches the engineer once per session, 
   // report is the architect's own, after the passing gate.
   expect(events.filter(event => event.type === 'gate-attempted').length).toBeGreaterThan(1);
   const reports = events.filter(event => event.type === 'obligation-reported').map(event => event.data as { id: string; judgment: string });
-  expect(reports.filter(report => report.judgment === 'done')).toEqual([expect.objectContaining({ id: 'sc-001', judgment: 'done' })]);
-  await expect(readFile(runPath(fixture.root, 'revision-diff', receipt.jobId, 'assignments/wi-001.i01-context.json'))).rejects.toThrow();
+  expect(reports.filter(report => report.judgment === 'done')).toEqual([expect.objectContaining({ id: 'scenario:review-summary-is-used', judgment: 'done' })]);
+  await expect(readFile(runPath(fixture.root, 'revision-diff', receipt.jobId, 'assignments/work-item:review-summary.i01-context.json'))).rejects.toThrow();
   expect(events.filter(event => event.type === 'context-selection-recorded')).toHaveLength(1);
 }, 120_000);
 
@@ -177,13 +177,13 @@ test('a contract requested by an engineer inherits the requester\'s assignment p
   await addModule(fixture.root, seam.providerDirectory, 'limits', {});
   await installTestRunner(fixture.root);
   await writeFile(join(fixture.root, 'plans/revision-diff/plan.md'), `# Request\n\n${quote}\n\n# Acceptance\n\nThe behavior is tested.\n`);
-  const agent: ScriptedAgent = createScriptedAgent(selectingAfterLoss(() => agent, ['nfr-001'], spec => {
-    if (spec.submission.name === intakeToolName) return intake(spec, [{ key: 'timeout', kind: 'non-functional', text: quote, conditions: [], uncertainty: '' }]);
-    if (spec.role === 'initial-architect') return submit(analysis([entry('review-note', notes)]));
+  const agent: ScriptedAgent = createScriptedAgent(selectingAfterLoss(() => agent, ['non-functional-requirement:timeout'], spec => {
+    if (spec.submission.name === intakeToolName) return intake(spec, [{ key: 'draft:non-functional-requirement:timeout', kind: 'non-functional', text: quote, conditions: [], uncertainty: '' }]);
+    if (spec.role === 'initial-architect') return submit(currentAnalysis(analysis([entry('review-note', notes)]), 'document:revision-diff-plan'));
     if (spec.submission.name === 'submit_work_item_result') return submit({
-      ...assign(notes, { citedElements: ['fr-001', 'nfr-001'] }, outline()),
-      localDecisions: [localDecision({ question: 'Where is note-limit?', outcome: 'reuse', capability: 'note-limit', owner: limits,
-        rationale: 'The limit is owned by its own module.' }, [registryChange({ capability: 'note-limit', owner: limits })])],
+      ...assign(notes, { citedElements: ['functional-requirement:review-note-request', 'non-functional-requirement:timeout'] }, outline()),
+      localDecisions: [localDecision({ question: 'Where is note-limit?', outcome: 'reuse', capability: 'capability:note-limit', owner: limits,
+        rationale: 'The limit is owned by its own module.' }, [registryChange({ capability: 'capability:note-limit', owner: limits })])],
     });
     if (spec.role === 'engineer') return submit(contractNeeded(seam));
     if (spec.role === 'contract-engineer') return submit({ kind: 'incomplete', done: [], unfinished: ['The interface still needs design.'], findings: [] });
@@ -209,11 +209,11 @@ test('a contract requested by an engineer inherits the requester\'s assignment p
   }
   await opened.service.settled('revision-diff', receipt.jobId);
   const events = await runEventsOnDisk(fixture.root, 'revision-diff', receipt.jobId);
-  const requester = await assignmentPackage(fixture.root, receipt.jobId, events, 'wi-001', 1);
-  expect(requester.assignment.source).toMatchObject({ elements: ['fr-001', 'nfr-001'], deviations: [] });
+  const requester = await assignmentPackage(fixture.root, receipt.jobId, events, 'work-item:review-note', 1);
+  expect(requester.assignment.source).toMatchObject({ elements: ['functional-requirement:review-note-request', 'non-functional-requirement:timeout'], deviations: [] });
   expect(requester.text).toContain(quote);
   expect(requester.text).not.toContain('The plan asks for review-note-acceptance.');
-  const contract = await assignmentPackage(fixture.root, receipt.jobId, events, 'wi-001', 2);
+  const contract = await assignmentPackage(fixture.root, receipt.jobId, events, 'work-item:review-note', 2);
   expect(contract.assignment.kind).toBe('contract');
   expect(contract.assignment.source).toEqual(requester.assignment.source);
   const engineer = agent.sessions.find(session => session.spec.role === 'engineer');

@@ -11,6 +11,7 @@ import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
+import { currentAnalysis } from '../../../../../../src/tests/helpers/analysis.js';
 import { concern, report } from '../../../../../../src/tests/helpers/check-findings.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { resetSpawnAttempts, spawnAttempts } from '../../../../../../src/tests/helpers/process-guard.js';
@@ -54,9 +55,9 @@ async function captureBrowserCase(name: string, queries: RunQueries, runId: stri
 
 /** The intake reads the one non-functional requirement; the architect finds nothing functional to place. */
 const intake = { goal: 'Answer review notes quickly.', elements: [
-  { key: 'latency', kind: 'non-functional', document: 'doc-001', text: quote, conditions: [], uncertainty: '' },
-], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } };
-const analysis = { elements: [], entries: [], hypotheses: [], coverageLimits: [], scenarios: [], integrationScenarios: [] };
+  { key: 'draft:non-functional-requirement:case-001', kind: 'non-functional', document: 'document:review-notes-plan', text: quote, conditions: [], uncertainty: '' },
+], incorporation: { documents: [{ document: 'document:review-notes-plan', scenarios: true, uncertainty: '' }], missing: [] } };
+const analysis = currentAnalysis({ elements: [], entries: [], hypotheses: [], coverageLimits: [], scenarios: [], integrationScenarios: [] }, 'document:review-notes-plan');
 
 async function startExhaustedRun(options: { finalGateFails?: boolean } = {}) {
   const fixture = await copyFixture();
@@ -70,11 +71,12 @@ async function startExhaustedRun(options: { finalGateFails?: boolean } = {}) {
       if (spec.submission.name === intakeToolName) return [{ kind: 'submit', input: intake }];
       if (spec.role === 'initial-architect') return [{ kind: 'submit', input: analysis }];
       if (spec.submission.name === coordinatorAssessmentToolName) return [{ kind: 'submit', input: {
-        kind: 'assessment', results: [{ nfr: 'nfr-001', result: 'not-satisfied',
+        kind: 'assessment', results: [{ nfr: 'non-functional-requirement:case-001', result: 'not-satisfied',
           inspectedScope: ['subs/workspace'], evidence: ['Observed 87 milliseconds'], uncertainty: 'Load varies' }],
       } }];
       if (spec.submission.name === coordinatorActionToolName) return [{ kind: 'submit', input: {
-        kind: 'close', deviations: [{ nfr: 'nfr-001', proposedAlternative: 'Use a cached read', uncertainty: 'Load varies' }],
+        kind: 'close', deviations: [{ nfr: 'non-functional-requirement:case-001', deviationKey: 'draft:plan-deviation:case-0001',
+          findingKey: 'draft:finding:case-0001', proposedAlternative: 'Use a cached read', uncertainty: 'Load varies' }],
       } }];
       if (options.finalGateFails && spec.role === 'global-fork') return [{ kind: 'end', message: 'No correction decision was submitted.' }];
       return [];
@@ -112,22 +114,22 @@ test('an NFR-only exhausted run completes pending review with an exact source-bo
   Object.assign(trial, { runId: receipt.jobId, catalogHash: acceptedCatalog.data.evidence.catalog.hash,
     roundsClosed: 1, assessments: 1, candidate: boundCandidate.data.candidate, tree: boundCandidate.data.tree,
     finalGate: boundCandidate.data.gate, gateCommit: boundCandidate.data.commit,
-    deviations: events.filter(event => event.type === 'nonfunctional-deviation-recorded').length });
-  expect(events.filter(event => event.type === 'nonfunctional-deviation-recorded')).toHaveLength(1);
-  const deviation = events.find(event => event.type === 'nonfunctional-deviation-recorded');
-  if (deviation?.type !== 'nonfunctional-deviation-recorded') throw new Error('Missing nonfunctional deviation');
-  expect(deviation.data.checkFindings.find(event => event.type === 'check-finding-opened')?.data.version).toBe(1);
+    deviations: events.filter(event => event.type === 'nonfunctional-deviations-recorded').flatMap(event => event.data.deviations).length });
+  expect(events.filter(event => event.type === 'nonfunctional-deviations-recorded')).toHaveLength(1);
+  const deviation = events.find(event => event.type === 'nonfunctional-deviations-recorded');
+  if (deviation?.type !== 'nonfunctional-deviations-recorded') throw new Error('Missing nonfunctional deviation');
+  expect(deviation.data.checkFindings.find(event => event.type === 'check-finding-opened')?.data.version).toBe(2);
   expect(events.filter(event => event.type === 'plan-deviation-recorded')).toHaveLength(0);
   expect(events.filter(event => event.type === 'work-item-started')).toHaveLength(0);
   expect(events.filter(event => event.type === 'unresolved-requested')).toHaveLength(0);
   const version = opened.service.getRun(plan, receipt.jobId)!.version;
   const readiness = await queries.mergeReadiness(plan, receipt.jobId, version);
-  expect(readiness.readiness).toMatchObject({ status: 'pending-review', checkFindings: ['cf-0001'] });
+  expect(readiness.readiness).toMatchObject({ status: 'pending-review', checkFindings: ['finding:case-0001'] });
   await captureBrowserCase('pending', queries, receipt.jobId, version);
   const findings = await queries.checkFindings(plan, receipt.jobId,
     { workItem: null, module: null, select: 'all', order: 'attention', after: null, limit: 20 }, version);
-  expect(findings.items[0]?.planDeviation).toMatchObject({ origin: { kind: 'nonfunctional-assessment', nfr: 'nfr-001' },
-    element: { id: 'nfr-001', document: 'doc-001', text: quote }, sourcePath: `plans/${plan}/plan.md`, proposedAlternative: 'Use a cached read' });
+  expect(findings.items[0]?.planDeviation).toMatchObject({ origin: { kind: 'nonfunctional-assessment', nfr: 'non-functional-requirement:case-001' },
+    element: { id: 'non-functional-requirement:case-001', document: 'document:review-notes-plan', text: quote }, sourcePath: `plans/${plan}/plan.md`, proposedAlternative: 'Use a cached read' });
   const finding = findings.items[0]!;
   const request = finding.pendingUserDecision?.request;
   if (!request) throw new Error('Exhausted NFR has no user decision request');
@@ -166,7 +168,7 @@ test('accepting an exhausted NFR cannot waive a failed final test gate', async (
   expect(failedGate.data.verdict).toBe('failed');
   const durableGate = await queries.gate(plan, receipt.jobId, failedGate.data.gate);
   expect(events.filter(event => event.type === 'nonfunctional-round-closed')).toHaveLength(1);
-  expect(events.filter(event => event.type === 'nonfunctional-deviation-recorded')).toHaveLength(1);
+  expect(events.filter(event => event.type === 'nonfunctional-deviations-recorded')).toHaveLength(1);
   const version = opened.service.getRun(plan, receipt.jobId)!.version;
   expect((await queries.mergeReadiness(plan, receipt.jobId, version)).readiness.status).toBe('gate-failed');
   const findings = await queries.checkFindings(plan, receipt.jobId,
@@ -241,7 +243,7 @@ test('a descriptive two-requirement close corrects an intervening name collision
     },
   };
   let closeCalls = 0;
-  opened = await openRuns(fixture.root, { ...boundaryAnswers.options, git, identityContract: 'descriptive',
+  opened = await openRuns(fixture.root, { ...boundaryAnswers.options, git,
     policy: root => testPolicy(root), script: spec => {
       if (spec.submission.name === intakeToolName) {
         const document = [...spec.prompt.matchAll(/document:[a-z0-9-]+/gu)][0]?.[0];
@@ -286,7 +288,6 @@ test('a descriptive two-requirement close corrects an intervening name collision
   const events = await runEventsOnDisk(fixture.root, plan, receipt.jobId);
   expect(injected).toBe(true);
   expect(closeCalls).toBe(2);
-  expect(events.filter(event => event.type === 'nonfunctional-deviation-recorded')).toHaveLength(0);
   const batches = events.filter(event => event.type === 'nonfunctional-deviations-recorded');
   expect(batches).toHaveLength(1);
   expect(batches[0]!.data.deviations).toHaveLength(2);
@@ -301,7 +302,7 @@ test('a descriptive two-requirement close corrects an intervening name collision
     checkFindings: ['finding:answer-quickly', 'finding:preserve-service-timeout-qualified'] });
   await opened.service.close();
   await rm(runPath(fixture.root, plan, receipt.jobId, runLayout.nonfunctionalDeviation(batches[0]!.data.deviations[1]!.deviation)));
-  const reloaded = await openRuns(fixture.root, { ...boundaryAnswers.options, identityContract: 'descriptive' });
+  const reloaded = await openRuns(fixture.root, { ...boundaryAnswers.options });
   cleanups.push(() => reloaded.service.close());
   const rebuilt = new RunQueries(createQuerySource(reloaded.service));
   expect((await runEventsOnDisk(fixture.root, plan, receipt.jobId)).filter(event => event.type === 'nonfunctional-deviations-recorded')).toHaveLength(1);

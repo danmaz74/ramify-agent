@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { capabilityRecordSection, capabilitySourceSection, capabilityViewInputs } from '../capability/delivery.js';
+import { capabilityLayout } from '../capability/records.js';
 import { fixtureRequest } from './helpers/capability.js';
 import { temporaryDirectory } from '../../../../../../src/tests/helpers/fixture.js';
 import { runAcceptedHandback } from '../../../../../../src/tests/helpers/acceptance-flow.js';
@@ -53,7 +54,7 @@ test('prospective navigation supplies existing parents and preserves the request
 test('absolute delivered record pointers resolve from both source and project cwd without altering durable paths', async () => {
   const root = await temporaryDirectory(); cleanups.push(root.remove);
   const job = join(root.path, 'plans/preview/.harness/jobs/run');
-  const paths = ['capabilities/snapshots/need-001.json', 'capabilities/cap-001/plan/2.json', 'work-items/cap-001/iterations/01/result.json', 'gates/ga-0002/report.json', 'reviews/rq-0001/attempts/01/attempt.json'];
+  const paths = ['capabilities/snapshots/capability-request%3Arender-source-fact.inv-0001.json', 'capabilities/capability-task%3Aprovide-source-fact/plan/2.json', 'work-items/capability-task%3Aprovide-source-fact/iterations/01/result.json', 'gates/ga-0002/report.json', 'reviews/rq-0001/attempts/01/attempt.json'];
   for (const path of paths) { await mkdir(join(job, path, '..'), { recursive: true }); await writeFile(join(job, path), path); }
   const section = capabilityRecordSection(job, paths.map(path => ({ path, label: path })));
   expect(section).toContain(`Run-record root: ${job}`);
@@ -61,7 +62,7 @@ test('absolute delivered record pointers resolve from both source and project cw
     for (const cwd of [root.path, join(root.path, 'subs/a/src')]) expect(await readFile(resolve(cwd, pointer), 'utf8')).toBe(pointer.slice(job.length + 1));
   }
   expect(section).toContain('immutable suspension tree'); expect(section).toContain('live candidate');
-  expect(paths[0]).toBe('capabilities/snapshots/need-001.json');
+  expect(paths[0]).toBe('capabilities/snapshots/capability-request%3Arender-source-fact.inv-0001.json');
 });
 
 test('recorded fresh and continued task packets supply snapshot, accepted revisions, result, gate and review pointers and qualify consumer evidence', async () => {
@@ -93,11 +94,14 @@ test('recorded fresh and continued task packets supply snapshot, accepted revisi
     }
     const fresh = packets.find(packet => packet.manifest.inheritedPoint === null && packet.submissionTool === 'submit_capability_action')!;
     expect(fresh).toBeDefined();
-    expect(fresh.message).toContain(`${job}/capabilities/snapshots/need-001.json`);
-    expect(fresh.message).toContain(`${job}/capabilities/cap-001/plan/1.json`);
+    const requestEvent = events.find(event => event.type === 'capability-requested');
+    if (requestEvent?.type !== 'capability-requested') throw new Error('Missing accepted capability request');
+    const request = JSON.parse(await readFile(join(job, capabilityLayout.request(requestEvent.data.request)), 'utf8')) as { source: { snapshot: string } };
+    expect(fresh.message).toContain(`${job}/${request.source.snapshot}`);
+    expect(fresh.message).toContain(`${job}/capabilities/capability-task%3Aprovide-source-fact/plan/1.json`);
     const freshViews = fresh.additions.find(input => input.key === 'environment:views')!.text;
     expect(freshViews).toContain('subs/a/src/.ramify');
-    const returned = packets.find(packet => packet.message.includes(`${job}/work-items/cap-001/iterations/04/result.json`))!;
+    const returned = packets.find(packet => packet.message.includes(`${job}/work-items/capability-task%3Aprovide-source-fact/iterations/04/result.json`))!;
     expect(returned.manifest.inheritedPoint).not.toBeNull();
     const records = returned.additions.find(input => input.key === 'brief:support:run-records')!.text;
     expect(records).toContain(`${job}/gates/`); expect(records).toContain(`${job}/reviews/rq-`);
