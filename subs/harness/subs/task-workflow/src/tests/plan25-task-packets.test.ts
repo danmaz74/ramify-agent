@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, expect, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createHash } from 'node:crypto';
 import { loadPromptPackages, type LoadedPackage } from '../../../../src/prompts/packages.js';
 import { assertTaskProcedureSelection, type TaskEnvironment } from '../../../task-execution/src/delivery/packet.js';
@@ -128,47 +128,59 @@ test.each(families)('P07: %s/%s intentionally selects %s and %s', (role, kind, f
   expect(current.additions.filter(item => item.kind === 'tool-declaration')).toHaveLength(1);
 });
 
-const cleanups: Array<() => Promise<void>> = [];
-afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
 
-test('S01: a resumed-after-handback engineer delivery equals the constructor\'s render of the inputs the run passed', async () => {
-  const starts: string[] = [];
-  await runAcceptedHandback('revision', cleanups, false, async ({ root, planId, runId }) => {
-    for (const item of await engineerDeliveries(root, planId, runId)) {
+describe('one shared capability revision run', () => {
+  type Run = { readonly root: string; readonly planId: string; readonly runId: string };
+  let engineer: Awaited<ReturnType<typeof engineerDeliveries>>;
+  let steps: Awaited<ReturnType<typeof stepDeliveries>>;
+  let unconstructed: Array<{ invocation: string; submissionTool: string | undefined; imported: unknown }>;
+  const shared: Array<() => Promise<void>> = [];
+  beforeAll(async () => {
+    await runAcceptedHandback('revision', shared, false, async ({ root, planId, runId }: Run) => {
+      engineer = await engineerDeliveries(root, planId, runId);
+      steps = await stepDeliveries(root, planId, runId, ['local-architect', 'context-selector']);
+      unconstructed = [];
+      for (const { invocation } of steps.unconstructed) {
+        const delivered = await readRecordedOperation(join(root, 'plans', '.harness', 'session-operations'), runId, invocation);
+        const imported = await inputsFromRun({ role: 'local-architect', runDirectory: runPath(root, planId, runId), invocation, builtinDeclarations: piBuiltinDeclarations });
+        unconstructed.push({ invocation, submissionTool: delivered?.packet.submissionTool, imported });
+      }
+    });
+  }, 300_000);
+  afterAll(async () => { for (const cleanup of shared.splice(0).reverse()) await cleanup(); });
+
+  test('S01: a resumed-after-handback engineer delivery equals the constructor\'s render of the inputs the run passed', () => {
+    const starts: string[] = [];
+    for (const item of engineer) {
       starts.push(item.inputs.start.kind);
       expect(item.rendered.fallback).toBeNull();
       expect(item.rendered.packet).toEqual(item.delivered.packet);
       expect(item.rendered.declarations).toEqual(item.delivered.declarations);
     }
+    expect(starts).toContain('fresh');
+    expect(starts).toContain('resumed-after-handback');
   });
-  expect(starts).toContain('fresh');
-  expect(starts).toContain('resumed-after-handback');
-}, 300_000);
 
-test('S05: in a capability run, every local architect orientation, selection and work turn delivery equals the constructor\'s render', async () => {
-  const variants: string[] = [];
-  await runAcceptedHandback('revision', cleanups, false, async ({ root, planId, runId }) => {
-    const { constructed, unconstructed, undelivered } = await stepDeliveries(root, planId, runId, ['local-architect', 'context-selector']);
+  test('S05: in a capability run, every local architect orientation, selection and work turn delivery equals the constructor\'s render', () => {
+    const variants: string[] = [];
     // The capability qualification turns are module architect invocations outside the first set:
     // the run builds them inline, and an import refuses them with that reason.
-    for (const { invocation } of unconstructed) {
-      const delivered = await readRecordedOperation(join(root, 'plans', '.harness', 'session-operations'), runId, invocation);
-      expect(delivered?.packet.submissionTool, invocation).toBe('submit_capability_qualification');
-      const imported = await inputsFromRun({ role: 'local-architect', runDirectory: runPath(root, planId, runId), invocation, builtinDeclarations: piBuiltinDeclarations });
+    for (const { invocation, submissionTool, imported } of unconstructed) {
+      expect(submissionTool, invocation).toBe('submit_capability_qualification');
       expect(imported, invocation).toEqual({ status: 'refused', reason: expect.stringContaining(`invocation ${invocation} is a local-architect start outside the first set`) });
     }
     expect(unconstructed.length).toBeGreaterThan(0);
     // The flow stops the run mid-work: an invocation it stops before its session starts delivers nothing.
-    for (const item of undelivered) expect(item.ended === null || item.ended === 'stopped', item.invocation).toBe(true);
-    for (const item of constructed) {
+    for (const item of steps.undelivered) expect(item.ended === null || item.ended === 'stopped', item.invocation).toBe(true);
+    for (const item of steps.constructed) {
       variants.push(`${item.role}/${'phase' in item.inputs ? item.inputs.phase : 'selection'}/${item.inputs.start.kind}`);
       expect(item.inputs.capabilityWorkflow).toBe(true);
       expect(item.rendered.fallback, item.invocation).toBeNull();
       expect(item.rendered.packet, item.invocation).toEqual(item.delivered.packet);
       expect(item.rendered.declarations, item.invocation).toEqual(item.delivered.declarations);
     }
+    expect(variants).toContain('local-architect/orientation/fresh');
+    expect(variants).toContain('local-architect/work-turn/continued');
+    expect(variants.some(variant => variant.startsWith('context-selector/'))).toBe(true);
   });
-  expect(variants).toContain('local-architect/orientation/fresh');
-  expect(variants).toContain('local-architect/work-turn/continued');
-  expect(variants.some(variant => variant.startsWith('context-selector/'))).toBe(true);
-}, 300_000);
+});
