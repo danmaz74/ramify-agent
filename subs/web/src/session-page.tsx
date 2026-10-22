@@ -309,9 +309,7 @@ export function SessionReading({ client, session: ref, anchor, anchorNonce = 0, 
     target.focus({ preventScroll: true });
   }, [anchor, anchorKey, detail, chapters, ref.session]);
 
-  const back = ref.planId === 'sessions'
-    ? <a href={routeHref({ page: 'sessions' })}>← All sessions</a>
-    : <a href={routeHref({ page: 'run', planId: ref.planId, runId: ref.runId })}>← The run</a>;
+  const back = <a href={routeHref({ page: 'run', planId: ref.planId, runId: ref.runId })}>← The run</a>;
   const notFound = error instanceof ClientError && error.kind === 'protocol';
   const changed = state !== undefined && firstState.current !== undefined && firstState.current !== state;
 
@@ -319,7 +317,7 @@ export function SessionReading({ client, session: ref, anchor, anchorNonce = 0, 
     <section className={compact ? 'session-reading session-reading-compact' : 'page session-page'}>
       {!compact && <><p className="page-links">{back} · <a href={routeHref({ page: 'sessions' })}>All sessions</a></p>
         <header className="page-header"><h1>Session <code>{ref.session}</code></h1>{state && <SessionState state={state} />}</header>
-        <p className="muted">{ref.planId === 'sessions' ? <>Manual session <code>{ref.runId}</code>.</> : <>Of run <code>{ref.runId}</code> of plan <code>{ref.planId}</code>.</>}</p></>}
+        <p className="muted">Of run <code>{ref.runId}</code> of plan <code>{ref.planId}</code>.</p></>}
       <p className={`connection-line${error ? ' connection-line-lost' : ''}`} role="status" aria-label="Following">
         {error
           ? detail

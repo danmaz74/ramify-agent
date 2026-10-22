@@ -16,19 +16,15 @@ import {
 } from '../interfaces/protocol/sessions.js';
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { RunLog } from '../../subs/autonomous/src/run/log.js';
-import { SessionQueries } from '../../subs/projections/src/session-queries.js';
-import { manualRunRecordSchema } from '../../subs/task-workflow/src/steps/records.js';
-import { jobSchemaVersion } from '../jobs/records.js';
 import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
-import { readTranscript, TranscriptWriter } from '../../subs/task-execution/src/transcripts/writer.js';
+import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { copyFixture } from './helpers/fixture.js';
 import { treeInputs } from './helpers/iterations.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
-import { emptyAnalysis, runEventsOnDisk, runPath, startRun, stopRun, testPolicy, unscriptedChangeHistory, until } from './helpers/runs.js';
+import { emptyAnalysis, runEventsOnDisk, runPath, startRun, stopRun, unscriptedChangeHistory, until } from './helpers/runs.js';
 import { scriptedGit } from './helpers/scripted-git.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
 
@@ -102,60 +98,7 @@ function fileBodies(entry: TranscriptEntry): string[] {
 }
 
 describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts and bodies', () => {
-  test('two current manual runs are listed and paged over HTTP; a crashed invocation is interrupted under the server lock', async () => {
-    const fixture = await copyFixture();
-    cleanups.push(fixture.remove);
-    const root = fixture.root;
-    const runs = ['20261022T080000Z-000001', '20261022T080001Z-000002'] as const;
-    for (const [index, runId] of runs.entries()) {
-      const directory = join(root, 'plans', 'sessions', '.harness', 'jobs', runId);
-      await mkdir(directory, { recursive: true });
-      await writeFile(join(directory, runLayout.record), JSON.stringify(manualRunRecordSchema.parse({
-        schema: jobSchemaVersion, jobId: runId, planId: 'sessions', kind: 'manual', createdAt: '2026-10-22T08:00:00.000Z',
-        projectRoot: root, base: 'recorded-base', branch: null, origin: 'session', policy: testPolicy(root),
-      })));
-      const log = await RunLog.open(join(directory, runLayout.events), runId);
-      await log.append({ type: 'session-opened', data: { session: 'ses-0001', role: 'engineer', work: {}, executor: 'scripted', model: null } });
-      await log.append({ type: 'invocation-started', data: { invocation: `inv-${index + 1}`, session: 'ses-0001', role: 'engineer', work: {}, start: 'opened' } });
-      const writer = new TranscriptWriter({ session: 'ses-0001', path: join(directory, runLayout.transcript('ses-0001')), root: directory,
-        store: new ContentStore(join(directory, runLayout.blobs)), inlineBytes: 1024, now: () => new Date('2026-10-22T08:00:00.000Z') });
-      await writer.append(async bodies => ({ type: 'message', invocation: `inv-${index + 1}`, role: 'user', blocks: [
-        { type: 'text', body: await bodies.text(`Manual run ${index + 1}`) },
-      ] }));
-      await writer.drain();
-      if (index === 0) await log.append({ type: 'invocation-ended', data: { invocation: `inv-${index + 1}`, session: 'ses-0001', ended: 'submitted', submission: null, kept: false, finished: 'work-closed' } });
-    }
-    const retired = join(root, 'plans', '.harness', 'sessions', '20261010T084131Z-725903');
-    await mkdir(retired, { recursive: true });
-    await writeFile(join(retired, 'session.json'), '{bad json');
-    // Without server ownership, an in-progress manual command may still be writing.
-    const unowned = new SessionQueries({ projectRoot: root, agentName: undefined, committed: () => undefined,
-      committedRuns: () => [], runVersions: () => [] });
-    expect((await unowned.runSession('sessions', runs[1], 'ses-0001')).session.state).toBe('live');
-    const server = await startServerWith({ projectRoot: root, port: 0, assetsDirectory: join(root, 'no-such-build'), ramify: new FakeRamifyCli(),
-      runs: { inputs: treeInputs(), git: fixtureScratchGit(mockGit()), changeHistory: unscriptedChangeHistory, warn: () => undefined } });
-    cleanups.push(() => server.close());
-    const before = await capturedFiles(root);
-    const list = await ok(server.url, protocolPaths.sessions(), sessionListResponseSchema);
-    expect(list.unserved).toEqual([]);
-    expect(list.total).toBe(2);
-    expect(list.sessions.map(entry => entry.ref)).toEqual(runs.slice().reverse().map(runId => ({ source: 'run', planId: 'sessions', runId, session: 'ses-0001' })));
-    expect(list.sessions.map(entry => entry.state)).toEqual(['interrupted', 'finished']);
-    for (const [index, runId] of runs.entries()) {
-      const answer = await ok(server.url, protocolPaths.runSessions('sessions', runId), runSessionsResponseSchema);
-      expect(answer.sessions).toMatchObject([{ session: 'ses-0001', state: index === 0 ? 'finished' : 'interrupted' }]);
-      if (index === 1) expect(answer.sessions[0]).toMatchObject({ awaiting: 'inv-2', invocations: [{ ended: null }] });
-      expect(await refused(server.url, protocolPaths.run('sessions', runId))).toEqual([404, 'not-found']);
-      const page = await ok(server.url, protocolPaths.runSessionTranscript('sessions', runId, 'ses-0001', 0), sessionTranscriptResponseSchema);
-      expect(page.session).toEqual({ source: 'run', planId: 'sessions', runId, session: 'ses-0001' });
-      expect(page.page.entries).toHaveLength(1);
-      expect(JSON.stringify(page.page.entries[0])).toContain(`Manual run ${index + 1}`);
-      expect((await ok(server.url, protocolPaths.runSessionTranscript('sessions', runId, 'ses-0001', 1), sessionTranscriptResponseSchema)).page.entries).toEqual([]);
-    }
-    expect(await refused(server.url, protocolPaths.runSession('sessions', '20261010T084131Z-725903', 'ses-0001'))).toEqual([404, 'not-found']);
-    expect(await capturedFiles(root)).toEqual(before);
-  });
-  test('a scripted run is read over HTTP and an earlier session directory is ignored', async () => {
+  test('the served implementation run is listed with transcript pages while the earlier session layout is ignored', async () => {
     const scenario = await runSessionScenario({ cleanup: step => { cleanups.push(step); } });
     const { root, runId, events } = scenario;
     // The server takes the project lock.

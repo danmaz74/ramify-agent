@@ -83,8 +83,7 @@ export function createApp(options: AppOptions): express.Express {
   const { projectRoot, runs } = options;
   const source = createQuerySource(runs);
   const queries = new RunQueries(source);
-  // The server owns the project lock and never resumes manual runs.
-  const sessions = new SessionQueries(source, true);
+  const sessions = new SessionQueries(source);
   const app = express();
   app.disable('x-powered-by');
 

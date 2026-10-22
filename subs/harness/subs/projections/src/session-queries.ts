@@ -12,10 +12,8 @@ import { TranscriptPages, type PageBounds, type TranscriptPageRead } from '../..
 import { readTranscript } from '../../task-execution/src/transcripts/writer.js';
 import { ProjectionError, runView, type RunView } from './inputs.js';
 import { invocationEvaluation } from './metrics.js';
-import { evaluationOf, readObservationLog } from './metrics.js';
-import { manualSessionIds, manualSessionRun, type ManualSessionRun } from './manual-sessions.js';
 import { servedRun, type RunSource } from './queries.js';
-import { manualSessionViews, orderSessions, runSessionEntry, runSessionViews } from './sessions.js';
+import { orderSessions, runSessionEntry, runSessionViews } from './sessions.js';
 
 /*
  * The session queries. Every answer is a projection of a run's log and
@@ -32,7 +30,7 @@ import { manualSessionViews, orderSessions, runSessionEntry, runSessionViews } f
 /** A run's sessions as its log derived them at one version. */
 interface RunSessionsAt {
   readonly version: number;
-  readonly view: RunView | ManualSessionRun;
+  readonly view: RunView;
   readonly sessions: readonly RunSessionView[];
 }
 
@@ -43,7 +41,7 @@ export class SessionQueries {
   private readonly evaluations = new Map<string, InvocationEvaluation>();
   private readonly pages = new TranscriptPages();
 
-  constructor(private readonly source: RunSource, private readonly inactiveManualRuns = false) {}
+  constructor(private readonly source: RunSource) {}
 
   /** Every session of the project, in the project's order, one page from `offset`. */
   async list(offset: number): Promise<SessionListResponse> {
@@ -56,15 +54,6 @@ export class SessionQueries {
       } catch (error) {
         if (!(error instanceof ProjectionError)) throw error;
         unserved.push({ source: 'run', path: join('plans', planId, '.harness', 'jobs', runId), message: error.message });
-      }
-    }
-    for (const runId of await manualSessionIds(this.source.projectRoot)) {
-      try {
-        const at = await this.at('sessions', runId);
-        entries.push(...at.sessions.map(session => runSessionEntry('sessions', runId, session)));
-      } catch (error) {
-        if (!(error instanceof ProjectionError)) throw error;
-        unserved.push({ source: 'run', path: join('plans', 'sessions', '.harness', 'jobs', runId), message: error.message });
       }
     }
     const ordered = orderSessions(entries);
@@ -143,16 +132,6 @@ export class SessionQueries {
     const key = runKey(planId, runId);
     const cached = this.runs.get(key);
     if (version !== undefined && cached !== undefined && cached.version === version) return cached;
-    if (version === undefined && planId === 'sessions') {
-      const manual = await manualSessionRun(this.source.projectRoot, runId);
-      if (manual !== null) {
-        const current = manual.events.at(-1)?.sequence ?? 0;
-        if (cached !== undefined && cached.version === current) return cached;
-        const at: RunSessionsAt = { version: current, view: manual, sessions: manualSessionViews(manual, this.inactiveManualRuns) };
-        this.runs.set(key, at);
-        return at;
-      }
-    }
     const view = runView(await servedRun(this.source, planId, runId));
     const at: RunSessionsAt = { version: view.events.at(-1)?.sequence ?? 0, view, sessions: runSessionViews(view) };
     this.runs.set(key, at);
@@ -172,17 +151,13 @@ export class SessionQueries {
     return result;
   }
 
-  private async evaluation(planId: string, runId: string, view: RunView | ManualSessionRun, id: string): Promise<InvocationEvaluation | null> {
+  private async evaluation(planId: string, runId: string, view: RunView, id: string): Promise<InvocationEvaluation | null> {
     const key = `${runKey(planId, runId)}\u0000${id}`;
     const kept = this.evaluations.get(key);
     if (kept !== undefined) return kept;
     const invocation = view.records.invocations.get(id);
     if (invocation === undefined) return null;
-    const evaluation = 'kind' in view.record && view.record.kind === 'manual'
-      ? evaluationOf({ invocation, outcome: view.records.outcomes.get(id) ?? null,
-        observations: await readObservationLog(join(view.directory, runLayout.observations(id)), runLayout.observations(id)),
-        lines: { unavailable: 'Manual sessions do not record line events' } })
-      : await invocationEvaluation(view as RunView, invocation);
+    const evaluation = await invocationEvaluation(view, invocation);
     if (view.records.outcomes.has(id)) this.evaluations.set(key, evaluation);
     return evaluation;
   }
