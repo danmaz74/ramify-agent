@@ -128,7 +128,8 @@ function consumerModule(directory: string, name: string, file: string) {
 
 async function run(root: string, plan: Parameters<typeof byWork>[0]) {
   const candidate = finalCandidate(root, 'revision-11');
-  const gitScript = { head: base, checkpoints, previews: candidate.previews };
+  const gitScript = { head: base, checkpoints,
+    previews: [...['revision-01', 'revision-04', 'revision-06'].map(head => ({ repositoryRoot: root, head, tree: 'a'.repeat(40) })), ...candidate.previews] };
   const git = scriptedGit(root, gitScript);
   const agentScript = byWork(plan);
   const opened = await openRunsWithoutProcesses(root, git, {

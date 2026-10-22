@@ -82,10 +82,12 @@ function consumerModule(directory: string, name: string, file: string) {
  * it reports for each commit the harness attempts, or that the tree was
  * unchanged.
  */
-async function run(root: string, plan: Parameters<typeof byWork>[0], commits: readonly CommitResponse[], finalHead?: string) {
+async function run(root: string, plan: Parameters<typeof byWork>[0], commits: readonly CommitResponse[], finalHead?: string,
+  previewHeads: readonly string[] = []) {
   const final = finalHead === undefined ? undefined : finalCandidate(root, finalHead);
+  const tree = 'a'.repeat(40);
   const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits],
-    ...(final === undefined ? {} : { previews: final.previews }) });
+    previews: [...previewHeads.map(head => ({ repositoryRoot: root, head, tree })), ...(final?.previews ?? [])] });
   const opened = await openRuns(root, {
     script: byWork({ 'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })], ...plan }), inputs: treeInputs(), git,
     ...(final === undefined ? {} : { candidates: final.candidates }),
@@ -208,7 +210,7 @@ describe('P4: an ordinary provider engineer reports inability to conform through
       accepted('work-item:review-notes.i04', 'revision-04', modified(seam.consumer)),
       unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
-    ], 'revision-04');
+    ], 'revision-04', ['revision-01']);
 
     expect(onlyRun(service, 'review-notes').failure).toBeNull();
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
@@ -331,7 +333,7 @@ describe('P4: an ordinary provider engineer reports inability to conform through
       // could not conform and wrote nothing, and the run failed before any
       // further gate.
       accepted('work-item:review-notes.i02', 'revision-01', [...added(seam.contract, seam.fake, seam.subjects, seam.conformance), ...modified(seam.consumer)]),
-    ]);
+    ], undefined, ['revision-01']);
 
     const snapshot = onlyRun(service, 'review-notes');
     expect(snapshot.state).toBe('failed');

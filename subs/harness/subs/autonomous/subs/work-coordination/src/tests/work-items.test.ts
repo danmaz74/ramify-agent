@@ -13,7 +13,7 @@ import { runLayout } from '../../../../src/run/records.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { analysis, currentAnalysis, entry, hypothesis, requestCompletion, unresolved } from '../../../../../../src/tests/helpers/analysis.js';
 import { treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
-import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
+import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
 
 /*
  * A run whose work items need no change: the initial analysis produces entry
@@ -336,6 +336,8 @@ describe('a work-item gate that does not pass', () => {
     cleanups.push(() => service.close());
 
     const receipt = await service.execute(startRun('review-notes'));
+    await until(() => (service.events('review-notes', receipt.jobId) ?? []).filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'work-item').length >= 4);
+    await service.execute(stopRun('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version));
     await service.settled('review-notes', receipt.jobId);
     const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
     // Each turn's completion is recorded at once, with no rejection, naming

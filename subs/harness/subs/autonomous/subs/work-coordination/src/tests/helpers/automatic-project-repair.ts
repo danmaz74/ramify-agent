@@ -46,11 +46,12 @@ export async function scenario(options: { delegated?: boolean; blocked?: boolean
   const commits = [...(options.freezeAssignment ? [] : [scenariosCommit('review-notes', 'scenarios', 'base')]),
     ...(final ? [{ commit: 'accepted', changes: [{ status: 'A', path: renamed }, ...(options.rootSibling ? [{ status: 'D', path: legacy }, { status: 'M', path: rootPointer }] : []), ...(options.downtimeEdit ? [{ status: 'A', path: externalPath }] : [])], subject: 'work-item:review-note' }, { commit: null, changes: [], subject: 'final verification' }] : [])];
   const previews = [
-    ...(options.freezeAssignment || options.delegated === false ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
+    ...(options.freezeAssignment ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
     ...(options.freezeAssignment || options.noFault ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
     ...((final && !options.noFault) || options.skipRestore || options.secondFault ? [{ repositoryRoot: fixture.root, head: 'scenarios', tree }] : []),
     ...(options.freezeStage ? Array.from({ length: 1 }, () => ({ repositoryRoot: fixture.root, head: 'scenarios', tree })) : []),
     ...(options.secondFault ? Array.from({ length: 2 }, () => ({ repositoryRoot: fixture.root, head: 'scenarios', tree })) : []),
+    ...(options.delegated === false || options.secondFault ? [{ repositoryRoot: fixture.root, head: 'scenarios', tree }] : []),
     ...(final ? Array.from({ length: 4 }, () => ({ repositoryRoot: fixture.root, head: 'accepted', tree })) : []),
   ];
   const statedPreviews = options.downtimeEdit ? previews.map((answer, index) => index >= 2 ? { ...answer, tree: afterDowntimeTree } : answer) : previews;
@@ -131,7 +132,16 @@ export async function scenario(options: { delegated?: boolean; blocked?: boolean
   if (!options.freezeStage && !options.freezeAssignment) cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
   activeRunId = receipt.jobId;
-  if (options.freezeStage || options.freezeAssignment) await until(() => frozen); else await opened.service.settled('review-notes', receipt.jobId);
+  if (options.freezeStage || options.freezeAssignment) await until(() => frozen);
+  else {
+    if (options.delegated === false || options.secondFault) {
+      await until(() => (opened.service.events('review-notes', receipt.jobId) ?? []).some(event =>
+        event.type === 'repair-incident-recorded' && event.data.stage === 'refused'));
+      await until(() => (opened.service.events('review-notes', receipt.jobId) ?? []).some(event => event.type === 'operation-recovery-paused'));
+      await opened.service.execute(stopRun('review-notes', receipt.jobId, onlyRun(opened.service, 'review-notes').version));
+    }
+    await opened.service.settled('review-notes', receipt.jobId);
+  }
   return { root: fixture.root, ...opened, runId: receipt.jobId, specs, boundary, git, reopen, externalPath, async addDowntimeSource() {
     await writeFile(join(fixture.root, externalPath), 'export const externalNote = true;\n'); downtimeChanged = true;
   } };

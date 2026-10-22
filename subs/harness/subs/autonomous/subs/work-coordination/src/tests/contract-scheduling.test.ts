@@ -62,13 +62,14 @@ const tagLimit: Seam = { ...noteLimit, consumerDirectory: tagsDirectory, consume
  * revisions it reports for each commit the harness attempts, and the
  * attempts it reports as an unchanged tree.
  */
-async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly CommitResponse[], stopAtCycleCount?: number) {
+async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly CommitResponse[], stopAtCycleCount?: number,
+  previewHeads: readonly string[] = []) {
   const materialization = scenariosCommitted('review-notes');
   const final = commits.findIndex(commit => commit.subject.startsWith('final verification'));
   const before = commits.slice(0, final).flatMap(commit => commit.commit ?? []).at(-1) ?? materialization.commit!;
   const candidate = final < 0 ? null : finalCandidate(root, before, commits[final]!.commit ?? before);
   const git = answeredGit(root, { head: 'revision-00', commits: [materialization, ...commits],
-    previews: candidate?.previews ?? [] });
+    previews: [...previewHeads.map(head => ({ repositoryRoot: root, head, tree: 'a'.repeat(40) })), ...(candidate?.previews ?? [])] });
   const opened = await openRuns(root, {
     script: byRole({ 'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })], ...plan }), inputs: treeInputs(), git, ...(candidate === null ? {} : { candidates: candidate.candidates }),
   });
@@ -181,7 +182,7 @@ describe('P5: a shared obligation runs its provider once and each consumer verif
       accepted('work-item:review-tags.i03', 'revision-05', modified(tag.consumer)),
       unchanged('work-item:review-tags'),
       unchanged('final verification of plan "review-notes"'),
-    ]);
+    ], undefined, ['revision-01', 'revision-04']);
 
     expect(onlyRun(service, 'review-notes').failure).toBeNull();
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
@@ -290,7 +291,7 @@ describe('P5: a chain of changes back through a module that has yielded is not a
       accepted('work-item:review-notes.i03', 'revision-05', modified(limit.consumer)),
       unchanged('work-item:review-notes'),
       unchanged('final verification of plan "review-notes"'),
-    ]);
+    ], undefined, ['revision-01', 'revision-02']);
 
     expect(onlyRun(service, 'review-notes').failure).toBeNull();
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
@@ -370,7 +371,7 @@ describe('P5: a capability that transitively depends on itself', () => {
       // The second attempt at the same agreement writes the same files with
       // the same content, and Git reports an unchanged tree for it.
       unchanged('work-item:provide-note-limit.i04'),
-    ], 2);
+    ], 2, ['revision-01', 'revision-02']);
 
     const snapshot = onlyRun(service, 'review-notes');
     expect(snapshot.state).toBe('stopped');
