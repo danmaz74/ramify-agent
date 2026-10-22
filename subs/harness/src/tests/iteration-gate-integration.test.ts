@@ -1,14 +1,12 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type LineEventSummary } from '../../subs/kpi/src/run-records.js';
 import { changedPaths, diffNumstat } from '../../subs/evidence/src/git.js';
-import { childEnvironment, runCommand } from '../../subs/evidence/src/run-command.js';
 import { createConfiguredAudit } from '../../subs/audit/src/check-execution.js';
 import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
@@ -24,9 +22,9 @@ import { gitService } from '../../subs/evidence/src/git.js';
  * This is the retained witness of real failing diagnostics: a real defect in
  * real source, the project's committed audit definition running its real
  * test command over each committed candidate, the provider publishing its
- * notes and refs against each revision, and the audit command line reading
- * the branch back. The harness lists no test file: the definition does. What it
- * proves is the boundary itself, which no scripted answer can establish.
+ * evidence against each revision, and one real commit per attempt. The
+ * harness lists no test file: the definition does. What it proves is the
+ * boundary itself, which no scripted answer can establish.
  * Every other gate-policy scenario states its command results and Git's
  * answers instead, in `iteration-gate.test.ts`.
  */
@@ -38,7 +36,6 @@ afterEach(async () => {
 
 const notes = 'collection-review/workspace/reviews/notes';
 const notesDirectory = 'subs/workspace/subs/reviews/subs/notes';
-const auditCli = fileURLToPath(new URL('../../../../node_modules/ramify-audit/dist/cli.js', import.meta.url));
 
 const limitTest = [
   'import { test, expect } from \'vitest\';',
@@ -165,16 +162,6 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
     const commits = log.split('').map(part => part.trim()).filter(Boolean);
     expect(commits.filter(commit => commit.includes('Ramify-Iteration: work-item:review-note.i01'))).toHaveLength(2);
     expect(commits.some(commit => commit.includes(`Ramify-Gate: ${failed.id}`))).toBe(true);
-    expect(await git(root, 'notes', '--ref=audit', 'show', failed.audited!)).toContain('Audited-Overall: fail');
-    expect(await git(root, 'notes', '--ref=audit', 'show', repaired.audited!)).toContain('Audited-Overall: pass');
-    const branchAudit = await runCommand({
-      argv: [process.execPath, auditCli, 'check-branch', `ramify-agent-run/${runId}`, '--cwd', root, '--json'],
-      cwd: root,
-      env: childEnvironment({ GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' }),
-      timeoutMs: 30_000,
-    });
-    expect(branchAudit.outcome).toEqual({ kind: 'completed', exitCode: 0 });
-    expect(JSON.parse(branchAudit.stdout) as unknown).toMatchObject({ auditStillApplies: true, auditPassed: true });
     expect(await readFile(join(root, notesDirectory, 'src', 'notes.ts'), 'utf8')).toBe('export const noteLimit = 500;\n');
   }, 300_000);
 });

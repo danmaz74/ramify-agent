@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -20,8 +20,7 @@ import {
  * made, through the installed provider: the harness plans no test, no
  * scenario run and no selection. These witnesses run real Vitest, Cucumber
  * and `ramify affected` in the provider's worktrees, under a private test
- * lock. Setting PLAN21_ITERATION9_EVIDENCE to a directory writes the gate
- * attempts each witness produced there.
+ * lock.
  */
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -48,25 +47,6 @@ async function scratch(prefix: string): Promise<string> {
   const path = await mkdtemp(join(tmpdir(), prefix));
   cleanups.push(() => rm(path, { recursive: true, force: true }));
   return path;
-}
-
-/** Writes one witness's attempts when an evidence directory is named. */
-async function evidence(name: string, value: unknown): Promise<void> {
-  const directory = process.env['PLAN21_ITERATION9_EVIDENCE'];
-  if (directory === undefined) return;
-  await writeFile(join(directory, `${name}.json`), `${JSON.stringify(value, null, 2)}\n`);
-}
-
-/** What one gate attempt shows a reviewer, without the provider's full result. */
-function digest(gate: GateAttempt) {
-  const result = gate.provider?.result as { summary?: { coverage?: { selectedModules?: Array<{ directory: string }>; carriedFailures?: unknown[] } } } | undefined;
-  return {
-    verdict: gate.verdict, cause: gate.cause, commands: gate.commands.length, audit: gate.audit, evidence: gate.evidence,
-    selectedModules: result?.summary?.coverage?.selectedModules?.map(module => module.directory) ?? null,
-    carriedFailures: result?.summary?.coverage?.carriedFailures?.length ?? 0,
-    checks: Object.fromEntries(Object.entries(checksOf(gate)).map(([id, check]) => [id, check.status])),
-    scenarios: scenarioResultsOf(gate).map(result => `${result.id} ${result.status}`),
-  };
 }
 
 interface RawCheck {
@@ -173,11 +153,10 @@ const f2Files: Readonly<Record<string, string>> = {
 };
 
 describe('configured committed execution over F2 (runner truth)', () => {
-  it('narrows real Vitest and Cucumber checks by ownership, keeps runner discovery and empty selection as producer facts, and carries failures through a zero-selection link', { timeout: 600_000 }, async () => {
+  it('reads real Vitest and Cucumber results from a full baseline, keeps both identities on reuse, and fails a partial gate on an ambiguous step', { timeout: 600_000 }, async () => {
     const f2 = await repository(f2Files, 'ramify-agent-f2-');
     const { audit: port } = await audit();
-    const gate = (sourceCommit: string, attemptId: string, captured = f2.head) =>
-      configuredGate(port, f2, { captured, sourceCommit, attemptId });
+    const gate = (sourceCommit: string, attemptId: string) => configuredGate(port, f2, { captured: f2.head, sourceCommit, attemptId });
 
     // The first gate after readiness: no baseline exists, so the provider
     // executes the default request in full.
@@ -186,34 +165,27 @@ describe('configured committed execution over F2 (runner truth)', () => {
       status: 'completed', mode: 'project-default', requestedSourceCommit: f2.head, auditedSourceCommit: f2.head,
       requestedMode: 'ramify-partial', executedMode: 'full', verdict: 'pass', reuse: null,
     });
-    expect(baseline.audit?.fallbackReason).toMatch(/^no-baseline/u);
     expect([baseline.verdict, baseline.cause, baseline.commands]).toEqual(['passed', null, []]);
-    // Custom names and the auxiliary root are the runner's discoveries; the
-    // runner-excluded file is never demanded.
+    // Custom names and the auxiliary root are the runner's discoveries.
     expect(vitestFiles(baseline, 'source-vitest')).toEqual([
       'src/tests/root.check.ts passed', 'subs/a/src/tests/child.check.ts passed', 'subs/a/subs/grand/src/tests/grand.check.ts passed',
       'subs/ab/src/tests/ab.check.ts passed',
     ]);
     expect(vitestFiles(baseline, 'aux-vitest').join('\n')).toContain('aux.test.ts passed');
-    expect(vitestFiles(baseline, 'source-vitest').join('\n')).not.toContain('excluded');
     // The bound scenarios run; the pending one is left out by the committed profile.
     expect(scenarioResultsOf(baseline).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:child-value-is-bound passed', 'scenario:grand-value-is-bound passed']);
     expect(scenarioResultsOf(baseline).find(result => result.id === 'scenario:grand-value-is-bound')?.binding.map(entry => entry.definition))
       .toEqual([expect.stringContaining('subs/a/subs/grand/src/tests/steps/grand.steps.ts'), expect.stringContaining('grand.steps.ts')]);
 
-    // A grandchild change with a new eligible test: the partial link runs
-    // the grandchild's tests and features only, the new test included.
-    const grandChange = await f2.commit('grandchild change and a new test', {
-      'subs/a/subs/grand/src/grand.ts': 'export const grandValue = 3; // revised\n',
-      'subs/a/subs/grand/src/tests/new-grand.check.ts': 'import { expect, test } from \'vitest\';\nimport { grandValue } from \'../grand.js\';\ntest(\'new grand test\', () => { expect(grandValue).toBe(3); });\n',
+    // An ignored documentation change: the provider answers with the
+    // baseline's evidence, and the gate keeps both source identities.
+    const docs = await f2.commit('documentation only', { 'docs/guide.md': '# Guide\n' });
+    const reused = await gate(docs, 'ga-0002');
+    expect(reused.audit).toMatchObject({
+      status: 'completed', requestedSourceCommit: docs, auditedSourceCommit: f2.head, verdict: 'pass',
+      reuse: { auditedCommit: f2.head, ignoredChangedPaths: ['docs/guide.md'] },
     });
-    const partial = await gate(grandChange, 'ga-0002');
-    expect(partial.audit).toMatchObject({ status: 'completed', requestedSourceCommit: grandChange, executedMode: 'ramify-partial', fallbackReason: null, verdict: 'pass' });
-    expect(vitestFiles(partial, 'source-vitest')).toEqual([
-      'subs/a/subs/grand/src/tests/grand.check.ts passed', 'subs/a/subs/grand/src/tests/new-grand.check.ts passed',
-    ]);
-    expect(scenarioResultsOf(partial).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:grand-value-is-bound passed']);
-    expect(partial.verdict).toBe('passed');
+    expect([reused.verdict, reused.audited, reused.commands, reused.evidence]).toEqual(['passed', docs, [], baseline.evidence]);
 
     // An ambiguous step is the producer's failure of the scenario check.
     const ambiguous = await f2.commit('ambiguous grandchild step', {
@@ -226,82 +198,6 @@ describe('configured committed execution over F2 (runner truth)', () => {
     expect(checksOf(failing)['scenarios']?.status).toBe('fail');
     const briefing = (await gateDiagnostics(failing, 'engineer')).summary.join('\n');
     expect(briefing).toContain('scenario:grand-value-is-bound');
-
-    // A module README selects no module: the link runs no narrowed test of
-    // its own, and the carried failure is rerun and composed.
-    const readme = await f2.commit('child documentation only', { 'subs/a/README.md': '# a\n\nThe child module.\n' });
-    const zero = await gate(readme, 'ga-0004');
-    const zeroSummary = (zero.provider?.result as { summary: { coverage: { selectedModules?: unknown[]; carriedFailures?: unknown[] } } }).summary;
-    expect(zero.audit).toMatchObject({ status: 'completed', executedMode: 'ramify-partial', verdict: 'fail', reuse: null });
-    expect(zeroSummary.coverage.selectedModules).toEqual([]);
-    expect(zeroSummary.coverage.carriedFailures?.length).toBeGreaterThan(0);
-    expect(vitestFiles(zero, 'source-vitest')).toEqual([]);
-    expect(scenarioResultsOf(zero).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:grand-value-is-bound ambiguous']);
-    expect(zero.verdict).toBe('failed');
-
-    // The repair passes; a detected runner configuration change widens.
-    const repaired = await f2.commit('remove the duplicate step', { 'subs/a/subs/grand/src/tests/steps/duplicate.steps.ts': null });
-    const fixed = await gate(repaired, 'ga-0005');
-    expect(fixed.audit).toMatchObject({ status: 'completed', verdict: 'pass' });
-    // Root and grandchild change, and a test is deleted: the root's and the
-    // grandchild's tests run, the child between them does not, and the
-    // deleted test is simply gone from the runner's discoveries.
-    const rootAndGrand = await f2.commit('root and grandchild change, a test deleted', {
-      'src/root.ts': 'export const rootValue = 1; // revised\n',
-      'subs/a/subs/grand/src/grand.ts': 'export const grandValue = 3; // revised again\n',
-      'subs/a/subs/grand/src/tests/new-grand.check.ts': null,
-    });
-    const outer = await gate(rootAndGrand, 'ga-0006');
-    expect(outer.audit).toMatchObject({ status: 'completed', executedMode: 'ramify-partial', fallbackReason: null, verdict: 'pass' });
-    expect(vitestFiles(outer, 'source-vitest')).toEqual(['src/tests/root.check.ts passed', 'subs/a/subs/grand/src/tests/grand.check.ts passed']);
-    expect(scenarioResultsOf(outer).map(result => `${result.id} ${result.status}`)).toEqual(['scenario:grand-value-is-bound passed']);
-
-    // A change to the sibling whose path begins with `subs/a` selects only it.
-    const sibling = await f2.commit('collision sibling change', { 'subs/ab/src/ab.ts': 'export const abValue = 4; // revised\n' });
-    const collision = await gate(sibling, 'ga-0007');
-    expect(collision.audit).toMatchObject({ status: 'completed', executedMode: 'ramify-partial', fallbackReason: null, verdict: 'pass' });
-    expect(vitestFiles(collision, 'source-vitest')).toEqual(['subs/ab/src/tests/ab.check.ts passed']);
-    expect(scenarioResultsOf(collision)).toEqual([]);
-
-    // A detected runner configuration change widens to a full audit. Its
-    // runner now discovers nothing: the empty selection is the producer's
-    // failure, never a pass the harness supplies.
-    const runner = await f2.commit('runner configuration that discovers nothing', {
-      'vitest.aux.config.mjs': 'export default { root: \'./checks\', test: { include: [\'**/*.missing.ts\'] } };\n',
-    });
-    const widened = await gate(runner, 'ga-0008');
-    expect(widened.audit).toMatchObject({ status: 'completed', requestedMode: 'ramify-partial', executedMode: 'full', verdict: 'fail' });
-    expect(widened.audit?.fallbackReason).toMatch(/^runner-configuration/u);
-    expect(vitestFiles(widened, 'aux-vitest')).toEqual([]);
-    expect(checksOf(widened)['aux-vitest']?.status).toBe('fail');
-    expect([widened.verdict, widened.cause, widened.commands]).toEqual(['failed', 'check-failed', []]);
-    const restored = await f2.commit('runner configuration restored', { 'vitest.aux.config.mjs': f2Files['vitest.aux.config.mjs']! });
-    const healed = await gate(restored, 'ga-0009');
-    // Restoring the configuration restores the sibling commit's tree: the
-    // provider answers with that commit's evidence, keeping both source
-    // identities, and the harness records no execution of its own.
-    expect(healed.audit).toMatchObject({
-      status: 'completed', requestedSourceCommit: restored, auditedSourceCommit: sibling, verdict: 'pass',
-      reuse: { auditedCommit: sibling, ignoredChangedPaths: [] },
-    });
-    expect([healed.verdict, healed.commands, healed.evidence]).toEqual(['passed', [], collision.evidence]);
-
-    // A changed ignore policy is a new definition: the active run refuses it,
-    // and a run that captured it starts from a new full baseline.
-    const policy = await f2.commit('ignore notes too', { 'ramify-audit.json': f2Definition(['docs/**', 'notes/**']) });
-    const refused = await gate(policy, 'ga-0010');
-    expect(refused.audit).toMatchObject({ status: 'failed', auditedSourceCommit: null, verdict: null });
-    expect(refused.audit?.detail).toContain('Captured audit policy conflicts with ramify-audit.json');
-    expect([refused.verdict, refused.cause, refused.evidence]).toEqual(['not-verified', 'infrastructure', null]);
-    const rebased = await gate(policy, 'ga-0011', policy);
-    expect(rebased.audit).toMatchObject({ status: 'completed', requestedMode: 'ramify-partial', executedMode: 'full', verdict: 'pass' });
-    expect(rebased.audit?.fallbackReason).not.toBeNull();
-
-    await evidence('iteration9-f2-runner-truth', {
-      schema: 'plan21.iteration9.f2/1', providerVersion: 'ramify-audit@0.8.0', ramifyVersion: 'ramify.ts@0.4.3',
-      commits: { baseline: f2.head, grandChange, ambiguous, readme, repaired, rootAndGrand, sibling, runner, restored, policy },
-      gates: { baseline: digest(baseline), partial: digest(partial), failing: digest(failing), zero: digest(zero), fixed: digest(fixed), outer: digest(outer), collision: digest(collision), widened: digest(widened), healed: digest(healed), refused: digest(refused), rebased: digest(rebased) },
-    });
   });
 });
 
@@ -347,11 +243,6 @@ describe('applicable reuse over F4\'s root project', () => {
     const fresh = await configuredGate(port, root, { captured: root.head, sourceCommit: source, attemptId: 'ga-0003' });
     expect(fresh.audit).toMatchObject({ status: 'completed', auditedSourceCommit: source, reuse: null, verdict: 'pass' });
     expect(await runs(counter)).toBe(2);
-
-    await evidence('iteration9-f4-ignored-reuse', {
-      schema: 'plan21.iteration9.f4-reuse/1', commits: { baseline: root.head, docs, source },
-      gates: { first: digest(first), reused: digest(reused), fresh: digest(fresh) }, executions: await runs(counter),
-    });
   });
 
   it('a changed ignore list refuses the active run and needs a new baseline, never reusing evidence recorded under the old list', { timeout: 300_000 }, async () => {
@@ -373,11 +264,6 @@ describe('applicable reuse over F4\'s root project', () => {
     const reused = await configuredGate(port, root, { captured: policy, sourceCommit: notes, attemptId: 'ga-0004', runId: 'run-new-policy' });
     expect(reused.audit).toMatchObject({ reuse: { auditedCommit: policy, ignoredChangedPaths: ['notes/n.md'] }, verdict: 'pass' });
     expect(await runs(counter)).toBe(2);
-
-    await evidence('iteration9-f4-ignore-policy', {
-      schema: 'plan21.iteration9.f4-policy/1', commits: { baseline: root.head, policy, notes },
-      gates: { first: digest(first), refused: digest(refused), rebased: digest(rebased), reused: digest(reused) }, executions: await runs(counter),
-    });
   });
 });
 

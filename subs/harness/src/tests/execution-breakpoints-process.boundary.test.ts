@@ -1,48 +1,21 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { access, readFile, unlink, writeFile } from 'node:fs/promises';
+import { readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterEach, expect, test } from 'vitest';
-import { startServerWith } from '../http/server.js';
-import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
-import { analysis, currentAnalysis, entry } from './helpers/analysis.js';
-import { assign, outline, submit, treeInputs } from './helpers/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
-import { installTestRunner, testPolicy, until } from './helpers/runs.js';
-import { unchangedGit } from './helpers/unchanged-run.js';
-import { scenariosCommit } from './helpers/scripted-git.js';
-import { fixtureScratchGit } from './helpers/mock-git.js';
-import { FakeRamifyCli } from './helpers/fake-ramify.js';
-import { passingAudit } from './helpers/direct-check-execution.js';
-import { declaringScenarios } from './helpers/declarations.js';
+import { installTestRunner, until } from './helpers/runs.js';
 
 const title = 'B17: actual clients disconnect, retry, stop and reconnect while the native host survives; host loss restarts the unfinished task after process settlement';
-const ownFile = 'subs/harness/src/tests/execution-breakpoints-process.boundary.test.ts';
 const packageRoot = fileURLToPath(new URL('../../../../', import.meta.url));
+const host = fileURLToPath(new URL('./helpers/breakpoint-host.ts', import.meta.url));
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
-const plan = 'review-notes', module = 'collection-review/workspace/reviews';
+const plan = 'review-notes';
 const exec = promisify(execFile);
 
 test(title, async () => {
-  const childSetup = process.env['PLAN34_BREAKPOINT_HOST'];
-  if (childSetup) {
-    const input = JSON.parse(await readFile(childSetup, 'utf8')) as { root: string; ready: string; release: string };
-    const scripted = (role: string) => role === 'initial-architect'
-      ? submit(currentAnalysis(analysis([entry('review-note', module)]), 'document:review-notes-plan')) : role === 'local-architect' ? submit(assign(module, {}, outline())) : [];
-    const agent = createScriptedAgent(declaringScenarios(spec => spec.role === 'engineer' ? [
-      { kind: 'await', until: async () => { while (true) { try { await access(input.release); return; } catch { await new Promise(done => setTimeout(done, 10)); } } } },
-      { kind: 'message', text: 'Native hosted explanation.' }, { kind: 'end', message: 'Native hosted explanation.' },
-    ] : scripted(spec.role)));
-    const host = await startServerWith({ projectRoot: input.root, port: 0, agent, ramify: new FakeRamifyCli(), runs: {
-      inputs: treeInputs(), policy: testPolicy, configuredAudit: passingAudit(), stopGraceMs: 500,
-      git: fixtureScratchGit(unchangedGit(input.root, [scenariosCommit(plan), scenariosCommit(plan)])),
-    } });
-    await writeFile(input.ready, JSON.stringify({ url: host.url, pid: process.pid, recovery: host.recovery }));
-    await new Promise<void>(done => { process.once('SIGTERM', () => { void host.close().then(done); }); });
-    return;
-  }
   const fixture = await copyFixture(); cleanups.push(fixture.remove);
   await installTestRunner(fixture.root);
   const setup = join(fixture.root, '..', 'host.json'), ready = join(fixture.root, '..', 'ready.json'), release = join(fixture.root, '..', 'release');
@@ -57,8 +30,7 @@ test(title, async () => {
   } });
   async function launch() {
     await writeFile(ready, '');
-    const child = spawn(process.execPath, [join(packageRoot, 'node_modules/vitest/vitest.mjs'), 'run', '--project', 'boundaries', ownFile, '-t', title, '--maxWorkers', '1'],
-      { cwd: packageRoot, env: { ...process.env, PLAN34_BREAKPOINT_HOST: setup }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['--import', 'tsx', host, setup], { cwd: packageRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     children.push(child); let diagnostic = ''; child.stdout?.on('data', value => { diagnostic += String(value); }); child.stderr?.on('data', value => { diagnostic += String(value); });
     await until(async () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(diagnostic); return (await readFile(ready, 'utf8')).startsWith('{'); }, 30_000);
     const receipt = JSON.parse(await readFile(ready, 'utf8')) as { url: string; pid: number; recovery: { interrupted: string[] } };
@@ -123,8 +95,7 @@ test(title, async () => {
     return snapshot.run.counts.invocations === secondPause.run.counts.invocations + 1;
   });
   const beforeCrash = await (await fetch(first.url + `/api/v1/plans/${plan}/runs/${secondRun.jobId}`)).json() as { run: { counts: { invocations: number } } };
-  // Vitest may host in a worker process: kill the PID that actually took the lock,
-  // then settle our runner. Killing only the runner cannot establish host loss.
+  // Kill the PID that took the lock, then settle the child process.
   process.kill(first.pid, 'SIGKILL');
   await until(async () => { try { await fetch(first.url + '/api/v1/project'); return false; } catch { return true; } });
   if (first.child.pid !== first.pid && first.child.exitCode === null && first.child.signalCode === null) first.child.kill('SIGKILL');

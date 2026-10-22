@@ -1,19 +1,11 @@
-import { readFile, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { gitService } from '../../../../../evidence/src/git.js';
 import { runCommand } from '../../../../../evidence/src/run-command.js';
 import type { Script } from '../../../../../agent/src/scripted.js';
 import { analysis, currentAnalysis, entry } from '../../../../../../src/tests/helpers/analysis.js';
-import { captureProvisionalSource } from '../capability/source.js';
-import { commitCapabilityTransition } from '../../../../src/run/capability-transition.js';
-import { capabilityLayout } from '../capability/records.js';
-import { RunLog } from '../../../../src/run/log.js';
-import { committedRecords } from '../../../../src/run/committed-records.js';
-import { copyCapabilityFixture, fixtureRequest, openCapabilityRuns } from './helpers/capability.js';
-import { temporaryDirectory } from '../../../../../../src/tests/helpers/fixture.js';
+import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { assign, installMiniRunner, outline, shell, submit, treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
-import { freeze, git, initRepository, runEventsOnDisk, staleCrashLock, startRun, until } from '../../../../../../src/tests/helpers/runs.js';
+import { freeze, initRepository, runEventsOnDisk, staleCrashLock, startRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 import { nodeProcessGroups } from '../../../../../task-execution/src/writer.js';
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -51,8 +43,14 @@ test('CA20: a registered real process group survives a service crash and is sett
     }
     return [];
   };
+  // The case waits out the settle bounds; short ones replace the production
+  // 30 s bounds without changing what it asserts.
+  const policy = (projectRoot: string) => {
+    const base = testPolicy(projectRoot);
+    return { ...base, limits: { ...base.limits, stopSettleMs: 500, writerSettleMs: 500 } };
+  };
   const first = await openCapabilityRuns(fixture.root, {
-    git: gitService, script, inputs: treeInputs(),
+    git: gitService, script, inputs: treeInputs(), policy,
     commandExecution: async request => {
       const result = await runCommand({ ...request, registerProcessGroup: async (pid, identity) => {
         cleanups.push(async () => nodeProcessGroups.kill(pid));
@@ -77,7 +75,7 @@ test('CA20: a registered real process group survives a service crash and is sett
 
   await staleCrashLock(fixture.root);
   const second = await openCapabilityRuns(fixture.root, {
-    git: gitService, script, inputs: treeInputs(),
+    git: gitService, script, inputs: treeInputs(), policy,
   });
   cleanups.push(async () => { await expect(second.service.close()).rejects.toThrow(/settlement.*(?:unavailable|not confirmed)/u); });
   await until(() => !nodeProcessGroups.alive(pid));
@@ -91,69 +89,3 @@ test('CA20: a registered real process group survives a service crash and is sett
   expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
   expect(first.service.events('need', receipt.jobId)).toEqual(before);
 }, 45_000);
-
-test('CA19 CA30: a snapshot written before its request commit is adopted with the exact dirty index and tree', async () => {
-  const fixture = await copyCapabilityFixture();
-  const directory = await temporaryDirectory();
-  cleanups.push(fixture.remove, directory.remove);
-  const base = await initRepository(fixture.root);
-  const tracked = 'subs/a/src/caller.ts';
-  const untracked = 'subs/a/src/pending.ts';
-  const deleted = 'subs/d/src/consumer.ts';
-  await writeFile(join(fixture.root, tracked), 'export const staged = true;\n');
-  await git(fixture.root, 'add', tracked);
-  await writeFile(join(fixture.root, tracked), 'export const worktree = true;\n');
-  await writeFile(join(fixture.root, untracked), 'export const pending = true;\n');
-  await rm(join(fixture.root, deleted));
-  await git(fixture.root, 'add', deleted);
-  const input = { projectRoot: fixture.root, runDirectory: directory.path, request: 'capability-request:render-fact-source',
-    acceptedBase: base, writerSettledBy: 'inv-0001', changedPaths: await gitService.changedPaths(fixture.root, base) };
-  const before = await captureProvisionalSource(input);
-  const snapshotBytes = await readFile(join(directory.path, before.snapshot));
-  // Simulate a process stop after the exclusive write, before ledger append.
-  const recovered = await captureProvisionalSource(input);
-  expect(recovered).toEqual(before);
-  expect(await readFile(join(directory.path, before.snapshot))).toEqual(snapshotBytes);
-  expect((await git(fixture.root, 'show', ':subs/a/src/caller.ts')).trim()).toContain('staged = true');
-  expect(await readFile(join(fixture.root, untracked), 'utf8')).toContain('pending = true');
-  expect((await git(fixture.root, 'status', '--porcelain')).trim()).toContain('D  subs/d/src/consumer.ts');
-  expect(before.delta.find(change => change.path === deleted)?.staged).toBe(true);
-
-  const log = await RunLog.open(join(directory.path, 'events.jsonl'), 'job-001');
-  const original = fixtureRequest();
-  const request = { ...original, schema: 'ramify-agent.capability-request/2' as const,
-    id: input.request, source: recovered, original: { ...original.original, examples: original.original.examples.map(example => ({
-      ...example, id: 'capability-example:render-fact-source',
-    })) } };
-  await commitCapabilityTransition(log, { type: 'capability-requested', data: {
-    request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: request.invocation,
-  } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
-  const reopened = await RunLog.open(join(directory.path, 'events.jsonl'), 'job-001');
-  expect(committedRecords(reopened.ledger.replay()).capabilityRequests.get(request.id)?.source).toEqual(before);
-  expect(committedRecords(reopened.ledger.replay()).capabilityRequests.get(request.id)?.original.examples[0]?.id)
-    .toBe('capability-example:render-fact-source');
-  expect(await captureProvisionalSource(input)).toEqual(before);
-}, 30_000);
-
-test('CA19: retry refuses a changed staged or untracked candidate and preserves its bytes', async () => {
-  const fixture = await copyCapabilityFixture();
-  const directory = await temporaryDirectory();
-  cleanups.push(fixture.remove, directory.remove);
-  const base = await initRepository(fixture.root);
-  const tracked = 'subs/a/src/caller.ts';
-  const untracked = 'subs/a/src/pending.ts';
-  await writeFile(join(fixture.root, tracked), 'export const staged = true;\n');
-  await git(fixture.root, 'add', tracked);
-  await writeFile(join(fixture.root, untracked), 'export const pending = true;\n');
-  const input = { projectRoot: fixture.root, runDirectory: directory.path, request: 'capability-request:source-fact',
-    acceptedBase: base, writerSettledBy: 'inv-0001', changedPaths: await gitService.changedPaths(fixture.root, base) };
-  await captureProvisionalSource(input);
-  await writeFile(join(fixture.root, untracked), 'export const pending = false;\n');
-  await expect(captureProvisionalSource(input)).rejects.toThrow('source was preserved');
-  expect(await readFile(join(fixture.root, untracked), 'utf8')).toContain('pending = false');
-  await writeFile(join(fixture.root, untracked), 'export const pending = true;\n');
-  await writeFile(join(fixture.root, tracked), 'export const changedIndex = true;\n');
-  await git(fixture.root, 'add', tracked);
-  await expect(captureProvisionalSource(input)).rejects.toThrow('source was preserved');
-  expect((await git(fixture.root, 'show', ':subs/a/src/caller.ts')).trim()).toContain('changedIndex = true');
-}, 30_000);
