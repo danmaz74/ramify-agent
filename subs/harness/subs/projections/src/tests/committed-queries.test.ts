@@ -52,7 +52,8 @@ test('real query entry points repeatedly read scripted committed inputs without 
       expect((await sessions.updates(planId, jobId, 1, [])).version).toBe(1);
       await expect(sessions.updates(planId, jobId, 2, [])).rejects.toMatchObject({ code: 'invalid-request' });
       await expect(query.capabilityTasks(planId, jobId, 0)).rejects.toMatchObject({ code: 'stale-version', currentVersion: 1 });
-      await expect(query.workItem(planId, jobId, 'missing')).rejects.toMatchObject({ code: 'not-found' });
+      await expect(query.workItem(planId, jobId, 'work-item:missing')).rejects.toMatchObject({ code: 'not-found' });
+      await expect(query.workItem(planId, jobId, 'missing')).rejects.toMatchObject({ code: 'invalid-request' });
       expect(await currentModuleTree(made.path)).toMatchObject({ status: 'unavailable' });
     }
     expect(await bytes(made.path)).toEqual(before);
