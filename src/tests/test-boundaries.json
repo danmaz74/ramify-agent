@@ -130,25 +130,9 @@
       ]
     },
     {
-      "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-acceptance.boundary.test.ts",
-      "boundary": "Composed actual Git, test failure, repair, review and handback",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "CA08 CA11\u2013CA15 CA17 CA25 CA30: actual Git and local-command multi-owner migration, repair, handback and linked revision"
-      ]
-    },
-    {
-      "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-dependencies.boundary.test.ts",
-      "boundary": "Actual accepted dependency commits and produced tests",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
-      "owningCases": [
-        "CA19 CA21 CA32: actual nested C child gate, review and handback to B"
-      ]
-    },
-    {
       "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-delegation.boundary.test.ts",
-      "boundary": "Actual composed delegated module creation and commits",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
+      "boundary": "Actual provisional snapshot of staged, worktree, untracked and deleted bytes as a Git tree",
+      "whyFakeCannotProve": "The snapshot's tree must be a real Git tree object built from the live index and worktree; provisional-source.test.ts injects the preview tree and blobs and cannot show that Git produces them.",
       "owningCases": [
         "CA30: provisional snapshot keeps staged, worktree, untracked and deleted bytes separately"
       ]
@@ -177,12 +161,10 @@
     },
     {
       "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-recovery.boundary.test.ts",
-      "boundary": "Actual Git commit idempotency and crash/recovery object history",
-      "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
+      "boundary": "Actual process-group survival across a service crash and its kill on recovery",
+      "whyFakeCannotProve": "Whether a registered process group outlives the crashed service and is dead after recovery is kernel state; nonfunctional-recovery.test.ts and writer-settlement.test.ts drive the same crash and settlement with scripted groups and cannot show a real group is killed.",
       "owningCases": [
-        "CA20: a registered real process group survives a service crash and is settled before any successor work",
-        "CA19 CA30: a snapshot written before its request commit is adopted with the exact dirty index and tree",
-        "CA19: retry refuses a changed staged or untracked candidate and preserves its bytes"
+        "CA20: a registered real process group survives a service crash and is settled before any successor work"
       ]
     },
     {
