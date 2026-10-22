@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { sha256Schema } from './evidence.js';
-import { jobIdSchema, planIdSchema } from './ids.js';
+import { planIdSchema } from './ids.js';
 import { jobVersionSchema } from './jobs.js';
 import { invocationEvaluationSchema, operationIdentitySchema, roleSchema, runIdSchema } from './runs.js';
 import {
-  transcriptContinuesSchema, transcriptEndedSchema, transcriptEntrySchema, transcriptForkSchema, transcriptInterruptionSchema,
+  transcriptContinuesSchema, transcriptEndedSchema, transcriptEntrySchema, transcriptForkSchema,
   transcriptPointSchema, transcriptReplacesSchema, transcriptRequestedBySchema, transcriptStartModeSchema, transcriptWorkSchema,
 } from './transcripts.js';
 
@@ -14,9 +14,8 @@ import {
  * of one transcript, an update poll that follows several sessions of a run
  * at once, and a body on demand.
  *
- * Every answer is a projection of the run log, the standalone sessions'
- * records and the transcripts, which the harness writes and a query only
- * reads. A transcript's entries are the harness's own format, unchanged.
+ * Every answer is a projection of the run log and transcripts. The harness
+ * writes them; a query only reads. Transcript entries keep their format.
  *
  * Like every file beside it, it imports nothing but `zod` and its siblings,
  * so every export promises browser safety.
@@ -48,21 +47,15 @@ export const sessionQueryLimits = {
 
 /** A run's session: `ses-0001`, `ses-0002`, and so on, in the order the run opened them. */
 export const runSessionIdSchema = z.string().regex(/^ses-\d{4,}$/, 'A run session is ses- and at least four digits');
-/** A standalone session keeps the identifier it was started with, such as `20260921T101500Z-a1b2c3`. */
-export const standaloneSessionIdSchema = jobIdSchema;
-
-/** Where a session is: one run's, or a standalone session of the project. */
-export const sessionRefSchema = z.discriminatedUnion('source', [
-  z.object({ source: z.literal('run'), planId: planIdSchema, runId: runIdSchema, session: runSessionIdSchema }).strict(),
-  z.object({ source: z.literal('standalone'), session: standaloneSessionIdSchema }).strict(),
-]);
+/** The run that owns a session. */
+export const sessionRefSchema = z.object({ source: z.literal('run'), planId: planIdSchema, runId: runIdSchema, session: runSessionIdSchema }).strict();
 export type SessionRef = z.infer<typeof sessionRefSchema>;
 
 /**
  * The state a reader shows. `live`, `suspended` and `finished` are the
  * run log's. `interrupted` is a session the log leaves live whose harness is
  * gone: one in a run that has ended, since the server drives every run it
- * serves that has not, or a standalone session without its outcome.
+ * serves that has not.
  */
 export const sessionStateSchema = z.enum(['live', 'suspended', 'finished', 'interrupted']);
 export type ShownSessionState = z.infer<typeof sessionStateSchema>;
@@ -75,8 +68,7 @@ export type SessionFinishReasonView = z.infer<typeof sessionFinishReasonSchema>;
  * The diagram elements a session reaches. The plan architect reaches the
  * run itself, which shows it at run level. A work item's session reaches its
  * capability and module; a global fork, its request's capability and work
- * item; a standalone session, its module. A value the records do not name
- * is null.
+ * item. A value the records do not name is null.
  */
 export const sessionReachSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('run') }).strict(),
@@ -92,19 +84,18 @@ export type SessionReach = z.infer<typeof sessionReachSchema>;
 export const sessionListEntrySchema = z.object({
   ref: sessionRefSchema,
   state: sessionStateSchema,
-  /** The run log's reason once it finished; null otherwise, and for a standalone session, which records none. */
+  /** The run log's reason once it finished; null otherwise. */
   finished: sessionFinishReasonSchema.nullable(),
   role: roleSchema,
   work: transcriptWorkSchema,
-  /** The executor, by the agent port's name: the run log's `executor`, a standalone record's `agent`. */
+  /** The executor, by the agent port's name. */
   executor: text,
   /** The model the executor was asked for; null where it chose its own. */
   model: text.nullable(),
   invocations: count,
   /**
    * Its invocations the executor started otherwise than the harness asked:
-   * a continuation or fork made fresh. A standalone session starts fresh, so
-   * it has none.
+   * a continuation or fork made fresh.
    */
   degradedStarts: count,
   reaches: sessionReachSchema,
@@ -114,10 +105,10 @@ export const sessionListEntrySchema = z.object({
 }).strict();
 export type SessionListEntry = z.infer<typeof sessionListEntrySchema>;
 
-/** A run or standalone session the list cannot derive, and why: it is reported, never left absent. */
+/** A run whose sessions the list cannot derive, and why: it is reported, never left absent. */
 export const unservedSessionSourceSchema = z.object({
-  source: z.enum(['run', 'standalone']),
-  /** The run's directory or the standalone session's, relative to the project root. */
+  source: z.literal('run'),
+  /** The run's directory, relative to the project root. */
   path: text,
   message: text,
 }).strict();
@@ -125,7 +116,7 @@ export type UnservedSessionSource = z.infer<typeof unservedSessionSourceSchema>;
 
 /**
  * `GET /api/v1/sessions?offset=<n>`: every session of every run the harness
- * serves and every standalone session, live and suspended first by start,
+ * serves live and suspended first by start,
  * newest first, then finished and interrupted by last change, newest first.
  * At most 200 from `offset`; the order is taken afresh by each request.
  */
@@ -281,7 +272,7 @@ export type TranscriptPage = z.infer<typeof transcriptPageSchema>;
 
 /**
  * `GET /api/v1/plans/:planId/runs/:runId/sessions/:session/transcript?after=<n>`
- * and `GET /api/v1/sessions/standalone/:session/transcript?after=<n>`: at
+ * at
  * most 200 entries after entry `n`, with their headers and inline bodies.
  */
 export const sessionTranscriptResponseSchema = z.object({
@@ -328,23 +319,3 @@ export type SessionBodyResponse = z.infer<typeof sessionBodyResponseSchema>;
 
 /** A hash a body query names: the content store's key. */
 export const sessionBodyHashSchema = sha256Schema;
-
-/**
- * `GET /api/v1/sessions/standalone/:session`: one standalone session, its
- * prompt, how it ended, and its evaluation, which its transcript's one
- * chapter shows.
- */
-export const standaloneSessionResponseSchema = z.object({
-  session: sessionListEntrySchema,
-  /** The person's prompt, which was the iteration's goal. */
-  prompt: z.string(),
-  /** How it ended; null for an interrupted session, which recorded no outcome. */
-  outcome: z.object({
-    ended: transcriptEndedSchema,
-    interruption: transcriptInterruptionSchema.nullable(),
-    error: z.string().nullable(),
-    finishedAt: timestamp,
-  }).strict().nullable(),
-  evaluation: invocationEvaluationSchema,
-}).strict();
-export type StandaloneSessionResponse = z.infer<typeof standaloneSessionResponseSchema>;

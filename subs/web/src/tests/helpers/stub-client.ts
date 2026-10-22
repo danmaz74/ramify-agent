@@ -13,7 +13,7 @@ import type {
 } from '../../../../harness/src/interfaces/protocol/runs.js';
 import type {
   RunSessionResponse, RunSessionsResponse, SessionBodyResponse, SessionCursor, SessionListResponse, SessionRef, SessionTranscriptResponse,
-  SessionUpdatesResponse, StandaloneSessionResponse,
+  SessionUpdatesResponse,
 } from '../../../../harness/src/interfaces/protocol/sessions.js';
 import type { TranscriptBody } from '../../../../harness/src/interfaces/protocol/transcripts.js';
 import { ClientError, type ConnectionState, type ProjectInfo, type ProtocolClient } from '../../client.js';
@@ -78,8 +78,6 @@ export class StubClient implements ProtocolClient {
   /** A run's sessions, by run ID. */
   runSessions = new Map<string, RunSessionsResponse>();
   runSessionDetails = new Map<string, RunSessionResponse>();
-  /** Standalone sessions, by ID. */
-  standalone = new Map<string, StandaloneSessionResponse>();
   /** Transcript pages by session key and cursor, `<session>@<after>`; a missing page is not found. */
   transcripts = new Map<string, SessionTranscriptResponse>();
   /** Poll answers, in the order they are given. */
@@ -227,11 +225,6 @@ export class StubClient implements ProtocolClient {
     this.calls.push(`listSessions:${offset}`);
     if (this.failure) throw this.failure;
     return this.sessionList;
-  }
-
-  async getStandaloneSession(session: string): Promise<StandaloneSessionResponse> {
-    this.calls.push(`getStandaloneSession:${session}`);
-    return found(this.failure, this.standalone.get(session), `standalone session ${session}`);
   }
 
   async getRunSessions(_planId: string, runId: string): Promise<RunSessionsResponse> {

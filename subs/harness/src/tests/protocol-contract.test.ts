@@ -12,7 +12,7 @@ import {
 } from '../interfaces/protocol/runs.js';
 import {
   runSessionViewSchema, sessionBodyResponseSchema, sessionListEntrySchema, sessionQueryLimits, sessionRefSchema,
-  sessionTranscriptResponseSchema, sessionUpdatesResponseSchema, standaloneSessionIdSchema,
+  sessionTranscriptResponseSchema, sessionUpdatesResponseSchema,
 } from '../interfaces/protocol/sessions.js';
 
 describe('queries', () => {
@@ -407,7 +407,6 @@ describe('the acceptance scenarios a client reads', () => {
 describe('sessions', () => {
   const at = '2026-09-23T10:00:00.000Z';
   const run = { source: 'run', planId: 'review-notes', runId: '20260923T100000Z-a1b2c3', session: 'ses-0001' } as const;
-  const standalone = { source: 'standalone', session: '20260923T101500Z-d4e5f6' } as const;
   const entry = {
     ref: run, state: 'live', finished: null, role: 'engineer', work: { workItem: 'wi-001', iteration: 'wi-001.i01' },
     executor: 'scripted', model: null, invocations: 1, degradedStarts: 0,
@@ -426,9 +425,6 @@ describe('sessions', () => {
     expect(protocolPaths.runBody('p', 'r', 'a'.repeat(64))).toBe(`/api/v1/plans/p/runs/r/bodies/${'a'.repeat(64)}`);
     expect(protocolPaths.runSessionFile('p', 'r', 'ses-0001', 'invocations/inv-0003/shell/001.log'))
       .toBe('/api/v1/plans/p/runs/r/sessions/ses-0001/files?path=invocations%2Finv-0003%2Fshell%2F001.log');
-    expect(protocolPaths.standaloneSession('s 1')).toBe('/api/v1/sessions/standalone/s%201');
-    expect(protocolPaths.standaloneTranscript('s', 0)).toBe('/api/v1/sessions/standalone/s/transcript?after=0');
-    expect(protocolPaths.standaloneFile('s', 'shell/001.log')).toBe('/api/v1/sessions/standalone/s/files?path=shell%2F001.log');
   });
 
   test('the bounds', () => {
@@ -437,10 +433,8 @@ describe('sessions', () => {
 
   test('a session is a run\'s, by plan, run and ses- number, or a standalone one, by its own ID', () => {
     expect(sessionRefSchema.parse(run)).toEqual(run);
-    expect(sessionRefSchema.parse(standalone)).toEqual(standalone);
     expect(sessionRefSchema.safeParse({ ...run, session: 'ses-1' }).success).toBe(false);
     expect(sessionRefSchema.safeParse({ ...run, session: '../ses-0001' }).success).toBe(false);
-    for (const id of ['', '../x', 'a/b', '.hidden']) expect(standaloneSessionIdSchema.safeParse(id).success).toBe(false);
     expect(sessionRefSchema.safeParse({ source: 'standalone', session: 'ses-0001', planId: 'p' }).success).toBe(false);
   });
 
@@ -457,7 +451,6 @@ describe('sessions', () => {
 
   test('a missing transcript has no entries; a page names its cursor, never a body outside its entries', () => {
     expect(sessionTranscriptResponseSchema.safeParse({ session: run, page }).success).toBe(true);
-    expect(sessionTranscriptResponseSchema.safeParse({ session: standalone, page: { ...page, file: 'missing' } }).success).toBe(true);
     const started = {
       n: 1, at, type: 'started', invocation: 'inv-0001', role: 'engineer', work: {}, start: 'opened', requested: 'fresh',
       continues: null, fork: null, replaces: null, requestedBy: null, executor: 'scripted', model: null,

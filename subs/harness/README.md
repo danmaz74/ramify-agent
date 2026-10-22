@@ -914,10 +914,9 @@ hiding or measured complexity justifies it.
     root receives it with the progress, result, summary and gate types and the
     named types the summary mentions; the agent port, the Ramify command line
     and the run policy stay internal.
-  - `plans/.harness/sessions/` is retired. Nothing writes it any more, and
-    existing directories are left in place.
-    `subs/projections/src/standalone-records.ts` reads them for the session
-    queries. Remaining parent compatibility fixtures still need old-tree import retirement.
+  - `plans/.harness/sessions/` is not read. Nothing writes it any more, and
+    existing directories are left in place. Session queries read manual runs
+    under `plans/sessions/.harness/jobs/`.
 - `steps/`: one harness step at a time, from files, for an agent or a person
   implementing a plan; the root's `step` command runs it. The root
   [README](../../README.md#steps) describes the workflow, the command

@@ -8,8 +8,7 @@ import { isFinal } from './session-progress.js';
 import { useQuery } from './use-query.js';
 
 /*
- * Every session of the project: those of every plan's runs and the
- * standalone sessions, live and suspended first, as the harness orders them.
+ * Every session of the project's runs, live and suspended first, as the harness orders them.
  * The list is read again every `interval` milliseconds while one of them is
  * live or suspended, and on Refresh.
  */
@@ -31,9 +30,7 @@ function SessionItem({ entry }: { readonly entry: SessionListEntry }) {
         {entry.finished && <span className="muted"> {entry.finished}</span>}
       </p>
       <p className="muted session-entry-where">
-        {ref.source === 'run'
-          ? <>Run <a href={routeHref({ page: 'run', planId: ref.planId, runId: ref.runId })}><code>{ref.runId}</code></a> of <code>{ref.planId}</code></>
-          : 'Standalone session'}
+        Run <a href={routeHref({ page: 'run', planId: ref.planId, runId: ref.runId })}><code>{ref.runId}</code></a> of <code>{ref.planId}</code>
         {work && <> · {work}</>} · {reachText(entry.reaches)}
       </p>
       <p className="muted session-entry-facts">
@@ -99,7 +96,7 @@ export function SessionsPage({ client, interval = 5000 }: { readonly client: Pro
           {reloading ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
-      <p className="muted">Every session of the project's runs and every standalone session, live and suspended first.</p>
+      <p className="muted">Every session of the project's runs, live and suspended first.</p>
       {state.status === 'loading' && <p className="muted">Loading the sessions…</p>}
       {state.status === 'failed' && <p className="failure" role="alert">Could not load the sessions: {state.error.message}</p>}
       {state.status === 'ready' && (

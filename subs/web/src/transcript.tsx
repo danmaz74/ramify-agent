@@ -300,7 +300,7 @@ export interface TranscriptContext {
   readonly calls: ReadonlyMap<string, ToolCall>;
   /** Each call ID with a result. */
   readonly results: ReadonlySet<string>;
-  /** The run's sessions, for the forks and continuations from a point; empty for a standalone session. */
+  /** The run's sessions, for the forks and continuations from a point. */
   readonly sessions: ReadonlyMap<string, RunSessionView>;
 }
 

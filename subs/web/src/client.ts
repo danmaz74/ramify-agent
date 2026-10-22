@@ -29,9 +29,9 @@ import {
 } from '../../harness/src/interfaces/protocol/runs.js';
 import {
   runSessionResponseSchema, runSessionsResponseSchema, sessionBodyResponseSchema, sessionListResponseSchema, sessionTranscriptResponseSchema,
-  sessionUpdatesResponseSchema, standaloneSessionResponseSchema,
+  sessionUpdatesResponseSchema,
   type RunSessionResponse, type RunSessionsResponse, type SessionBodyResponse, type SessionCursor, type SessionListResponse, type SessionRef,
-  type SessionTranscriptResponse, type SessionUpdatesResponse, type StandaloneSessionResponse,
+  type SessionTranscriptResponse, type SessionUpdatesResponse,
 } from '../../harness/src/interfaces/protocol/sessions.js';
 import type { TranscriptBody } from '../../harness/src/interfaces/protocol/transcripts.js';
 import { loadExecutionMapPages, type ExecutionMapSnapshot } from './execution-map-client.js';
@@ -107,8 +107,6 @@ export interface ProtocolClient {
   getDebugExchange(planId: string, runId: string, commandId: string): Promise<DebugExchangeResponse>;
   /** Every session of the project, live and suspended first; a page of at most 200 from `offset`. */
   listSessions(offset?: number): Promise<SessionListResponse>;
-  /** One standalone session: its summary, prompt, outcome and evaluation. */
-  getStandaloneSession(session: string): Promise<StandaloneSessionResponse>;
   /** A run's sessions, with their invocations, lineage and the diagram elements each reaches. */
   getRunSessions(planId: string, runId: string): Promise<RunSessionsResponse>;
   /** One run session independent of the bounded run-session list. */
@@ -235,20 +233,15 @@ export function createProtocolClient(origin = '', fetchImpl: typeof fetch = (...
     getDebugInspection: (planId, runId, pauseId) => get(protocolPaths.runDebugInspect(planId, runId, pauseId), debugInspectionResponseSchema),
     getDebugExchange: (planId, runId, commandId) => get(protocolPaths.runDebugExchange(planId, runId, commandId), debugExchangeResponseSchema),
     listSessions: (offset = 0) => get(protocolPaths.sessions(offset), sessionListResponseSchema),
-    getStandaloneSession: session => get(protocolPaths.standaloneSession(session), standaloneSessionResponseSchema),
     getRunSessions: (planId, runId) => get(protocolPaths.runSessions(planId, runId), runSessionsResponseSchema),
     getRunSession: (planId, runId, session) => get(protocolPaths.runSession(planId, runId, session), runSessionResponseSchema),
-    getTranscript: (session, after) => get(session.source === 'run'
-      ? protocolPaths.runSessionTranscript(session.planId, session.runId, session.session, after)
-      : protocolPaths.standaloneTranscript(session.session, after), sessionTranscriptResponseSchema),
+    getTranscript: (session, after) => get(protocolPaths.runSessionTranscript(session.planId, session.runId, session.session, after), sessionTranscriptResponseSchema),
     pollSessions: (planId, runId, version, cursors) => get(protocolPaths.runSessionUpdates(planId, runId, version, cursors), sessionUpdatesResponseSchema),
     getBody: async (session, body) => {
       if (body.stored === 'inline') return { content: body.text, bytes: body.bytes, truncated: false };
       const path = body.stored === 'blob'
-        ? (session.source === 'run' ? protocolPaths.runBody(session.planId, session.runId, body.hash) : protocolPaths.standaloneBody(session.session, body.hash))
-        : (session.source === 'run'
-            ? protocolPaths.runSessionFile(session.planId, session.runId, session.session, body.path)
-            : protocolPaths.standaloneFile(session.session, body.path));
+        ? protocolPaths.runBody(session.planId, session.runId, body.hash)
+        : protocolPaths.runSessionFile(session.planId, session.runId, session.session, body.path);
       return get(path, sessionBodyResponseSchema);
     },
     sendCommand: async command => {

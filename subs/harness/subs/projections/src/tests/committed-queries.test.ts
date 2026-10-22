@@ -83,7 +83,7 @@ test('unsupported committed versions and malformed records preserve refusal evid
 test('the production source calls nothing that writes and receives no writable service or effect collaborator', async () => {
   const directory = fileURLToPath(new URL('../', import.meta.url));
   const files = (await readdir(directory)).filter(name => name.endsWith('.ts'));
-  expect(files).toHaveLength(23);
+  expect(files).not.toContain('standalone-records.ts');
   expect(files).toEqual(expect.arrayContaining(['module-capabilities.ts', 'tree.ts', 'repairs.ts', 'consultations.ts']));
   const writing = /\b(writeFile|appendFile|appendJsonLine|writeFileAtomic|writeFileExclusive|commitRecord|recoverCommits|mkdir|rm|unlink|truncate|rename)\s*\(|\.append\(|\.write\(|\.execute\(|(?<!\bz)\.record\(/;
   const collaborators = /\b(RunService|ContentStore|openLedger|CommandRunner|runCommand|openSessionStore)\b/;

@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, test } from 'vitest';
 import { invocationEfficiencySchema, metricsResponseSchema, runSnapshotSchema, type InvocationEfficiency } from '../../../harness/src/interfaces/protocol/runs.js';
-import { standaloneSessionResponseSchema } from '../../../harness/src/interfaces/protocol/sessions.js';
 import { OperationFacts, SessionMetrics } from '../session-metrics.js';
 import { SessionPage } from '../session-page.js';
 import { SessionTimeline } from '../session-timeline.js';
@@ -145,21 +144,20 @@ test('V02: old missing identity/manifest/scope stays explicit unavailable', () =
   expect(screen.getByText('Manifest unavailable.')).toBeTruthy();
 });
 
-test('V02: actual standalone session page renders checkpoint/efficiency and retains transcript missing warning without polling', async () => {
-  const client = new StubClient(); const id = 'standalone-original';
-  const efficiency = fixture();
-  client.standalone.set(id, standaloneSessionResponseSchema.parse({ session: {
-    ref: { source: 'standalone', session: id }, state: 'finished', finished: 'work-closed', role: 'engineer', work: {}, executor: 'scripted', model: null, invocations: 1, degradedStarts: 0, reaches: { kind: 'module', module: 'shop' }, startedAt: at(0), changedAt: at(5),
-  }, prompt: 'current goal', outcome: null, evaluation: evaluation(id, { efficiency }) }));
-  client.transcripts.set(`${id}@0`, { session: { source: 'standalone', session: id }, page: page([], { file: 'missing' }) });
-  render(<SessionPage client={client} session={{ source: 'standalone', session: id }} anchor={null} interval={1} />);
-  const section = await screen.findByLabelText(`Efficiency of ${id}`);
+test('V02: run session page renders checkpoint and efficiency with a missing transcript', async () => {
+  const client = new StubClient();
+  const id = 'ses-0002';
+  const ref = { source: 'run' as const, planId, runId, session: id };
+  client.runSessions.set(runId, { version: 9, total: 1, sessions: [sessionView(id, {
+    invocations: [invocation('inv-1', { evaluation: evaluation('inv-1', { efficiency: fixture() }) })],
+  })] });
+  client.transcripts.set(`${id}@0`, { session: ref, page: page([], { file: 'missing' }) });
+  render(<SessionPage client={client} session={ref} anchor={null} interval={1} />);
+  const section = await screen.findByLabelText('Efficiency of inv-1');
   expect(section.textContent).toContain('Checkpoint brief-C1, turn 1 in original-session');
   expect(section.textContent).toContain('12 UTF-8 output bytes');
   expect(screen.getByText(/The transcript file of this session is missing/)).toBeTruthy();
-  expect(client.calls.some(call => call.startsWith('pollSessions:'))).toBe(false);
 });
-
 
 test('V01: verified zero declared content and unknown read size stay distinct from absent legacy efficiency', () => {
   const original = fixture();

@@ -564,9 +564,8 @@ What a manual run does not do:
   run captures no plan documents.
 
 `session` runs on the same runner: each session is a manual run under
-`plans/sessions/.harness/jobs/`. `plans/.harness/sessions/` is retired:
-nothing writes it any more, and existing directories are left in place,
-where the Sessions page still reads them.
+`plans/sessions/.harness/jobs/`. `plans/.harness/sessions/` is not read:
+nothing writes it any more, and existing directories are left in place.
 
 ## Quick pi tests
 

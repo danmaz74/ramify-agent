@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test } from 'vitest';
 import {
-  standaloneSessionResponseSchema, type SessionCursor, type SessionUpdatesResponse,
+  type SessionCursor, type SessionUpdatesResponse,
 } from '../../../harness/src/interfaces/protocol/sessions.js';
 import { SessionPage } from '../session-page.js';
 import {
@@ -326,32 +326,6 @@ test('a point lists the sessions forked from it; a link to a chapter opens that 
   const heading = await screen.findByRole('heading', { name: /Chapter 2: inv-0004/ });
   await waitFor(() => expect(document.activeElement).toBe(heading));
   expect(heading.closest('section')!.className).toContain('chapter-selected');
-});
-
-test('a standalone session is one chapter with its evaluation and outcome, and is never polled', async () => {
-  const client = new StubClient();
-  const id = '20260921T101500Z-a1b2c3';
-  client.standalone.set(id, standaloneSessionResponseSchema.parse({
-    session: {
-      ref: { source: 'standalone', session: id }, state: 'interrupted', finished: null, role: 'engineer', work: {}, executor: 'scripted', model: null,
-      invocations: 1, degradedStarts: 0, reaches: { kind: 'module', module: 'shop/reviews' }, startedAt: at(1), changedAt: at(3),
-    },
-    prompt: 'Add the send button.',
-    outcome: null,
-    evaluation: evaluation(id, { workItem: null, iteration: null, lines: { coverage: 'partial', paths: 0, added: 0, deleted: 0, gaps: ['a standalone session records no line events'] } }),
-  }));
-  client.transcripts.set(`${id}@0`, {
-    session: { source: 'standalone', session: id },
-    page: page(entries([{ n: 1, at: at(1), type: 'message', invocation: id, role: 'user', blocks: [{ type: 'text', body: inline('Add the send button.') }] }])),
-  });
-  render(<SessionPage client={client} session={{ source: 'standalone', session: id }} anchor={null} interval={10} />);
-  const chapter = (await screen.findByRole('heading', { name: new RegExp(`Chapter 1: ${id}`) })).closest('section')!;
-  expect(within(chapter).getByLabelText(`Evaluation of ${id}`).textContent).toContain('+0 −0 (partial)');
-  expect(screen.getByText('none recorded: the session was interrupted before it ended')).toBeTruthy();
-  expect(screen.getByRole('status', { name: 'Following' }).textContent).toContain('interrupted');
-  expect(screen.getByRole('link', { name: '← Sessions' }).getAttribute('href')).toBe('#/sessions');
-  await new Promise(resolve => setTimeout(resolve, 40));
-  expect(client.calls.filter(call => call.startsWith('pollSessions'))).toEqual([]);
 });
 
 test('an unknown session is reported, and not asked for again', async () => {
