@@ -28,8 +28,8 @@ import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/chec
  *
  * The lifecycle scenarios below answer Git and the gate's commands from
  * their own data and read the consumer's real source for the guard. The
- * architect view of an accepted delegation, which needs the real command
- * line, is in `requirement-architect-view.test.ts`.
+ * architect view of a fake beside its provider, which needs the real command
+ * line, is in `installed-ramify.boundary.test.ts`.
  */
 
 const cleanups: Array<() => Promise<void>> = [];

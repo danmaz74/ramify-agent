@@ -145,7 +145,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     await retainWorkflow(scenario.path(), 'ordinary-nested');
   }, 60_000);
   test('C17: capability and nested-task engineers consult their own assigning coordinators before ordinary handback', async () => {
-    await runDependencyGate(false, false, {
+    await runDependencyGate(false, {
       script: original => spec => {
         if (spec.submission.name === 'answer_architect_consultation') {
           expect(['capability-architect', 'local-architect']).toContain(spec.role);

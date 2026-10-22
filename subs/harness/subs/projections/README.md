@@ -73,7 +73,7 @@ reference/summary witnesses are also child-owned, with unchanged fixture identit
 and expectations. Public capability-task, restart-event and decision assertions
 stay with their coordinating parent through narrow reading composition.
 Exact capability reach/contract decoding and exhaustive union event witnesses
-now live here in capability-private-witnesses and union-event-exhaustiveness.
+now live here in capability-private-witnesses and union-event-summaries.
 Capability's pure fixtures are shared once through selected parent testing
 contracts; union retains its entire original sampleData without invented repair
 records. Plan23's nine private evaluation/readObservationLog witnesses now

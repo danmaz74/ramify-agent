@@ -82,7 +82,7 @@ test('recorded fresh and continued task packets supply snapshot, accepted revisi
     }
     return { ok: true, output: 'Scripted API evidence with source-analysis limits' };
   });
-  await runAcceptedHandback('revision', cleanups, false, async ({ root, planId, runId }) => {
+  await runAcceptedHandback('revision', cleanups, async ({ root, planId, runId }) => {
     const events = await runEventsOnDisk(root, planId, runId);
     const starts = events.filter(event => event.type === 'invocation-started').filter(event => ['capability-architect', 'local-architect'].includes(event.data.role) && event.data.work.request !== undefined);
     const job = join(root, `plans/${planId}/.harness/jobs/${runId}`);

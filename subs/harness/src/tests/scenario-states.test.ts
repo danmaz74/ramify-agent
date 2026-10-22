@@ -7,7 +7,7 @@ import { scenarioResultsOf, type ScenarioResult } from '../../subs/autonomous/su
 import { incompleteScenarios } from '../../subs/autonomous/subs/acceptance/src/feature-files.js';
 import { runEventSchema, type RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { bindingErrors, bindingEventsToRecord, obligationsOf, reportSourceLines } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
+import { bindingErrors, bindingEventsToRecord, obligationsOf } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
 import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import { scenarioIdOfTag } from '../../subs/scenarios/src/rendering.js';
 import { reduceScenarioStates, scenarioEventTypes, type ScenarioEvent } from '../../subs/scenarios/src/states.js';
@@ -673,16 +673,5 @@ describe('PB3-D04: obligation reports and the scenario states are one fold', () 
     expect(scenarioEventTypes).toContain(report.type);
     const events: ScenarioEvent[] = [{ type: 'obligation-reported', data: { id: 'scenario:keep-history-is-used', judgment: 'done' } }];
     expect([...reduceScenarioStates(['scenario:send-email-is-used', 'scenario:keep-history-is-used', 'scenario:combined-history'], events)]).toEqual([['scenario:send-email-is-used', 'pending'], ['scenario:keep-history-is-used', 'done'], ['scenario:combined-history', 'pending']]);
-  });
-});
-
-describe('PB3-C06: the accepted source since a report', () => {
-  test('a report made against earlier accepted source is shown beside it as provenance; one against the current source is not', () => {
-    const report = reported({ id: 'scenario:keep-history-is-used', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0005', submission: submissionHash('d') });
-    const owned = [...fixtureProjection([report]).obligations.values()];
-    const lines = reportSourceLines(owned, () => 'revision-01', 'revision-02');
-    expect(lines[0]).toBe('# Accepted source since your reports');
-    expect(lines.filter(line => line.startsWith('- '))).toEqual(['- scenario:keep-history-is-used: last reported done against accepted source revision-01']);
-    expect(reportSourceLines(owned, () => 'revision-02', 'revision-02')).toEqual([]);
   });
 });

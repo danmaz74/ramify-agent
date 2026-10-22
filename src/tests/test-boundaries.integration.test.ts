@@ -28,7 +28,6 @@ async function fixture(): Promise<{ root: string; remove(): Promise<void> }> {
     .replaceAll("'src/tests/vitest-test-lock.ts'", JSON.stringify(join(projectRoot, 'src/tests/vitest-test-lock.ts')))
     .replaceAll("'src/tests/vitest-process-guard.ts'", JSON.stringify(setup))
     .replaceAll("'src/tests/vitest-boundary-processes.ts'", JSON.stringify(nativeSetup))
-    .replaceAll("'./src/tests/test-boundaries-manifest.js'", JSON.stringify(join(projectRoot, 'src/tests/test-boundaries-manifest.ts')))
     .replaceAll("'subs/harness/src/tests/helpers/mock-session-store.setup.ts'", JSON.stringify(join(projectRoot, 'subs/harness/src/tests/helpers/mock-session-store.setup.ts')));
   await writeFile(join(root, 'vitest.config.ts'), config);
   await writeFile(join(root, 'src/tests/test-boundaries.json'), JSON.stringify({ schema: 'ramify-agent.test-boundaries/1', boundaries: [] }));

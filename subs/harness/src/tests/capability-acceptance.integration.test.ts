@@ -34,11 +34,11 @@ test('CA26: failed combined gates retain their causes and permit correction past
   () => runAcceptedHandback('repair-exhaustion', cleanups), 180_000);
 
 test('candidate drift after verification starts is fenced by the atomic handback commit',
-  () => runAcceptedHandback('drift', cleanups, false, undefined, false, true), 150_000);
+  () => runAcceptedHandback('drift', cleanups, undefined, false, true), 150_000);
 
 // The gate and review restart cuts are the recovery table's SM7 rows and
 // review-lifecycle's reviewed-candidate restart.
 test('CA17 CA20 CA30: restart after verification reuses the accepted gate and review for one handback; detached coordination history and refreshed index cannot mutate lifecycle authority',
-  () => runAcceptedHandback('verify-restart', cleanups, false, undefined, false, false, false, true), 180_000);
+  () => runAcceptedHandback('verify-restart', cleanups, undefined, false, false, false, true), 180_000);
 test('interrupted verification retains its accepted basis and refuses a newly pending review',
-  () => runAcceptedHandback('verify-restart', cleanups, false, undefined, false, false, true), 180_000);
+  () => runAcceptedHandback('verify-restart', cleanups, undefined, false, false, true), 180_000);

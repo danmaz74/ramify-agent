@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect } from 'vitest';
 import type { Script } from '../../../subs/agent/src/scripted.js';
@@ -14,8 +14,8 @@ import { RunLog, type RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { copyCapabilityFixture, openCapabilityRuns } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { analysis, currentAnalysis, entry } from './analysis.js';
-import { assign, edit, installMiniRunner, outline, submit, treeInputs, write } from './iterations.js';
-import { freeze, initRepository, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './runs.js';
+import { assign, edit, outline, submit, treeInputs, write } from './iterations.js';
+import { freeze, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './runs.js';
 import { placementDecisionFixture as decision, forkDecision, forkPartial } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { localCommandAudit } from './direct-check-execution.js';
 
@@ -306,7 +306,7 @@ export async function runDependencyDecision(boundary: 'request-placement' | 'unr
   }
 }
 
-export async function runDependencyGate(restartAfterHandback: boolean, realBoundary = false, witness?: {
+export async function runDependencyGate(restartAfterHandback: boolean, witness?: {
   readonly script: (original: Script) => Script;
   readonly inspect: (root: string, runId: string, events: readonly RunEvent[]) => Promise<void>;
 }): Promise<void> {
@@ -318,16 +318,8 @@ export async function runDependencyGate(restartAfterHandback: boolean, realBound
     await mkdir(join(fixture.root, 'subs/c/src/tests'), { recursive: true });
     await writeFile(join(fixture.root, 'subs/c/src/tests/source.test.ts'),
       "import { expect, test } from 'vitest';\nimport { normalizeSource } from '../source.js';\ntest('C normalizes source', () => expect(normalizeSource(' b ')).toBe('b'));\n");
-    const boundaries = realBoundary ? undefined : dependencyBoundaries(fixture.root, 'gate');
-    if (boundaries) cleanups.push(async () => boundaries.assertComplete());
-    if (realBoundary) {
-    await initRepository(fixture.root);
-    await installMiniRunner(fixture.root);
-    await rm(join(fixture.root, 'node_modules/vitest'), { recursive: true, force: true });
-    await rm(join(fixture.root, 'node_modules/.bin/vitest'), { force: true });
-    await symlink(join(process.cwd(), 'node_modules/vitest'), join(fixture.root, 'node_modules/vitest'));
-    await symlink(join(process.cwd(), 'node_modules/.bin/vitest'), join(fixture.root, 'node_modules/.bin/vitest'));
-    }
+    const boundaries = dependencyBoundaries(fixture.root, 'gate');
+    cleanups.push(async () => boundaries.assertComplete());
     const a = 'capability-coordination/a';
     const b = 'capability-coordination/b';
     const c = 'capability-coordination/c';

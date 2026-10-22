@@ -8,7 +8,6 @@ import { forkDecision, registryChange, requestPlacement } from '../../../subs/au
 import { installTestRunner, openRuns, startRun } from './runs.js';
 import { scenariosCommit, scriptedGit, type GitCheckpoint } from './scripted-git.js';
 import { FakeRamifyCli } from './fake-ramify.js';
-import { createPassingCheckExecution } from './direct-check-execution.js';
 import { passingAudit } from './direct-check-execution.js';
 
 /*

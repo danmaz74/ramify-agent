@@ -30,7 +30,7 @@ import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRu
  * repository; what it observes is the run's own records and the calls the
  * run made at that boundary. The one scenario whose subject is the boundary
  * itself — a passing commit and the audit published against it — keeps every
- * real tool, in `iterations-integration.test.ts`.
+ * real tool, in `iteration-gate-integration.test.ts`.
  *
  * The process guard below is the negative control: every scenario here
  * starts no process at all, and one that tried would name itself.

@@ -1,9 +1,8 @@
 import { checkFindingStateOf } from '../../check-findings/state.js';
 import { acceptanceBoundaries } from './acceptance-boundaries.js';
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect } from 'vitest';
 import type { Script } from '../../../subs/agent/src/scripted.js';
@@ -13,11 +12,11 @@ import type { ConfiguredAuditInput } from '../../../subs/audit/src/check-executi
 import { localCommandAudit, mappedAudit } from './direct-check-execution.js';
 import { requestCompletion } from './analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
-import { assign, edit, installMiniRunner, outline, submit, treeInputs, write } from './iterations.js';
+import { assign, edit, outline, submit, treeInputs, write } from './iterations.js';
 import { rootDescription } from './root-description.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { testReviewPolicy } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
-import { initRepository, runEventsOnDisk, runPath, startRun, stopRun, testPolicy, until } from './runs.js';
+import { runEventsOnDisk, runPath, startRun, stopRun, testPolicy, until } from './runs.js';
 
 const a = 'capability-coordination/a';
 const b = 'capability-coordination/b';
@@ -32,7 +31,7 @@ const acceptanceDivision = [
 ];
 
 export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reload' | 'drift' | 'restart' | 'verify-restart' |
-  'concern-submission-restart' | 'repair-exhaustion', cleanups: Array<() => Promise<void>>, realBoundary = false,
+  'concern-submission-restart' | 'repair-exhaustion', cleanups: Array<() => Promise<void>>,
   /** Inspects the settled run of the full revision flow. */
   inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>, infrastructureRecovery = false, handbackCommitDrift = false, staleRecovery = false, isolation = false): Promise<void> {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
@@ -40,31 +39,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
     work: 'work-item:richer-a-fact', deferred: 'work-item:b-entry', scenario: 'scenario:review-source' };
   const encode = (value: string) => encodeURIComponent(value);
   const examples = ['capability-example:render-source', 'capability-example:provider-source', 'capability-example:review-source'];
-  if (realBoundary) {
-    await mkdir(join(fixture.root, 'subs/a/src/tests/steps'), { recursive: true });
-    await writeFile(join(fixture.root, 'subs/a/src/tests/steps/capability.steps.js'), [
-      "import assert from 'node:assert/strict';",
-      "import { execFileSync } from 'node:child_process';",
-      "import { Given, When, Then } from '@cucumber/cucumber';",
-      "Given('the project as the plan finds it', function () {});",
-      "When('the person uses richer-a-fact', function () { this.result = execFileSync('./node_modules/.bin/vitest', ['run', 'subs/a/src/tests/caller.test.ts'], { cwd: process.cwd(), encoding: 'utf8' }); });",
-      "Then('the outcome richer-a-fact promises is shown', function () { assert.match(this.result, /1 passed/); });",
-      '',
-    ].join('\n'));
-    await initRepository(fixture.root); await installMiniRunner(fixture.root);
-    // Real Vitest compiles the fixture's TypeScript and resolves its .js source
-    // specifiers; the small runner used by cooperation tests executes JS only.
-    await rm(join(fixture.root, 'node_modules/vitest'), { recursive: true, force: true });
-    await rm(join(fixture.root, 'node_modules/.bin/vitest'), { force: true });
-    await symlink(join(process.cwd(), 'node_modules/vitest'), join(fixture.root, 'node_modules/vitest'));
-    await symlink(join(process.cwd(), 'node_modules/.bin/vitest'), join(fixture.root, 'node_modules/.bin/vitest'));
-    await rm(join(fixture.root, 'node_modules/.bin/cucumber-js'), { force: true });
-    await symlink(join(process.cwd(), 'node_modules/.bin/cucumber-js'), join(fixture.root, 'node_modules/.bin/cucumber-js'));
-    await mkdir(join(fixture.root, 'node_modules/@cucumber'), { recursive: true });
-    await symlink(join(process.cwd(), 'node_modules/@cucumber/cucumber'), join(fixture.root, 'node_modules/@cucumber/cucumber'));
-  }
-  const external = realBoundary ? undefined : acceptanceBoundaries(fixture.root, mode, infrastructureRecovery);
-  if (external !== undefined) cleanups.push(async () => external.assertComplete());
+  const external = acceptanceBoundaries(fixture.root, mode, infrastructureRecovery);
+  cleanups.push(async () => external.assertComplete());
   let architect = 0;
   let reviewer = 0;
   let reconciliationTurns = 0;
@@ -787,7 +763,6 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
     { id: 'capability-example:provider-source', code: "expect(readFact()).toEqual({text:'old', source:'B'})" },
     { id: 'capability-example:review-source', code: "expect(personReviewsSource()).toBe('B')" },
   ] });
-  if (realBoundary) expect(execFileSync('git', ['cat-file', '-t', request.source.tree], { cwd: fixture.root, encoding: 'utf8' }).trim()).toBe('tree');
   expect(events.filter(event => event.type === 'work-item-completed' && event.data.workItem === 'work-item:b-entry')).toHaveLength(0);
   const handbackEvent = events.find(event => event.type === 'capability-handed-back')!;
   await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'invocation-started' &&

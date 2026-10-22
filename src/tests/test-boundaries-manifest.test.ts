@@ -2,8 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import { nodeDiscovery, webDiscovery } from '../../vitest.config.js';
-import { boundaryPaths } from './test-boundaries-manifest.js';
+import { boundaryPaths, nodeDiscovery, webDiscovery } from '../../vitest.config.js';
 
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });

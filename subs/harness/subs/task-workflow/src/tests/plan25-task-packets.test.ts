@@ -136,7 +136,7 @@ describe('one shared capability revision run', () => {
   let unconstructed: Array<{ invocation: string; submissionTool: string | undefined; imported: unknown }>;
   const shared: Array<() => Promise<void>> = [];
   beforeAll(async () => {
-    await runAcceptedHandback('revision', shared, false, async ({ root, planId, runId }: Run) => {
+    await runAcceptedHandback('revision', shared, async ({ root, planId, runId }: Run) => {
       engineer = await engineerDeliveries(root, planId, runId);
       steps = await stepDeliveries(root, planId, runId, ['local-architect', 'context-selector']);
       unconstructed = [];
