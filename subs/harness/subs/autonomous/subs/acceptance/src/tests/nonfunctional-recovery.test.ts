@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { createScriptedAgent } from '../../../../../agent/src/scripted.js';
@@ -27,6 +28,12 @@ beforeEach(resetSpawnAttempts);
 const answers: ReturnType<typeof nfrBoundaries>[] = [];
 
 const cleanups: Array<() => Promise<void>> = [];
+const instabilityFinding = (testId: string): string => {
+  const identity = JSON.stringify({ projectRoot: '.', checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+    path: 'src/tests/retained-coverage.test.ts', testId });
+  const observationKey = createHash('sha256').update(identity).digest('hex');
+  return `finding:audit-instability-${createHash('sha256').update(observationKey).digest('hex').slice(0, 16)}`;
+};
 afterEach(async () => {
   const errors: unknown[] = [];
   for (const cleanup of cleanups.splice(0).reverse()) try { await cleanup(); } catch (error) { errors.push(error); }
@@ -102,11 +109,11 @@ function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnTy
   return createScriptedAgent(withDefaultTurns(spec => {
     if (judgeWarnings && spec.submission.name === 'submit_reconciliation' && spec.prompt.includes('# Reconciliation final-instability-'))
       return reconcile({ ...submission([
-        disposition('cf-0001', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
-        disposition('cf-0002', { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+        disposition(instabilityFinding('first'), { action: 'waive', uncertainty: 'The original test remains unstable.' }),
+        disposition(instabilityFinding('second'), { action: 'waive', uncertainty: 'The original test remains unstable.' }),
       ], { kind: 'complete' }), testOrigins: [
-        { checkFinding: 'cf-0001', origin: 'existing', basis: 'The original execution baseline contains this test.' },
-        { checkFinding: 'cf-0002', origin: 'existing', basis: 'The original execution baseline contains this test.' },
+        { checkFinding: instabilityFinding('first'), origin: 'existing', basis: 'The original execution baseline contains this test.' },
+        { checkFinding: instabilityFinding('second'), origin: 'existing', basis: 'The original execution baseline contains this test.' },
       ] });
     if (spec.submission.name === 'submit_compaction_review') return submit({ action: 'handoff', reason: 'Return the retained repair to the coordinator.' });
     if (spec.submission.name === intakeToolName) return submit(intake(obligation));
@@ -201,7 +208,7 @@ test.each(['before-ingestion', 'between-observations'] as const)(
     expect(reconciled!.sequence).toBeLessThan(repair!.sequence);
     if (reconciled?.type === 'final-instability-reconciled') {
       expect(reconciled.data.checkFindings.map(change => change.type === 'check-finding-decided'
-        ? change.data.checkFinding : null)).toEqual(['cf-0001', 'cf-0002']);
+        ? change.data.checkFinding : null)).toEqual([instabilityFinding('first'), instabilityFinding('second')]);
     }
     expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
     expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(2);

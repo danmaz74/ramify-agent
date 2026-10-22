@@ -491,15 +491,11 @@ export class Acceptance {
     const checkFindings = knownFindingSummary({ ...this.observe().findings, findings: new Map([...this.observe().findings.findings].filter(([, entry]) =>
       sameWorkItem(entry.owner, request.workItem) && entry.verification.kind === 'assessment'
       && !entry.reports.some(report => report.observation.kind === 'audit-instability' || report.producer === 'review:test-reliability'))) });
-    const auditConfiguration = this.input.record.auditConfiguration;
-    const originalBaseline = auditConfiguration && 'config' in auditConfiguration ? auditConfiguration.config.sourceCommit : null;
     const lastNameConflict = state.attempts.at(-1)?.finished?.reason === 'name-conflict'
       ? reviewAttemptSchema.safeParse(this.ports.committedBody(reviewLayout.attempt(state.attempts.at(-1)!.id))) : null;
     const setup = [kind === 'design' ? '' : await this.ports.coordination.checkInputSection(snapshot),
       lastNameConflict?.success && lastNameConflict.data.result.result === 'not-verified'
-        ? `The preceding review submission could not be accepted: ${lastNameConflict.data.result.detail}. Correct the affected findingKey in this review.` : '',
-      `Original plan/execution baseline: ${originalBaseline ?? 'unavailable; preserve uncertainty about test origin'}. The iteration diff base is not the origin boundary. Inspect relevant original test source with Git through shell when needed.`,
-      `Retained gate/audit evidence: ${this.path(runLayout.gate(request.gate))}. Read the receipt and its provider evidence references for warning dispositions and current or retained instability; preserve the recorded verdict.`].filter(Boolean).join('\n');
+        ? `The preceding review submission could not be accepted: ${lastNameConflict.data.result.detail}. Correct the affected findingKey in this review.` : ''].filter(Boolean).join('\n');
     const planDocument = snapshot.entries.get(planPath(this.input.record.planId))?.kind === 'file' ? planPath(this.input.record.planId) : null;
     let prepared: PreparedReview;
     const preparation = new AbortController();

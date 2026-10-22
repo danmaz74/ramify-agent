@@ -91,7 +91,7 @@ describe('a break discovered during work', () => {
         files: { [`${dirC}/src/outcome.ts`]: coreV2, [`${dirC}/src/tests/outcome.test.ts`]: coreTestV2 } },
     });
     const { runId, service } = await run(root, {
-      'initial-architect': [submit(analysis([entry('reviewer-identity', attribution)]))],
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-identity', attribution)]), 'document:reviewer-identity-plan'))],
       'local-architect': [
         submit(assign(core, { kind: 'breaking', stage: 0, goal: 'Introduce the structured reviewer beside the plain field.',
           scope: { base: { module: core, included: [] }, extra: [], read: [], rationale: 'The representation is defined here.' } }, stagedOutline())),
@@ -107,7 +107,11 @@ describe('a break discovered during work', () => {
     expect(events.some(event => event.type === 'review-request-recorded' && event.data.candidate === 'revision-01')).toBe(true);
     expect(events.some(event => event.type === 'check-findings-recorded')).toBe(true);
     expect((await gates(root, runId)).find(gate => gate.id === 'ga-0002')?.checkpoint).toBe('breaking-iteration');
-    expect(service.checkFindings(plan, runId, { kind: 'detail', checkFinding: 'cf-0001' })?.ok).toBe(true);
+    const instability = events.flatMap(event => event.type === 'check-findings-recorded' ? event.data.checkFindings : [])
+      .find(change => change.type === 'check-finding-opened' && change.data.report.observation.kind === 'audit-instability');
+    expect(instability?.type).toBe('check-finding-opened');
+    if (instability?.type === 'check-finding-opened')
+      expect(service.checkFindings(plan, runId, { kind: 'detail', checkFinding: instability.data.checkFinding })?.ok).toBe(true);
   }, 60_000);
   test('break-discovered returns to the local architect, which restages, and the engineer widened nothing', async () => {
     const root = await target();
