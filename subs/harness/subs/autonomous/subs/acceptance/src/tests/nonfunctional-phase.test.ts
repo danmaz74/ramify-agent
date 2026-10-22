@@ -56,6 +56,15 @@ const stream = [marker, prepared('cand-001', first, 2), assessed(initial, 'cand-
   prepared('cand-002', second, 7), assessed(reassessed, 'cand-002', 8), closed];
 
 describe('committed non-functional phase replay', () => {
+  it.each(['boundaryVersion', 'nestedDeclarations'])('names the repair assignment and expected scope when %s is absent', member => {
+    const original = assigned.transaction.records[0]!;
+    const body = structuredClone(original.body) as { scope: { resolved: Record<string, unknown> } };
+    delete body.scope.resolved[member];
+    const altered = { ...assigned, transaction: { ...assigned.transaction, records: [{ ...original, body }] } };
+    const replay = replayNonfunctionalPhase([...stream.slice(0, 4), altered], nfrIds);
+    expect(replay).toMatchObject({ ok: false, reason: expect.stringContaining(runLayout.nonfunctionalRepairAssignment('nfr-repair-001')) });
+    if (!replay.ok) expect(replay.reason).toContain('write scope expects ramify-agent.assignment-boundary/1 with nestedDeclarations');
+  });
   it('reopens assessment after an authenticated final correction, despite a one-round marker', () => {
     const oldMarker = entry('nonfunctional-phase-started', { catalogHash: hash, maxRounds: 1 });
     const gate = entry('gate-attempted', { gate: 'gate-final', checkpoint: 'final', verdict: 'failed', next: 'correct' }, [], 10);

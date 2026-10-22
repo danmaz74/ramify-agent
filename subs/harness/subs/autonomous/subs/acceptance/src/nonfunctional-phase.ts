@@ -5,6 +5,7 @@ import { preparedCandidateSchema, nonfunctionalRepairAssignmentSchema, type Nonf
 import { assessmentCoverage, assessmentSchema, roundSchema, type Assessment, type Candidate } from '../../../../nonfunctional/src/interfaces/contracts.js';
 import { decideNonfunctionalRound, type ClosedRound, type RoundDecisionInput } from '../../../../nonfunctional/src/rounds.js';
 import { workItemSchema, workLayout } from '../../work-coordination/src/work/records.js';
+import { CommittedRecordError, parseCommittedRecord } from '../../../../../src/jobs/committed-reader.js';
 
 export interface CommittedNonfunctionalPhase {
   /** Only committed facts enter the pure round transition rule. */
@@ -189,8 +190,15 @@ export function replayNonfunctionalPhase(
           requireFact(targets.length > 0 && new Set(targets).size === targets.length
             && targets.every(nfr => unresolved.has(nfr) && (!undetermined.has(nfr) || investigatedNfrs.includes(nfr))),
           'repair assignment targets satisfied, duplicate, or uninvestigated NFR IDs');
-          const body = soleRecord(records, runLayout.nonfunctionalRepairAssignment(event.data.assignment), event.data.assignment,
-            value => nonfunctionalRepairAssignmentSchema.parse(value));
+          const path = runLayout.nonfunctionalRepairAssignment(event.data.assignment);
+          const body = soleRecord(records, path, event.data.assignment, value => {
+            try { return parseCommittedRecord(nonfunctionalRepairAssignmentSchema, value, path); }
+            catch (error) {
+              if (error instanceof CommittedRecordError && error.errors.some(issue => issue.startsWith('scope.resolved.boundaryVersion:') || issue.startsWith('scope.resolved.nestedDeclarations:')))
+                throw new CommittedRecordError(path, ['write scope expects ramify-agent.assignment-boundary/1 with nestedDeclarations', ...error.errors]);
+              throw error;
+            }
+          });
           requireFact(body.round === round && body.assessment === event.data.assessment
             && body.candidate === event.data.candidate && body.startingModule === event.data.startingModule
             && JSON.stringify(body.nfrs) === JSON.stringify(event.data.nfrs), 'repair assignment event and record disagree');
