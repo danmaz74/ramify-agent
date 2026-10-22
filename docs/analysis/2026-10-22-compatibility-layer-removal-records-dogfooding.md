@@ -179,3 +179,37 @@ skipped, no test, timeout or source change. `as-0014` (12:05 to 12:07) decided
   files explicitly.
 - Elapsed 07:04 to 12:08 UTC. The host (PID 2003584) and coordinator thread
   were left running for inspection; `coordinate stop` closes them.
+
+## Merge preparation after Plan 42
+
+Plan 42 reached main (`b090d493`) before this branch merged, so the final
+assessment's baseline no longer described main. The observer stopped the
+coordinator (`coordinate stop`, descendants settled) and merged main into the
+branch in its worktree rather than re-registering the plan.
+
+- `f05088bb` merges main. Three conflicts: `standalone-records.ts` and the
+  `projection-compatibility.ts` helper, deleted here and touched by Plan 42
+  for identifier spellings only, stay deleted; nothing surviving imports them.
+  One content hunk in `protocol-contract.test.ts`, where Plan 42 respelled
+  the work-item identifier and this branch replaced the module reach with
+  work-item and capability-task reaches, resolved as this branch's list with
+  Plan 42's descriptive spellings.
+- `4447c375` fixes the one real break the full suite found:
+  `committed-run-refusals.test.ts`, ported from the deleted helper at the
+  baseline, kept the pre-Plan-42 hypothesis record path and cleanup message.
+  It now carries the same descriptive identifiers Plan 42 gave the helper.
+- Verification on `4447c375`: `npm run type-check` and `npm run check:self`
+  pass. The first full `npm test` (four workers, 13:23 to 13:43 UTC) had
+  eight failures: the refusal test above and seven boundary timeouts or
+  deadline-ordering failures while another session's four-worker audit ran
+  on the host (load average above 11). All seven pass in isolation. The
+  default-mode configured audit, which fell back to full mode because
+  `package.json` changed, passed at 14:15 UTC in 943 s: 4211 tests passed, 0
+  failed, 2 skipped; cucumber 15/15; type-check, self-check, web build and
+  patch integrity pass. Report commit `38941110`, run ref
+  `refs/audited/runs/2026-10-22T14-15-16Z-4447c3754`.
+- The audit and the earlier run each left `ramify-audit.flakes.json` modified
+  in the worktree (the run's cf-0008 diagnostics are stashed as
+  `records-run audit flakes record (undecided)`; the audit incremented five
+  existing entries' consecutive passes). Whether to commit either is the
+  user's call.
