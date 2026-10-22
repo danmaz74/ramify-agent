@@ -1,3 +1,5 @@
+// Tests named 'pinned Pi ...' are the canary for installed Pi SDK facts this
+// project depends on; other files assert only the adapter's own behavior.
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { scriptedProvider, scriptedRuntime } from './helpers/scripted-provider.js';
 import { createPiAgentOn, permissiveSchema } from '../pi-agent.js';
@@ -44,6 +46,18 @@ describe('the preserving Pi port', () => {
   });
   test('the permissive declaration retains top-level names while the owner validates the full schema', () => {
     expect(permissiveSchema(submission.inputSchema)).toEqual({ type: 'object', properties: { summary: {} } });
+  });
+  test('pinned Pi reports threshold and overflow compaction as one started and one ended event', async () => {
+    const evidence = { name: 'evidence', description: 'Read evidence.', inputSchema: { type: 'object' }, async execute() { return { text: 'Retained evidence. '.repeat(600) }; } };
+    const nativeCompaction = { reserveTokens: 128, keepRecentTokens: 64 };
+    const threshold = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], [nativeText('Summary.')], [nativeText('Turn.')], [nativeCall('submit_map', { summary: 'Threshold' })]], { tools: [evidence], nativeOptions: { contextWindow: 2048 }, nativeCompaction });
+    expect((await (await threshold.operations.continue(threshold.input())).settled()).outcome?.kind).toBe('submitted');
+    expect(threshold.events.filter(event => event.type === 'compaction')).toMatchObject([{ phase: 'started', reason: 'threshold' }, { phase: 'ended', reason: 'threshold', aborted: false, errorText: null }]);
+    threshold.native.verify();
+    const overflow = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], { error: 'exceeds the context window' }, [nativeText('Summary.')], [nativeText('Turn.')], [nativeCall('submit_map', { summary: 'Overflow' })]], { tools: [evidence], nativeOptions: { contextWindow: 8192 }, nativeCompaction });
+    expect((await (await overflow.operations.continue(overflow.input())).settled()).outcome?.kind).toBe('submitted');
+    expect(overflow.events.filter(event => event.type === 'compaction')).toMatchObject([{ phase: 'started', reason: 'overflow' }, { phase: 'ended', reason: 'overflow', aborted: false, errorText: null }]);
+    overflow.native.verify();
   });
   test('pinned Pi typed executor validation coerces or refuses arguments before authoritative submission admission', async () => {
     const validation = await import(await installedPiPublicExport('./utils/validation')) as {
