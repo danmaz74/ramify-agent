@@ -37,12 +37,16 @@ async function baselineOf(view: RunView): Promise<MetricsResponse['baseline']> {
   const path = runLayout.measurement(reference.measurement.id);
   const text = await readRunFile(view, path);
   if (text === null) return { state: 'unavailable', reason: `${path} is missing`, subtotal: null };
-  let document: { schema?: unknown; policy?: unknown };
-  try { document = JSON.parse(text) as typeof document; }
+  let document: unknown;
+  try { document = JSON.parse(text) as unknown; }
   catch (error) { return { state: 'unavailable', reason: `${path} cannot be read: ${error instanceof Error ? error.message : String(error)}`, subtotal: null }; }
-  const expected = unsupportedVersion(document.schema);
-  if (expected !== null) return { state: 'unavailable', reason: `${path} declares ${String(document.schema)}; this harness reads ${expected}`, subtotal: null };
-  if (document.policy !== undefined && document.policy !== 'scope-size/2') throw new Error(`${path} run measurement: expected scope-size/2`);
+  if (document === null || typeof document !== 'object' || Array.isArray(document)) {
+    return { state: 'unavailable', reason: `${path} cannot be read: expected a measurement object`, subtotal: null };
+  }
+  const fields = document as { schema?: unknown; policy?: unknown };
+  const expected = unsupportedVersion(fields.schema);
+  if (expected !== null) return { state: 'unavailable', reason: `${path} declares ${String(fields.schema)}; this harness reads ${expected}`, subtotal: null };
+  if (fields.policy !== undefined && fields.policy !== 'scope-size/2') throw new Error(`${path} run measurement: expected scope-size/2`);
   let snapshot: MeasurementSnapshot;
   try {
     snapshot = measurementSnapshotSchema.parse(document);

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, test } from 'vitest';
@@ -246,6 +246,23 @@ describe('the delivered change of a run view, read through a scripted history', 
       ...secondLines, gate('ga-0002', 'passed', G2),
     ], { ...record, baseline: { measurement: { id: snapshot.id, revision: 1, hash } }, manifest: { ...record.manifest, source: { commit: B, dirty: false } } }, directory);
   }
+
+  test.each([null, 42, true, 'not a measurement', []])('malformed measurement root %j leaves the baseline unavailable', async document => {
+    const run = await weightedRun();
+    const path = runLayout.measurement(size(1000).snapshot);
+    await writeFile(join(run.directory, path), JSON.stringify(document));
+    const response = await metricsOf(runView(run));
+    expect(response.baseline).toEqual({ state: 'unavailable', reason: `${path} cannot be read: expected a measurement object`, subtotal: null });
+  });
+
+  test('retired measurement policy still names the expected form', async () => {
+    const run = await weightedRun();
+    const path = runLayout.measurement(size(1000).snapshot);
+    const file = join(run.directory, path);
+    const current = JSON.parse(await readFile(file, 'utf8')) as { policy: string };
+    await writeFile(file, JSON.stringify({ ...current, policy: current.policy.replace(/2$/, '1') }));
+    await expect(metricsOf(runView(run))).rejects.toThrow(`${path} run measurement: expected scope-size/2`);
+  });
 
   test('exact weighted scope uses surviving 10/30 shares, not gross invocation edits', async () => {
     const scripted = history([10, 30]);
