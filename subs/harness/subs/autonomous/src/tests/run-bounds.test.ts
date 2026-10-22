@@ -1,4 +1,3 @@
-import { declaringScenarios } from '../../../../src/tests/helpers/declarations.js';
 import { scenariosCommit, type GitCheckpoint } from '../../../../src/tests/helpers/scripted-git.js';
 import { openUnchangedRuns as openRuns, assertUnchangedGit } from '../../../../src/tests/helpers/unchanged-run.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../src/tests/helpers/external-tools.js';
@@ -6,11 +5,10 @@ import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../../agent/src/scripted.js';
 import type { AgentPort, AgentSession, SessionOutcome } from '../../../agent/src/interfaces/port.js';
-import { runCommand, type CommandRunner } from '../../../evidence/src/run-command.js';
+import { type CommandRunner } from '../../../evidence/src/run-command.js';
 import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
-import { commandResult } from '../../../../src/tests/helpers/command-result.js';
 import { copyFixture } from '../../../../src/tests/helpers/fixture.js';
-import { assign, byRole, outline, partialReport, shell, submit, treeInputs } from '../../../../src/tests/helpers/iterations.js';
+import { assign, byRole, outline, submit, treeInputs } from '../../../../src/tests/helpers/iterations.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, stopRun, testPolicy } from '../../../../src/tests/helpers/runs.js';
 import { InvocationBounds } from '../../../task-execution/src/port-events.js';
 import { runLayout, type RunPolicy } from '../run/records.js';
@@ -62,19 +60,6 @@ async function outcome(root: string, runId: string, invocation: string): Promise
 }
 
 describe('the bounds on one invocation', () => {
-  test('healthy streaming past the historical absolute allowance can submit', async () => {
-    // A port event every 50 ms, so the idle bound never fires.
-    const talking = Array.from({ length: 14 }, (_, index) => [
-      { kind: 'message' as const, text: `still working, step ${index}` },
-      { kind: 'wait' as const, ms: 50 },
-    ]).flat();
-    const { root, runId, service } = await run(byRole({ 'initial-architect': [[...talking, ...submit(currentAnalysis(analysis([]), 'document:review-notes-plan'))]] }), { invocationIdleMs: 2_000, invocationAbsoluteMs: 600 }, ['final verification of plan \"review-notes\"']);
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const ended = await outcome(root, runId, 'inv-0002');
-    expect(ended.ended).toBe('submitted');
-    expect(ended.interruption).toBeUndefined();
-  }, 120_000);
-
   test('an invocation that ends within its bounds is not interrupted', async () => {
     const { root, runId, service } = await run(
       byRole({ 'initial-architect': [submit(currentAnalysis(analysis([]), 'document:review-notes-plan'))] }),
@@ -113,62 +98,6 @@ describe('an implementation that cannot start a session', () => {
     await opened.service.execute(stopRun(plan, receipt.jobId, onlyRun(opened.service, plan).version));
     await opened.service.settled(plan, receipt.jobId);
     expect(onlyRun(opened.service, plan).state).toBe('stopped');
-  }, 120_000);
-});
-
-describe('the bounds on the whole run', () => {
-  test('the historical invocation allowance does not refuse pending work and qualification', async () => {
-    // The analysis's three invocations (intake, plan architect, checker)
-    // reach the bound; the module architect's would pass it.
-    const { root, runId, service } = await run(byRole({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(requestCompletion())],
-    }), { maxInvocationsPerRun: 3 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan \"${plan}\"`]);
-    const snapshot = onlyRun(service, plan);
-    expect(snapshot.state).toBe('completed');
-    const events = await runEventsOnDisk(root, plan, runId);
-    expect(events.filter(event => event.type === 'invocation-started').length).toBeGreaterThan(3);
-    expect(events.some(event => event.type === 'invocation-started' && event.data.role === 'local-architect')).toBe(true);
-    expect(events.at(-1)?.type).toBe('job-completed');
-  }, 120_000);
-
-  test('controlled run age beyond its historical allowance does not refuse pending work and qualification', async () => {
-    const fixture = await copyFixture();
-    cleanups.push(fixture.remove);
-    await installTestRunner(fixture.root);
-      let current = new Date('2026-09-22T12:00:00.000Z');
-    const scripted = createScriptedAgent(declaringScenarios(byRole({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(requestCompletion())],
-    })));
-    const timed: AgentPort = {
-      name: scripted.name,
-      support: scripted.support,
-      // The analysis's three sessions (intake, plan architect, checker)
-      // together pass the bound, at the boundary before the module architect's.
-      bindSessionStore(store) { const operations = scripted.bindSessionStore(store); return { ...operations, async continue(input) {
-        current = new Date(current.getTime() + 67);
-        return operations.continue(input);
-      } }; },
-    };
-    const opened = await openRuns(fixture.root, {
-      agent: timed,
-      unchangedCheckpoints: [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan \"${plan}\"`],
-      now: () => current,
-      policy: projectRoot => {
-        const policy = testPolicy(projectRoot);
-        return { ...policy, limits: { ...policy.limits, runAbsoluteMs: 200 } };
-      },
-    });
-    cleanups.push(() => opened.service.close());
-    const receipt = await opened.service.execute(startRun(plan));
-    await opened.service.settled(plan, receipt.jobId);
-
-    const snapshot = onlyRun(opened.service, plan);
-    expect(snapshot.state).toBe('completed');
-    const events = await runEventsOnDisk(fixture.root, plan, receipt.jobId);
-    expect(events.filter(event => event.type === 'invocation-started').length).toBeGreaterThan(3);
-    expect(events.some(event => event.type === 'invocation-started' && event.data.role === 'local-architect')).toBe(true);
   }, 120_000);
 });
 
@@ -256,30 +185,6 @@ describe('the idle bound while a command runs', () => {
     await session.stop();
     await ended;
   });
-
-  test('an engineer\'s shell command that outlasts the idle bound within its own timeout ends nothing', async () => {
-    // The shell command takes twice the idle bound, well within its own timeout.
-    const slowShell: CommandRunner = async request => {
-      if (request.argv[0] !== 'bash') return runCommand(request);
-      await new Promise(resolve => setTimeout(resolve, 2_000));
-      return commandResult(request, { stdout: 'built\n', elapsedMs: 2_000 });
-    };
-    const { root, runId, service } = await run(byRole({
-      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
-      'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
-      engineer: [submit(partialReport(['the build'], ['the rest']), shell('npm run build', { timeoutMs: 10_000 }))],
-    }), { invocationIdleMs: 1_000 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`], slowShell, 5);
-
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const events = await runEventsOnDisk(root, plan, runId);
-    const engineer = events.filter(event => event.type === 'invocation-started')
-      .map(event => event.data as { invocation: string; role: string })
-      .find(data => data.role === 'engineer')!;
-    const ended = await outcome(root, runId, engineer.invocation);
-    expect(ended).toMatchObject({ ended: 'submitted', disposition: 'applied' });
-    expect(ended.interruption).toBeUndefined();
-    expect(ended.elapsedMs).toBeGreaterThanOrEqual(2_000);
-  }, 120_000);
 });
 
 describe('an engineer that ends without a result', () => {

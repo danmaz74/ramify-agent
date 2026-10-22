@@ -143,7 +143,7 @@ test('restart after contingent assignment capture retains one assignment and sta
 });
 
 
-test('resource fallback continues the same authorized automatic repair after historical run age and invocation bounds', async () => {
+test('resource fallback continues the same authorized automatic repair', async () => {
   const subject = await scenario({ resourceRepair: true });
   expect(onlyRun(subject.service, 'review-notes').state, JSON.stringify(onlyRun(subject.service, 'review-notes').failure)).toBe('completed');
   const events = await runEventsOnDisk(subject.root, 'review-notes', subject.runId);
