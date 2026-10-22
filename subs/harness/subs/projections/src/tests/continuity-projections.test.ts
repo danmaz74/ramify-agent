@@ -22,9 +22,12 @@ test('projection refuses a complete retired-source observation while preserving 
     const retired = { ...current, n: 2, data: { ...current.data, native: { ...nativeSettings, source: nativeSettings.source.replace('1.3.0', [0, 87, 1].join('.')) } } };
     await writeFile(path, `${JSON.stringify(current)}\n${JSON.stringify(retired)}\n`);
     await expect(readObservationLog(path, 'observations.jsonl')).rejects.toThrow('observations.jsonl observation record: expected pi@1.3.0:SettingsManager');
-    await writeFile(path, `${JSON.stringify(current)}\n{malformed}\npartial`);
+    const nullSource = { ...current, n: 2, data: { ...current.data, native: { ...nativeSettings, source: null } } };
+    const numericSource = { n: 3, at, type: 'compaction', data: { native: { source: 87 } } };
+    await writeFile(path, `${JSON.stringify(current)}\n${JSON.stringify(nullSource)}\n${JSON.stringify(numericSource)}\n{malformed}\npartial`);
     const recovered = await readObservationLog(path, 'observations.jsonl');
     expect(Array.isArray(recovered) ? recovered.map(row => row.type) : recovered).toEqual(['context', 'coverage-gap']);
+    if (Array.isArray(recovered)) expect(recovered[1]).toMatchObject({ data: { kind: 'observation-truncated', detail: expect.stringContaining('3 unreadable rows') } });
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 

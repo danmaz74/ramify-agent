@@ -43,9 +43,11 @@ test('reopening a complete observation with a retired native source refuses the 
     const retired = { ...current, data: { ...current.data, native: { ...current.data.native, source: current.data.native.source.replace('1.3.0', [0, 87, 1].join('.')) } } };
     await writeFile(path, `${JSON.stringify(current)}\n${JSON.stringify(retired)}\n`);
     await expect(ObservationLog.open(path)).rejects.toThrow(`${path} observation record: expected pi@1.3.0:SettingsManager`);
-    await writeFile(path, `${JSON.stringify(current)}\n{malformed}\npartial`);
+    const nullSource = { ...current, n: 2, data: { ...current.data, native: { ...current.data.native, source: null } } };
+    const numericSource = { n: 3, at: '2026-10-22T00:00:00.000Z', type: 'compaction', data: { native: { source: 87 } } };
+    await writeFile(path, `${JSON.stringify(current)}\n${JSON.stringify(nullSource)}\n${JSON.stringify(numericSource)}\n{malformed}\npartial`);
     const recovered = await ObservationLog.open(path);
     expect(recovered.observations.map(row => row.type)).toEqual(['context', 'coverage-gap']);
-    expect(recovered.observations[1]).toMatchObject({ data: { kind: 'observation-truncated', detail: expect.stringContaining('1 unreadable rows') } });
+    expect(recovered.observations[1]).toMatchObject({ data: { kind: 'observation-truncated', detail: expect.stringContaining('3 unreadable rows') } });
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

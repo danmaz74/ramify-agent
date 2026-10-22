@@ -99,7 +99,8 @@ function hasUnsupportedNativeSource(value: unknown): boolean {
   if (data === null || typeof data !== 'object' || Array.isArray(data)) return false;
   const native = (data as Record<string, unknown>)['native'];
   if (native === null || typeof native !== 'object' || Array.isArray(native)) return false;
-  return 'source' in native && (native as Record<string, unknown>)['source'] !== 'pi@1.3.0:SettingsManager';
+  const source = (native as Record<string, unknown>)['source'];
+  return typeof source === 'string' && source !== 'pi@1.3.0:SettingsManager';
 }
 
 function observationsOf(view: RunView, id: string): Promise<readonly Observation[] | { unavailable: string }> {
