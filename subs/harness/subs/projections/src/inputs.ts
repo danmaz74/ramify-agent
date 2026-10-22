@@ -1,4 +1,5 @@
 import { planningRecords } from '../../autonomous/subs/planning/src/committed.js';
+import { readCapturedDocuments } from '../../autonomous/subs/planning/src/documents.js';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { z } from 'zod';
@@ -236,7 +237,7 @@ export async function unservedRun(projectRoot: string, planId: string, runId: st
     );
   }
   const parsed = runRecordSchema.safeParse(document);
-  // A valid record the service does not hold yet is a run being created.
+  // A valid record the service does not hold yet must still name current, readable run inputs.
   if (parsed.success) {
     const logPath = join(jobsDirectory(projectRoot, planId), runId, runLayout.events);
     const shownLog = relative(projectRoot, logPath);
@@ -251,6 +252,11 @@ export async function unservedRun(projectRoot: string, planId: string, runId: st
       }
     } catch (error) {
       return new ProjectionError('unreadable', `${shownLog} cannot be read: ${error instanceof Error ? error.message : String(error)}`, [shownLog]);
+    }
+    try {
+      await readCapturedDocuments(join(jobsDirectory(projectRoot, planId), runId), parsed.data.manifest);
+    } catch (error) {
+      return new ProjectionError('unreadable', `${shown} names captured documents that cannot be read: ${error instanceof Error ? error.message : String(error)}`, [shown]);
     }
     return null;
   }

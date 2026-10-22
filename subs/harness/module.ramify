@@ -1,5 +1,6 @@
 ramify 1
 module harness
+expose-sub readCapturedDocuments from autonomous to descendants
 owned-nested-project "fixtures/capability-coordination"
 owned-nested-project "fixtures/capability-coordination-nested"
 owned-nested-project "fixtures/collection-review"

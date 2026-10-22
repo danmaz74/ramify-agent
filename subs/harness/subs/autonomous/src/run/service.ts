@@ -421,7 +421,7 @@ class Run {
 export class AutonomousRunService {
   private readonly runs = new Map<string, Run>();
   /** Claims are rebuilt only from committed successor initialization events. */
-  private readonly restartUnavailable = new Map<string, string>();
+  private readonly restartUnavailable = new Map<string, { message: string; record: 'record' | 'events' }>();
   /**
    * Write scopes captured while an assignment was judged, by the accepted
    * body they were captured for, so the assignment applies the scope its
@@ -1245,8 +1245,8 @@ export class AutonomousRunService {
     const recorded = this.refusedPolicies.get(key(planId, runId));
     if (recorded !== undefined) throw new CommandRejection('unsupported-version', `Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`, undefined, [`plans/${planId}/.harness/jobs/${runId}/${runLayout.record}`]);
     const unreadable = this.restartUnavailable.get(key(planId, runId));
-    if (unreadable !== undefined) throw new CommandRejection('unreadable', unreadable, undefined,
-      [`plans/${planId}/.harness/jobs/${runId}/${runLayout.events}`]);
+    if (unreadable !== undefined) throw new CommandRejection('unreadable', unreadable.message, undefined,
+      [`plans/${planId}/.harness/jobs/${runId}/${runLayout[unreadable.record]}`]);
   }
 
   private async load(): Promise<RunRecoveryReport> {
@@ -1271,7 +1271,7 @@ export class AutonomousRunService {
         if (typeof policy !== 'string' || !supportedCapabilityPolicy(policy)) {
           const recorded = typeof policy === 'string' ? policy : '(missing policy)';
           this.refusedPolicies.set(key(planId, jobId), recorded);
-          this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run policy ${recorded}`);
+          this.restartUnavailable.set(key(planId, jobId), { message: `Unsupported retained run policy ${recorded}`, record: 'record' });
           report.skipped.push(key(planId, jobId));
           this.warn(`Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
           continue;
@@ -1280,7 +1280,7 @@ export class AutonomousRunService {
         if (obsoleteFormat !== undefined) {
           const recorded = typeof obsoleteFormat === 'string' ? obsoleteFormat : JSON.stringify(obsoleteFormat) ?? String(obsoleteFormat);
           this.refusedRecordFormats.set(key(planId, jobId), recorded);
-          this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run record format ${recorded}`);
+          this.restartUnavailable.set(key(planId, jobId), { message: `Unsupported retained run record format ${recorded}`, record: 'record' });
           report.skipped.push(key(planId, jobId));
           this.warn(`Run record format ${recorded} is not supported; the retained run cannot continue`);
           continue;
@@ -1300,8 +1300,8 @@ export class AutonomousRunService {
         run = loaded;
       } catch (error) {
         this.restartUnavailable.set(key(planId, jobId), error instanceof CorruptRunLogError
-          ? `Run ${jobId} requires a log of its current single-run events: ${message(error)}`
-          : `Run ${jobId} cannot be loaded: ${message(error)}`);
+          ? { message: `Run ${jobId} requires a log of its current single-run events: ${message(error)}`, record: 'events' }
+          : { message: `Run ${jobId} ${runLayout.record} cannot be loaded: ${message(error)}`, record: 'record' });
         report.skipped.push(key(planId, jobId));
         this.warn(`Skipping ${directory}: ${message(error)}. It declares ${declaredSchemaOf(await readJson(recordPath))}.`);
         continue;

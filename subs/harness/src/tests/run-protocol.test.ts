@@ -610,3 +610,49 @@ test('a current job with an invalid own log reports that log at the command and 
   expect(list.unserved).toEqual([expect.objectContaining({ jobId: runId, code: 'unreadable', message: expect.stringContaining(runLayout.events) })]);
   expect(await readFile(join(directory, runLayout.events), 'utf8')).toBe(`${JSON.stringify(retired)}\n`);
 }, 60_000);
+
+test.each(['continuity', 'recovery'] as const)('a current job missing required %s policy reports job.json at command and query boundaries', async field => {
+  const target = await scriptedTarget();
+  cleanups.push(target.remove);
+  const runId = '20990101T000000Z-abcdef';
+  const directory = runPath(target.root, plan, runId);
+  await mkdir(directory, { recursive: true });
+  const record = constructedRecord({ jobId: runId });
+  const policy = { ...record.policy } as Record<string, unknown>;
+  delete policy[field];
+  await writeFile(join(directory, runLayout.record), `${JSON.stringify({ ...record, policy })}\n`);
+
+  const server = await serve(target.root);
+  cleanups.push(() => server.close());
+  expect(server.recovery.skipped).toEqual([`${plan}/${runId}`]);
+  const evidence = `plans/${plan}/.harness/jobs/${runId}/${runLayout.record}`;
+  const command = await post(server, { type: 'prepare-restart', commandId: `continue-missing-${field}`, expectedVersion: 1, payload: { planId: plan, jobId: runId } });
+  expect(command.status).toBe(422);
+  expect(errorResponseSchema.parse(command.body).error).toMatchObject({ code: 'unreadable', message: expect.stringContaining(runLayout.record), evidence: [evidence] });
+  const query = await get(server, protocolPaths.run(plan, runId));
+  expect(query.status).toBe(422);
+  expect(errorResponseSchema.parse(query.body).error).toMatchObject({ code: 'unreadable', evidence: expect.arrayContaining([evidence]) });
+  const list = runListResponseSchema.parse((await get(server, protocolPaths.runs(plan))).body);
+  expect(list.unserved).toEqual([expect.objectContaining({ jobId: runId, code: 'unreadable', path: evidence })]);
+}, 60_000);
+
+test('a current job whose captured documents are missing reports job.json at command and query boundaries', async () => {
+  const target = await scriptedTarget();
+  cleanups.push(target.remove);
+  const runId = '20990101T000000Z-abcdef';
+  const directory = runPath(target.root, plan, runId);
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, runLayout.record), `${JSON.stringify(constructedRecord({ jobId: runId }))}\n`);
+  await writeFile(join(directory, runLayout.events), '');
+
+  const server = await serve(target.root);
+  cleanups.push(() => server.close());
+  expect(server.recovery.skipped).toEqual([`${plan}/${runId}`]);
+  const evidence = `plans/${plan}/.harness/jobs/${runId}/${runLayout.record}`;
+  const command = await post(server, { type: 'prepare-restart', commandId: 'continue-missing-capture', expectedVersion: 1, payload: { planId: plan, jobId: runId } });
+  expect(command.status).toBe(422);
+  expect(errorResponseSchema.parse(command.body).error).toMatchObject({ code: 'unreadable', message: expect.stringContaining(runLayout.record), evidence: [evidence] });
+  const query = await get(server, protocolPaths.run(plan, runId));
+  expect(query.status).toBe(422);
+  expect(errorResponseSchema.parse(query.body).error).toMatchObject({ code: 'unreadable', message: expect.stringContaining(runLayout.record), evidence: [evidence] });
+}, 60_000);

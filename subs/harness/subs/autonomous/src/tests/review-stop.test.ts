@@ -149,7 +149,10 @@ describe('a run started with the review stop', () => {
     const restarted = await openRuns(root, { script: [] });
     cleanups.push(() => restarted.service.close());
     expect(restarted.recovery.skipped).toContain(`${plan}/${receipt.jobId}`);
-    expect(restarted.service.getRun(plan, receipt.jobId)).toBeUndefined();
+    let refusal: unknown;
+    try { restarted.service.getRun(plan, receipt.jobId); } catch (error) { refusal = error; }
+    expect(refusal).toMatchObject({ code: 'unreadable', message: expect.stringContaining('Document capture stopped before the run was published'),
+      evidence: [`plans/${plan}/.harness/jobs/${receipt.jobId}/${runLayout.record}`] });
   });
 
   test('waits at awaiting-review holding the project, and an approval continues it to completion', async () => {

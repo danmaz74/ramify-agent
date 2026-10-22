@@ -22,6 +22,7 @@ import { localArchitectJsonSchema } from '../work/submission.js';
 import { iterationLayout, type IterationResult } from '../work/iterations.js';
 import { runLayout } from '../../../../src/run/records.js';
 import type { GateAttempt } from '../../../acceptance/src/checks/records.js';
+import { invocationOutcomeSchema } from '../../../../../../subs/task-execution/src/records.js';
 import { passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
 
 vi.mock('node:child_process', async original =>
@@ -180,9 +181,9 @@ async function run(
   root: string,
   plan: Parameters<typeof byRole>[0],
   commits: readonly CommitResponse[],
-  options: Omit<Parameters<typeof openRuns>[1], 'git'> & { previewHeads?: readonly string[] } = {},
+  options: Omit<Parameters<typeof openRuns>[1], 'git'> & { previewHeads?: readonly string[]; resumeAfterPause?: boolean } = {},
 ) {
-  const { previewHeads = [], ...runOptions } = options;
+  const { previewHeads = [], resumeAfterPause = false, ...runOptions } = options;
   const materialization = scenariosCommitted('review-notes');
   const before = commits.slice(0, -1).flatMap(commit => commit.commit ?? []).at(-1) ?? materialization.commit!;
   const after = commits.at(-1)?.commit ?? before;
@@ -200,6 +201,13 @@ async function run(
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
+  if (resumeAfterPause) {
+    await until(() => (opened.service.events('review-notes', receipt.jobId) ?? []).some(event => event.type === 'operation-recovery-paused'));
+    const inspection = await opened.service.recoveryInspection('review-notes', receipt.jobId);
+    expect(inspection).toMatchObject({ state: 'paused', repairRequired: false, evidence: { diagnostic: 'the provider refused the request' } });
+    await opened.service.execute({ type: 'resume-recovery', commandId: 'continue-after-provider-failure', expectedVersion: 0,
+      payload: { planId: 'review-notes', jobId: receipt.jobId } });
+  }
   if (options.production === true) {
     await until(() => {
       const run = opened.service.getRun('review-notes', receipt.jobId)!;
@@ -1062,7 +1070,7 @@ describe('a contract sub-session that ends without an agreement registers nothin
     git.assertAnswered();
   }, 60_000);
 
-  test('a contract session ending without submission closes partial, and the run continues', async () => {
+  test.each(['ended', 'failed'] as const)('a contract session %s without submission closes partial, and the run continues', async outcome => {
     const root = await target();
     const { service, runId, git } = await run(root, {
       'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
@@ -1084,12 +1092,15 @@ describe('a contract sub-session that ends without an agreement registers nothin
       // The session writes the interface, then ends without a submission.
       'contract-engineer': [[
         write(`${providerDirectory}/src/interfaces/note-limit.ts`, contractFile),
-        { kind: 'end', message: 'The provider refused the request.' },
-      ]],
+        outcome === 'failed'
+          ? { kind: 'fail', error: 'the provider refused the request', evidence: { classification: 'permanent', diagnostic: 'the provider refused the request' } }
+          : { kind: 'end', message: 'The provider refused the request.' },
+      ], ...(outcome === 'failed' ? [[{ kind: 'end' as const, message: 'The provider remains unable to complete the contract.' }]] : [])],
     }, [
       accepted('work-item:review-notes', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
       unchanged('final verification of plan "review-notes"'),
-    ], { previewHeads: ['scenarios-of-review-notes', 'scenarios-of-review-notes'] });
+    ], { previewHeads: Array.from({ length: outcome === 'failed' ? 4 : 2 }, () => 'scenarios-of-review-notes'),
+      resumeAfterPause: outcome === 'failed' });
 
     expect(onlyRun(service, 'review-notes').state, JSON.stringify(onlyRun(service, 'review-notes').failure)).toBe('completed');
     const types = typesOf(await events(root, runId));
@@ -1104,6 +1115,18 @@ describe('a contract sub-session that ends without an agreement registers nothin
     // Its module architect is briefed with the digest and the analysis, as for a module engineer.
     expect(result.failure?.digest).toMatchObject({ invocation: result.invocations[0], role: 'contract-engineer', ended: 'ended' });
     expect(result.failure?.analysis.outcome).toBe('analyzed');
+    if (outcome === 'failed') {
+      const log = await events(root, runId);
+      const starts = log.filter((event): event is Extract<RunEvent, { type: 'invocation-started' }> =>
+        event.type === 'invocation-started' && event.data.role === 'contract-engineer');
+      expect(starts).toHaveLength(2);
+      const failure = invocationOutcomeSchema.parse(await readJson<unknown>(root, runId, runLayout.outcome(starts[0]!.data.invocation)));
+      expect(failure).toMatchObject({ ended: 'failed', interruptionEvidence: {
+        classification: 'permanent', diagnostic: 'the provider refused the request',
+      } });
+      expect(log.filter(event => event.type === 'operation-recovery-paused')).toHaveLength(1);
+      expect(log.filter(event => event.type === 'operation-recovery-resumed')).toHaveLength(1);
+    }
     // Successor9 still discovers this ordinary iteration separately: it
     // cannot commit the failed contract session's foreign dirty bytes. The
     // later work-item gate uses both actual recorded assignment authorities.

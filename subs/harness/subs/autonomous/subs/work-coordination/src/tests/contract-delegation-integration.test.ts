@@ -190,7 +190,8 @@ async function run(
   options: Omit<Parameters<typeof openRuns>[1], 'git'> = {},
 ) {
   const final = finalCandidate(root, finalHead);
-  const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits], previews: final.previews });
+  const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits],
+    previews: [{ repositoryRoot: root, head: 'revision-01', tree: 'a'.repeat(40) }, ...final.previews] });
   const opened = await openRuns(root, {
     script: byRole({ 'nonfunctional-coordinator': [submit({ kind: 'assessment', results: [] })], ...plan }), inputs: treeInputs(), git, candidates: final.candidates,
      ...options,
