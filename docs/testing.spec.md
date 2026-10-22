@@ -1,6 +1,9 @@
 # Testing ramify-agent
 
 Ordinary tests exercise real feature logic with small, meaningful examples.
+A behavior covered by a Cucumber scenario is never duplicated by a Vitest
+integration test; see
+[Scenarios Are Never Duplicated in Integration Tests](harness.principles.md#scenarios-are-never-duplicated-in-integration-tests).
 Mock long or repeated external operations, including bulk filesystem persistence,
 validation and history scans. Keep inexpensive file checks where the behavior
 needs them. Performance benchmarks, exhaustive input sweeps and arbitrary large

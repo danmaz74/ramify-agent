@@ -17,6 +17,8 @@ The audit-report delivery rule adopted on 2026-10-14 is normative;
 its runtime delivery change is implemented.
 The audit-sufficiency principle adopted on 2026-10-22 is normative; the
 plan skill and reviewer briefing alignment remain pending.
+The scenario non-duplication principle adopted on 2026-10-22 is normative;
+the removal of duplicating Vitest integration tests remains pending.
 
 ## Purpose
 
@@ -300,6 +302,18 @@ registered scenarios implemented and passing, and the full audit of the
 configured suite passes at the final gate. A completed automated run may
 still await a person's decision on a non-functional plan deviation. Merge readiness requires that decision on the
 exact assessed candidate; it never changes the final gate's result.
+
+### Scenarios Are Never Duplicated in Integration Tests
+
+A Cucumber scenario is the complete statement of a behavior: its text is
+frozen, its steps bind the real seams, and its gate requires real
+integration. A Vitest integration test that drives the same workflow to the
+same assertions is a less complete copy of that scenario, and the copy costs
+a full run on every audit. A behavior that has a scenario is verified by that
+scenario alone; a Vitest test exists for the same subject only when it tests
+something the scenario cannot, such as a module's own function on fakes or a
+native boundary registered in the test boundary registry. Retire the copy,
+never the scenario.
 
 ### Trust Follows Provenance
 
