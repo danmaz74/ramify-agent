@@ -21,7 +21,6 @@ const movedTests: Readonly<Record<string, string>> = {
   "subs/harness/src/tests/run-commands.test.ts": "subs/harness/subs/autonomous/src/tests/run-commands.test.ts",
   "subs/harness/src/tests/run-event-reader.test.ts": "subs/harness/subs/autonomous/src/tests/run-event-reader.test.ts",
   "subs/harness/src/tests/restart-service.test.ts": "subs/harness/subs/autonomous/src/tests/restart-service.test.ts",
-  "subs/harness/src/tests/restart-import.test.ts": "subs/harness/subs/autonomous/src/tests/restart-import.test.ts",
   "subs/harness/src/tests/capability-recovery.boundary.test.ts": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-recovery.boundary.test.ts",
   "subs/harness/src/tests/work-items.test.ts": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/work-items.test.ts",
   "subs/harness/src/tests/contract-delegation.test.ts": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-delegation.test.ts",

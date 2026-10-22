@@ -40,7 +40,7 @@ const plan = 'review-notes';
 test('repair authentication accepts decoded events, not unknown event data', () => {
   const event: RunEvent = runEventSchema.parse({
     sequence: 1, jobId: 'job-001', at: '2026-10-13T00:00:00.000Z',
-    type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' },
+    type: 'external-candidate-observed', data: { id: 'candidate', beforeTree: 'head', afterTree: 'tree' },
   });
   const entry: RepairHistoryEntry = { transaction: { event, records: [] } };
   expect(authenticateRepairHistory([entry])).toEqual([]);

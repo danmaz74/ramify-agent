@@ -14,7 +14,6 @@ import { size, usage, find } from './metric-fixtures.js';
 import { captureProjectionFiles } from './projection-consumers.js';
 
 const plan = 'review-notes';
-const sourceRun = '20260920T080000Z-decafe';
 const where = 'subs/workspace/subs/reviews/src/notes.ts — retained architect judgment';
 
 /** Retained provider-shaped audit evidence, not an audit invocation. */
@@ -56,7 +55,7 @@ function metricEvidence(id: string, session: string, partial: boolean): Line[] {
   ];
 }
 
-/** Real child readers over schema-validated retained records and imported ledger identities.
+/** Real child readers over schema-validated records from the current run.
  * External processes, agents and audit acquisition are deliberately not supplied by the reading port.
  */
 export async function recordedProjectionAuthority() {
@@ -82,7 +81,7 @@ export async function recordedProjectionAuthority() {
       ...metricEvidence('inv-0001', 'ses-0001', false), ...metricEvidence('inv-0002', 'ses-0002', true),
     ];
     const built = constructedRun(lines, undefined, root);
-    const retained: CommittedRun = { ...built, entries: built.entries.map(entry => ({ ...entry, source: { runId: sourceRun, sequence: entry.sequence + 100 } })) };
+    const retained: CommittedRun = built;
     // Serialize and reopen the fixture before querying; answers are not supplied by callbacks.
     const path = join(root, 'retained-history.json');
     await writeFile(path, JSON.stringify(retained));
@@ -105,9 +104,8 @@ export async function recordedProjectionAuthority() {
     let answer: Awaited<ReturnType<typeof read>> | undefined;
     function current() { assert.ok(answer, 'The query step must execute first'); return answer; }
     return {
-      retainedSources() {
-        assert.ok(run.entries.every(entry => entry.source?.runId === sourceRun));
-        assert.equal(run.entries.find(entry => entry.transaction.event.type === 'obligation-reported')!.source!.sequence, 106);
+      sameRunSources() {
+        assert.equal(run.entries.find(entry => entry.transaction.event.type === 'obligation-reported')!.sequence, 6);
       },
       async exercise() { answer = await read(); assert.deepEqual(await read(), answer); },
       authority() {
@@ -121,7 +119,7 @@ export async function recordedProjectionAuthority() {
         assert.deepEqual(progress.capabilities.map(one => [one.state, one.scenarios]), [['working', { done: 1, total: 3 }]]);
         assert.deepEqual(list.obligations.find(one => one.id === 'scenario:read-note-first')!.report, {
           judgment: 'done', revision: 1, basedOnRevision: 0, where, invocation: 'inv-architect', submission: hash,
-          sequence: 106, sourceRun, at: run.entries[5]!.at,
+          sequence: 6, at: run.entries[5]!.at,
         });
       },
       provenance() {
@@ -136,7 +134,7 @@ export async function recordedProjectionAuthority() {
         assert.deepEqual(weighted.coverage, { covered: 1, total: 2 });
         assert.deepEqual(weighted.evidence, ['ses-0002: architect-view unavailable']);
         assert.deepEqual(list.obligations.find(one => one.id === 'scenario:read-note-second')!.binding, {
-          fakes: [], invocation: 'inv-engineer', submission: hash, sourceRun, sequence: 105, at: run.entries[4]!.at,
+          fakes: [], invocation: 'inv-engineer', submission: hash, sequence: 5, at: run.entries[4]!.at,
         });
         assert.deepEqual(list.scenarios[0]!.origin, { kind: 'architect', refs: ['functional-requirement:read-note-acceptance'] });
       },

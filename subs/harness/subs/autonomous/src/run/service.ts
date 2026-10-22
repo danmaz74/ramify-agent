@@ -38,7 +38,6 @@ import { ownershipAuthorityFor } from '../../../../src/work/ownership-authority.
 
 
 import type { ProvisionalSourceGit } from '../../../evidence/src/provisional-git.js';
-import { restartWorkflowEntries, readRestartImport, type RestartImport } from './restart-import.js';
 import { type CommandRunner } from '../../../evidence/src/run-command.js';
 
 
@@ -182,7 +181,7 @@ import { extractPlanScenarios } from '../../../scenarios/src/extraction.js';
 import { RunLog, type RunEvent, type RunEventInput } from './log.js';
 import { ObservationLog } from '../../../task-execution/src/observations.js';
 
-import { defaultContextPolicies, defaultRunPolicy, withProjectTimeouts } from '../../../../src/run/policy.js';
+import { defaultRunPolicy, withProjectTimeouts } from '../../../../src/run/policy.js';
 import { captureProjectConfig, resolveBeadsProjectConfig } from '../../../../src/run/project-config.js';
 import { BeadsSessions } from '../../../../src/run/beads-sessions.js';
 
@@ -275,7 +274,6 @@ export interface RunServiceOptions {
   /** Legacy adapter option, ignored: task continuation does not authenticate runtime hashes. */
   readonly recoveryRuntime?: (() => Promise<RecoveryRuntime>) | undefined;
   /** Settled producer evidence independent of a source commit acknowledgement. */
-  readonly auditSettlement?: ((sourceRun: string, gate: string, commit: string) => Promise<{ confirmed: boolean; evidence: string[] }>) | undefined;
   readonly warn?: ((message: string) => void) | undefined;
 }
 
@@ -316,7 +314,6 @@ const key = (planId: string, runId: string) => `${planId}/${runId}`;
 
 
 class Run {
-  restartImport: RestartImport | undefined;
   recoveryPause: OperationRecovery | undefined;
   recoveryRestart = false;
   startupRecovery = false;
@@ -384,8 +381,7 @@ class Run {
   get jobId(): string { return this.record.jobId; }
   get planId(): string { return this.record.planId; }
   get createdAt(): string { return this.record.createdAt; }
-  effectivePolicy?: RunPolicy;
-  get policy(): RunRecord['policy'] { return this.effectivePolicy ?? this.record.policy; }
+  get policy(): RunRecord['policy'] { return this.record.policy; }
   get baselineMeasurement(): RecordRef | null { return 'measurement' in this.record.baseline ? this.record.baseline.measurement : null; }
 
   /** The sessions of every open invocation, the writer's and the readers'. */
@@ -426,7 +422,6 @@ export class AutonomousRunService {
   private readonly runs = new Map<string, Run>();
   /** Claims are rebuilt only from committed successor initialization events. */
   private readonly restartUnavailable = new Map<string, string>();
-  private readonly restartClaims = new Map<string, { readonly jobId: string; readonly sourceDigest: string }>();
   /**
    * Write scopes captured while an assignment was judged, by the accepted
    * body they were captured for, so the assignment applies the scope its
@@ -550,12 +545,12 @@ export class AutonomousRunService {
     let policy: RunPolicy | undefined;
     const observe = (): CoordinationObservation => {
       const version = run.log.version;
-      if (cached !== undefined && cached.version === version && index === run.index && policy === run.policy && cached.restoring === run.restoring && cached.restarted === (run.restartImport !== undefined)) return cached;
+      if (cached !== undefined && cached.version === version && index === run.index && policy === run.policy && cached.restoring === run.restoring) return cached;
       index = run.index; policy = run.policy;
       const history = coordinationHistory(run.log);
       const lines = history.lines;
       cached = Object.freeze({ version, history, records: committedRecords(lines), index: structuredClone(run.index), policy: structuredClone(run.policy),
-        restoring: run.restoring, restarted: run.restartImport !== undefined, findings: structuredClone(checkFindingStateOf(run.log.ledger)),
+        restoring: run.restoring, findings: structuredClone(checkFindingStateOf(run.log.ledger)),
         pendingEffects: run.log.ledger.pendingEffects().map(effect => effect.key) });
       return cached;
     };
@@ -756,11 +751,6 @@ export class AutonomousRunService {
       },
       reportInstability: attempt => service.reportGateInstability(run, attempt),
       harnessFiles: () => service.coordination(run).harnessFiles(),
-      importedCommitReceipt: async (request) => {
-        const effect = run.restartImport?.recognizedEffects.find(receipt => receipt.checkpoint === request.checkpoint && receipt.subjectWorkItem === request.subject?.workItem && receipt.commit === request.head);
-        if (!effect || (await service.previewCandidateTree()).tree !== effect.tree) return undefined;
-        return { commit: effect.commit, tree: effect.tree };
-      },
       auditDefinition: async (sourceCommit) => {
         const captured = run.record.auditConfiguration;
         if (captured === undefined || 'invalid' in captured) {
@@ -955,7 +945,6 @@ export class AutonomousRunService {
       if (!await this.options.lock.held() || run.log.terminal || this.closed || (run.stopRequested && terminal.type !== 'job-stopped' && terminal.type !== 'job-interrupted')) return 'ended';
       const sessions = this.sessionsOf(run);
       for (const session of sessions?.values() ?? []) {
-        if (run.restartImport && !run.log.ownEvents.some(event => event.type === 'session-opened' && event.data.session === session.id)) continue;
         const reason = session.state === 'suspended' ? 'run-ended' : session.state === 'live' && session.awaiting === null ? opening : null;
         if (reason !== null) await run.log.append({ type: 'session-finished', data: { session: session.id, reason } });
       }
@@ -973,7 +962,7 @@ export class AutonomousRunService {
    * invocation ended, or the run has ended.
    */
   private async finishSession(run: Run, session: SessionId | undefined, reason: SessionFinishReason): Promise<void> {
-    if (session === undefined || run.restartImport && !run.log.ownEvents.some(event => event.type === 'session-opened' && event.data.session === session)) return;
+    if (session === undefined) return;
     const written = await run.mutex.run(async () => {
       if (run.log.terminal || this.sessionsOf(run)?.get(session)?.state !== 'suspended') return false;
       await run.log.append({ type: 'session-finished', data: { session, reason } });
@@ -1295,20 +1284,9 @@ export class AutonomousRunService {
         }
         const record = runRecordSchema.parse(parsed);
         if (record.jobId !== jobId || record.planId !== planId) throw new Error('job.json names another run');
-        const log = await RunLog.open(join(directory, runLayout.events), jobId, undefined, record.restart !== undefined);
-        const preparation = log.find('restart-prepared');
-        if (preparation) this.restartClaims.set(key(planId, preparation.data.sourceRun), { jobId, sourceDigest: preparation.data.sourceDigest });
+        const log = await RunLog.open(join(directory, runLayout.events), jobId);
         const captured = await readCapturedDocuments(directory, record.manifest);
-        if (!log.find('job-started') && !preparation) {
-          if (record.restart) continue;
-          throw new Error('Document capture stopped before the run was published');
-        }
-        let imported: RestartImport | undefined;
-        if (record.restart) {
-          if (!preparation || Object.entries(record.restart).some(([field, value]) => value !== preparation.data[field as keyof typeof preparation.data])) throw new Error('Restart initialization provenance is unavailable or inconsistent');
-          imported = await readRestartImport(directory, record.restart.importDigest);
-          log.installWorkflowImport(restartWorkflowEntries(imported));
-        }
+        if (!log.find('job-started')) throw new Error('Document capture stopped before the run was published');
         if (!log.find('document-manifest-committed')) await log.append({ type: 'document-manifest-committed', data: {
           manifest: record.manifest.documentManifest.path, hash: record.manifest.documentManifest.hash,
           documents: captured.manifest.documents.length,
@@ -1316,9 +1294,6 @@ export class AutonomousRunService {
         const base = await this.runBase(record, log);
         let loaded!: Run;
         loaded = new Run(record, directory, log, base, this.newWriter(record.policy, () => this.coordination(loaded).accepted()));
-        const adopted = log.all('continuity-policy-adopted').at(-1);
-        if (adopted) loaded.effectivePolicy = adopted.data.policy;
-        loaded.restartImport = imported;
         run = loaded;
       } catch (error) {
         this.restartUnavailable.set(key(planId, jobId), `Retained source is unreadable or incompatible: ${message(error)}`);
@@ -1328,7 +1303,7 @@ export class AutonomousRunService {
       }
       this.runs.set(run.key, run);
 
-      for (const event of run.log.ownEvents) if (event.type === 'restart-prepared' || event.type === 'operation-recovery-resumed' || event.type === 'stop-requested') this.commands.remember(event.data.command);
+      for (const event of run.log.ownEvents) if (event.type === 'operation-recovery-resumed' || event.type === 'stop-requested') this.commands.remember(event.data.command);
       const rewritten = await recoverCommits(run.log.ledger);
       if (rewritten.rewritten.length > 0) report.rematerialized.push(`${run.key}: ${rewritten.rewritten.length} record file(s)`);
       // A crash can land after the durable close event and before its
@@ -2188,7 +2163,6 @@ export class AutonomousRunService {
       if (pause.state !== 'paused') throw new CommandRejection('busy', `The run is ${pause.state}`);
       if (pause.taskState !== 'pending') throw new CommandRejection('conflict', 'An outcome is held; resume consumes it without another model call');
       run.writer.requireSettled('Debugger exchange requires settled tools');
-      await this.adoptContinuityPolicy(run, pauseId);
       const at = this.now();
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
       await run.log.append({ type: 'debug-exchange-admitted', data: { pauseId, revision: pause.revision, message: text, command: accepted } }, at);
@@ -2249,7 +2223,6 @@ export class AutonomousRunService {
       // A held terminal outcome can return to ordinary failure handling without
       // acquiring a writer or starting a model. The unsettled barrier stays set.
       if (run.writer.isUnsettled && (pause.taskState !== 'terminal' || !run.debugPrepared?.held())) throw new CommandRejection('busy', run.writer.blocked!);
-      await this.adoptContinuityPolicy(run, pauseId);
       const at = this.now();
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
       await run.log.append({ type: 'debug-resumed', data: { pauseId, revision: pause.revision + 1, command: accepted, ...(command.payload.message === undefined ? {} : { message: command.payload.message }) } }, at);
@@ -2372,7 +2345,6 @@ export class AutonomousRunService {
       const changes = await documentChanges(this.projectRoot, planId, run.directory, run.record.manifest);
       if (changes.length > 0) throw new CommandRejection('inputs-changed', changes.join('; '));
       if (snapshot.state === 'running' && snapshot.phase === 'awaiting-review') {
-        await this.adoptContinuityPolicy(run, 'analysis-approval');
       }
       const at = this.now();
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
@@ -2531,7 +2503,7 @@ export class AutonomousRunService {
   /** Recovery records are read from committed revisions, independently of the live driver. */
   private latestOperationRecovery(run: Run): OperationRecovery | undefined {
     const continued = run.log.ownEvents.map(event => event.type).lastIndexOf('job-continued');
-    const event = run.log.ownEvents.slice(continued + 1).filter(event => ['operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'restart-prepared'].includes(event.type)).at(-1);
+    const event = run.log.ownEvents.slice(continued + 1).filter(event => ['operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed'].includes(event.type)).at(-1);
     if (!event || !('occurrenceId' in event.data)) return undefined;
     return operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId as string, (event.data as { revision: number }).revision)));
   }
@@ -2540,13 +2512,6 @@ export class AutonomousRunService {
   private effectiveInvocationOutcome(run: Run, id: string): InvocationOutcome | undefined {
     const outcome = committedRecords(run.log.ledger.replay()).outcomes.get(id);
     if (!outcome || outcome.settled.confirmed) return outcome;
-    if (run.restartImport) for (const record of [...run.restartImport.records].reverse()) {
-      const proof = operationRecoverySchema.safeParse(record.body);
-      if (!proof.success || !proof.data.settled || !proof.data.reconciledInvocations?.includes(id)) continue;
-      const observation = proof.data.settlementObservations?.find(entry => entry.invocation === id);
-      if (observation) return { ...outcome, settled: { confirmed: true, at: observation.at, groupsKilled: observation.groupsKilled, lateWrites: observation.lateWrites },
-        ...(observation.ref && outcome.session ? { session: { ...outcome.session, ref: observation.ref } } : {}) };
-    }
     for (const event of [...run.log.all('operation-recovery-resumed')].reverse()) {
       const recovered = operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision)));
       const observation = recovered.settlementObservations?.find(item => item.invocation === id);
@@ -2563,7 +2528,6 @@ export class AutonomousRunService {
     if (run.live.size > 0) blockers.push('Settlement: admitted operations are still live');
     const operations = this.sessionOperations === undefined ? undefined : await this.sessionOperations;
     for (const started of run.log.all('invocation-started')) {
-      if (run.restartImport && started.sequence < 0) continue;
       const outcome = invocationOutcomeSchema.safeParse(this.effectiveInvocationOutcome(run, started.data.invocation) ?? this.committedBody(run, runLayout.outcome(started.data.invocation)));
       if ((!outcome.success || !outcome.data.settled.confirmed) && !recovery.reconciledInvocations?.includes(started.data.invocation)) blockers.push(`Settlement: invocation ${started.data.invocation} is unconfirmed`);
       for (const group of !outcome.success || !outcome.data.settled.confirmed && !recovery.reconciledInvocations?.includes(started.data.invocation)
@@ -2585,7 +2549,6 @@ export class AutonomousRunService {
     const reconciled = new Set(recovery.reconciledInvocations ?? []);
     const observations = [...recovery.settlementObservations ?? []];
     for (const started of run.log.all('invocation-started')) {
-      if (run.restartImport && started.sequence < 0) continue;
       const outcome = invocationOutcomeSchema.safeParse(this.effectiveInvocationOutcome(run, started.data.invocation) ?? this.committedBody(run, runLayout.outcome(started.data.invocation)));
       const unknown = await operations.unresolvedEffects(run.jobId, started.data.invocation);
       if (unknown.length === 0 && (outcome.success && outcome.data.settled.confirmed || reconciled.has(started.data.invocation))) continue;
@@ -2639,7 +2602,7 @@ export class AutonomousRunService {
     const observations: Partial<RecoveryInspection> = { repairRequired: false };
     const now = this.now().getTime();
     const { kind, role, work, invocation, source, candidate, checkpoint } = recovery.boundary;
-    return recoveryInspectionSchema.parse({ planId, runId, cursor: run.log.version, ...(run.record.restart ? { restart: { sourceRun: run.record.restart.sourceRun, sourceCursor: run.record.restart.sourceCursor, sourceDigest: run.record.restart.sourceDigest, importDigest: run.record.restart.importDigest, generation: run.record.restart.generation } } : {}), occurrenceId: recovery.id, revision: recovery.revision,
+    return recoveryInspectionSchema.parse({ planId, runId, cursor: run.log.version, occurrenceId: recovery.id, revision: recovery.revision,
       state: recovery.state, boundary: { kind, ...(role === undefined ? {} : { role }), ...(work === undefined ? {} : { work }),
         ...(invocation === undefined ? {} : { invocation }), ...(source ? { source } : {}), ...(candidate === undefined ? {} : { candidate }),
         ...(checkpoint === undefined ? {} : { checkpoint }) },
@@ -2707,15 +2670,6 @@ export class AutonomousRunService {
     return true;
   }
 
-  private async adoptContinuityPolicy(run: Run, occurrenceId: string): Promise<void> {
-    if (run.policy.continuity) return;
-    const original = run.policy;
-    const defaults = defaultRunPolicy({ projectRoot: this.projectRoot });
-    const effective: RunPolicy = { ...original, version: 'run-policy/8', continuity: defaults.continuity, context: { ...original.context, ...Object.fromEntries(Object.keys(original.context).map(role => [role, defaultContextPolicies[role as Role]])) }, recovery: defaults.recovery };
-    await run.log.append({ type: 'continuity-policy-adopted', data: { from: original.version, to: 'run-policy/8', occurrenceId, policy: effective } }, this.now());
-    run.effectivePolicy = effective;
-  }
-
   private async resumeRecovery(command: Extract<RunCommand, { type: 'resume-recovery' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId } = command.payload;
     this.refuseUnavailableRun(planId, jobId);
@@ -2734,8 +2688,7 @@ export class AutonomousRunService {
         if (!blockers.length) {
           // The old owner may have completed its last durable transition while
           // draining. Reopen only after it settled, before becoming the writer.
-          run.log = await RunLog.open(run.log.path, run.jobId, undefined, run.record.restart !== undefined);
-          if (run.restartImport) run.log.installWorkflowImport(restartWorkflowEntries(run.restartImport));
+          run.log = await RunLog.open(run.log.path, run.jobId);
           run.stopRequested = run.log.find('stop-requested') !== undefined;
           if (run.stopRequested) blockers.push('The explicit stop remains effective');
           else await this.closeInterruptedInvocations(run);
@@ -2744,7 +2697,6 @@ export class AutonomousRunService {
       if (run.writer.isUnsettled) blockers.push('The former writer has not settled');
       if (blockers.length) throw new CommandRejection('conflict', blockers.join('; '));
       const at = this.now();
-      await this.adoptContinuityPolicy(run, recovery?.id ?? 'continuation');
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
       if (recovery) {
         const resumed = operationRecoverySchema.parse({ ...recovery, state: 'resumed', revision: recovery.revision + 1, group: Math.max(1, recovery.group) });

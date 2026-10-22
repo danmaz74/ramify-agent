@@ -44,10 +44,10 @@ Feature: projection-backed-harness-consumers
   @ramify-sc-005 @ramify-pending
   Scenario: Progress retains authority and provenance
     Given recorded architect judgments, failed and passing audits, and partial metric evidence
-    And retained source-run references where the baseline supports imported history
+    And source references from the same run
     When the extracted readers answer progress, scenario and metric queries
     Then architect-reported status remains distinct from automated check outcomes
-    And unavailable quantities, coverage and original source identities remain explicit
+    And unavailable quantities, coverage and same-run source identities remain explicit
     And the query creates no new completion judgment
 
   @ramify-sc-006 @ramify-pending

@@ -184,7 +184,7 @@ describe('a run started with the review stop', () => {
     expect(done).toMatchObject({ state: 'completed', phase: 'ended', review: { reviewer: 'dana@example.com', at: approved.acceptedAt, duringRun: false } });
     const events = await runEventsOnDisk(root, plan, receipt.jobId);
     expect(events.map(event => event.type)).toEqual([
-      'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested', 'continuity-policy-adopted', 'analysis-approved',
+      'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested', 'analysis-approved',
       'gate-started', 'readiness-passed', 'scratch-setting-up', 'scratch-setup-complete',
       'nonfunctional-phase-started', 'candidate-prepared', 'gate-committing', 'gate-attempted',
       'nonfunctional-assessed', 'candidate-bound-to-gate', 'nonfunctional-round-closed', 'session-finished', 'job-completed',

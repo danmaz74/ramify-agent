@@ -35,14 +35,6 @@ export function projectEvent(event: RunEvent): ProjectedRunEvent {
 
 function describe(event: RunEvent): [string, Ref[]] {
   switch (event.type) {
-    case 'restart-branch-setting-up':
-      return [`Preparing successor branch ${event.data.branch} from admitted HEAD ${event.data.head}`, ref('commit', event.data.head)];
-    case 'restart-branch-ready':
-      return [`Successor branch ${event.data.branch} preserves admitted candidate ${event.data.tree}`, ref('commit', event.data.head)];
-    case 'restart-prepared':
-      return [`Linked successor prepared from run ${event.data.sourceRun} at version ${event.data.sourceCursor}; recovery ${event.data.occurrenceId} awaits explicit resume`, []];
-    case 'continuity-policy-adopted':
-      return [`Recovery ${event.data.occurrenceId} adopted execution continuity (${event.data.from} to ${event.data.to}); the original captured policy remains retained`, []];
     case 'operation-recovery-attempt':
       return [`Recovery group ${event.data.group}, attempt ${event.data.attempt}: ${event.data.invocation}`, ref('invocation', event.data.invocation)];
     case 'operation-recovery-pausing':
@@ -348,7 +340,7 @@ function describe(event: RunEvent): [string, Ref[]] {
     case 'candidate-prepared':
       return [`Candidate ${event.data.candidate} prepared`, []];
     case 'nonfunctional-phase-started':
-      return [`Non-functional assessment phase started with ${event.data.maxRounds} round${event.data.maxRounds === 1 ? '' : 's'}`, []];
+      return ['Non-functional assessment phase started', []];
     case 'nonfunctional-final-invalidated':
       return [`External repair ${event.data.occurrenceId} requires fresh assessment after round ${event.data.round}`, []];
     case 'nonfunctional-assessed':

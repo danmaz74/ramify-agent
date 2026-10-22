@@ -11,7 +11,7 @@ import { analysis, currentAnalysis, entry, requestCompletion } from '../../../..
 import { commandResult } from '../../../../src/tests/helpers/command-result.js';
 import { copyFixture } from '../../../../src/tests/helpers/fixture.js';
 import { assign, byRole, outline, partialReport, shell, submit, treeInputs } from '../../../../src/tests/helpers/iterations.js';
-import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, testPolicy } from '../../../../src/tests/helpers/runs.js';
+import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, stopRun, testPolicy } from '../../../../src/tests/helpers/runs.js';
 import { InvocationBounds } from '../../../task-execution/src/port-events.js';
 import { runLayout, type RunPolicy } from '../run/records.js';
 import { type InvocationOutcome } from '../../../task-execution/src/records.js';
@@ -35,6 +35,7 @@ async function run(
   limits: Partial<RunPolicy['limits']>,
   unchangedCheckpoints: ReadonlyArray<string | GitCheckpoint> = [],
   commandExecution?: CommandRunner,
+  previewCount?: number,
 ) {
   const fixture = await copyFixture();
   cleanups.push(fixture.remove);
@@ -42,6 +43,7 @@ async function run(
   const opened = await openRuns(fixture.root, {
     script,
     unchangedCheckpoints,
+    ...(previewCount === undefined ? {} : { previewCount }),
     inputs: treeInputs(),
     ...(commandExecution === undefined ? {} : { commandExecution }),
     policy: projectRoot => {
@@ -85,7 +87,7 @@ describe('the bounds on one invocation', () => {
 });
 
 describe('an implementation that cannot start a session', () => {
-  test('is an adapter fault: the invocation ends failed with that interruption, and the run fails agent-failed', async () => {
+  test('records the adapter fault and accepts an explicit stop while recovery retains the task', async () => {
     // Also found by the composition suite: the harness's defense against a
     // the preserving operation that throws, which the port's rules forbid, had no test.
     const scripted = createScriptedAgent([{ kind: 'submit', input: currentAnalysis(analysis([]), 'document:review-notes-plan') }]);
@@ -97,14 +99,20 @@ describe('an implementation that cannot start a session', () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);
-      const opened = await openRuns(fixture.root, { agent: broken, inputs: treeInputs() });
+    const opened = await openRuns(fixture.root, { agent: broken, inputs: treeInputs(), gitScript: { previews: [
+      { repositoryRoot: fixture.root, head: 'unchanged-fixture-revision', tree: 'a'.repeat(40) },
+    ] } });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun(plan));
-    await opened.service.settled(plan, receipt.jobId);
-    expect(onlyRun(opened.service, plan).failure?.reason).toBe('agent-failed');
+    await vi.waitFor(async () => {
+      expect(await outcome(fixture.root, receipt.jobId, 'inv-0001')).toMatchObject({ ended: 'failed', interruption: 'adapter-fault' });
+    });
     const ended = await outcome(fixture.root, receipt.jobId, 'inv-0001');
     expect(ended).toMatchObject({ ended: 'failed', interruption: 'adapter-fault' });
     expect(ended.error).toContain('the adapter could not build a session');
+    await opened.service.execute(stopRun(plan, receipt.jobId, onlyRun(opened.service, plan).version));
+    await opened.service.settled(plan, receipt.jobId);
+    expect(onlyRun(opened.service, plan).state).toBe('stopped');
   }, 120_000);
 });
 
@@ -260,7 +268,7 @@ describe('the idle bound while a command runs', () => {
       'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
       engineer: [submit(partialReport(['the build'], ['the rest']), shell('npm run build', { timeoutMs: 10_000 }))],
-    }), { invocationIdleMs: 1_000 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`], slowShell);
+    }), { invocationIdleMs: 1_000 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`], slowShell, 5);
 
     expect(onlyRun(service, plan).state).toBe('completed');
     const events = await runEventsOnDisk(root, plan, runId);
@@ -286,7 +294,7 @@ describe('an engineer that ends without a result', () => {
     const { root, runId, service } = await run(spec => {
       if (spec.role === 'local-architect') prompts.push(spec.prompt);
       return typeof script === 'function' ? script(spec) : script;
-    }, { invocationIdleMs: 300 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`]);
+    }, { invocationIdleMs: 300 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`], undefined, 5);
 
     expect(onlyRun(service, plan).state).toBe('completed');
     const events = await runEventsOnDisk(root, plan, runId);
@@ -310,12 +318,12 @@ describe('an engineer that ends without a result', () => {
     const scripted = byRole({
       'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(assign(reviews)), submit(assign(reviews)), submit(requestCompletion())],
-      engineer: [[{ kind: 'fail', error: 'the provider refused the request' }], [{ kind: 'fail', error: 'the provider refused the request' }], [{ kind: 'fail', error: 'the provider refused the request' }]],
+      engineer: [[{ kind: 'end' }], [{ kind: 'end' }], [{ kind: 'end' }]],
     });
     const { root, runId, service } = await run(spec => {
       if (spec.role === 'local-architect') architectPrompts.push(spec.prompt);
       return typeof scripted === 'function' ? scripted(spec) : scripted;
-    }, { maxIterationsPerWorkItem: 2 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`]);
+    }, { maxIterationsPerWorkItem: 2 }, [scenariosCommit(plan), 'work-item:reviewer-note', `final verification of plan "${plan}"`], undefined, 7);
 
     const snapshot = onlyRun(service, plan);
     expect(snapshot.state).toBe('completed');

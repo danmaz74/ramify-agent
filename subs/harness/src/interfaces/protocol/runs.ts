@@ -153,7 +153,6 @@ export type RecoveryResumeCommand = z.infer<typeof recoveryResumeCommandSchema>;
 /** The retained obstruction and current prerequisites for a person's next attempt. */
 export const recoveryInspectionSchema = z.object({
   planId: planIdSchema, runId: runIdSchema, cursor: jobVersionSchema,
-  restart: z.object({ sourceRun: runIdSchema, sourceCursor: z.int().nonnegative(), sourceDigest: z.string(), importDigest: z.string(), generation: z.int().positive() }).strict().optional(),
   occurrenceId: z.string().min(1), revision: z.int().positive(), state: z.enum(['pausing', 'paused']),
   boundary: z.object({ kind: z.enum(['invocation', 'preparation', 'readiness', 'gate']), role: roleSchema.optional(), checkpoint: z.string().optional(),
     work: z.record(z.string(), z.string()).optional(), invocation: z.string().optional(), source: z.string().optional(), candidate: z.string().optional() }).strict(),
@@ -344,7 +343,6 @@ const moduleNotice = <K extends 'module-created' | 'module-removed'>(kind: K) =>
   kind: z.literal(kind),
   at: timestamp,
   sequence: z.int().positive(),
-  sourceRun: runIdSchema.optional(),
   summary: text,
   module: text,
   /** The `module.ramify` the accepted commit added or deleted. */
@@ -367,8 +365,7 @@ export const runNoticeSchema = z.discriminatedUnion('kind', [
     kind: z.literal('dependency-cycle'),
     at: timestamp,
     sequence: z.int().positive(),
-    sourceRun: runIdSchema.optional(),
-    summary: text,
+      summary: text,
     /** The capabilities of the cycle, in their normalized order. */
     cycle: z.array(text).min(1),
     /** The work item whose registration closed the cycle, whose architect re-planned. */
@@ -491,7 +488,6 @@ export const runSnapshotSchema = z.object({
   /** The breakpoint the run was started with, or null. Answers that omit it parse as null. */
   breakpoint: breakpointSelectorSchema.nullable().default(null),
   /** Recovery holds the ordinary phase while retaining its unfinished operation. Legacy responses omit it. */
-  restart: recoveryInspectionSchema.shape.restart.optional(),
   recovery: z.object({ occurrenceId: z.string().min(1), revision: z.int().positive(), state: z.enum(['pausing', 'paused']) }).strict().nullable().optional(),
 }).strict();
 export type RunSnapshot = z.infer<typeof runSnapshotSchema>;
@@ -803,7 +799,7 @@ export type AnalysisResponse = z.infer<typeof analysisResponseSchema>;
 
 export const placementOutcomeViewSchema = z.enum(['reuse', 'create', 'extract', 'external']);
 
-const decisionBase = { at: timestamp, sequence: z.int().positive(), sourceRun: runIdSchema.optional(), workItem: text };
+const decisionBase = { at: timestamp, sequence: z.int().positive(), workItem: text };
 
 /**
  * One choice the run made, read from the record that holds it. There is no
@@ -1508,8 +1504,7 @@ export const obligationViewSchema = z.object({
     invocation: text,
     submission: text,
     sequence: z.int().positive(),
-    sourceRun: runIdSchema.optional(),
-    at: timestamp,
+      at: timestamp,
   }).strict().nullable(),
   /** The responsible architect's latest accepted report; null while there is none. */
   report: z.object({
@@ -1520,8 +1515,7 @@ export const obligationViewSchema = z.object({
     invocation: text,
     submission: text,
     sequence: z.int().positive(),
-    sourceRun: runIdSchema.optional(),
-    at: timestamp,
+      at: timestamp,
   }).strict().nullable(),
 }).strict();
 export type ObligationView = z.infer<typeof obligationViewSchema>;

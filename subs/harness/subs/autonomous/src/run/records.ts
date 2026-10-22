@@ -82,11 +82,11 @@ const text = z.string().min(1);
  *
  */
 export const runPolicySchema = z.object({
-  version: z.enum(['run-policy/7', 'run-policy/8']),
-  continuity: z.object({ version: z.literal('resource-continuity/1') }).strict().optional(),
+  version: z.literal('run-policy/8'),
+  continuity: z.object({ version: z.literal('resource-continuity/1') }).strict(),
   contract: z.literal('plan21-whole-owner-and-architect-reporting/1'),
   recovery: z.object({ version: z.literal('operation-recovery/1'), automaticRetries: z.int().nonnegative(),
-    baseDelayMs: z.int().nonnegative(), maxDelayMs: z.int().positive() }).strict().optional(),
+    baseDelayMs: z.int().nonnegative(), maxDelayMs: z.int().positive() }).strict(),
   limits: z.object({
     repairRoundsPerIteration: z.int().positive(),
     repairRoundsPerWorkItemGate: z.int().positive(),
@@ -182,7 +182,6 @@ export const runRecordSchema = z.object({
   jobId: jobIdSchema,
   planId: planIdSchema,
   kind: z.literal('implementation'),
-  restart: z.object({ sourceRun: jobIdSchema, sourceCursor: z.int().nonnegative(), sourceDigest: sha256Schema, importDigest: sha256Schema, importPath: text, generation: z.int().positive() }).strict().optional(),
   agent: runAgentSchema,
   createdAt: timestamp,
   manifest: inputManifestSchema,
@@ -295,7 +294,6 @@ export const runLayout = {
   nonfunctionalRepairAssignment: (id: string): string => join('nonfunctional', 'repairs', `${id}.json`),
   nonfunctionalDeviation: (id: string): string => join('deviations', `${encodeURIComponent(id)}.json`),
   events: 'events.jsonl',
-  restartImport: 'restart/import.json',
   promptManifest: join('prompts', 'manifest.json'),
   entries: join('analysis', 'entries.json'),
   /** One tracked scenario, such as `scenario:preview-visible`, committed by `analysis-accepted` and immutable. */

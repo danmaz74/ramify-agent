@@ -41,7 +41,6 @@ export function RecoveryPanel({ client, run, onChanged }: {
   return <section className="panel" aria-labelledby="recovery-heading">
     <h2 id="recovery-heading">{inspection?.state === 'pausing' ? 'Waiting for execution to settle' : 'Unfinished task'}</h2>
     {inspection && <>
-      {inspection.restart && <p>Continues source run <a href={routeHref({ page: 'run', planId: run.planId, runId: inspection.restart.sourceRun })}><code>{inspection.restart.sourceRun}</code></a> at version {inspection.restart.sourceCursor}. Its unfinished work is retained.</p>}
       <p>The retained {inspection.boundary.kind} operation{inspection.boundary.role ? ` (${inspection.boundary.role})` : ''} is unfinished. {inspection.evidence.diagnostic}</p>
       <dl>
         {inspection.boundary.checkpoint && <div><dt>Checkpoint</dt><dd>{inspection.boundary.checkpoint}</dd></div>}

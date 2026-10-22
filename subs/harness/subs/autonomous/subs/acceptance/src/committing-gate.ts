@@ -67,9 +67,6 @@ export class CandidateReassessmentRequired extends Error {}
 export interface GateHost extends AcceptanceJournal {
   /** Imported execution receipts remain history even when their verdict needs renewal. */
   evidenceApplicable?(event: RunEvent): boolean;
-  /** Authenticated source commit effects can survive a lost acknowledgement;
-   * their source verdict never substitutes for this gate's qualification. */
-  importedCommitReceipt?(request: CheckpointRequest): Promise<{ readonly commit: string; readonly tree: string } | undefined>;
   /** Retain an iteration candidate once its source commit exists. */
   iterationCandidatePrepared?(candidate: { readonly gate: string; readonly workItem: string; readonly iteration: string;
     readonly commit: string; readonly tree: string; readonly base: string }): Promise<void>;
@@ -516,14 +513,7 @@ export class CommittingGates {
             }
             await assertScratchSafe(this.host.projectRoot, await declaredModuleDirectories(this.host.projectRoot), this.host.git);
           };
-          const receipt = await this.host.importedCommitReceipt?.({ ...identity, checkpoint: prepared.checkpoint, policy: this.observe().policy });
-          if (receipt && receipt.commit === identity.head) {
-            await prepareCommit();
-            if ((await this.host.previewCandidateTree()).tree !== receipt.tree || await this.host.git.currentHead(this.host.projectRoot) !== receipt.commit) {
-              throw new CandidateDriftError('The imported commit receipt no longer matches the prepared candidate');
-            }
-            commit = receipt.commit;
-          } else commit = await commitForGate(this.host.projectRoot, this.host.identity.jobId, identity.id, message, undefined, this.host.git, prepareCommit);
+          commit = await commitForGate(this.host.projectRoot, this.host.identity.jobId, identity.id, message, undefined, this.host.git, prepareCommit);
         } catch (error) {
           if (error instanceof RecoveredGateRefusal) return { attempt: error.attempt };
           throw error;

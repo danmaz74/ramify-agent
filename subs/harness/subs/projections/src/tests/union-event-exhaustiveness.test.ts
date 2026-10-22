@@ -17,6 +17,13 @@ test('a committed descriptive close projects the whole batch and its coordinator
     refs: [{ kind: 'invocation', id: 'inv-0006' }] });
 });
 
+test('the phase start does not advertise the retained marker as a round cap', () => {
+  const event = runEventSchema.parse({ sequence: 1, jobId: 'j', at: '2026-09-20T10:15:00.000Z',
+    type: 'nonfunctional-phase-started', data: { catalogHash: 'a'.repeat(64), maxRounds: 1 } });
+  expect(projectEvent(event)).toMatchObject({ transition: 'nonfunctional-phase-started',
+    summary: 'Non-functional assessment phase started' });
+});
+
 /** The smallest data each event type's schema accepts, for the projection's exhaustiveness. */
 function sampleData(type: RunEvent['type']): unknown {
   const hash64 = 'a'.repeat(64);

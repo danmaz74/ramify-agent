@@ -131,7 +131,6 @@ export const automaticRepairRecoveryBoundaries = {
 } as const satisfies Partial<Record<RunWrite, string>>;
 export const restartRecoveryBoundaries = {
   'restart-staged': 'restart-service.test.ts',
-  'restart-prepared': 'restart-service.test.ts',
 } as const satisfies Partial<Record<RunWrite, string>>;
 
 // Automatic repair interruption is qualified by automatic-project-repair.test.ts.

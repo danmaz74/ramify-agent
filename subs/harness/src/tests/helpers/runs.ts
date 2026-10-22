@@ -99,7 +99,7 @@ export function exitsAfter(failFrom: number, cwd: string, counter: string, timeo
 export interface TestPolicyOptions {
   /** Exercise the adopted continuity contract; omitted fixtures retain their original policy. */
   readonly continuity?: boolean;
-  /** Opt into new-policy recovery. Existing lifecycle fixtures retain their historical captured policy. */
+  /** Current policy recovery is always captured; retained for focused fixture call sites. */
   readonly recovery?: boolean;
   /** Which of the standalone diagnosis's commands fails, and with which code. */
   readonly failing?: 'typeCheck' | 'ramifyCheck' | undefined;
@@ -117,9 +117,8 @@ export interface TestPolicyOptions {
 
 /**
  * A policy over one project whose standalone commands are cheap. Its limits
- * and its context policies are the hardcoded ones. Existing scenarios explicitly
- * model policies captured before operation recovery; new-policy witnesses opt in
- * with `recovery: true`. Each run records its policy in `job.json`.
+ * and its context policies are the current defaults. Each run records its
+ * policy in `job.json`.
  * A run's gates run no policy command: they ask the configured audit.
  */
 export function testPolicy(projectRoot: string, options: TestPolicyOptions = {}): RunPolicy {
@@ -133,17 +132,13 @@ export function testPolicy(projectRoot: string, options: TestPolicyOptions = {})
     }
     return exits(options.failing === name ? 1 : 0, projectRoot);
   };
-  const { reviews: _reviews, recovery: capturedRecovery, continuity: capturedContinuity, ...unreviewed } = base;
+  const { reviews: _reviews, ...unreviewed } = base;
   return {
     ...unreviewed,
-    ...(options.recovery === true ? { recovery: capturedRecovery } : {}),
-    ...(options.continuity === true ? { continuity: capturedContinuity } : {}),
-    version: options.continuity === true ? 'run-policy/8' : 'run-policy/7',
+    version: 'run-policy/8',
     // These fixture runs exercise the contract engineer, which the default
     // policy omits from its context and prompt manifest, so they capture it.
-    context: options.continuity === true
-      ? { ...base.context, 'contract-engineer': defaultContextPolicies['contract-engineer'] }
-      : historicalContextPolicies,
+    context: { ...base.context, 'contract-engineer': defaultContextPolicies['contract-engineer'] },
     ...(options.reviews === undefined ? {} : { reviews: options.reviews }),
     commands: {
       ...base.commands,
@@ -152,18 +147,6 @@ export function testPolicy(projectRoot: string, options: TestPolicyOptions = {})
     },
   };
 }
-
-/** Captured /7 policy evidence used by historical lifecycle fixtures only. */
-const historicalContextPolicies = {
-  ...Object.fromEntries(['initial-architect', 'local-architect', 'capability-architect', 'nonfunctional-coordinator']
-    .map(role => [role, { compaction: 'allowed', budgetTokens: 150_000, budgetFraction: 0.75, reportReserveTokens: 16_000 }])),
-  ...Object.fromEntries(['engineer', 'contract-engineer', 'nonfunctional-repair-engineer']
-    .map(role => [role, { compaction: 'forbidden', budgetTokens: 140_000, budgetFraction: 0.7, reportReserveTokens: 12_000 }])),
-  ...Object.fromEntries(['reviewer', 'failure-analyst', 'context-selector']
-    .map(role => [role, { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 8_000 }])),
-  'global-fork': { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 16_000 },
-  'catalog-extractor': { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 16_000 },
-} as RunPolicy['context'];
 
 /**
  * Inputs for tests of the run's lifecycle, which need no evidence: the plan

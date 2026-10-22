@@ -137,7 +137,7 @@ export function hypothesesOf(view: RunView): HypothesisView[] {
  */
 export function decisionsOf(view: RunView): DecisionView[] {
   const decisions: DecisionView[] = [];
-  const committed = new Map<string, { sequence: number; at: string; sourceRun?: string }>();
+  const committed = new Map<string, { sequence: number; at: string }>();
   for (const line of view.entries) {
     for (const record of line.transaction.records) {
       if ((record.body as { schema?: unknown } | null)?.schema === 'ramify-agent.placement-decision/2') {
@@ -152,7 +152,6 @@ export function decisionsOf(view: RunView): DecisionView[] {
       kind: 'placement',
       at: when.at,
       sequence: when.sequence,
-      ...(when.sourceRun === undefined ? {} : { sourceRun: when.sourceRun }),
       workItem: decision.workItem,
       id: decision.id,
       authority: decision.authority,
@@ -172,14 +171,13 @@ export function decisionsOf(view: RunView): DecisionView[] {
     });
   }
 
-  for (const { body: assignment, sequence, at, sourceRun } of view.assignments) {
+  for (const { body: assignment, sequence, at } of view.assignments) {
     const base = assignment.scope.base;
     const broad = 'modules' in base;
     decisions.push({
       kind: 'scope',
       at,
       sequence,
-      ...(sourceRun === undefined ? {} : { sourceRun }),
       workItem: assignment.workItem,
       iteration: assignment.id,
       iterationKind: assignment.kind,
@@ -196,12 +194,11 @@ export function decisionsOf(view: RunView): DecisionView[] {
     });
   }
 
-  for (const { body: outline, sequence, at, sourceRun } of view.outlines) {
+  for (const { body: outline, sequence, at } of view.outlines) {
     decisions.push({
       kind: 'plan-revision',
       at,
       sequence,
-      ...(sourceRun === undefined ? {} : { sourceRun }),
       workItem: outline.workItem,
       outlineRevision: outline.revision,
       decomposition: outline.decomposition.kind,
@@ -214,8 +211,7 @@ export function decisionsOf(view: RunView): DecisionView[] {
         kind: 'breaking',
         at,
         sequence,
-        ...(sourceRun === undefined ? {} : { sourceRun }),
-        workItem: outline.workItem,
+          workItem: outline.workItem,
         outlineRevision: outline.revision,
         guarantee: change.guarantee,
         reason: change.reason,
@@ -224,13 +220,12 @@ export function decisionsOf(view: RunView): DecisionView[] {
     }
   }
 
-  for (const { body: contract, sequence, at, sourceRun } of view.contracts) {
+  for (const { body: contract, sequence, at } of view.contracts) {
     const assignment = view.records.assignments.get(contract.establishedBy.iteration);
     decisions.push({
       kind: 'contract',
       at,
       sequence,
-      ...(sourceRun === undefined ? {} : { sourceRun }),
       workItem: assignment?.workItem ?? contract.establishedBy.iteration.split('.')[0]!,
       contract: contract.id,
       revision: contract.revision,
@@ -245,7 +240,7 @@ export function decisionsOf(view: RunView): DecisionView[] {
 
   const order = new Map(view.entries.map((entry, index) => {
     const source = publicSequence(view.entries, entry.sequence);
-    return [`${source.sourceRun ?? ''}:${source.sequence}`, index];
+    return [source.sequence, index];
   }));
-  return decisions.sort((a, b) => (order.get(`${a.sourceRun ?? ''}:${a.sequence}`) ?? 0) - (order.get(`${b.sourceRun ?? ''}:${b.sequence}`) ?? 0));
+  return decisions.sort((a, b) => (order.get(a.sequence) ?? 0) - (order.get(b.sequence) ?? 0));
 }

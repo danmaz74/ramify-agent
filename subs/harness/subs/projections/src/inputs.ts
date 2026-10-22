@@ -33,7 +33,6 @@ import { iterationAssignmentSchema, type IterationAssignment } from '../../auton
 
 /** One complete line of the log, as the service replays it. */
 export interface CommittedLine {
-  readonly source?: { readonly runId: string; readonly sequence: number };
   readonly sequence: number;
   readonly at: string;
   readonly transaction: {
@@ -65,7 +64,6 @@ export class ProjectionError extends Error {
 
 /** One committed body of one schema, with where and when the log committed it. */
 export interface CommittedBody<T> {
-  readonly sourceRun?: string;
   readonly body: T;
   readonly path: string;
   readonly sequence: number;
@@ -170,10 +168,9 @@ export function runView(run: CommittedRun): RunView {
   };
 }
 
-/** Public source references retain the original positive sequence and identify its owning run. */
-export function publicSequence(entries: readonly CommittedLine[], sequence: number): { sequence: number; sourceRun?: string } {
-  const source = entries.find(entry => entry.sequence === sequence)?.source;
-  return source === undefined ? { sequence } : { sequence: source.sequence, sourceRun: source.runId };
+/** A source reference within this run. */
+export function publicSequence(_entries: readonly CommittedLine[], sequence: number): { sequence: number } {
+  return { sequence };
 }
 
 function firstSequence(run: CommittedRun, gate: string): number {

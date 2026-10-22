@@ -79,7 +79,7 @@ export function protocolScript(root: string) {
       edit('notes.ts', 'noteLimit = 400', 'noteLimit = 500'),
       shell(`printf 'export const outside = true;\\n' > '${join(root, outsidePath)}'`),
     ), submit(completionProposed('Removed the reviews-owned foreign artifact and retained the note change.'),
-      shell(`rm '${join(root, outsidePath)}'`))],
+      shell(`rm '${join(root, outsidePath)}'`)), submit(completionProposed('Retained the corrected note change in the authorized assignment.'))],
     'engineer:work-item:note-drafts': [submit(
       completionProposed('Created the drafts module with its first behavior and the test that states it.'),
       write('../module.ramify', 'ramify 1\nmodule drafts\n'),

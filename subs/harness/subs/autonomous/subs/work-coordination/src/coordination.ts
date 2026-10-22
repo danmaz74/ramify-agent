@@ -550,7 +550,6 @@ export interface CoordinationObservation {
  readonly index: ArchitectIndex | null;
  readonly policy: RunPolicy;
  readonly restoring: boolean;
- readonly restarted: boolean;
  readonly findings: CheckFindingState;
  readonly pendingEffects: readonly string[];
 }
@@ -689,7 +688,7 @@ export class WorkCoordination {
     // Registration can publish a provider before its consumer has received
     // the original contract handback. Finish that captured active turn first;
     // only then may the new frontier's provider priority take effect.
-    let restoredActiveItem = this.observe().restoring && (this.workflow === null || this.observe().restarted)
+    let restoredActiveItem = this.observe().restoring && this.workflow === null
       ? [...this.observe().history.events].reverse().find(event =>
         (event.type === 'work-item-started' || event.type === 'work-item-resumed') &&
         !this.observe().history.events.some(later => later.sequence > event.sequence &&
