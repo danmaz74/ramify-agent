@@ -225,7 +225,24 @@ passed audit, consider the plan done". State at close:
   were audits and roughly two hours the test-fixture migration from the
   retired run policy.
 
-Merge into `main` is pending. `main` moved to `e75972b5` (ramify-audit
-0.12.1) after the registration baseline, so the branch needs `main` merged in
-and a verification of the merged tree before a merge commit, as the records
-plan did.
+## Merge
+
+Merged into `main` as `4e82c593` on 2026-10-22 at 19:21 with a three-way
+merge from the shared base `58a685db`: no conflicts and no file changed on
+both sides. `main` had moved seven commits past the base, including the
+ramify-audit 0.12.1 pin and lockfile, so the merged tree was qualified anew
+after `npm ci`: `npm run type-check` and `npm run check:self` passed, and the
+default-mode audit executed in full mode (the lockfile is a preparation
+input) and passed with report commit `635d4752`. Only the known
+`plan-evidence-review-unavailable` instability reproduced, handled as the
+existing warning. Flake counters recorded in `09eea9a3`. Nothing pushed.
+
+The merge exposed one plan-execution gap: the plan asked for a note in
+`docs/plans/45-architect-progress-checkpoints/main-plan.md`, but that
+proposal exists only as an untracked draft in the main checkout, so the
+worker found no file and committed a five-line stub carrying the note alone
+(`f64fa67f`). The merge refused to overwrite the untracked draft; the draft
+was parked, the stub merged, and the draft restored over it with the note
+inserted after its status paragraph, left uncommitted for the proposal's
+owner. A plan that names a file the worktree does not contain should say so,
+or the architect should report the absence instead of creating the file.
