@@ -1,14 +1,11 @@
 # Descriptive identifiers for plans and execution
 
-**Revised:** 2026-10-21. **Status:** proposed assisted implementation plan;
-the earlier Plan 42 run remains incomplete.
-**Target:** ramify-agent. **Inspected source:**
-`233021c75f9f539865a0f05ae58925fc88bd306e`.
-**Execution:** native Astra coordination and Sol implementation, with ramify-agent
-(RA) assessment of each committed iteration and cumulative completion assessment.
-The iterations below are a proposed breakdown; the coordinator adapts assignments
-and sequencing to evidence while preserving requirements and acceptance.
-Editing this source neither changes a captured plan nor starts or resumes work.
+**Revised:** 2026-10-22. **Target:** ramify-agent.
+**Execution:** native Astra coordination and Sol implementation with committed RA
+iteration and cumulative assessments. The [user-directed requirement revision](requirements-2026-10-22.md)
+supersedes the captured identifier compatibility clauses. The captured input,
+original baseline and prior evidence remain immutable; this current source is
+not a replacement registration or protected-file approval.
 
 ## Problem and intended result
 
@@ -32,27 +29,6 @@ abandonment protocol. Authors propose names in the records they already submit;
 existing validation returns collisions and reference errors for correction. No
 separate registration call, naming session, reservation store or reservation
 lifecycle is required or part of this plan.
-
-## Current state and earlier work
-
-The inspected main checkout still uses numeric element IDs in
-`subs/harness/subs/plan-evidence/src/interfaces/catalog.ts`, numbered plan origins
-in `subs/harness/subs/scenarios/src/extraction.ts`, and shared `requirementRefs`
-and `acceptanceRefs` field names in the initial analysis submission. The earlier
-Plan 42 worktree contains partial provider changes and attempted consumer
-integration, without whole-plan acceptance. Treat that code as possible reusable
-work, not a completed prerequisite or an integration baseline. Review any reused
-change against this revised outcome and the current owners.
-
-The harness has since been decomposed into planning, work coordination,
-acceptance, assistance, task execution and persistence owners. Recovery uses
-ordinary task restart with optional session reuse. Reviews use the current
-review/fix workflow. Preserve those changes; do not restore old runtime/prompt-hash
-vetoes, exhaustive inspection obligations or restricted tools.
-
-The original run's captured input, accepted work, failed attempts and evidence
-remain unchanged. Execution of this revision needs explicitly captured revised
-input; editing the source cannot replace the original run's requirements.
 
 ## Required behavior
 
@@ -183,26 +159,22 @@ local keys and registered scenario IDs remain distinct even when their suffixes
 match. Wording, coverage, ownership, pending state and completion authority do not
 change with their spelling.
 
-### Versioning and ordinary continuation
+### One naming contract and ordinary continuation
 
-Fresh runs use an explicit descriptive-identifier contract. Version affected
-submission and record shapes together with their producers and consumers; merely
-broadening a regex while retaining a contradictory old schema is insufficient.
+Every semantic entity uses the descriptive naming/reference contract. Author
+schemas, accepted record shapes, procedures and consumers agree on that contract.
+Keep format versions only for meaningful current formats. Obsolete numeric
+semantic identifiers and obsolete naming formats are rejected; do not select a
+naming mode from missing metadata, accept a second submission shape or infer a
+replacement name. No migration, adapter, historical-name backfill or compatibility
+framework is required. Actual historical durable evidence remains untouched.
 
-Supported historical runs, accepted submissions, frozen packages, transcripts,
-features and reports retain their exact IDs, bytes and hashes. Readers resolve
-legacy records without bulk rewriting or inferred semantic backfill. Supported
-continuation of a legacy run retains that run's naming/reference contract for
-newly accepted work. The installed default must not mix new descriptive IDs into
-its legacy namespace.
-
-Continue unfinished work using current runtime procedures and durable task
-records, with optional session reuse. A changed source, dependency or prompt hash
-alone is not incompatibility. Report a concrete unreadable contract or missing
-required operation at the relevant boundary, preserving inspectable work and
-ordinary correction where possible. Preserve explicit stops, pending decisions,
-execution settlement and acceptance authority. Session loss must not require a
-name reservation or exact replay of an authoring conversation.
+Continue current-contract unfinished work using current procedures and durable
+task records, with optional session reuse. A changed source, dependency or prompt
+hash alone is not incompatibility. Report a concrete unreadable contract or
+missing operation at its boundary without guessing identities. Preserve explicit
+stops, pending decisions, execution settlement and completion authority. Session
+loss must not require a reservation or replay of an authoring conversation.
 
 ## Constraints and specification alignment
 
@@ -227,14 +199,11 @@ Carry these obligations into implementation:
   command answers with the process guard active. Actual tool/kernel claims need
   an exact reviewed entry in `src/tests/test-boundaries.json`.
 
-The intended contract change is identifier/reference syntax for new versioned
-runs. During implementation, update specifications prescribing numeric IDs,
-ambiguous fields or scenario tags to describe new and legacy contracts. Preserve
-historical evidence and existing protection authority. This plan does not itself
-edit governing specifications or adopt proposed principles. No new semantic
+Specifications describe the single descriptive identifier/reference contract.
+Preserve historical evidence and existing protection authority. This plan and
+its revision do not approve protected specification differences. No new semantic
 classification, provider API, naming permission system or recovery framework is
-required. Shared identity helpers may reduce duplication; a new module or service
-is not a deliverable in itself.
+required. Shared helpers follow ownership and actual consumer access.
 
 ## Acceptance
 
@@ -316,18 +285,20 @@ Scenario: Unknown and foreign references are not repaired by guessing
   Then the harness rejects the reference without selecting a substitute
   And identifies the source of valid references for that field
 
-Scenario: Supported legacy inspection and continuation retain original identities
-  Given a supported legacy run contains numeric IDs and frozen deliveries
-  When the upgraded harness displays its details and continues an unfinished task
-  Then historical references resolve without changing persisted bytes or hashes
-  And newly accepted work uses that run's legacy naming and reference contract
-  And current procedures require neither a reservation nor the former session
+Scenario: One current format rejects obsolete identifiers
+  Given authoring, accepted records and public consumers use descriptive IDs
+  When a submission or lookup supplies an obsolete numeric semantic identifier
+  Then the relevant boundary rejects it without a fallback or inferred name
+  And the diagnostic identifies the current reference family and source
+  And existing durable evidence is neither rewritten nor deleted
+  When a current-contract unfinished task continues after session loss
+  Then it reuses accepted identities and delivers current references exactly once
 
 Scenario: A concrete unavailable contract leaves retained work inspectable
   Given continuation needs a record contract the installed runtime cannot read
   When the task reaches that required operation
   Then it reports the unavailable contract without guessing replacement identities
-  And retained work and historical references remain inspectable
+  And raw retained evidence remains unchanged and the error names the unavailable contract
   And a source or prompt hash change alone is not reported as incompatibility
 
 Scenario: Continued and forked tasks preserve delivered identities
@@ -337,7 +308,7 @@ Scenario: Continued and forked tasks preserve delivered identities
   And inherited deliveries retain their recorded bytes and source identities
 
 Scenario: Findings and deviations remain actionable through public consumers
-  Given a new-format run records a named finding and an authorized named plan deviation
+  Given a run records a named finding and an authorized named plan deviation
   When their references reach assessment and CLI and web details
   Then each resolves to the intended record and its current disposition
   And URL and stored-path encoding preserves distinct identities
@@ -361,244 +332,26 @@ cumulative assessment against this complete plan after integration. A live
 paid comparison, provider release or harness run is not required to validate this
 authored document.
 
-## Module impact and existing behavior
+## Cleanup implementation and verification
 
-Expected owners and integration points, not write restrictions or evidence of
-consumer importability:
+Work in the registered target checkout with the original execution baseline.
+Use cohesive assignments covering producers with their necessary consumers:
 
-| Owner | Relevant behavior and integration |
-| --- | --- |
-| `subs/harness/subs/plan-evidence/` | Element/document identity, catalog acceptance and complete package rendering. |
-| `subs/harness/subs/scenarios/` | Captured origins, scenario forms and registered IDs, features and state. |
-| `subs/harness/subs/autonomous/subs/planning/` | Initial analysis, extraction, draft references and accepted planning records. |
-| `subs/harness/subs/autonomous/subs/work-coordination/` | Work items, capability/contract delegation and authoring/consumer paths. |
-| `subs/harness/subs/autonomous/subs/acceptance/` | Obligations, review/assessment references, deviations and completion. |
-| `subs/harness/subs/check-findings/` | Finding identity, decisions and replay shared by execution paths. |
-| `subs/harness/subs/assistance/`, `subs/harness/subs/task-workflow/` and `subs/harness/subs/ledger/` | Existing assessment, delivery, transaction and retry facilities; preserve their distinct ownership. |
-| `subs/harness/subs/projections/`, public protocol and `subs/web/` | Lookup, historical readers and public selection/display. |
+- Catalog capture, initial planning and scenarios: remove naming-mode selection,
+  numeric generators, dual shapes and obsolete feature tags; verify complete
+  atomic analysis and equal-source-name encoding with current references.
+- Work coordination and runtime: use one work/capability/contract authoring and
+  persistence contract, current prompt packages and ordinary retry/recovery/fork.
+  Remove old naming admission and retry branches without changing authority.
+- Findings, deviations, assistance and public consumers: remove old-name readers,
+  public schemas and projection branches; verify disposition, readiness, CLI/web
+  selection and current-contract continuation against actual accepted records.
 
-Orientation used refreshed architect and planning ordinary/testing API views at
-the inspected source revision. The views report coverage and truncated details;
-the proposed reuse points below were checked in defining source. Missing view
-entries do not establish that a consumer lacks access. Refresh the relevant
-consumer views again when implementing a changed interface.
-
-The main integration seam is the accepted analysis bundle:
-[planning acceptance](../../subs/harness/subs/autonomous/subs/planning/src/accept.ts)
-derives work items, scenarios, hypotheses and registry entries, and
-[planning execution](../../subs/harness/subs/autonomous/subs/planning/src/planning.ts)
-stages catalog evidence and commits the `analysis-accepted` transition. Catalog,
-scenario and initial work-item changes therefore need joint integration; separate
-provider-only completion would leave the motivating submission failure unresolved.
-
-Reuse the [catalog](../../subs/harness/subs/plan-evidence/src/interfaces/catalog.ts)
-for kind/source validation, retired identities and complete package delivery,
-the [scenario renderer](../../subs/harness/subs/scenarios/src/rendering.ts) for
-feature/tag translation, and existing autonomous acceptance and ledger facilities
-for durable transitions. The ledger remains unaware of semantic entity families.
-The [capability records](../../subs/harness/subs/autonomous/subs/work-coordination/src/capability/records.ts)
-have separate request, task and example identities; their delegation lifecycle
-forms a useful second focus after the accepted-analysis contract is established.
-
-The contracts that must remain stable are semantic classification, source and
-wording authority, complete delivery, obligation state, historical bytes and
-acceptance authority. Contract versions, draft-to-accepted resolution, retirement
-relationships and reversible path/tag encoding need joint design at their owning
-boundaries. Update the relevant specifications with each implemented contract.
-No new shared service or exposure is presumed: inspect each actual consumer's
-ordinary/testing API catalog before changing imports, and update owner and
-ancestor declarations only where the chosen implementation requires them.
-
-## Proposed implementation iterations
-
-The sequence groups changes by the knowledge needed to implement and verify them.
-Module focus is an orientation aid; a Sol worker may inspect and change other
-owners where necessary to complete the outcome. Reuse an oriented worker for
-closely related integration and repairs. Every iteration ends with relevant
-worker verification, a committed candidate and RA assessment; resolve findings
-through the ordinary repair and reassessment workflow before depending on the
-result. The coordinator manages assessment mechanics and durable progress.
-
-### 1. Accept descriptive catalogs and initial analysis together
-
-**Outcome and acceptance.** Implement the naming and explicit-reference contracts
-for captured documents, all five catalog kinds, plan origins, entry capabilities,
-hypotheses, initial work items and registered scenarios. Resolve draft references
-in ordinary submission, deliver actionable schema guidance and diagnostics,
-and accept the complete semantic bundle atomically. Establish the run's explicit
-contract version and legacy dispatch at the same boundary. Preserve the current
-default until every consumer needed by new-format runs is compatible.
-
-**Focus and rationale.** Planning, plan-evidence and scenarios are the principal
-owners, with autonomous run admission/commit, initial work-item records and
-delivery consumers included. Their schemas and acceptance functions evolve
-together; grouping them avoids repeated catalog and reference integration.
-Complete the initial family inventory here and use existing acceptance/retry
-boundaries rather than introducing reservations.
-
-**Interactions.** Include extraction prompts and delivered tool schemas, catalog
-packages, scenario form validation, feature rendering, focused selection and
-necessary protocol readers. Define collision-safe encoding with the consumers
-that use it. Implement catalog correction/retirement within existing authority.
-Any new helper's placement follows responsibility and actual consumer access.
-
-**Dependencies and verification.** No earlier partial run is a prerequisite.
-Use real catalog, planning, scenario and work-item functions together with
-scripted external operations. Cover the submission-to-engineer portion of
-“Ordinary submission delivers meaningful accepted references”, and these witnesses:
-
-- “Reference diagnostics preserve semantic classification”.
-- “Colliding proposals are corrected in the existing authoring task”.
-- “A rejected batch creates no partial planning entities”.
-- “Concurrent acceptance and retry preserve one identity”.
-- “Interrupted acceptance preserves records and references together”.
-- “Equal captured names remain distinct”.
-- The catalog cases of “Authorized correction preserves stable and retired identities”.
-
-Verify the full diagnostic matrix, including retired and
-wrong-stage references, and unchanged legacy catalog/scenario bytes. CLI/web
-witnesses are completed in iteration 4; the core submission path must work here.
-
-### 2. Preserve identity through work and capability delegation
-
-**Outcome and acceptance.** Carry descriptive accepted references through later
-work creation, assignments, capability requests, tasks and examples, contracts,
-provider obligations, consumer requirements and handback. Preserve IDs for
-authorized wording/owner changes; implement retirement and replacement handling
-for affected execution entities without weakening correction authority.
-
-**Focus and rationale.** Work coordination owns most of this reasoning. Include
-its planning, task delivery and acceptance consumers in the same iteration so
-request/provider/consumer relationships are verified together.
-
-**Interactions.** Reuse iteration 1's version selection, reference rules and
-acceptance facilities. Update author-facing schemas and briefings with their
-record consumers; carry the same IDs through serialization, reload, corrections
-and verification. Extend the family inventory for identities discovered here.
-
-**Dependencies and verification.** Depends on iteration 1. Demonstrate
-“Capability delegation preserves descriptive relationships”, execution-entity
-cases of “Authorized correction preserves stable and retired identities”, and
-“Unknown and foreign references are not repaired by guessing”. Exercise actual
-provider handback and consumer verification, plus collision, retry and interrupted
-acceptance cases at any distinct durable submission boundary. Keep legacy
-delegation and new assignments under a legacy run's contract working throughout.
-
-### 3. Carry findings and deviations through assessment
-
-**Outcome and acceptance.** Implement descriptive finding and plan-deviation
-identities, correction references and review/assessment consumers. Preserve
-dispositions, non-functional selection/assessment and completion authority.
-Assistance can assess candidates and inspect evidence containing the new IDs.
-
-**Focus and rationale.** Check-findings and autonomous acceptance hold the core
-state rules; assistance and reviews are integration consumers. Keep the identity
-change narrow across these owners rather than assigning one worker per module.
-
-**Interactions.** Integrate finding decisions, deviation records, packages,
-review evidence and assisted assessment with the versioned run contracts.
-Technical review, attempt and receipt IDs may keep their existing formats.
-Assistance receives no autonomous planning operations.
-
-**Dependencies and verification.** Depends on iterations 1 and 2 for accepted
-planning/work references. Demonstrate the assessment/disposition portion of
-“Findings and deviations remain actionable through public consumers”, including
-serialized reload and supported historical records. Exercise assisted assessment
-with real evidence readers and scripted agent/audit answers. Complete its public
-selection/display witness in iteration 4.
-
-### 4. Integrate public selection and encoded references
-
-**Outcome and acceptance.** CLI/API selection, projections, web details, stored
-record paths, feature tags and focused targets resolve the same accepted IDs
-delivered to agents. Preserve distinct identities through encoding and decoding.
-
-**Focus and rationale.** Projections and the harness public protocol, with root
-CLI and web consumers, form one integration focus. They now receive stable
-contracts from the preceding iterations, reducing repeated UI and reader edits.
-Harness owners retain allocation and durable writes.
-
-**Interactions.** Finish all consumer adaptations and legacy readers for the
-family inventory, including full text, conditions, uncertainty and source
-attribution. Verify feature/tag selection through the scenario and acceptance
-owners, not just an isolated encoding helper.
-
-**Dependencies and verification.** Depends on iterations 1–3. Complete the CLI
-and web parts of “Ordinary submission delivers meaningful accepted references”
-and “Findings and deviations remain actionable through public consumers”. Use
-composed witnesses from accepted records through public lookup and display;
-cover URL/path/tag round trips, equal captured names and focused targets, and
-supported legacy inspection without rewriting evidence. Mocked public payloads
-alone do not demonstrate this integration.
-
-### 5. Qualify continuation and enable the complete fresh-run contract
-
-**Outcome and acceptance.** Fresh runs use the complete descriptive contract.
-Legacy runs continue with their original contract. Retained tasks, retries,
-continuations and admitted forks preserve accepted identities and deliveries;
-concrete unavailable contracts produce the required inspectable failure.
-
-**Focus and rationale.** Autonomous lifecycle, task workflow and persistence
-integration are the focus, with fixes in affected producers/readers as needed.
-Recovery is verified across the completed feature; it is not a replacement
-recovery framework or a reason to postpone compatibility in earlier iterations.
-
-**Interactions.** Enable the fresh-run default only after all required paths are
-compatible. Finish specification alignment and the family inventory, including
-representative names, delivered schemas, version selection and verification.
-Preserve historical run evidence and the original Plan 42 baseline.
-
-**Dependencies and verification.** Depends on iterations 1–4. Demonstrate
-“Supported legacy inspection and continuation retain original identities”,
-“A concrete unavailable contract leaves retained work inspectable”, and
-“Continued and forked tasks preserve delivered identities”. Extend interruption,
-concurrency and lost-reply witnesses across the composed runtime with controlled
-interleavings and fault injection. Verify that source/prompt hash changes alone
-do not reject continuation and that no registration/reservation state was added.
-Run relevant owner tests, type checks and `npm run check:self`, then the configured
-default audit on a clean committed candidate. RA performs cumulative assessment
-against all requirements and acceptance scenarios in this plan, including semantic
-adequacy of names and cross-iteration consumer behavior.
-
-## Sequencing assumptions and material uncertainties
-
-- Exact version identifiers and dispatch locations remain implementation choices.
-  Resolve them in iteration 1, including how a run's contract reaches every
-  producer and reader. If a required consumer cannot be adapted incrementally,
-  bring that adaptation into the same iteration rather than emitting mixed
-  contracts or enabling an incomplete default.
-- The existing acceptance transition is a reuse point, not proof that every
-  submission already serializes uniqueness and retirement correctly. Inspect
-  each distinct boundary as it is changed; include any necessary repair and its
-  composed interruption/retry evidence in that iteration.
-- The scoped family list is a minimum. Additional semantic identities found in
-  current source join the relevant iteration and inventory. Technical IDs keep
-  the stated exemptions; uncertain classification is resolved against the
-  behavior the identity names, without shrinking the required outcome.
-- Parallel implementation is not assumed while version and reference contracts
-  are unsettled. After iteration 1, independent projection or finding-reader
-  preparation may overlap delegation work if interfaces and file ownership are
-  coordinated; final integration still waits for the producing iterations.
-  Combine or split work when actual coupling makes the proposed handoff costly.
-- Reuse of the earlier Plan 42 work remains optional. Compare it with this plan's
-  ordinary-acceptance requirement and current module ownership before adopting
-  it; the removed registration/reservation workflow is not a dependency.
-
-## Context and execution placement
-
-The original motivating evidence is in
-`docs/analysis/2026-10-12-revision-preview-plan41-postmortem.md`; it supplies
-background rather than extra obligations. The previous plan and its partial run
-remain historical evidence. Recheck current implementation before choosing which
-partial changes to reuse. No earlier worktree, frozen executor, tracker update or
-dependency release is a prerequisite.
-
-This plan remains at `plans/42-descriptive-identifiers/plan.md` for assisted
-implementation. The coordinator starts from the proposed iterations and adapts
-the breakdown to evidence; concrete version formats, encoding and assignments
-remain implementation choices constrained by the requirements above. This format
-conversion preserves the revised requirements, including removal of mandatory
-name registration. If an assisted execution already exists, preserve its captured
-input and original baseline; source edits do not replace them. Explicitly capture
-revised requirements when execution is requested, without relabeling the original
-incomplete run as complete. Register or launch work only when requested.
+Finish the family inventory and current specifications. Preserve ordinary module
+and testing boundaries; convert reusable fixtures to current names and remove
+backward-naming tests. Technical IDs retain their existing exemptions. Do not
+alter historical durable execution records. Run focused tests, typechecks and
+`check:self`, then submit committed candidates with the pinned requirement
+revision through RA. Perform a fresh cumulative final assessment against the
+original baseline. Exact protected changes require actual user approval after
+all engineering and cumulative review are complete.
