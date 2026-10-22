@@ -469,6 +469,9 @@ starting its non-functional assessment and configured full nested audit. These
 checks run independently on the same candidate and both settle before repair
 or completion. Restart reuses retained results; a source-changing repair gets
 a new candidate and new applicable checks.
+Final audit instability receives a candidate-bound origin judgment even after
+a clean or unrun review. Added-test instability must be corrected with reliable
+coverage; existing-test warnings retain the audit verdict without repair work.
 
 `step after` applies what a run records after the named invocation's
 accepted submission, as far as that is a function of records. It checks the

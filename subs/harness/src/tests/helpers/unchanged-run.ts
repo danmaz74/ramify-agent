@@ -50,7 +50,7 @@ export async function openUnchangedRuns(root: string, options: UnchangedRunsOpti
   const { unchangedCheckpoints = [], previewCount, gitScript, ...runs } = options;
   const checkpoints = unchangedCheckpoints.map(checkpointOf);
   const final = checkpoints.findIndex(checkpoint => checkpoint.subject.startsWith('final verification'));
-  const count = previewCount ?? (final < 0 ? 0 : 5);
+  const count = previewCount ?? (final < 0 ? 0 : 4);
   const git = unchangedGit(root, unchangedCheckpoints, count, gitScript);
   const before = checkpoints.slice(0, final).flatMap(checkpoint => checkpoint.commit ?? []).at(-1) ?? fixtureHead;
   const audited = final < 0 ? null : checkpoints[final]!.commit ?? before;

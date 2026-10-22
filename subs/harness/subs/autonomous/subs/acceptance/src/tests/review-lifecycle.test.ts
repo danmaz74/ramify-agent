@@ -15,7 +15,7 @@ import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/te
 import { completionProposed, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { disposition, reconcile, submission } from '../../../../../../src/tests/helpers/check-findings-composition.js';
 import { mockGit } from '../../../../../../src/tests/helpers/mock-git.js';
-import { attemptRecord, candidates, eventsOf, gate, limit, notesDirectory, plan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
+import { attemptRecord, candidates, eventsOf, gate, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
 import { freeze, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, stopRun, testPolicy, until } from '../../../../../../src/tests/helpers/runs.js';
 
 vi.mock('node:child_process', async original =>
@@ -421,6 +421,104 @@ describe('the gate audit and the run mutex', () => {
     expect(prompt).toContain(runLayout.gate('ga-0002'));
     expect(run.agent!.sessions.find(session => session.spec.submission.name === 'submit_reconciliation')!.verdicts)
       .toMatchObject([{ accepted: false }, { accepted: true }]);
+    run.git.assertComplete();
+  }, 60_000);
+
+  test('a final-only warning receives an existing-test origin judgment before completion', async () => {
+    const root = await reviewTarget(cleanups);
+    const passing = passingAudit();
+    const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+      const result = await passing.run(input);
+      if (input.attemptId !== 'ga-0006') return result;
+      const provider = result.provider as { summary: Record<string, unknown> };
+      return { ...result, provider: { ...provider, summary: { ...provider.summary,
+        warningDispositions: [{ entry: { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+          path: `${notesDirectory}/src/tests/notes.test.ts`, kind: 'test', testId: 'the note limit' }, basis: 'retained-instability' }],
+        flakinessPolicy: { onFailure: 'warning' },
+      } } };
+    } };
+    const run = await reviewRun(root, cleanups, { configuredAudit: warningAudit, engineer: engineers(), previewCount: 5,
+      reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
+      reconcilers: { 'final-instability-ga-0006': reconcile({ ...submission([
+        disposition('cf-0001', { action: 'waive', uncertainty: 'The original test remains unstable in the retained audit.' }),
+      ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'existing',
+        basis: 'The exact test is present in the original execution baseline.' }] }) },
+    });
+    expect(onlyRun(run.service, plan).state, JSON.stringify(eventsOf(run.events, 'job-failed'))).toBe('completed');
+    expect(eventsOf(run.events, 'final-instability-reconciled')).toMatchObject([
+      { data: { gate: 'ga-0006', candidate: 'cand-001', next: 'complete' } },
+    ]);
+    expect(eventsOf(run.events, 'final-correction-planned')).toHaveLength(0);
+    const prompt = run.agent!.sessions.find(session => session.spec.prompt.includes('# Reconciliation final-instability-'))!.spec.prompt;
+    expect(prompt).toContain('Original execution baseline for test origin:');
+    expect(prompt).toContain(runLayout.gate('ga-0006'));
+    run.git.assertComplete();
+  }, 60_000);
+
+  test('a final-only added-test warning cannot be waived and plans reliable coverage repair', async () => {
+    const root = await reviewTarget(cleanups);
+    const passing = passingAudit();
+    const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+      const result = await passing.run(input);
+      if (input.attemptId !== 'ga-0006') return result;
+      const provider = result.provider as { summary: Record<string, unknown> };
+      return { ...result, provider: { ...provider, summary: { ...provider.summary,
+        warningDispositions: [{ entry: { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+          path: `${notesDirectory}/src/tests/notes.test.ts`, kind: 'test', testId: 'the note limit' }, basis: 'retained-instability' }],
+        flakinessPolicy: { onFailure: 'warning' },
+      } } };
+    } };
+    const planned = gate();
+    const run = await reviewRun(root, cleanups, { detached: true, configuredAudit: warningAudit, engineer: engineers(),
+      reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
+      reconcilers: { 'final-instability-ga-0006': reconcile(
+        { ...submission([disposition('cf-0001', { action: 'waive', uncertainty: 'The warning is tolerable.' })], { kind: 'complete' }),
+          testOrigins: [{ checkFinding: 'cf-0001', origin: 'added', basis: 'This test was introduced by the plan.' }] },
+        { ...submission([disposition('cf-0001', { action: 'repair' })],
+          { kind: 'correct', goal: 'Replace the unstable added test with reliable coverage of the same behavior.' }),
+          testOrigins: [{ checkFinding: 'cf-0001', origin: 'added', basis: 'This test was introduced by the plan.' }] }) },
+      globalFork: [submit({ module: notes, goal: 'Repair the added test while preserving its assertions.',
+        rationale: 'The final audit retained provider instability for a plan-added test.' })],
+      afterWrite: async (write, runId) => {
+        if (write === 'work-item-started' && (await runEventsOnDisk(root, plan, runId)).some(event => event.type === 'final-correction-planned')) {
+          planned.open(); return freeze();
+        }
+      },
+    });
+    await planned.opened;
+    const events = await runEventsOnDisk(root, plan, run.runId);
+    expect(eventsOf(events, 'final-instability-reconciled')).toMatchObject([{ data: { next: 'correct', gate: 'ga-0006' } }]);
+    expect(eventsOf(events, 'final-correction-planned')).toHaveLength(1);
+    expect(eventsOf(events, 'job-completed')).toHaveLength(0);
+    expect(run.agent!.sessions.find(session => session.spec.prompt.includes('# Reconciliation final-instability-'))!.verdicts)
+      .toMatchObject([{ accepted: false }, { accepted: true }]);
+    await staleCrashLock(root);
+  }, 60_000);
+
+  test('a final-only warning with unknown origin stays unresolved', async () => {
+    const root = await reviewTarget(cleanups);
+    const passing = passingAudit();
+    const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+      const result = await passing.run(input);
+      if (input.attemptId !== 'ga-0006') return result;
+      const provider = result.provider as { summary: Record<string, unknown> };
+      return { ...result, provider: { ...provider, summary: { ...provider.summary,
+        warningDispositions: [{ entry: { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+          path: `${notesDirectory}/src/tests/notes.test.ts`, kind: 'test', testId: 'the note limit' }, basis: 'retained-instability' }],
+        flakinessPolicy: { onFailure: 'warning' },
+      } } };
+    } };
+    const run = await reviewRun(root, cleanups, { configuredAudit: warningAudit, engineer: engineers(), previewCount: 4,
+      reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
+      reconcilers: { 'final-instability-ga-0006': reconcile({ ...submission([
+        disposition('cf-0001', { action: 'leave' }),
+      ], { kind: 'unresolved' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'unknown',
+        basis: 'The available original source does not establish this individual test’s origin.' }] }) },
+    });
+    expect(onlyRun(run.service, plan).state).toBe('failed');
+    expect(eventsOf(run.events, 'final-instability-reconciled')).toMatchObject([{ data: { next: 'unresolved', checkFindings: [] } }]);
+    expect(eventsOf(run.events, 'job-completed')).toHaveLength(0);
+    expect(eventsOf(run.events, 'final-correction-planned')).toHaveLength(0);
     run.git.assertComplete();
   }, 60_000);
 

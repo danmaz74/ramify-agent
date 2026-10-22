@@ -236,6 +236,8 @@ export const runEventSchema = z.discriminatedUnion('type', [
     checkFindings: checkFindingEventsField,
   }).strict()),
   event('candidate-bound-to-gate', z.object({ candidate: text, assessment: text, gate: text, commit: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/) }).strict()),
+  event('final-instability-reconciled', z.object({ gate: text, candidate: text, invocation: text,
+    next: z.enum(['complete', 'correct', 'await-user', 'unresolved']), checkFindings: checkFindingEventsField }).strict()),
   /** Plan 16 coordination records are committed with these events. The
    * original request and each revision remain separate immutable records. */
   event('capability-requested', z.object({ request: text, parent: text, assignment: text, invocation: text }).strict()),

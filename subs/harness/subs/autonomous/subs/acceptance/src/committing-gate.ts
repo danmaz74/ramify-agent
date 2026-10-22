@@ -563,7 +563,7 @@ export class CommittingGates {
     const settled = (await effect).attempt;
     await scheduling;
     if (schedulingError !== undefined) throw schedulingError;
-    if (settled.checkpoint === 'iteration' || settled.checkpoint === 'breaking-iteration') await this.host.reportInstability?.(settled);
+    if (settled.checkpoint === 'iteration' || settled.checkpoint === 'breaking-iteration' || settled.checkpoint === 'final') await this.host.reportInstability?.(settled);
     return settled;
   }
 

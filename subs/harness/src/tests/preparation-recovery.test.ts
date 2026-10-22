@@ -218,7 +218,7 @@ test('current candidate changes reach ordinary verification without another decl
   await resume(subject, false);
   await subject.service.settled(plan, subject.runId);
   expect(subject.service.events(plan, subject.runId)!.filter(event => event.type === 'operation-recovery-paused')).toHaveLength(1);
-  expect(subject.service.getRun(plan, subject.runId)?.failure?.message).toContain('not assessed tree');
+  expect(subject.service.getRun(plan, subject.runId)?.failure?.message).toContain('not the committed source');
   expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(1);
   subject.gitBoundary.assertComplete();
 });

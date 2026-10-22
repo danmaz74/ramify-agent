@@ -32,6 +32,7 @@ import { type CandidateSource, type GitService } from '../../../../evidence/src/
 import type { RamifyCli } from '../../../../evidence/src/ramify-cli.js';
 import { type ArchitectIndex } from '../../../../evidence/src/views.js';
 import type { ConfiguredAuditPort } from '../../../../audit/src/check-execution.js';
+import { configuredAuditInstabilityObservations } from '../../../../audit/src/check-execution.js';
 
 import { knownFindingSummary, selectCheckFindings } from '../../../../check-findings/src/queries.js';
 
@@ -181,9 +182,9 @@ import type { CheckFindingId, CheckFindingState, CheckFindingSummary } from '../
 
 
 import { attentionAt, basisChange, briefText as reconciliationBrief, needsLaterRound, reconciliationBasisSchema, reconciliationId, validateReconciliation, type BasisRequest, type ReconciliationAssessment, type ReconciliationBasis, type UnresolvedReason } from './reviews/reconciliation.js';
-import { reconciliationJsonSchema, reconciliationSubmissionDescription, type AttentionEntry, type BoundReconciliation, type ReconciliationSubmission } from '../../../../reviews/src/reconciliation.js';
+import { reconciliationJsonSchema, reconciliationSubmissionDescription, validateReconciliationForExecution, type AttentionEntry, type BoundReconciliation, type ReconciliationSubmission } from '../../../../reviews/src/reconciliation.js';
 import { reconciliationMessage, type ReconciliationPacket } from './reviews/reconciliation-message.js';
-import { type PacketRequest } from '../../../../reviews/src/reconciliation-message.js';
+import { reconciliationFactsMessage, type PacketRequest } from '../../../../reviews/src/reconciliation-message.js';
 
 import { capabilityHandbackGuidance } from '../../work-coordination/src/capability/delivery.js';
 import { type CapabilityRequest, type CapabilityTask, type CapabilityPlan } from '../../work-coordination/src/capability/records.js';
@@ -1465,7 +1466,7 @@ export class Acceptance {
       if (binding === null || this.ports.ignoring()) return;
       try {
         if (!await this.recordNonfunctionalDeviations(binding) || this.ports.ignoring()) return;
-        const failed = await this.finalGate(binding);
+        const failed = await this.finalGate(agent, packages, binding);
         if (failed === undefined || this.ports.ignoring()) return;
         if (!await this.planFinalCorrection(agent, packages, binding, failed)) return;
         const baseline = await this.ports.coordination.baselineSnapshot();
@@ -1491,6 +1492,134 @@ export class Acceptance {
     }
   }
 
+  /** Judge retained final-audit reliability evidence on the exact joined candidate. */
+  private async reconcileFinalInstability(agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>,
+    gate: GateAttempt, binding: { candidateId: string; assessment: Assessment }): Promise<ReconciliationSubmission['next']['kind'] | null> {
+    const prior = this.events('final-instability-reconciled').find(event => event.data.gate === gate.id);
+    if (prior !== undefined) return prior.data.next;
+    const state = this.observe().findings;
+    const held = new Map([...state.findings.values()].filter(entry => entry.reports.some(report => report.observation.kind === 'audit-instability'))
+      .map(entry => [entry.id, entry.revision] as const));
+    const details = [...held.keys()].flatMap(id => {
+      const selected = selectCheckFindings(state, { kind: 'detail', checkFinding: id });
+      return selected.ok && selected.view.kind === 'detail' ? [selected.view] : [];
+    });
+    const attention = details.filter(detail => detail.summary.standing === 'open'
+      && detail.summary.verification.kind === 'assessment' && state.findings.get(detail.summary.id)?.reports.some(report => report.observation.kind === 'audit-instability'));
+    if (attention.length === 0) return 'complete';
+    if (gate.audited === null) {
+      await this.ports.fail('acceptance-incomplete', `Final audit ${gate.id} has instability without retained audited source`, [runLayout.gate(gate.id)]);
+      return null;
+    }
+    const loaded = packages.get('local-architect');
+    if (loaded === undefined) throw new Error('Final instability reconciliation requires the architect reconciliation package');
+    const id = `final-instability-${gate.id}`;
+    const source = { kind: 'tree' as const, id: binding.assessment.candidate.tree };
+    const entries = new Map<CheckFindingId, AttentionEntry>(attention.map(detail => [detail.summary.id, {
+      revision: detail.summary.revision, reason: detail.summary.reason, awaiting: detail.summary.awaiting,
+      risk: detail.summary.risk, modules: detail.summary.modules,
+    }]));
+    const unstableTests = new Map(attention.map(detail => {
+      const trees = state.findings.get(detail.summary.id)?.reports.filter(report => report.observation.kind === 'audit-instability' && report.source.kind === 'tree')
+        .map(report => report.source.id) ?? [];
+      return [detail.summary.id, { observedTree: trees[0] ?? source.id, observedTrees: trees }] as const;
+    }));
+    const listed = await this.candidates.treeEntries(this.projectRoot, gate.audited);
+    const snapshotEntries = new Map(listed.map(entry => [entry.path, entry]));
+    const snapshotDirectories = new Set(['']);
+    for (const path of snapshotEntries.keys()) for (let directory = posix.dirname(path);
+      directory !== '.' && !snapshotDirectories.has(directory); directory = posix.dirname(directory)) snapshotDirectories.add(directory);
+    const snapshot: CandidateSnapshot = { commit: gate.audited, base: this.ports.recordedRunBase() ?? gate.audited,
+      tree: source.id, entries: snapshotEntries, directories: snapshotDirectories, changes: [] };
+    const baseline = this.input.record.auditConfiguration && 'config' in this.input.record.auditConfiguration
+      ? this.input.record.auditConfiguration.config.sourceCommit : null;
+    const prompt = reconciliationFactsMessage({ id, owner: 'final qualification', round: 1,
+      source: { commit: gate.audited, tree: source.id }, originalBaseline: baseline,
+      introduction: `# Reconciliation ${id} of final audit ${gate.id}\n\nThe configured audit verdict remains authoritative. Inspect individual test origin and coverage; do not edit source in this assessment.`,
+      authority: 'You may judge origin and plan a required correction. An existing unstable test creates no repair assignment; a failed required audit still blocks completion. Do not waive an added-test reliability obligation or a strict audit failure.',
+      context: `Final configured audit: ${gate.verdict}. Evidence: ${runLayout.gate(gate.id)}. The semantic assessment is ${runLayout.assessment(binding.assessment.id)} on this same candidate.`,
+      requests: [], attention, others: details.filter(detail => !entries.has(detail.summary.id)).map(detail => detail.summary),
+      iterations: [], earlier: [], refused: [],
+    });
+    let invocation = 'none';
+    let bound: BoundReconciliation | undefined;
+    const validate = async (input: unknown) => {
+      const checked = await validateReconciliationForExecution(input, { id, owner: this.input.record.jobId,
+        attention: entries, unstableTests, held, actor: { kind: 'agent', role: 'local-architect', invocation }, source,
+        authority: { kind: 'governing-record', ref: runLayout.documentManifest }, responsible: { kind: 'run' },
+        waiverRefusal: () => gate.verdict === 'passed' ? null : 'a failed final audit cannot be waived',
+        evidence: submission => [{ kind: 'reconciliation-submission', ref: runLayout.submission(invocation),
+          hash: `sha256:${sha256(canonicalJson(submission))}` }],
+        document: async path => {
+          try {
+            const entry = (await this.candidates.treeEntries(this.projectRoot, gate.audited!)).find(item => item.path === path);
+            if (!entry) return null;
+            return { text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+              await readVerifiedTextBlobBytes(this.projectRoot, gate.audited!, entry, this.candidates)), revision: gate.audited! };
+          } catch { return null; }
+        },
+        decide: command => {
+          const change = decideCheckFindingChange(this.observe().findings, command);
+          return change.ok ? null : change.rejection;
+        },
+      });
+      if (checked.ok) bound = checked.value;
+      return checked.ok ? { ok: true as const, value: checked.value.submission } : checked;
+    };
+    let accepted: { id: string; value: ReconciliationSubmission } | undefined;
+    for (const start of this.events('invocation-started').filter(event => event.data.work.request === id)) {
+      const end = this.events('invocation-ended').find(event => event.data.invocation === start.data.invocation);
+      if (end?.data.ended !== 'submitted' || end.data.submission === null) continue;
+      const bytes = await readIfExists(this.path(runLayout.submission(start.data.invocation)));
+      if (bytes === undefined || sha256(bytes) !== end.data.submission) throw new Error(`Retained final instability submission ${start.data.invocation} is unavailable`);
+      const { schema: _schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+      invocation = start.data.invocation;
+      const checked = await validate(body);
+      if (!checked.ok) throw new Error(`Retained final instability judgment ${invocation} no longer validates: ${checked.errors.map(error => error.message).join('; ')}`);
+      accepted = { id: invocation, value: checked.value };
+    }
+    if (accepted === undefined) {
+      const result = await this.ports.runInvocation<ReconciliationSubmission>(agent, {
+      role: 'local-architect', work: { request: id }, task: { kind: 'reconciliation', goal: `Judge final audit instability on ${source.id}`,
+        requirements: [runLayout.gate(gate.id)], literalSections: [{ key: 'support:final-instability-source', text: JSON.stringify({
+          commit: gate.audited, tree: source.id, originalBaseline: baseline, evidence: runLayout.gate(gate.id),
+        }) }] },
+      attempt: this.events('invocation-started').filter(event => event.data.work.request === id).length + 1,
+      loaded, systemPrompt: renderReconciliationPrompt(loaded, this.projectRoot, this.projectRoot), prompt,
+      start: { mode: 'fresh' }, keep: () => finished('not-kept'), scope: { write: null, measurement: null, size: null }, writer: true,
+      toolName: reconciliationToolName, description: reconciliationSubmissionDescription, inputSchema: reconciliationJsonSchema,
+      submissionSchema: 'ramify-agent.reconciliation-submission/1',
+      validate,
+      equip: session => this.nonfunctionalTools(session, boundedNonfunctionalTools({ source: this.candidates,
+        projectRoot: this.projectRoot, candidate: gate.audited!, base: snapshot.base,
+        snapshot, scope: undefined })),
+      onStarted: async id => { invocation = id; },
+      });
+      if (result.ended !== 'submitted' || result.value === undefined || bound === undefined) {
+        await this.ports.fail('agent-failed', `Final instability reconciliation ended ${result.ended} without an accepted judgment`, [runLayout.gate(gate.id)]);
+        return null;
+      }
+      accepted = { id: result.id, value: result.value };
+    }
+    if (bound === undefined) throw new Error(`Final instability judgment ${accepted.id} has no bound decisions`);
+    if ((await this.ports.previewCandidateTree()).tree !== source.id) {
+      await this.ports.fail('inputs-changed', `Final instability judgment ${accepted.id} no longer describes the prepared candidate`, [runLayout.gate(gate.id)]);
+      return null;
+    }
+    const commands = bound.commands;
+    const committed = await this.ports.commitFinding(({ state: current }) => {
+      if (this.events('final-instability-reconciled').some(event => event.data.gate === gate.id)) return { stale: `${id} already committed` };
+      if (current.applied !== state.applied) return { stale: `${id} findings changed` };
+      return { commands: commands.length ? [{ type: 'assess', commands: [...commands] }] : [], compose: decided => ({
+        event: { type: 'final-instability-reconciled', data: { gate: gate.id, candidate: binding.candidateId,
+          invocation: accepted.id, next: accepted.value.next.kind, checkFindings: [...decided.events] } },
+      }) };
+    }, this.ports.now());
+    if (committed.kind !== 'committed') throw new Error(`Final instability reconciliation ${id} was not retained`);
+    this.ports.notify();
+    return accepted.value.next.kind;
+  }
+
   private async planFinalCorrection(agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>,
     binding: { candidateId: string; assessment: Assessment }, gate: GateAttempt): Promise<boolean> {
     if (this.events('final-correction-planned').some(event => event.data.gate === gate.id)) return true;
@@ -1513,12 +1642,12 @@ export class Acceptance {
     while (accepted === undefined) {
       if (this.ports.ignoring()) return false;
       const result = await this.ports.runInvocation<FinalCorrection>(agent, {
-        role: 'global-fork', work: { request }, task: { kind: 'final-correction', goal: `Resolve failed final verification ${gate.id}`,
-          requirements: [`Inspect the retained failure evidence at ${this.path(runLayout.gate(gate.id))} and select the responsible module and next correction goal. Preserve accepted work and verify the corrected candidate.`] },
+        role: 'global-fork', work: { request }, task: { kind: 'final-correction', goal: `Resolve final verification ${gate.id}`,
+          requirements: [`Inspect the retained audit and instability evidence at ${this.path(runLayout.gate(gate.id))} and select the responsible module and next correction goal. Preserve accepted work and verify the corrected candidate.`] },
         attempt: this.events('invocation-started').filter(event => event.data.work.request === request).length + 1, loaded,
         systemPrompt: renderGlobalForkPrompt(loaded, this.projectRoot),
         prompt: [
-          `Final verification ${gate.id} is ${gate.verdict}. The plan remains unfinished; accepted work is retained.`,
+          `Final verification ${gate.id} is ${gate.verdict}; a required reliability correction may remain even when the configured audit passed with warnings. The plan remains unfinished; accepted work is retained.`,
           `For this turn, use submit_final_correction to choose the module architect and goal for the next correction; its supplied schema defines this task's answer.`,
           'Investigate the actual diagnostics. Explain why the next approach should help; repeated failure requires reconsideration, not abandonment.',
           'An environment or verification issue may need investigation before source changes. Delegate that investigation as the goal where appropriate.',
@@ -1546,7 +1675,7 @@ export class Acceptance {
     const records = committedRecords(this.observe().history.lines);
     const item = workItemSchema.parse({ schema: 'ramify-agent.work-item/1', id: workItemId(records.workItems.length + 1),
       module: accepted.value.module, origin: { finalVerification: gate.id },
-      goal: [accepted.value.goal, accepted.value.rationale, `Failed verification: ${this.path(runLayout.gate(gate.id))}`, ...diagnostics.summary].join('\n\n'),
+      goal: [accepted.value.goal, accepted.value.rationale, `Final verification: ${this.path(runLayout.gate(gate.id))}`, ...diagnostics.summary].join('\n\n'),
       requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
     });
     await this.ports.write({ type: 'final-correction-planned', data: { gate: gate.id, invocation: accepted.id,
@@ -2168,10 +2297,6 @@ export class Acceptance {
         } });
       }
     }
-    if ((await this.ports.previewCandidateTree()).tree !== prepared.candidate.tree) {
-      await this.ports.fail('inputs-changed', 'The source tree changed during final candidate checks', [runLayout.candidate(prepared.id)]);
-      return false;
-    }
     return !this.ports.ignoring();
   }
 
@@ -2494,7 +2619,7 @@ export class Acceptance {
     await this.ports.write({ type: 'iteration-closed', data: closing.data }, [closing.record]);
   }
 
-  private async finalGate(binding: { candidateId: string; assessment: Assessment }): Promise<GateAttempt | undefined> {
+  private async finalGate(agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, binding: { candidateId: string; assessment: Assessment }): Promise<GateAttempt | undefined> {
     this.ports.requireSettled('The final gate cannot run');
     const sourceChanges = await documentChanges(this.projectRoot, this.input.record.planId, this.input.directory, this.input.record.manifest);
     if (sourceChanges.length > 0) {
@@ -2626,6 +2751,20 @@ export class Acceptance {
     if (attempt.verdict === 'passed' && (attempt.audited === null || attempt.evidence === null
       || this.events('candidate-bound-to-gate').at(-1)?.data.gate !== gateId)) {
       await this.ports.fail('recovery-exhausted', 'The final gate passed without durable candidate-bound audit evidence', [runLayout.gate(gateId)]);
+      return;
+    }
+
+    const instability = await this.reconcileFinalInstability(agent, packages, attempt, binding);
+    if (instability === 'correct') return attempt;
+    if (instability === 'unresolved' || instability === 'await-user') {
+      await this.ports.fail('acceptance-incomplete', `Final audit instability remains unresolved on ${gateId}`, [runLayout.gate(gateId)]);
+      return;
+    }
+    if (instability === null) return;
+    if (attempt.verdict !== 'passed' && instability === 'complete' && configuredAuditInstabilityObservations(attempt.provider?.result)
+      .some(observation => { try { return (JSON.parse(observation.detail) as { policy?: { onFailure?: string } }).policy?.onFailure === 'failure'; }
+        catch { return false; } })) {
+      await this.ports.fail('acceptance-incomplete', `Final audit ${gateId} failed under strict instability policy; its verdict remains blocking`, [runLayout.gate(gateId)]);
       return;
     }
 

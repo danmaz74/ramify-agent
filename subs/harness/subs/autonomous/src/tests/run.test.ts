@@ -84,11 +84,11 @@ describe('an implementation run with no entry capabilities', () => {
       'scratch-setup-complete',
       'nonfunctional-phase-started',
       'candidate-prepared',
-      'nonfunctional-assessed',
-      'nonfunctional-round-closed',
       'gate-committing',
       'gate-attempted',
+      'nonfunctional-assessed',
       'candidate-bound-to-gate',
+      'nonfunctional-round-closed',
       'session-finished',
       'job-completed',
     ]);

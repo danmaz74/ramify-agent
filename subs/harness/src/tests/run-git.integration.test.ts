@@ -111,23 +111,14 @@ describe('run-to-Git integration', () => {
 
   test('a final candidate without any captured writer origin is refused before a real Git commit', async () => {
     const { root } = await target();
-    let reachedCorrection!: () => void;
-    const correctionStarted = new Promise<void>(resolve => { reachedCorrection = resolve; });
     const opened = await openRuns(root, { git: gitService, script: spec => {
-      if (spec.submission.name === 'submit_final_correction') {
-        reachedCorrection(); return [{ kind: 'wait', ms: 60_000 }];
-      }
       return spec.role === 'initial-architect' ? submit(emptyAnalysis()) : [];
     },
       afterWrite: async write => { if (write === 'readiness-attempted') await writeFile(join(root, 'src/late.ts'), 'export const late = true;\n'); } });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun('review-notes'));
-    await Promise.race([correctionStarted, opened.service.settled('review-notes', receipt.jobId).then(() => {
-      throw new Error('Run ended before the failed final verification returned to correction');
-    })]);
-    await opened.service.execute(stopRun('review-notes', receipt.jobId, opened.service.getRun('review-notes', receipt.jobId)!.version));
     await opened.service.settled('review-notes', receipt.jobId);
-    expect(onlyRun(opened.service, 'review-notes').state).toBe('stopped');
+    expect(onlyRun(opened.service, 'review-notes').failure?.reason).toBe('inputs-changed');
     expect((await git(root, 'log', '--format=%H')).trim().split('\n')).toHaveLength(1);
     const events = await runEventsOnDisk(root, 'review-notes', receipt.jobId);
     const gate = events.find(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final');
@@ -156,9 +147,10 @@ describe('run-to-Git integration', () => {
 
     const body = await git(root, 'log', '-1', '--format=%B');
     expect(body).toContain('Ramify-Run: ' + receipt.jobId);
-    expect(body).toContain('Ramify-Gate: ga-0002');
+    expect(body).toContain('Ramify-Gate: ga-0003');
     const events = await runEventsOnDisk(root, 'review-notes', receipt.jobId);
-    const invocations = events.filter(event => event.type === 'invocation-started' && !['reviewer', 'failure-analyst'].includes(event.data.role)).map(event => event.type === 'invocation-started' ? event.data.invocation : '');
+    const committedAt = events.filter(event => event.type === 'gate-committing').at(-1)!.sequence;
+    const invocations = events.filter(event => event.sequence < committedAt && event.type === 'invocation-started' && !['reviewer', 'failure-analyst'].includes(event.data.role)).map(event => event.type === 'invocation-started' ? event.data.invocation : '');
     expect(body).toContain(`Ramify-Invocations: ${invocations.join(', ')}`);
     expect(events.some(event => event.type === 'nonfunctional-repair-assigned')).toBe(true);
     expect(body).not.toContain('Checks:');
@@ -169,13 +161,14 @@ describe('run-to-Git integration', () => {
     expect(files).toEqual(['src/late.ts']);
 
     // The attempt record names the commit the effect made.
-    const attempt = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.gate('ga-0002')), 'utf8')) as { commit: string | null };
+    const attempt = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.gate('ga-0003')), 'utf8')) as { commit: string | null };
     expect(attempt.commit).toBe(commits[0]!.split(' ')[0]);
   }, 120_000);
 
   test('recovery finds the real commit by both trailers and does not create a duplicate', async () => {
     const { root } = await target();
     let commitMade = false;
+    let finalCommits = 0;
     const crashed = await openRuns(root, {
       git: gitService,
       script: authorizedRepair(root), inputs: treeInputs(),
@@ -183,6 +176,8 @@ describe('run-to-Git integration', () => {
         // `gate-committing` is reported after Git answered the commit and
         // before the audit and immutable attempt completion are written.
         if (write === 'gate-committing') {
+          finalCommits += 1;
+          if (finalCommits !== 2) return;
           commitMade = true;
           await freeze();
         }
@@ -197,30 +192,30 @@ describe('run-to-Git integration', () => {
     const accepted = before[0]!;
     const body = await git(root, 'show', '-s', '--format=%B', accepted);
     expect(body).toContain(`Ramify-Run: ${receipt.jobId}`);
-    expect(body).toContain('Ramify-Gate: ga-0002');
+    expect(body).toContain('Ramify-Gate: ga-0003');
 
     const frozen = await runEventsOnDisk(root, 'review-notes', receipt.jobId);
-    expect(frozen.filter(event => event.type === 'gate-committing')).toHaveLength(1);
-    expect(frozen.some(event => event.type === 'gate-attempted')).toBe(false);
+    expect(frozen.filter(event => event.type === 'gate-committing')).toHaveLength(2);
+    expect(frozen.filter(event => event.type === 'gate-attempted')).toHaveLength(1);
 
     // This witness intentionally uses the real dead-process helper and the
     // production Git default on both service instances.
     await crashLock(root);
-    const reopened = await openRuns(root, { git: gitService, script: [] });
+    const reopened = await openRuns(root, { git: gitService, script: authorizedRepair(root) });
     cleanups.unshift(() => reopened.service.close());
 
     expect(reopened.recovery.effects).toContain(`review-notes/${receipt.jobId}: continued unfinished tasks through ordinary execution`);
     await reopened.service.settled('review-notes', receipt.jobId);
-    expect(onlyRun(reopened.service, 'review-notes').state).toBe('completed');
+    expect(onlyRun(reopened.service, 'review-notes').state, JSON.stringify(onlyRun(reopened.service, 'review-notes').failure)).toBe('completed');
 
     const after = (await git(root, 'log', '--format=%H', branch)).trim().split('\n');
     expect(after).toEqual(before);
     const recovered = await runEventsOnDisk(root, 'review-notes', receipt.jobId);
-    expect(recovered.filter(event => event.type === 'gate-committing')).toHaveLength(1);
-    expect(recovered.filter(event => event.type === 'gate-attempted')).toHaveLength(1);
+    expect(recovered.filter(event => event.type === 'gate-committing')).toHaveLength(2);
+    expect(recovered.filter(event => event.type === 'gate-attempted')).toHaveLength(2);
 
     const attempt = JSON.parse(
-      await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.gate('ga-0002')), 'utf8'),
+      await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.gate('ga-0003')), 'utf8'),
     ) as GateAttempt;
     expect(attempt.commit).toBe(accepted);
     expect(attempt.audited).toBe(accepted);

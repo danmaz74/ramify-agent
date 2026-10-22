@@ -428,6 +428,9 @@ function describe(event: RunEvent): [string, Ref[]] {
     case 'final-correction-planned':
       return [`Final verification ${event.data.gate} returned to architect-planned correction ${event.data.workItem}`,
         [...ref('gate', event.data.gate), ...ref('work-item', event.data.workItem), ...ref('invocation', event.data.invocation)]];
+    case 'final-instability-reconciled':
+      return [`Final audit instability at ${event.data.gate}: ${event.data.next}`,
+        [...ref('gate', event.data.gate), ...ref('invocation', event.data.invocation)]];
     case 'compaction-review-started':
       return [`Architect reconsideration during compaction ${event.data.ordinal} of ${event.data.invocation}`, ref('invocation', event.data.invocation)];
     case 'compaction-reviewed':

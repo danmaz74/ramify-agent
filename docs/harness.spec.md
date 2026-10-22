@@ -463,6 +463,16 @@ correction or completion. A failed audit retains the assessment; a failed or
 unavailable assessment retains the audit. A repair prepares a new candidate
 with new checks, while the earlier records remain tied to their source.
 
+Provider-established instability in the final audit is reported as an
+assessment finding even when the audit passes with warnings and no code review
+ran. Final reconciliation uses the original execution baseline to judge each
+test's origin. An existing unstable test retains the provider verdict without
+repair work; an added unstable test requires a correction preserving reliable
+coverage, and its finding can close only after semantic verification on a later
+candidate without that test's established instability. Unknown origin remains
+unresolved. A strict audit failure remains blocking regardless of the origin
+judgment. Reused observations attach to their existing finding across gates.
+
 The prepared candidate, gate operation, gate attempt and coordinator invocation
 are retained separately. On restart, an existing result is reused and only
 missing work proceeds. Candidate identity is verified again before completion.

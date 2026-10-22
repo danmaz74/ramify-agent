@@ -107,6 +107,7 @@ export interface ReviewRun {
    * scripted ends without a submission.
    */
   readonly reconcilers?: Readonly<Record<string, readonly ScriptStep[]>>;
+  readonly globalFork?: ReadonlyArray<readonly ScriptStep[]>;
   /** What Git answers at each commit boundary after the scenarios' commit, in place of the three revisions and two unchanged trees. */
   readonly gates?: readonly GateCommit[];
   /** Exact number of final candidate tree previews this scenario reaches. */
@@ -127,7 +128,7 @@ export interface ReviewRun {
  * start, and every other role from `roles` by work item, or from the one
  * work item's analysis, architect and engineers.
  */
-export function reviewScript(scenario: Pick<ReviewRun, 'reviewers' | 'engineer' | 'architect' | 'reconcilers' | 'roles'>): (spec: SessionSpec) => readonly ScriptStep[] {
+export function reviewScript(scenario: Pick<ReviewRun, 'reviewers' | 'engineer' | 'architect' | 'reconcilers' | 'globalFork' | 'roles'>): (spec: SessionSpec) => readonly ScriptStep[] {
   const roles = (scenario.roles === undefined
     ? byRole({
       'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
@@ -138,6 +139,7 @@ export function reviewScript(scenario: Pick<ReviewRun, 'reviewers' | 'engineer' 
         submit(requestCompletion()),
       ],
       engineer: scenario.engineer.map(turn => [...turn]),
+      ...(scenario.globalFork === undefined ? {} : { 'global-fork': scenario.globalFork.map(turn => [...turn]) }),
     })
     : byWork(scenario.roles)) as (spec: SessionSpec) => readonly ScriptStep[];
   const reconcilerStarts = new Map<string, number>();
@@ -171,7 +173,7 @@ export async function reviewRun(root: string, cleanups: Array<() => Promise<void
   const beforeFinal = gates.slice(0, -1).reduce((head, gate) => gate.commit ?? head, materialized);
   const afterFinal = gates.at(-1)?.commit ?? beforeFinal;
   const tree = scripted[beforeFinal]?.tree;
-  const previewCount = scenario.previewCount ?? 5;
+  const previewCount = scenario.previewCount ?? 4;
   if (previewCount > 0 && (tree === undefined || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(tree))) {
     throw new Error(`Review run must state a valid final candidate tree for ${beforeFinal}`);
   }

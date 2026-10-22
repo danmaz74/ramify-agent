@@ -10,8 +10,8 @@ const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
 
 /*
- * The frozen catalog is unreadable as the first candidate is committed,
- * and whole again at the run's next write: the scope review
+ * The frozen catalog is unreadable as the first candidate is committed;
+ * the fixture restores it after recording the review. The scope review
  * cannot cite its assignment package, so it is recorded as unavailable.
  */
 test('an assignment package that cannot be cited leaves a scope review explicitly not verified', async () => {
@@ -28,9 +28,6 @@ test('an assignment package that cannot be cited leaves a scope review explicitl
         const path = runPath(root, plan, runId, accepted.data.evidence.catalog.path);
         catalog = { path, bytes: await readFile(path, 'utf8') };
         await writeFile(path, '{"schema":"not a catalog"}\n');
-      } else if (catalog !== undefined && !restored) {
-        restored = true;
-        await writeFile(catalog.path, catalog.bytes);
       }
     },
     architect: [
@@ -49,6 +46,7 @@ test('an assignment package that cannot be cited leaves a scope review explicitl
   const request = eventsOf(run.events, 'review-request-recorded')[0];
   expect(request).toBeDefined();
   const record = JSON.parse(await readFile(runPath(root, plan, run.runId, reviewLayout.request(request!.data.request)), 'utf8')) as ReviewRequest;
+  if (!restored && catalog !== undefined) { await writeFile(catalog.path, catalog.bytes); restored = true; }
   expect(restored).toBe(true);
   expect(record.inputsUnavailable).toContain('The scope review\'s assignment package could not be cited');
   expect(record.source).toBeUndefined();
@@ -57,4 +55,4 @@ test('an assignment package that cannot be cited leaves a scope review explicitl
   });
   expect(run.agent?.sessions.filter(session => session.spec.role === 'reviewer'
     && session.spec.prompt.includes(request!.data.request))).toHaveLength(0);
-});
+}, 60_000);

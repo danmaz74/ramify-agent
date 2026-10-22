@@ -103,7 +103,7 @@ describe('a run started with the review stop', () => {
     await writeFile(join(root, 'plans', plan, 'companion.md'), 'First version\n');
     let changed = false;
     const { service } = await openRuns(root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }], previewCount: 3, unchangedCheckpoints: [finalVerification],
+      script: [{ kind: 'submit', input: emptyAnalysis() }], previewCount: 2, unchangedCheckpoints: [finalVerification],
       checkScript: async invocation => {
         if (!changed && invocation.context.checkpoint === 'final') {
           changed = true;
@@ -186,8 +186,8 @@ describe('a run started with the review stop', () => {
     expect(events.map(event => event.type)).toEqual([
       'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested', 'continuity-policy-adopted', 'analysis-approved',
       'gate-started', 'readiness-passed', 'scratch-setting-up', 'scratch-setup-complete',
-      'nonfunctional-phase-started', 'candidate-prepared', 'nonfunctional-assessed', 'nonfunctional-round-closed',
-      'gate-committing', 'gate-attempted', 'candidate-bound-to-gate', 'session-finished', 'job-completed',
+      'nonfunctional-phase-started', 'candidate-prepared', 'gate-committing', 'gate-attempted',
+      'nonfunctional-assessed', 'candidate-bound-to-gate', 'nonfunctional-round-closed', 'session-finished', 'job-completed',
     ]);
     expect(events.find(event => event.type === 'analysis-approved')!.data).toMatchObject({
       reviewer: 'dana@example.com', note: 'The scenarios match the plan.', duringRun: false, command: { receipt: approved },

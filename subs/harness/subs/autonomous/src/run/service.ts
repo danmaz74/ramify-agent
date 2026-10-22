@@ -1739,7 +1739,7 @@ export class AutonomousRunService {
 
   /** Preserve one assessment question per unstable test, keyed across reused audit receipts. */
   private async reportGateInstability(run: Run, gate: GateAttempt): Promise<void> {
-    if ((gate.checkpoint !== 'iteration' && gate.checkpoint !== 'breaking-iteration') || gate.subject.workItem === undefined) return;
+    if (gate.checkpoint !== 'iteration' && gate.checkpoint !== 'breaking-iteration' && gate.checkpoint !== 'final') return;
     const prepared = run.log.all('iteration-candidate-prepared').find(event => event.data.gate === gate.id);
     const observations = configuredAuditInstabilityObservations(gate.provider?.result);
     if (observations.length === 0) return;
@@ -1747,16 +1747,21 @@ export class AutonomousRunService {
       : committedRecords(coordinationHistory(run.log).lines).assignments.get(gate.subject.iteration);
     const owner = prepared?.data.workItem ?? (assignment?.coordination?.kind === 'capability-task'
       ? assignment.coordination.id : gate.subject.workItem);
+    if (gate.checkpoint !== 'final' && owner === undefined) return;
     const tree = prepared?.data.tree ?? (gate.audited === null ? null
       : await this.candidates.commitTree(this.projectRoot, gate.audited));
     if (tree === null) return;
+    const findings = checkFindingStateOf(run.log.ledger);
     for (const observation of observations) {
       const identity = observation.identity;
       const summary = `Audit established instability in test ${JSON.stringify(identity.testId ?? 'unidentified test')} at ${observation.path ?? 'an unidentified path'} (project ${identity.projectRoot}, check ${identity.checkId ?? 'unidentified'}${identity.project === null ? '' : `, runner project ${identity.project}`}); determine this test's origin against the original execution baseline`;
+      const issueKey = `test-instability:${observation.key}`;
+      const priorOwner = [...findings.findings.values()].find(entry => entry.reports.some(report =>
+        report.producer === 'check:audit-instability' && report.issueKey === issueKey))?.owner;
       const report = reportCommand({
         producer: 'check:audit-instability', attempt: gate.id, reportKey: observation.key,
-        owner: { kind: 'work-item', workItem: owner },
-        source: { kind: 'tree', id: tree }, issueKey: `test-instability:${observation.key}`,
+        owner: priorOwner ?? (gate.checkpoint === 'final' ? { kind: 'run' } : { kind: 'work-item', workItem: owner! }),
+        source: { kind: 'tree', id: tree }, issueKey,
         verification: { kind: 'assessment' },
         observation: { kind: 'audit-instability', summary,
           evidence: [{ kind: 'gate-audit', ref: runLayout.gate(gate.id), hash: null },
