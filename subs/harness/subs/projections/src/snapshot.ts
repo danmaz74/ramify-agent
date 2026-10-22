@@ -72,7 +72,6 @@ export function snapshotOf(view: RunView): RunSnapshot {
     automaticRepairs: automaticRepairsOf(view),
     breakpoint: internal.breakpoint,
     recovery: internal.recovery,
-    ...(view.record.restart === undefined ? {} : { restart: { sourceRun: view.record.restart.sourceRun, sourceCursor: view.record.restart.sourceCursor, sourceDigest: view.record.restart.sourceDigest, importDigest: view.record.restart.importDigest, generation: view.record.restart.generation } }),
   };
 }
 

@@ -41,7 +41,7 @@ export function scopeCollectionFixture() {
   const manifest = buildDeliveredManifest({ inheritedPoint: 'point1', inherited: [role, brief], appended: [role, brief] });
   const write: WriteScope = {
     revision: 1, base: { module: 'p/a', included: [] }, extra: [], read: ['p/b'], bootstrap: [], rationale: 'overlap fixture',
-    resolved: { roots: [], files: [], excluded: [], view: { status: 'placeholder' },
+    resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], roots: [], files: [], excluded: [], view: { status: 'placeholder' },
       included: [{ directory: '.', kind: 'child-subtree', owner: 'p', reason: 'overlapping subtree', instructions: '', projectInstructions: [] }],
       ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: '0', inputId: 'i', configuration: 'tsconfig.json', root: '/scope-fixture', modules: [], exclusions: [] } },
   };

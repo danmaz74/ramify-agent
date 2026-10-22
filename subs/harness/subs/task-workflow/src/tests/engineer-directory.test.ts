@@ -24,7 +24,7 @@ function index(modules: readonly [string, string][]): ArchitectIndex {
 }
 
 function scope(base: WriteScope['base'], roots: string[], bootstrap: WriteScope['bootstrap'] = []): WriteScope {
-  return { extra: [], read: [], rationale: 'fixture', base, bootstrap, resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots, files: [], view: { status: 'placeholder' } }, revision: 1 } as WriteScope;
+  return { extra: [], read: [], rationale: 'fixture', base, bootstrap, resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots, files: [], view: { status: 'placeholder' } }, revision: 1 } as WriteScope;
 }
 
 test('root and multi-module assignments start in the first base module src', async () => {

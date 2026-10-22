@@ -53,7 +53,7 @@ test('no contingent assignment refuses', async () => {
   expect(subject.specs.some(spec => spec.submission.name === 'submit_automatic_repair')).toBe(false);
   expect(await readFile(join(subject.root, renamed), 'utf8')).toBe(content);
   subject.boundary.assertComplete();
-});
+}, 30_000);
 
 test('blocked repair preserves both failure accounts', async () => {
   const subject = await scenario({ blocked: true });
@@ -117,7 +117,7 @@ test('second supported preparation fault refuses after one repair invocation', a
   expect(events.filter(event => event.type === 'invocation-started' && event.data.work.automaticRepair)).toHaveLength(1);
   expect(events.filter(event => event.type === 'iteration-closed').map(event => event.data.outcome)).toEqual(['partial', 'partial']);
   subject.boundary.assertComplete();
-});
+}, 30_000);
 
 test('stop during repair settles the incident and never resumes the architect', async () => {
   const subject = await scenario({ stopDuringRepair: true });

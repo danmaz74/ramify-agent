@@ -1,16 +1,13 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { z } from 'zod';
 import { commandResponseSchema } from '../subs/harness/src/interfaces/protocol/jobs.js';
 import { errorResponseSchema } from '../subs/harness/src/interfaces/protocol/errors.js';
 import { protocolPaths } from '../subs/harness/src/interfaces/protocol/paths.js';
-import { externalRepairDeclarationSchema, recoveryInspectionSchema, recoveryResumeCommandSchema } from '../subs/harness/src/interfaces/protocol/runs.js';
+import { recoveryInspectionSchema, recoveryResumeCommandSchema } from '../subs/harness/src/interfaces/protocol/runs.js';
 import { UsageError, type RecoveryOptions } from './cli.js';
 import type { ControlResult } from './debug-client.js';
 
 export interface RecoveryClientPorts {
   readonly fetch?: typeof fetch;
-  readonly readText?: (path: string) => Promise<string>;
 }
 class RecoveryFailure extends Error {
   constructor(readonly code: string, message: string, readonly uncertain = false) { super(message); }
@@ -19,8 +16,6 @@ class RecoveryFailure extends Error {
 /** A recovery control client owns no execution or cancellation; command identity survives lost replies. */
 export async function runRecoveryCommand(options: RecoveryOptions, ports: RecoveryClientPorts = {}): Promise<ControlResult> {
   const identity = { planId: options.planId, runId: options.runId,
-    ...(options.occurrenceId ? { occurrenceId: options.occurrenceId } : {}),
-    ...(options.expectedRevision ? { revision: options.expectedRevision } : {}),
     ...(options.commandId ? { commandId: options.commandId } : {}) };
   try {
     const url = new URL(options.server);
@@ -49,18 +44,8 @@ export async function runRecoveryCommand(options: RecoveryOptions, ports: Recove
       return { exitStatus: 0, output: { kind: 'recovery-inspection', ...identity, inspection,
         summary: inspection === null ? 'No interrupted task is waiting.' : inspection.canResume ? 'The unfinished task can continue.' : 'Continuation needs the reported prerequisites.' } };
     }
-    let repair: unknown;
-    if (options.repairFile !== undefined) {
-      const text = await (ports.readText ?? (path => readFile(resolve(path), 'utf8')))(options.repairFile);
-      let value: unknown;
-      try { value = JSON.parse(text); } catch { throw new UsageError('--repair-file must contain a JSON repair declaration'); }
-      const parsed = externalRepairDeclarationSchema.safeParse(value);
-      if (!parsed.success) throw new UsageError('--repair-file needs valid areas, explanation and optional evidence');
-      repair = parsed.data;
-    }
     const command = recoveryResumeCommandSchema.parse({ commandId: options.commandId, expectedVersion: 0, type: 'resume-recovery',
-      payload: { planId: options.planId, jobId: options.runId, occurrenceId: options.occurrenceId, expectedRevision: options.expectedRevision,
-        ...(repair === undefined ? {} : { repair }) } });
+      payload: { planId: options.planId, jobId: options.runId } });
     const { receipt } = await request(protocolPaths.commands, commandResponseSchema, command);
     return { exitStatus: 0, output: { kind: 'recovery-resumed', ...identity, receipt,
       summary: 'Task continuation requested. An identical command returns this receipt; inspection reports any remaining prerequisite.' } };

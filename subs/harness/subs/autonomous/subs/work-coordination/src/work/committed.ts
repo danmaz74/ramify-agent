@@ -69,7 +69,13 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
           break;
         }
         case 'ramify-agent.iteration-assignment/2': {
-          const value = parseCommittedRecord(iterationAssignmentSchema, record.body, record.path);
+          let value: IterationAssignment;
+          try { value = parseCommittedRecord(iterationAssignmentSchema, record.body, record.path); }
+          catch (error) {
+            if (error instanceof CommittedRecordError && error.errors.some(issue => issue.startsWith('scope.resolved.boundaryVersion:') || issue.startsWith('scope.resolved.nestedDeclarations:')))
+              throw new CommittedRecordError(record.path, ['write scope expects ramify-agent.assignment-boundary/1 with nestedDeclarations', ...error.errors]);
+            throw error;
+          }
           assignments.set(value.id, value);
           break;
         }

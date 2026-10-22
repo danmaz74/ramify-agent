@@ -62,7 +62,7 @@ function snapshot(extra: Partial<RunSnapshot> = {}): RunSnapshot {
     writer: { held: 'inv-0006', unsettled: null },
     review: 'not-reviewed',
     decisionRequests: { open: 0, waiting: false, workItems: [] },
-    planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [],
+    planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], automaticRepairs: { attempted: 0, refused: 0, incidents: [] }, breakpoint: null, recovery: null,
     notices: [
       {
         kind: 'module-created', at, sequence: 9, summary: 'Module created: shop/notes/drafts (subs/drafts/module.ramify) in work-item:case-002.i01, commit abc. No placement decision proposed it.',

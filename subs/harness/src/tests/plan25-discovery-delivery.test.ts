@@ -281,7 +281,7 @@ test('D5: an actual partial engineer result is navigation help labeled partial f
     engineer: [submit({ kind: 'partial', done: ['Inspected caller'], unfinished: ['Implement behavior'], findings: [], startingPoints: [point] })],
   })));
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(), candidates: source,
-    unchangedCheckpoints: [scenariosCommit(plan), 'work-item:review-note', `final verification of plan "${plan}"`] });
+    unchangedCheckpoints: [scenariosCommit(plan), 'work-item:review-note', `final verification of plan "${plan}"`], previewCount: 5 });
   cleanups.push(() => opened.service.close()); const receipt = await opened.service.execute(startRun(plan)); await opened.service.settled(plan, receipt.jobId);
   expect(onlyRun(opened.service, plan).state).toBe('completed');
   const returned = agent.sessions.find(session => session.spec.prompt.includes('"producer":"engineer partial result"'))!;

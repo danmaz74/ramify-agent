@@ -30,7 +30,7 @@ test('reopening keeps supported run answers and refuses malformed and unsupporte
       lines.pop();
       await writeFile(join(invalidRun, runLayout.events), lines.join('\n').replaceAll(runId, failure.run) + '\n');
       const log = await RunLog.open(join(invalidRun, runLayout.events), failure.run);
-      await commitRecord(log.ledger, { event: log.next({ type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' } }), records: [
+      await commitRecord(log.ledger, { event: log.next({ type: 'external-candidate-observed', data: { id: 'candidate', beforeTree: 'head', afterTree: 'tree' } }), records: [
         { path: 'hypotheses/hypothesis%3Aunreadable/1.json', id: 'hypothesis:unreadable', revision: 1, body: { schema: `ramify-agent.hypothesis/${failure.schema}` } },
       ] });
       await log.append({ type: 'job-completed', data: { gate: 'ga-recorded', commit: 'a'.repeat(40), workItems: 0 } });

@@ -85,7 +85,7 @@ export function unionInventory(roots: Readonly<Record<string, unknown>>): Map<un
           // Repeated captured policy/completion snapshots reuse their owning
           // record schemas. Keep those stable union names; snapshot-only
           // values are still inventoried after every owning root.
-          if (key === 'policy' && path.endsWith('[continuity-policy-adopted].data') || key === 'completion' && path.endsWith('[capability-verification-started].data')) deferredSnapshots.push(() => walk(value, `${path}.${key}`, depth + 1));
+          if (key === 'completion' && path.endsWith('[capability-verification-started].data')) deferredSnapshots.push(() => walk(value, `${path}.${key}`, depth + 1));
           else walk(value, `${path}.${key}`, depth + 1);
         }
         return;

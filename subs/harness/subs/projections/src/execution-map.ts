@@ -64,7 +64,7 @@ function recordSource(view: RunView, schema: string, id: string, kind: Execution
 
 function eventSource(view: RunView, sequence: number): ExecutionSourceRef {
   const source = publicSequence(view.entries, sequence);
-  return { kind: 'run-event', id: `${source.sourceRun ? `${source.sourceRun}:` : ''}event-${source.sequence}`, ...source, revision: null };
+  return { kind: 'run-event', id: `event-${source.sequence}`, ...source, revision: null };
 }
 
 function sourceOf(view: RunView, schema: string, id: string, kind: ExecutionSourceRef['kind']): ExecutionSourceRef {
@@ -196,8 +196,8 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   const iterationCounts = new Map<string, number>();
   const startedIterations = new Set(view.events.filter(event => event.type === 'invocation-started')
     .flatMap(event => event.data.work.iteration === undefined ? [] : [event.data.work.iteration]));
-  for (const { body: assignment, sequence, sourceRun } of view.assignments) {
-    const source: ExecutionSourceRef = { kind: 'iteration-assignment', id: assignment.id, sequence, ...(sourceRun === undefined ? {} : { sourceRun }), revision: assignment.outline.revision };
+  for (const { body: assignment, sequence } of view.assignments) {
+    const source: ExecutionSourceRef = { kind: 'iteration-assignment', id: assignment.id, sequence, revision: assignment.outline.revision };
     const ordinal = (iterationCounts.get(assignment.workItem) ?? 0) + 1;
     iterationCounts.set(assignment.workItem, ordinal);
     const result = view.records.results.get(assignment.id);
@@ -234,7 +234,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     const source = sourceOf(view, 'ramify-agent.gate-attempt/3', gate.id, 'gate');
     const auditRecord = view.gateAuditOutcomes.get(gate.id);
     add({ ...base(key('gate', gate.id), `${label(gate.checkpoint)} gate ${gate.id}`, source), kind: 'gate',
-      sourceRefs: auditRecord === undefined ? [source] : [source, { kind: 'audit', id: gate.id, sequence: auditRecord.sequence, ...(auditRecord.sourceRun === undefined ? {} : { sourceRun: auditRecord.sourceRun }), revision: 1 }],
+      sourceRefs: auditRecord === undefined ? [source] : [source, { kind: 'audit', id: gate.id, sequence: auditRecord.sequence, revision: 1 }],
       checkpoint: gate.checkpoint, verdict: gate.verdict, audit: auditOf(view, gate), repairRound: gate.repairRound,
       commit: gate.commit, auditedCommit: gate.audited, active: false,
       subject: { workItem: gate.subject.workItem ?? null, iteration: gate.subject.iteration ?? null },
@@ -377,7 +377,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   for (const assignment of view.assignments) {
     const before = previous.get(assignment.body.workItem);
     if (before !== undefined) relate('follows', key('iteration', before), key('iteration', assignment.body.id),
-      { kind: 'iteration-assignment', id: assignment.body.id, sequence: assignment.sequence, ...(assignment.sourceRun === undefined ? {} : { sourceRun: assignment.sourceRun }), revision: assignment.body.outline.revision });
+      { kind: 'iteration-assignment', id: assignment.body.id, sequence: assignment.sequence, revision: assignment.body.outline.revision });
     previous.set(assignment.body.workItem, assignment.body.id);
   }
   for (const item of view.records.workItems) if (item.follows !== undefined && known().has(key('work-item', item.follows))) {
@@ -449,10 +449,10 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   }
   const sourceOrder = new Map(view.entries.map((entry, index) => {
     const source = publicSequence(view.entries, entry.sequence);
-    return [`${source.sourceRun ?? ''}:${source.sequence}`, index];
+    return [source.sequence, index];
   }));
   const orderOf = (source: ExecutionSourceRef | undefined) => source?.sequence == null ? Infinity
-    : sourceOrder.get(`${source.sourceRun ?? ''}:${source.sequence}`) ?? Infinity;
+    : sourceOrder.get(source.sequence) ?? Infinity;
   nodes.sort((a, b) => orderOf(a.sourceRefs[0]) - orderOf(b.sourceRefs[0])
     || a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key));
   links.sort((a, b) => orderOf(a.source) - orderOf(b.source) || a.id.localeCompare(b.id));

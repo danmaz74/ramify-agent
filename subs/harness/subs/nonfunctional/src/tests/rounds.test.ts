@@ -12,7 +12,7 @@ const assessment = (round: number, phase: 'initial' | 'after-repair', results: R
 const closed = (number: number, outcome: 'satisfied' | 'continue' | 'exhausted' | 'unavailable') =>
   roundSchema.parse({ schema: 'ramify-agent.nonfunctional-round/1', number, initial: 'nfa-001', investigation: null, repair: null, reassessment: null, outcome });
 const base: RoundDecisionInput = {
-  nfrIds: ['non-functional-requirement:response-time', 'non-functional-requirement:uptime'], maxRounds: 3, closedRounds: [], candidate, initial: null,
+  nfrIds: ['non-functional-requirement:response-time', 'non-functional-requirement:uptime'], closedRounds: [], candidate, initial: null,
   investigated: false, repairCommitted: false, reassessment: null,
 };
 
@@ -23,10 +23,9 @@ describe('nonfunctional round decision', () => {
     expect(decideNonfunctionalRound(ended)).toEqual({ action: 'stop', closedRounds: 1, outcome: 'satisfied' });
     expect(decideNonfunctionalRound({ ...ended, externalContinuations: [1] })).toEqual({ action: 'prepare-candidate', round: 2, phase: 'initial' });
     expect(original.outcome).toBe('satisfied');
-    expect(decideNonfunctionalRound({ ...ended, maxRounds: 1, externalContinuations: [1] })).toMatchObject({ action: 'prepare-candidate', round: 2 });
     expect(() => decideNonfunctionalRound({ ...ended, externalContinuations: [1, 1] })).toThrow('distinct closed rounds');
     expect(() => decideNonfunctionalRound({ ...ended, externalContinuations: [2] })).toThrow('distinct closed rounds');
-    const exhausted = { ...ended, maxRounds: 2, closedRounds: [original, closed(2, 'satisfied')], externalContinuations: [1] };
+    const exhausted = { ...ended, closedRounds: [original, closed(2, 'satisfied')], externalContinuations: [1] };
     expect(decideNonfunctionalRound(exhausted)).toEqual({ action: 'stop', closedRounds: 2, outcome: 'satisfied' });
     expect(() => decideNonfunctionalRound({ ...exhausted, externalContinuations: [] })).toThrow('only a continuing round');
   });
@@ -71,38 +70,35 @@ describe('nonfunctional round decision', () => {
     });
   });
 
-  it('continues useful rounds beyond the captured legacy limit and stops on a coordinator closure', () => {
+  it('continues repaired rounds and stops on an unrepaired exhaustion', () => {
     const unresolved = [result('non-functional-requirement:response-time', 'not-satisfied'), result('non-functional-requirement:uptime', 'satisfied')];
-    expect(decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', unresolved) })).toEqual({
-      action: 'repair-or-close', round: 1, unresolved: ['non-functional-requirement:response-time'],
-    });
     expect(decideNonfunctionalRound({ ...base, closedRounds: [closed(1, 'continue'), closed(2, 'continue')], initial: assessment(3, 'initial', unresolved) })).toEqual({
       action: 'repair-or-close', round: 3, unresolved: ['non-functional-requirement:response-time'],
     });
-    expect(decideNonfunctionalRound({ ...base, maxRounds: 1, initial: assessment(1, 'initial', unresolved) })).toEqual({
+    expect(decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', unresolved) })).toEqual({
       action: 'repair-or-close', round: 1, unresolved: ['non-functional-requirement:response-time'],
     });
-    expect(decideNonfunctionalRound({ ...base, maxRounds: 2, closedRounds: [closed(1, 'continue')], initial: assessment(2, 'initial', unresolved) })).toEqual({
+    expect(decideNonfunctionalRound({ ...base, closedRounds: [closed(1, 'continue')], initial: assessment(2, 'initial', unresolved) })).toEqual({
       action: 'repair-or-close', round: 2, unresolved: ['non-functional-requirement:response-time'],
     });
     expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), closed(3, 'exhausted')] })).toEqual({
       action: 'stop', closedRounds: 3, outcome: 'exhausted',
     });
-    expect(decideNonfunctionalRound({ ...base, maxRounds: 1, candidate: null, closedRounds: [closed(1, 'exhausted')] })).toEqual({
+    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'exhausted')] })).toEqual({
       action: 'stop', closedRounds: 1, outcome: 'exhausted',
     });
-    expect(decideNonfunctionalRound({ ...base, maxRounds: 2, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'exhausted')] })).toEqual({
+    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'exhausted')] })).toEqual({
       action: 'stop', closedRounds: 2, outcome: 'exhausted',
     });
-    const oldCountClosure = { ...closed(3, 'exhausted'), repair: 'repair-003', reassessment: 'nfa-006' };
-    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), oldCountClosure] })).toEqual({
-      action: 'prepare-candidate', round: 4, phase: 'initial',
+    const retiredClosure = { ...closed(3, 'exhausted'), repair: 'repair-003', reassessment: 'nfa-006' };
+    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), retiredClosure] })).toEqual({
+      action: 'stop', closedRounds: 3, outcome: 'exhausted',
     });
-    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), oldCountClosure,
-      closed(4, 'continue')] })).toEqual({ action: 'prepare-candidate', round: 5, phase: 'initial' });
+    expect(() => decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), retiredClosure,
+      closed(4, 'continue')] })).toThrow('only a continuing round');
     expect(() => decideNonfunctionalRound({ ...base, closedRounds: [closed(2, 'continue')] })).toThrow('consecutive');
     expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), closed(3, 'continue')] })).toEqual({ action: 'prepare-candidate', round: 4, phase: 'initial' });
-    expect(decideNonfunctionalRound({ ...base, maxRounds: 1, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue')] })).toEqual({ action: 'prepare-candidate', round: 3, phase: 'initial' });
+    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue')] })).toEqual({ action: 'prepare-candidate', round: 3, phase: 'initial' });
     expect(() => decideNonfunctionalRound({ ...base, closedRounds: [{ ...closed(1, 'continue'), repair: 'repair-001' }] })).toThrow('requires reassessment');
     expect(() => decideNonfunctionalRound({ ...base, closedRounds: [{ ...closed(1, 'continue'), reassessment: 'nfa-002' }] })).toThrow('requires repair');
   });

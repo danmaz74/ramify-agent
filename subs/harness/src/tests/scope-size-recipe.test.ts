@@ -71,7 +71,7 @@ describe('scope-size/2 measures what a writer was given to write', () => {
   const writeScope = (extra: WriteScope['extra'], included: WriteScope['resolved']['included'] = [], bootstrap: WriteScope['bootstrap'] = []): WriteScope => ({
     revision: 1, base: { module: 'p/a', included: [] }, extra, read: ['p/b'], bootstrap, rationale: 'r',
     resolved: {
-      roots: [], files: [], view: { status: 'placeholder' }, excluded: [], included,
+      boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], roots: [], files: [], view: { status: 'placeholder' }, excluded: [], included,
       ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: '0', inputId: 'i', configuration: 'tsconfig.json', root: '/project', modules: [], exclusions: [] },
     },
   });
@@ -216,7 +216,7 @@ describe('Plan23 F6 delivered scope and partial byte arithmetic', () => {
     expect(measured.bytes).toBe(17);
     expect(scopeSize(taken, scope({ locations: [{ path: 'outside/new.txt', bytes: 7 }, { path: 'outside', bytes: 17 }, { path: 'outside', bytes: 17 }] })).bytes).toBe(17);
     const write = { base: { module: 'p', included: [] }, extra: [], read: ['p/a', 'p/a'], bootstrap: [], rationale: '', revision: 1,
-      resolved: { included: [], roots: [], files: [], excluded: [], view: { status: 'placeholder' }, ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: '0', inputId: 'i', configuration: 'tsconfig.json', root: '/project', modules: [], exclusions: [] } } } as WriteScope;
+      resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], included: [], roots: [], files: [], excluded: [], view: { status: 'placeholder' }, ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: '0', inputId: 'i', configuration: 'tsconfig.json', root: '/project', modules: [], exclusions: [] } } } as WriteScope;
     expect(readScopeMeasurement(write).exactOwners).toEqual(['p/a']);
     expect(writeScopeMeasurement(write).exactOwners).toEqual(['p']);
   });

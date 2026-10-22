@@ -9,7 +9,7 @@ const run = runSnapshotSchema.parse({ jobId: 'r1', planId: 'p', agent: 'pi', ver
   startedAt: at, updatedAt: at, endedAt: null, failure: null, current: null, waits: [], counts: { workItems: 1, completedWorkItems: 0,
     openRequirements: 0, invocations: 1, readinessAttempts: 1, gateAttempts: 0, scenarios: { pending: 0, bound: 1, done: 0 }, degradedStarts: 0 },
   writer: { held: null, unsettled: null }, review: 'not-reviewed', notices: [], decisionRequests: { open: 0, waiting: false, workItems: [] },
-  planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [] });
+  planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], automaticRepairs: { attempted: 0, refused: 0, incidents: [] }, breakpoint: null, recovery: null });
 const pause: BreakpointState = { kind: 'breakpoint', planId: 'p', runId: 'r1', pauseId: 'p1', revision: 1, cursor: 10,
   state: 'paused', role: 'engineer', work: { workItem: 'w1' }, goal: 'Build a thing', nextAction: 'execute the task', taskState: 'pending', summary: 'Prepared task awaits resume.' };
 const receipt = { commandId: 'c1', jobId: 'r1', sequence: 11, acceptedAt: at };

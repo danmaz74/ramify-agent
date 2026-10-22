@@ -43,7 +43,6 @@ export const executionSourceRefSchema = z.object({
   id: text,
   /** Null for a record without a corresponding run event. */
   sequence: sequence.nullable(),
-  sourceRun: z.string().min(1).optional(),
   /** The owning record's revision, when it has one. */
   revision: z.int().positive().nullable(),
 }).strict();

@@ -98,7 +98,7 @@ export function mergeReadinessOf(view: RunView, evidence: AcceptedEvidence): Mer
     return unavailable('The final gate, audit and candidate binding disagree');
   }
   const nfrIds = assessedElements(evidence.catalog);
-  const phase = replayNonfunctionalPhase(view.entries, nfrIds, view.record.policy.limits.nonfunctionalRoundsPerPlan ?? 0);
+  const phase = replayNonfunctionalPhase(view.entries, nfrIds);
   if (!phase.ok) return unavailable(`The committed assessment phase is inconsistent: ${phase.reason}`);
   const next = decideNonfunctionalRound(phase.value.input);
   if (next.action !== 'stop' || (next.outcome !== 'satisfied' && next.outcome !== 'exhausted')) {

@@ -174,7 +174,6 @@ function Overview({ client, run, events, onApproved, onOpenGate }: {
         </header>
         {stop.status === 'failed' && <p className="failure" role="alert">The stop was refused: {stop.message}</p>}
         <dl className="facts">
-          {run.restart && <div><dt>Continues source run</dt><dd><a href={routeHref({ page: 'run', planId: run.planId, runId: run.restart.sourceRun })}><code>{run.restart.sourceRun}</code></a> at version {run.restart.sourceCursor}; generation {run.restart.generation}</dd></div>}
           <div><dt>Run state</dt><dd><RunState state={run.state} planDeviations={run.planDeviations} recovery={run.recovery} />{run.stopRequested ? ' (a stop was requested)' : ''}</dd></div>
           {run.planDeviations.recorded > 0 && (
             <div><dt>Plan deviations</dt><dd>{run.planDeviations.recorded} recorded, {run.planDeviations.toReview} to review</dd></div>

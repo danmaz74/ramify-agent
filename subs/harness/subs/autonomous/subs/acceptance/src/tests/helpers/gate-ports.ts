@@ -5,11 +5,11 @@ import type { Mutex } from '../../../../../../../src/jobs/mutex.js';
 import type { WriterOwnership } from '../../../../../../task-execution/src/writer.js';
 import type { ArchitectIndex } from '../../../../../../evidence/src/views.js';
 export interface GateFixture { readonly jobId: string; readonly planId: string; readonly directory: string; readonly base: string; readonly policy: RunPolicy; readonly log: RunLog; readonly mutex: Mutex; readonly writer: WriterOwnership; readonly index: ArchitectIndex | null; }
-type BoundKeys = 'evidenceApplicable' | 'importedCommitReceipt' | 'awaitGateAdmission' | 'recoverGate' | 'retryGateDelay' | 'write' | 'harnessFiles' | 'auditDefinition' | 'refreshIndex' | 'ignoring';
+type BoundKeys = 'evidenceApplicable' | 'awaitGateAdmission' | 'recoverGate' | 'retryGateDelay' | 'write' | 'harnessFiles' | 'auditDefinition' | 'refreshIndex' | 'ignoring';
 export type FixtureGateHost = { [K in keyof GateHost]: K extends BoundKeys ? NonNullable<GateHost[K]> extends (...args: infer Args) => infer Result ? (run: GateFixture, ...args: Args) => Result : GateHost[K] : GateHost[K] };
 export function gateFixturePorts(run: GateFixture | undefined, original: Partial<FixtureGateHost>): GateHost {
  const bound = { ...original } as unknown as GateHost;
- for (const key of ['evidenceApplicable', 'importedCommitReceipt', 'awaitGateAdmission', 'recoverGate', 'retryGateDelay', 'write', 'harnessFiles', 'auditDefinition', 'refreshIndex', 'ignoring'] as const) {
+ for (const key of ['evidenceApplicable', 'awaitGateAdmission', 'recoverGate', 'retryGateDelay', 'write', 'harnessFiles', 'auditDefinition', 'refreshIndex', 'ignoring'] as const) {
   const callback = original[key]; if (callback !== undefined) Reflect.set(bound, key, (...args: unknown[]) => Reflect.apply(callback, undefined, [run, ...args]));
  }
  return { ...bound,

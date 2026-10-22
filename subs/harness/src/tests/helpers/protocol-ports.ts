@@ -15,15 +15,16 @@ export function protocolPorts(root: string) {
   const final = finalCandidate(root, 'drafts-revision');
   const raw = fixtureScratchGit(scriptedGit(root, { previews: final.previews, head: 'protocol-base', checkpoints: [
     scenariosCommit('review-notes', 'scenarios-revision'),
-    { gate: 'ga-0003', subject: 'work-item:review-note.i02', commit: 'notes-revision', changes: [
+    { gate: 'ga-0003', subject: 'work-item:review-note.i01', commit: 'notes-revision', changes: [
       { status: 'M', path: `${notesDirectory}/src/notes.ts` },
     ] },
-    { gate: 'ga-0004', subject: 'work-item:review-note', commit: null, changes: [] },
-    { gate: 'ga-0005', subject: 'work-item:note-drafts.i01', commit: 'drafts-revision', changes: [
+    { gate: 'ga-0004', subject: 'work-item:review-note.i02', commit: null, changes: [] },
+    { gate: 'ga-0005', subject: 'work-item:review-note', commit: null, changes: [] },
+    { gate: 'ga-0006', subject: 'work-item:note-drafts.i01', commit: 'drafts-revision', changes: [
       'module.ramify', 'README.md', 'src/drafts.ts', 'src/tests/drafts.test.ts',
     ].map(path => ({ status: 'A', path: `${draftsDirectory}/${path}` })) },
-    { gate: 'ga-0006', subject: 'work-item:note-drafts', commit: null, changes: [] },
-    { gate: 'ga-0007', subject: 'final verification of plan "review-notes"', commit: null, changes: [] },
+    { gate: 'ga-0007', subject: 'work-item:note-drafts', commit: null, changes: [] },
+    { gate: 'ga-0008', subject: 'final verification of plan "review-notes"', commit: null, changes: [] },
   ] }));
   let outsidePresent = false;
   const git = Object.assign(Object.create(raw), {
@@ -47,9 +48,9 @@ export function protocolPorts(root: string) {
         await writeFile(join(root, outsidePath), 'export const outside = true;\n');
         outsidePresent = true;
       } else {
-        assert.equal(request.cwd, join(root, 'subs/workspace/subs/reviews/src'));
+        assert.ok([join(root, notesDirectory, 'src'), join(root, 'subs/workspace/subs/reviews/src')].includes(request.cwd));
         assert.deepEqual(request.argv, ['bash', '-c', `rm '${join(root, outsidePath)}'`]);
-        await rm(join(root, outsidePath));
+        await rm(join(root, outsidePath), { force: true });
         outsidePresent = false;
       }
       return commandResult(request, { outcome: { kind: 'completed', exitCode: 0 } });

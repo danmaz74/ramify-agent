@@ -22,7 +22,7 @@ test('submission corrections retain all diagnostics and accept after the former 
   const log = await observations();
   let accepted = 0;
   const judge = new SubmissionJudge({
-    target: 'submit_result', bound: 3, observations: log,
+    target: 'submit_result', observations: log,
     validate: input => input === 'correct' ? { ok: true as const, value: input } : { ok: false as const, errors },
     accept: async () => { accepted++; },
   });
@@ -70,7 +70,7 @@ test('overlapping distinct submissions cannot both consume one invocation author
 test('invalid harness tool inputs remain correctable after the former limit', async () => {
   const log = await observations();
   const judge = new ToolInputJudge({
-    tool: 'shell', bound: 3, observations: log,
+    tool: 'shell', observations: log,
     validate: input => input === 'correct' ? { ok: true as const, value: input } : { ok: false as const, errors },
   });
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -79,6 +79,5 @@ test('invalid harness tool inputs remain correctable after the former limit', as
     expect(JSON.parse(verdict.text.split('\n\n')[0]!)).toMatchObject({ errors });
   }
   expect(await judge.judge('correct', 'call-4')).toEqual({ ok: true, value: 'correct' });
-  expect(judge.exhausted).toBe(false);
   expect(judge.rejections).toBe(4);
 });

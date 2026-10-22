@@ -42,7 +42,7 @@ test.each(projectionObservations)('candidate differences preserve recorded prove
   const assignment = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/2', id: 'work-item:provider.i01', workItem: 'work-item:provider',
     outline: { id: 'work-item:provider', revision: 1, hash }, stage: 0, kind: 'ordinary', goal: 'Settle provider work.', approach: 'Implement provider.',
     scope: { revision: 1, base: { module: reviews, included: [] }, extra: [], read: [], bootstrap: [], rationale: 'Provider ownership.',
-      resolved: { excluded: [], included: [], roots: [], files: [], view: { status: 'placeholder' },
+      resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], roots: [], files: [], view: { status: 'placeholder' },
         ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted', inputId: 'scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] } } },
     externalCapabilities: [], completionEvidence: 'Focused checks.', evidenceObligations: [], guarded: [], authorizations: [],
     gate: { checkpoint: 'iteration', tests: { policy: 'owned-by-scope', exactOwners: [], subtrees: [], extraSuites: [] } },

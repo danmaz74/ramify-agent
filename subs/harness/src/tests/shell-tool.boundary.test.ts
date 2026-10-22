@@ -46,11 +46,10 @@ interface Recorded {
   readonly ends: Array<{ call: ShellCall; result: ShellResult }>;
 }
 
-async function shellIn(directory: string, options: { readonly bound?: number } = {}) {
+async function shellIn(directory: string) {
   const log = await ObservationLog.open(join(directory, '.observations.jsonl'));
   const judge = new ToolInputJudge({
     tool: shellToolName,
-    bound: options.bound ?? 3,
     validate: input => validateAgainst(shellInputSchema, input),
     observations: log,
   });

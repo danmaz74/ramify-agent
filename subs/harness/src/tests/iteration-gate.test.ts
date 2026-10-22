@@ -10,7 +10,7 @@ import { analysis, currentAnalysis, entry, requestCompletion } from './helpers/a
 import { addModule, assign, byRole, completionProposed, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
-import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
+import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 
 /*
  * The iteration gate: what a failure is attributed to, what it returns for,
@@ -89,6 +89,7 @@ async function run(
   plan: Parameters<typeof byRole>[0],
   answers: Omit<GateGitOptions, 'head'>,
   options: Omit<Parameters<typeof openRuns>[1], 'git'> = {},
+  expectPause = false,
 ) {
   const before = answers.commits.slice(0, -1).flatMap(commit => commit.commit ?? []).at(-1) ?? base;
   const candidate = finalCandidate(root, before, answers.commits.at(-1)?.commit ?? before);
@@ -102,7 +103,8 @@ async function run(
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
-  await opened.service.settled('review-notes', receipt.jobId);
+  if (expectPause) await until(() => opened.service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
+  else await opened.service.settled('review-notes', receipt.jobId);
   return { ...opened, runId: receipt.jobId, scripted };
 }
 
@@ -151,6 +153,7 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
         modified('revision-01', `${notesDirectory}/src/notes.ts`),
         unchanged, unchanged,
       ],
+      previews: [{ repositoryRoot: root, head: materialized, tree: 'a'.repeat(40) }, ...finalCandidate(root, 'revision-01').previews],
     }, {
       checkScript: ({ check, context }) => {
         if (context.checkpoint !== 'iteration') return {};
@@ -371,38 +374,37 @@ describe('K5b: an invalid session, a timeout and an exhausted limit keep distinc
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: [submit(completionProposed('Done.'))],
     }, {
-      // Every attempt commits before it runs its checks, and every one of
-      // them stands on the tree the run started from: the iteration's two
-      // attempts, the work item's two and the run's own two.
-      commits: [scenarios, unchanged, unchanged, unchanged, unchanged],
+      // Each timed-out attempt stands on the tree the run started from.
+      commits: [scenarios, unchanged, unchanged, unchanged],
+      previews: [{ repositoryRoot: root, head: materialized, tree: 'a'.repeat(40) }],
     }, {
       checkScript: ({ check, context }) => context.checkpoint === 'iteration' && check.kind === 'tests'
         ? { outcome: { kind: 'timed-out', timeoutMs: 600_000 } }
         : {},
-    });
+    }, true);
 
-    // The local infrastructure exchange returns unfinished. Its architect
-    // reconsiders and obtains passing work-item and final verification.
+    // The timed-out check leaves recovery paused after its bounded retry.
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('completed');
+    expect(snapshot).toMatchObject({ state: 'running', recovery: { state: 'paused' } });
     const iterationGates = (await gates(root, runId)).filter(gate => gate.checkpoint === 'iteration');
-    expect(iterationGates).toHaveLength(2);
-    expect(iterationGates.map(gate => gate.verdict)).toEqual(['not-verified', 'not-verified']);
-    expect(iterationGates.map(gate => gate.cause)).toEqual(['timeout', 'timeout']);
-    expect(iterationGates.map(gate => gate.infrastructureAttempt)).toEqual([0, 1]);
-    expect(iterationGates.map(gate => gate.next)).toEqual(['retry-infrastructure', 'exhausted']);
+    expect(iterationGates).toHaveLength(3);
+    expect(iterationGates.map(gate => gate.verdict)).toEqual(['not-verified', 'not-verified', 'not-verified']);
+    expect(iterationGates.map(gate => gate.cause)).toEqual(['timeout', 'timeout', 'timeout']);
+    expect(iterationGates.map(gate => gate.infrastructureAttempt)).toEqual([0, 1, 2]);
+    expect(iterationGates.map(gate => gate.next)).toEqual(['retry-infrastructure', 'exhausted', 'exhausted']);
     // A timeout is never repaired by the module engineer: the same invocation is the
     // proposer of both attempts.
     expect(new Set(iterationGates.map(gate => gate.proposedBy)).size).toBe(1);
 
-    const result = await readResult(root, runId, 'work-item:review-note', 1);
-    expect(result.outcome).toBe('exhausted');
-    expect(result.findings.some(finding => finding.includes('timeout'))).toBe(true);
-    // Neither attempt accepted anything, so the run's boundary stayed at the
-    // feature files' commit.
+    await expect(readResult(root, runId, 'work-item:review-note', 1)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect((await runEventsOnDisk(root, 'review-notes', runId)).some(event => event.type === 'operation-recovery-paused')).toBe(true);
+    // No attempt accepted anything, so the run's boundary stayed at the
+    // feature files' commit while the operator decides how to recover.
     expect(scripted.revisions()).toEqual([materialized]);
     // No external tool was started for any of this.
     expectNoProcesses();
     scripted.assertComplete();
+    await service.execute(stopRun('review-notes', runId, service.getRun('review-notes', runId)!.version));
+    await service.settled('review-notes', runId);
   }, 120_000);
 });

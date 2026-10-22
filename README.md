@@ -264,8 +264,13 @@ npx tsx src/main.ts restart prepare --server http://localhost:4180 --plan <plan-
 
 This continues unfinished work in the same run and preserves its original history.
 It requires no successor import, repair declaration or second resume command.
-A nonterminal task waiting for a concrete prerequisite can continue with
-`recovery resume --server <url> --plan <id> --run <id> --command-id <stable-id>`.
+A nonterminal task waiting for a concrete prerequisite can continue with:
+
+```sh
+npx tsx src/main.ts recovery resume --server <url> --plan <id> --run <id> --command-id <stable-id>
+```
+
+The command accepts no occurrence, revision or repair declaration flags.
 Repeat the same command identity after a lost reply. Changed work receives ordinary
 assessment and verification. See [task continuation](docs/harness.spec.md#recovery-waiting-and-explicit-resume)
 and the [recovery principles](docs/harness-recovery.principles.md).

@@ -170,7 +170,7 @@ describe('a driven run', () => {
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
   }, 120_000);
 
-  test('with a queue of two, the requests recorded while the slot is taken and the queue full are finished as overflowed', async () => {
+  test('with a queue of two, later requests remain eligible until the occupied slot drains', async () => {
     const root = await reviewTarget(cleanups);
     const completionRequested = gate();
     let revisions = 0;
@@ -184,21 +184,22 @@ describe('a driven run', () => {
         // The first reader holds the only slot until every iteration has closed.
         'rq-0001': [{ kind: 'await', until: () => completionRequested.opened }, ...clean(changed[1])],
         'rq-0002': clean(changed[1]), 'rq-0003': clean(changed[2]),
+        'rq-0004': clean(changed[2]), 'rq-0005': clean(changed[3]), 'rq-0006': clean(changed[3]),
       },
     });
     const { service, runId, events } = run;
     expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
-    // rq-0002 and rq-0003 wait; rq-0004 of the second iteration, and both
-    // requests of the third, arrive with the queue full.
+    // rq-0002 and rq-0003 wait; the later requests retain their review
+    // coverage despite the full queue.
     const finished = eventsOf(events, 'review-attempt-finished');
-    expect(finished.filter(event => event.data.reason === 'queue-overflow').map(event => event.data.request).sort()).toEqual(['rq-0004', 'rq-0005', 'rq-0006']);
+    expect(finished.filter(event => event.data.reason === 'queue-overflow')).toEqual([]);
     for (const attempt of ['rq-0004.a01', 'rq-0005.a01', 'rq-0006.a01']) {
-      expect(await attemptRecord(root, runId, attempt)).toMatchObject({ startedAt: null, invocation: null, actualStart: null, settles: true, checkFindings: [] });
+      expect(await attemptRecord(root, runId, attempt)).toMatchObject({ result: { result: 'complete' }, settles: true });
     }
-    // The scope requests intended a fork; the overflowed one records that it never started.
+    // The scope request retains its fork disposition after waiting.
     expect(await attemptRecord(root, runId, 'rq-0004.a01')).toMatchObject({ requestedStart: 'fork' });
-    expect(eventsOf(events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 6, complete: 3, partial: 0, notVerified: 3, pending: 0 });
+    expect(eventsOf(events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0001', 'rq-0002', 'rq-0003', 'rq-0004', 'rq-0005', 'rq-0006']);
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 6, complete: 6, partial: 0, notVerified: 0, pending: 0 });
   }, 120_000);
 
   test('waiting reviews remain eligible when the captured attempt allowance exceeds the historical settlement allowance', async () => {

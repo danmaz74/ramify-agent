@@ -279,9 +279,8 @@ test('B02: an unconfirmed admitted reader barrier holds until exact owned settle
   expect(opened.service.getRun(plan, opened.runId)).toMatchObject({ state: 'running', failure: null });
   expect(opened.service.events(plan, opened.runId)!.filter(event => event.type === 'debug-paused')).toHaveLength(1);
   expect(opened.agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
-  const command = { commandId: 'reader-settled-resume', expectedVersion: 0, type: 'resume-recovery' as const, payload: {
-    planId: plan, jobId: opened.runId, occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision,
-    repair: { areas: ['environment' as const], explanation: 'The exact admitted reviewer owner has confirmed its drainage' } } };
+  const command = { commandId: 'reader-settled-resume', expectedVersion: 0, type: 'resume-recovery' as const,
+    payload: { planId: plan, jobId: opened.runId } };
   await expect(opened.service.execute({ ...command, commandId: 'reader-premature-resume' })).rejects.toMatchObject({ code: 'conflict' });
   barrier.open();
   await opened.service.execute(command);

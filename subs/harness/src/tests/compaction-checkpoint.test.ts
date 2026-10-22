@@ -30,6 +30,7 @@ test.each(['continue', 'handoff'] as const)('native-like compaction review %s pr
   let engineerTurn = 0;
   const { service, agent } = await openRuns(fixture.root, {
     inputs: treeInputs(),
+    previewCount: action === 'handoff' ? 5 : 4,
     unchangedCheckpoints: [scenariosCommit('review-notes'), ...(action === 'continue' ? ['work-item:review-note.i01'] : []), 'work-item:review-note', 'final verification of plan "review-notes"'],
     script: (spec: SessionSpec): readonly ScriptStep[] => {
       if (spec.role === 'catalog-extractor') return [];

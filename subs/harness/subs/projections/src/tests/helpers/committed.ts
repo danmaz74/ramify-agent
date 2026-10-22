@@ -13,7 +13,8 @@ export function committedRun(directory: string): CommittedRun {
     kind: 'implementation', agent: 'scripted', createdAt: at,
     manifest: { planHash: hash, documentManifest: { path: 'input/documents.json', hash }, source: null,
       versions: { architectPrompt: null, procedure: null, skill: null, ramify: null }, architectView: { status: 'placeholder' } },
-    prompts: {}, policy: { version: 'run-policy/8', contract: 'plan21-whole-owner-and-architect-reporting/1',
+    prompts: {}, policy: { version: 'run-policy/8', continuity: { version: 'resource-continuity/1' }, contract: 'plan21-whole-owner-and-architect-reporting/1',
+      recovery: { version: 'operation-recovery/1', automaticRetries: 2, baseDelayMs: 250, maxDelayMs: 5000 },
       limits: { repairRoundsPerIteration: 1, repairRoundsPerWorkItemGate: 1, infrastructureRetriesPerGate: 1,
         forkRetriesPerRequest: 1, budgetReturnsPerIteration: 1, sessionReconstructionsPerWork: 1,
         cycleReplansPerWorkItem: 1, rejectedSubmissionsPerTurn: 1, rejectedToolInputsPerTurn: 1,
@@ -25,7 +26,7 @@ export function committedRun(directory: string): CommittedRun {
     projectConfig: { path: 'ramify-agent.json', hash: null, invalid: 'Scripted reading witness' },
     baseline: { unavailable: 'No acquired baseline' }, planScenarios: { schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: [], limitations: [] }, reviewStop: false,
   });
-  const event = runEventSchema.parse({ sequence: 1, jobId: record.jobId, at, type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' } });
+  const event = runEventSchema.parse({ sequence: 1, jobId: record.jobId, at, type: 'external-candidate-observed', data: { id: 'candidate', beforeTree: 'head', afterTree: 'tree' } });
   return { record, directory, entries: [{ sequence: 1, at, transaction: { event, records: [] } }] };
 }
 

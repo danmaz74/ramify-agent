@@ -21,7 +21,7 @@ import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { declaringScenarios, defaultTurn, withDefaultTurns } from '../../../../../../src/tests/helpers/declarations.js';
 import { analysis, currentAnalysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { byRole, submit, treeInputs } from '../../../../../../src/tests/helpers/iterations.js';
-import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
+import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
 import { openUnchangedRuns, assertUnchangedGit } from '../../../../../../src/tests/helpers/unchanged-run.js';
 import { scenariosCommit } from '../../../../../../src/tests/helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
@@ -434,9 +434,17 @@ test.each(['failed', 'unavailable', 'conflict', 'stopped'] as const)('a continue
       return { receipt: Promise.resolve(receipt), outcome: Promise.resolve(receipt.outcome), stop: async () => receipt, settled: async () => receipt };
     },
   }; };
-  const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit('revision-diff')] });
+  const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit('revision-diff')],
+    ...(status === 'stopped' ? {} : { gitScript: { previews: [{ repositoryRoot: fixture.root, head: 'scenarios-of-revision-diff', tree: 'a'.repeat(40) }] } }) });
   cleanups.push(() => opened.service.close()); const receipt = await opened.service.execute(startRun('revision-diff'));
-  await opened.service.settled('revision-diff', receipt.jobId);
+  if (status === 'stopped') await opened.service.settled('revision-diff', receipt.jobId);
+  else {
+    await until(() => opened.service.events('revision-diff', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
+    const recovery = await opened.service.recoveryInspection('revision-diff', receipt.jobId);
+    expect(recovery?.evidence.diagnostic).not.toContain('tree preview');
+    await opened.service.execute(stopRun('revision-diff', receipt.jobId, opened.service.getRun('revision-diff', receipt.jobId)!.version));
+    await opened.service.settled('revision-diff', receipt.jobId);
+  }
   const events = await runEventsOnDisk(fixture.root, 'revision-diff', receipt.jobId);
   expect(events.filter(event => event.type === 'invocation-started' && event.data.role === 'local-architect')).toHaveLength(2);
   expect(events.filter(event => event.type === 'invocation-ended' && event.data.degraded?.actual === 'fresh')).toEqual([]);

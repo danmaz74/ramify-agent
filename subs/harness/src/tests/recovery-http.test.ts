@@ -52,14 +52,14 @@ test('recovery inspection validates projection and only reads the current obstru
   expect(hosted.execute).not.toHaveBeenCalled();
 });
 
-test('HTTP recovery resume validates declaration before delegating durable admission and exposes refusal', async () => {
+test('HTTP recovery resume validates current payload before delegating durable admission and exposes refusal', async () => {
   const hosted = host();
-  const command = { commandId: 'resume-1', type: 'resume-recovery', payload: { planId, jobId: runId, occurrenceId: 'rec-1', expectedRevision: 2,
-    repair: { areas: ['environment'], explanation: 'Installed the required check executable', evidence: ['check-version'] } } };
+  const command = { commandId: 'resume-1', type: 'resume-recovery', payload: { planId, jobId: runId } };
   const answer = await hosted.handle('post', protocolPaths.commands, command);
   expect(answer.status).toBe(202); expect(commandResponseSchema.parse(answer.body).receipt).toEqual(hosted.receipt);
   expect(hosted.execute).toHaveBeenCalledExactlyOnceWith({ ...command, expectedVersion: 0 });
-  await expect(hosted.handle('post', protocolPaths.commands, { ...command, payload: { ...command.payload, repair: { areas: [], explanation: '' } } })).rejects.toMatchObject({ code: 'invalid-request' });
+  for (const field of [{ occurrenceId: 'rec-1' }, { expectedRevision: 2 }, { repair: { areas: ['environment'], explanation: 'repaired' } }])
+    await expect(hosted.handle('post', protocolPaths.commands, { ...command, payload: { ...command.payload, ...field } })).rejects.toMatchObject({ code: 'invalid-request' });
   expect(hosted.execute).toHaveBeenCalledTimes(1);
   hosted.execute.mockRejectedValueOnce(new CommandRejection('stale-version', 'Recovery occurrence changed', 3));
   await expect(hosted.handle('post', protocolPaths.commands, command)).rejects.toMatchObject({ code: 'stale-version', currentVersion: 3 });

@@ -92,8 +92,7 @@ describe('the run log', () => {
   test('every event type is written and read back, and the terminal ones are named', () => {
     const types = runEventSchema.options.map(option => option.shape.type.value);
     expect(types).toEqual([
-      'restart-branch-setting-up', 'restart-branch-ready', 'restart-prepared',
-      'continuity-policy-adopted', 'operation-recovery-attempt', 'operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'external-candidate-observed', 'operation-recovery-replied',
+'operation-recovery-attempt', 'operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'external-candidate-observed', 'operation-recovery-replied',
       'readiness-preparation-started', 'readiness-preparation-completed', 'readiness-repair-committing', 'readiness-repair-committed',
       'repair-assignment-recorded', 'repair-preparation-recorded', 'repair-preparation-consumed', 'repair-incident-recorded', 'repair-export-recorded',
       'invocation-prepared', 'job-started', 'job-continued', 'debug-pausing', 'debug-paused', 'debug-exchange-admitted', 'debug-exchange-settled', 'debug-resumed', 'session-opened', 'invocation-started', 'invocation-ended', 'session-finished', 'analysis-accepted',
@@ -124,32 +123,6 @@ describe('the run log', () => {
       'job-completed', 'job-failed', 'job-stopped', 'job-interrupted',
     ]);
     for (const terminal of terminalRunEvents) expect(types).toContain(terminal);
-  });
-
-  test('restart initialization and branch effects round-trip source identity and their distinct acceptance receipt', async () => {
-    const store = await ledger();
-    const jobId = '20260920T101500Z-3f9a1c';
-    const at = '2026-09-20T10:15:00.000Z';
-    const candidate = { branch: `ramify-agent-run/${jobId}`, head: 'accepted-forward-fix', tree: 'admitted-candidate' };
-    const events = [
-      runEventSchema.parse({ sequence: 1, jobId, at, type: 'restart-prepared', data: {
-        sourceRun: '20260919T080000Z-c0ffee', sourceCursor: 700, sourceDigest: 'a'.repeat(64), importDigest: 'b'.repeat(64),
-        importPath: runLayout.restartImport, generation: 1, occurrenceId: 'rec-0001', revision: 1,
-        command: { commandId: 'prepare-1', contentHash: 'c'.repeat(64), receipt: { commandId: 'prepare-1', jobId, sequence: 1, acceptedAt: at } },
-      } }),
-      runEventSchema.parse({ sequence: 2, jobId, at, type: 'restart-branch-setting-up', data: candidate }),
-      runEventSchema.parse({ sequence: 3, jobId, at, type: 'restart-branch-ready', data: candidate }),
-    ];
-    for (const event of events) await store.log.append({ event, records: [] });
-    const restored = await openLedger<RunEvent>({ logPath: `${store.directory}/events.jsonl`, recordsRoot: store.directory, eventSchema: runEventSchema });
-    expect(restored.replay().map(entry => entry.transaction.event)).toEqual(events);
-    const projected = (await queriesOf({ record: constructedRecord(), directory: store.directory,
-      entries: restored.replay() }).events('review-notes', jobId, 0)).events;
-    expect(projected[0]).toMatchObject({ sequence: 1, transition: 'restart-prepared', summary: expect.stringContaining('version 700') });
-    expect(projected[1]).toMatchObject({ transition: 'restart-branch-setting-up', refs: [{ kind: 'commit', id: candidate.head }] });
-    expect(projected[2]).toMatchObject({ transition: 'restart-branch-ready', summary: expect.stringContaining(candidate.tree) });
-    expect(runEventSchema.safeParse({ ...events[0]!, data: { ...events[0]!.data, sourceRun: '../unretained' } }).success).toBe(false);
-    expect(runEventSchema.safeParse({ ...events[2]!, data: { ...candidate, tree: '' } }).success).toBe(false);
   });
 
   test('the prepared invocation event round-trips its original identity through the ledger', async () => {
@@ -594,7 +567,7 @@ describe('the records this iteration establishes', () => {
           read: ['shop'],
           bootstrap: kind === 'ordinary' ? [{ capability: outlineRef, owner: 'shop/orders/pricing', parent: 'shop/orders', directory: 'subs/orders/subs/pricing' }] : [],
           rationale: 'r',
-          resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/subs/orders/src'], files: ['/p/subs/orders/module.ramify'], view: { status: 'placeholder' } },
+          resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/subs/orders/src'], files: ['/p/subs/orders/module.ramify'], view: { status: 'placeholder' } },
         },
         source: { elements: ['functional-requirement:case-001', 'non-functional-requirement:case-001'], deviations: ['plan-deviation:case-001'], hash: 'f'.repeat(64) },
         externalCapabilities: [{ capability: 'capability:send-email', owner: 'shop', role: 'use' }],
@@ -1022,7 +995,7 @@ describe('the run protocol a client reads', () => {
           goal: 'g', approach: 'a',
           scope: {
             revision: 1, base: { modules: ['shop', 'shop/web'], rationale: 'the guarantee changes in both' }, extra: [], read: [], bootstrap: [], rationale: 'r',
-            resolved: { excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/src'], files: [], view: { status: 'placeholder' } },
+            resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], excluded: [], included: [], ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted-lifecycle-only', inputId: 'scripted-scope', configuration: 'tsconfig.json', root: '/p', modules: [{ id: 'app', parent: null, directory: '.' }], exclusions: [] }, roots: ['/p/src'], files: [], view: { status: 'placeholder' } },
           },
           externalCapabilities: [], completionEvidence: 'e', evidenceObligations: [],
           gate: { checkpoint: 'breaking-iteration', tests: { policy: 'all-project', exactOwners: [], subtrees: [], extraSuites: [] } },

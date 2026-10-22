@@ -107,7 +107,7 @@ describe('an implementation run with no entry capabilities', () => {
     ]);
     expect(agent!.sessions.every(session => session.verdicts.some(verdict => (verdict as { accepted?: unknown }).accepted === true))).toBe(true);
     expect(agent!.sessions[1]!.spec.context.compaction).toBe('allowed');
-    expect(agent!.sessions[1]!.spec.context.budgetFraction).toBe(0.75);
+    expect(agent!.sessions[1]!.spec.context.budgetFraction).toBeNull();
 
     // Every record of the run is a file beneath it.
     const record = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.record), 'utf8')) as Record<string, unknown>;
@@ -216,7 +216,7 @@ describe('an implementation run with no entry capabilities', () => {
       checkScript: ({ check, context }) => context.checkpoint === 'final' && check.kind === 'tests' && finalChecks++ === 0
         ? { outcome: { kind: 'completed', exitCode: 1 } } : {},
       unchangedCheckpoints: ['final verification of plan "review-notes"', 'work-item:correct-final-verification', 'final verification of plan "review-notes"'],
-      previewCount: 7,
+      previewCount: 8,
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));

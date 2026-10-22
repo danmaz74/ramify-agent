@@ -1,6 +1,7 @@
 import { assistedReviewSubmissionSchema } from '../../reviews/src/assisted.js';
 import type { CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
 import type { AssistedAssessment } from './contracts.js';
+import { requireCurrentReviewEvidence } from './findings.js';
 
 /** A compact projection of existing records, never an evidence cache or a new acceptance decision. */
 export function finalIterationContext(current: AssistedAssessment, assessments: readonly AssistedAssessment[], protection: string, findings: CheckFindingState) {
@@ -9,7 +10,8 @@ export function finalIterationContext(current: AssistedAssessment, assessments: 
   const acceptedReviewRefs: string[] = [];
   const iterations = previous.filter(item => item.request.kind === 'iteration').map(item => {
     const stage = item.stages.find(stage => stage.name === 'review-accepted') ?? item.stages.find(stage => stage.name === 'review');
-    const result = stage?.evidence as { result?: { status?: string; value?: unknown } } | undefined;
+    const result = stage?.evidence as { sourceVerification?: unknown; result?: { status?: string; value?: unknown } } | undefined;
+    if (result) requireCurrentReviewEvidence(result);
     const parsed = result?.result?.status === 'submitted' ? assistedReviewSubmissionSchema.safeParse(result.result.value) : undefined;
     const report = item.status === 'completed' && parsed?.success ? parsed.data : undefined;
     const reviewRef = report === undefined ? undefined : `assessments/${item.id}/stages/${stage!.name}.json`;

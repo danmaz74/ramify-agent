@@ -130,8 +130,8 @@ recorded boundary and protections against symlink or directory redirection,
 dependencies, generated views, repository metadata and harness state. A current
 answer refusing a target remains a refusal; cancellation admits no write. Missing
 recorded authority is explicit, while corrupt authority is a harness failure.
-Older assignments without the required capture remain readable but do not gain
-historical repair permission.
+Assignments without the captured boundary are refused with a diagnostic naming
+the required current write-scope form.
 
 The issuing architect names each included tree with a reason and instructions
 for its meaning. An included owned-nested-project tree is excluded from Ramify
@@ -560,8 +560,8 @@ producer progress. A timer or polling heartbeat alone is no useful progress.
 A resume names the current pause ID and interaction revision and acknowledges
 release without waiting for the next stop. Stable command IDs deduplicate exact
 retries before revision checks; changed content conflicts. A new stale, active
-or already released interaction is refused. A debugger message or resume records
-continuity policy adoption while keeping its original policy evidence. Resume without
+or already released interaction is refused. A debugger message or resume retains
+the run's captured policy without adopting a later policy. Resume without
 discussion executes the prepared ordinary request once, revalidating captured documents, writer
 settlement and the runner's ordinary task and authority preconditions.
 A later assignment or repair reaches a new occurrence. Stop takes precedence

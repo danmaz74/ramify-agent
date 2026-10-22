@@ -416,7 +416,7 @@ import { iterationId } from './work/iterations.js';
 
 
 import { resolveRealTarget } from '../../../../../src/guard/resolve-contained-path.js';
-import { missingHistoricalAuthority, injectionSiteRule, moduleOwning, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles } from '../../../../../src/work/scope.js';
+import { injectionSiteRule, moduleOwning, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles } from '../../../../../src/work/scope.js';
 
 
 import { obligationBriefingLines, obligationsOwnedBy, reportSourceLines, type ObligationActor, type ObligationProjection } from './work/obligations.js';
@@ -550,7 +550,6 @@ export interface CoordinationObservation {
  readonly index: ArchitectIndex | null;
  readonly policy: RunPolicy;
  readonly restoring: boolean;
- readonly restarted: boolean;
  readonly findings: CheckFindingState;
  readonly pendingEffects: readonly string[];
 }
@@ -689,7 +688,7 @@ export class WorkCoordination {
     // Registration can publish a provider before its consumer has received
     // the original contract handback. Finish that captured active turn first;
     // only then may the new frontier's provider priority take effect.
-    let restoredActiveItem = this.observe().restoring && (this.workflow === null || this.observe().restarted)
+    let restoredActiveItem = this.observe().restoring && this.workflow === null
       ? [...this.observe().history.events].reverse().find(event =>
         (event.type === 'work-item-started' || event.type === 'work-item-resumed') &&
         !this.observe().history.events.some(later => later.sequence > event.sequence &&
@@ -3373,7 +3372,6 @@ export class WorkCoordination {
       projectRoot: this.projectRoot,
       ramify: this.options.ramify,
       commands: this.observe().policy.commands,
-      bounds: this.observe().policy.limits,
       refresh: () => this.ports.refreshIndex(),
       index: () => this.observe().index,
       submissions: { legalOutcomes: this.workflow === null ? ['completion-proposed', 'partial', 'unsuitable', 'contract-needed']
@@ -5941,7 +5939,7 @@ export class WorkCoordination {
     const records = this.observe().records;
     const result = records.results.get(previous.id);
     if (result?.outcome !== 'partial') return undefined;
-    let authority = missingHistoricalAuthority(previous.scope).join(', ');
+    let authority = '';
     try { await this.ports.ownershipAuthority(previous).read(); }
     catch (error) {
       if (!(error instanceof OwnershipAuthorityError) || error.kind !== 'missing') throw error;
@@ -7076,7 +7074,7 @@ export class WorkCoordination {
         inputSchema: z.toJSONSchema(compactionReviewSchema) as JsonSchema, submissionSchema: 'ramify-agent.compaction-review/1',
         validate: input => validateAgainst(compactionReviewSchema, input), scope: { write: null, measurement: null, size: null },
         equip: session => ({ ...nonfunctionalEquipment({ projectRoot: this.projectRoot, snapshotTools: [],
-          commandExecution: this.options.commandExecution, rejectedToolInputsPerTurn: this.observe().policy.limits.rejectedToolInputsPerTurn,
+          commandExecution: this.options.commandExecution,
           outputFile: call => this.path(runLayout.shellOutput(session.invocation, call)) }, session),
           builtinTools: ['read', 'write', 'edit', 'grep', 'find', 'ls'] }),
       });

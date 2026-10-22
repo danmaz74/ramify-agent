@@ -2,7 +2,7 @@ import { OwnershipUnavailableError } from '../../../../../evidence/src/ownership
 import type { AssignmentBody } from './assignment.js';
 import type { IterationAssignment } from './iterations.js';
 import { assignmentAuthorityIdentity, OwnershipAuthorityError } from '../../../../../../src/work/ownership-authority.js';
-import { checkWriteScope, missingHistoricalAuthority, resolveWriteScope, within, type ScopeCapture, type WriteScope, type WriteScopeCheckResult } from '../../../../../../src/work/scope.js';
+import { checkWriteScope, resolveWriteScope, within, type ScopeCapture, type WriteScope, type WriteScopeCheckResult } from '../../../../../../src/work/scope.js';
 
 /** Current evidence is preferred; an unavailable query can reuse only a recorded assignment's region. */
 export async function checkContinuationScope(capture: ScopeCapture, body: AssignmentBody,
@@ -18,8 +18,6 @@ export async function checkContinuationScope(capture: ScopeCapture, body: Assign
       if (authorityError instanceof OwnershipAuthorityError && authorityError.kind === 'missing') return unavailable(authorityError.message);
       throw authorityError;
     }
-    const missing = missingHistoricalAuthority(previous.scope);
-    if (missing.length > 0) return unavailable(missing.join(', '));
     const original = previous.scope;
     if (original.resolved.ownership.root !== capture.projectRoot) return unavailable('the same recorded project identity');
     const owners = (base: ScopeCapture['base']) => 'module' in base ? [base.module] : base.modules;

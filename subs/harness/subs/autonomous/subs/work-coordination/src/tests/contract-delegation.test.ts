@@ -22,6 +22,7 @@ import { localArchitectJsonSchema } from '../work/submission.js';
 import { iterationLayout, type IterationResult } from '../work/iterations.js';
 import { runLayout } from '../../../../src/run/records.js';
 import type { GateAttempt } from '../../../acceptance/src/checks/records.js';
+import { invocationOutcomeSchema } from '../../../../../../subs/task-execution/src/records.js';
 import { passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
 
 vi.mock('node:child_process', async original =>
@@ -180,25 +181,33 @@ async function run(
   root: string,
   plan: Parameters<typeof byRole>[0],
   commits: readonly CommitResponse[],
-  options: Omit<Parameters<typeof openRuns>[1], 'git'> = {},
+  options: Omit<Parameters<typeof openRuns>[1], 'git'> & { previewHeads?: readonly string[]; resumeAfterPause?: boolean } = {},
 ) {
+  const { previewHeads = [], resumeAfterPause = false, ...runOptions } = options;
   const materialization = scenariosCommitted('review-notes');
   const before = commits.slice(0, -1).flatMap(commit => commit.commit ?? []).at(-1) ?? materialization.commit!;
   const after = commits.at(-1)?.commit ?? before;
   const tree = 'a'.repeat(40);
   const git = answeredGit(root, { head: 'revision-00', commits: [materialization, ...commits],
     ...(options.production === true ? { currentTree: tree }
-      : { previews: [before, before, before, after].map(head => ({ repositoryRoot: root, head, tree })) }) });
+      : { previews: [...previewHeads, before, before, before, after].map(head => ({ repositoryRoot: root, head, tree })) }) });
   const revisions = commits.flatMap(commit => commit.commit === null ? [] : [commit.commit]);
   const candidateRecords = Object.fromEntries(revisions.map((revision, index) => [revision, {
     tree, base: revisions[index - 1] ?? materialization.commit!, files: {}, changes: [],
   }]));
   const opened = await openRuns(root, {
     script: byRole(plan), inputs: treeInputs(), git,
-    candidates: scriptedCandidates(root, candidateRecords),  ...options,
+    candidates: scriptedCandidates(root, candidateRecords),  ...runOptions,
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
+  if (resumeAfterPause) {
+    await until(() => (opened.service.events('review-notes', receipt.jobId) ?? []).some(event => event.type === 'operation-recovery-paused'));
+    const inspection = await opened.service.recoveryInspection('review-notes', receipt.jobId);
+    expect(inspection).toMatchObject({ state: 'paused', repairRequired: false, evidence: { diagnostic: 'the provider refused the request' } });
+    await opened.service.execute({ type: 'resume-recovery', commandId: 'continue-after-provider-failure', expectedVersion: 0,
+      payload: { planId: 'review-notes', jobId: receipt.jobId } });
+  }
   if (options.production === true) {
     await until(() => {
       const run = opened.service.getRun('review-notes', receipt.jobId)!;
@@ -344,7 +353,7 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
     const tree = 'a'.repeat(40);
     const commits = delegationCommits('work-item:review-notes.i03');
     const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits],
-      previews: ['revision-01', 'revision-03', 'revision-03', 'revision-03', 'revision-03']
+      previews: ['revision-01', 'revision-01', 'revision-03', 'revision-03', 'revision-03', 'revision-03']
         .map(head => ({ repositoryRoot: root, head, tree })) });
     const candidates = scriptedCandidates(root, {
       'revision-01': { tree, base: 'scenarios-of-review-notes', files: {}, changes: [] },
@@ -449,7 +458,7 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
           write(join(root, consumerDirectory, 'src/notes.ts'), verified)),
       ],
       'contract-engineer': [submit(establishedContract, ...contractWrites)],
-    }, delegationCommits('work-item:review-notes.i03'));
+    }, delegationCommits('work-item:review-notes.i03'), { previewHeads: ['revision-01'] });
 
     expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure, sessions: agent?.sessions.map(session => ({ role: session.spec.role, verdicts: session.verdicts })) })).toBe('completed');
     const log = await events(root, runId);
@@ -635,7 +644,8 @@ test.each(['fake-backed', 'access-only'] as const)(
     }
     return steps;
   };
-  const { service, runId, git, agent } = await run(root, {}, commits, { production: !access, script });
+  const { service, runId, git, agent } = await run(root, {}, commits, { production: !access, script,
+    previewHeads: access ? ['revision-01'] : [] });
   if (!access) {
     const captured = await readJson<{ prompts: Record<string, unknown>; policy: { context: Record<string, unknown> } }>(root, runId, runLayout.record);
     expect(captured.prompts['contract-engineer']).toBeDefined();
@@ -912,7 +922,7 @@ test.each(['split', 'replacement', 'merge'] as const)(
     accepted(`${names.notesFollowUp}.i01`, merging ? 'revision-09' : 'revision-08', modified(paths.consumer)), unchanged(names.notesFollowUp),
     unchanged('final verification of plan "review-notes"'),
   ];
-  const { service, runId, git, agent } = await run(root, {}, commits, { script });
+  const { service, runId, git, agent } = await run(root, {}, commits, { script, previewHeads: ['revision-01', 'revision-04'] });
   const log = await events(root, runId);
   expect(onlyRun(service, 'review-notes').state, JSON.stringify({ failure: onlyRun(service, 'review-notes').failure,
     tagsTurns, progress: log.filter(event => ['evidence-reopened', 'work-item-yielded', 'work-item-resumed',
@@ -1009,7 +1019,7 @@ test.each(['split', 'replacement', 'merge'] as const)(
   git.assertAnswered();
 }, 120_000);
 
-describe('a contract sub-session that fails registers nothing, and its caller goes on', () => {
+describe('a contract sub-session that ends without an agreement registers nothing', () => {
   test('a compaction handoff returns the unfinished contract once without another engineer tool', async () => {
     const root = await target();
     const plan = {
@@ -1040,7 +1050,8 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     const { service, agent, runId, git } = await run(root, plan, [
       accepted('work-item:review-notes', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
       unchanged('final verification of plan "review-notes"'),
-    ], { script: spec => spec.submission.name === 'submit_compaction_review'
+    ], { previewHeads: ['scenarios-of-review-notes', 'scenarios-of-review-notes'],
+      script: spec => spec.submission.name === 'submit_compaction_review'
       ? submit({ action: 'handoff', reason: 'The agreement needs a new approach.' })
       : typeof ordinary === 'function' ? ordinary(spec) : ordinary });
 
@@ -1059,7 +1070,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     git.assertAnswered();
   }, 60_000);
 
-  test('the contract iteration closes partial with the failure, and the run continues', async () => {
+  test.each(['ended', 'failed'] as const)('a contract session %s without submission closes partial, and the run continues', async outcome => {
     const root = await target();
     const { service, runId, git } = await run(root, {
       'initial-architect': [submit(currentAnalysis(analysis([entry('review-notes', consumer)]), 'document:review-notes-plan'))],
@@ -1078,15 +1089,18 @@ describe('a contract sub-session that fails registers nothing, and its caller go
             '',
           ].join('\n'))),
       ],
-      // The session writes the interface, and then its provider fails.
+      // The session writes the interface, then ends without a submission.
       'contract-engineer': [[
         write(`${providerDirectory}/src/interfaces/note-limit.ts`, contractFile),
-        { kind: 'fail', error: 'the provider refused the request' },
-      ]],
+        outcome === 'failed'
+          ? { kind: 'fail', error: 'the provider refused the request', evidence: { classification: 'permanent', diagnostic: 'the provider refused the request' } }
+          : { kind: 'end', message: 'The provider refused the request.' },
+      ], ...(outcome === 'failed' ? [[{ kind: 'end' as const, message: 'The provider remains unable to complete the contract.' }]] : [])],
     }, [
       accepted('work-item:review-notes', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
       unchanged('final verification of plan "review-notes"'),
-    ]);
+    ], { previewHeads: Array.from({ length: outcome === 'failed' ? 4 : 2 }, () => 'scenarios-of-review-notes'),
+      resumeAfterPause: outcome === 'failed' });
 
     expect(onlyRun(service, 'review-notes').state, JSON.stringify(onlyRun(service, 'review-notes').failure)).toBe('completed');
     const types = typesOf(await events(root, runId));
@@ -1096,11 +1110,23 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     const result = await readJson<IterationResult>(root, runId, iterationLayout.result('work-item:review-notes', 2));
     expect(result.outcome).toBe('partial');
     expect(result.findings).toContain(
-      `the module engineer (contract) of work-item:review-notes.i02 ended without a result (failed: the provider refused the request; invocation ${result.invocations[0]}); nothing was registered`,
+      `the module engineer (contract) of work-item:review-notes.i02 ended without a result (ended; invocation ${result.invocations[0]}); nothing was registered`,
     );
     // Its module architect is briefed with the digest and the analysis, as for a module engineer.
-    expect(result.failure?.digest).toMatchObject({ invocation: result.invocations[0], role: 'contract-engineer', ended: 'failed' });
+    expect(result.failure?.digest).toMatchObject({ invocation: result.invocations[0], role: 'contract-engineer', ended: 'ended' });
     expect(result.failure?.analysis.outcome).toBe('analyzed');
+    if (outcome === 'failed') {
+      const log = await events(root, runId);
+      const starts = log.filter((event): event is Extract<RunEvent, { type: 'invocation-started' }> =>
+        event.type === 'invocation-started' && event.data.role === 'contract-engineer');
+      expect(starts).toHaveLength(2);
+      const failure = invocationOutcomeSchema.parse(await readJson<unknown>(root, runId, runLayout.outcome(starts[0]!.data.invocation)));
+      expect(failure).toMatchObject({ ended: 'failed', interruptionEvidence: {
+        classification: 'permanent', diagnostic: 'the provider refused the request',
+      } });
+      expect(log.filter(event => event.type === 'operation-recovery-paused')).toHaveLength(1);
+      expect(log.filter(event => event.type === 'operation-recovery-resumed')).toHaveLength(1);
+    }
     // Successor9 still discovers this ordinary iteration separately: it
     // cannot commit the failed contract session's foreign dirty bytes. The
     // later work-item gate uses both actual recorded assignment authorities.
@@ -1147,7 +1173,7 @@ describe('X1b: a contract sub-session that returns incomplete registers nothing'
       // beside the work its caller carried itself.
       accepted('work-item:review-notes', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
       unchanged('final verification of plan "review-notes"'),
-    ]);
+    ], { previewHeads: ['scenarios-of-review-notes', 'scenarios-of-review-notes'] });
 
     expect(onlyRun(service, 'review-notes').state, JSON.stringify(onlyRun(service, 'review-notes').failure)).toBe('completed');
     const log = await events(root, runId);

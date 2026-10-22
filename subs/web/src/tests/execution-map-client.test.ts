@@ -17,7 +17,7 @@ function run(version: number) {
     counts: { workItems: 0, completedWorkItems: 0, openRequirements: 0, invocations: 0,
       readinessAttempts: 0, gateAttempts: 0,
       scenarios: { pending: 0, bound: 0, done: 0 }, degradedStarts: 0 },
-    writer: { held: null, unsettled: null }, review: 'not-reviewed', notices: [], decisionRequests: { open: 0, waiting: false, workItems: [] }, planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [],
+    writer: { held: null, unsettled: null }, review: 'not-reviewed', notices: [], decisionRequests: { open: 0, waiting: false, workItems: [] }, planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], automaticRepairs: { attempted: 0, refused: 0, incidents: [] }, breakpoint: null, recovery: null,
   } };
 }
 

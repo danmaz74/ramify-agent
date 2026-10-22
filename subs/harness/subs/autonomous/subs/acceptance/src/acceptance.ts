@@ -1484,7 +1484,7 @@ export class Acceptance {
       catch (error) {
         if (!(error instanceof CandidateReassessmentRequired)) throw error;
         const replay = replayNonfunctionalPhase(this.observe().history.lines,
-          assessedElements(await this.ports.coordination.frozenCatalog()), this.observe().policy.limits.nonfunctionalRoundsPerPlan ?? 3);
+          assessedElements(await this.ports.coordination.frozenCatalog()));
         const observed = await this.ports.previewCandidateTree();
         if (!replay.ok || !replay.value.final || replay.value.final.assessment.id !== binding.assessment.id
           || observed.tree === binding.assessment.candidate.tree) {
@@ -1744,7 +1744,7 @@ export class Acceptance {
     const nfrIds = assessedElements(evidence.catalog);
     for (;;) {
       if (this.ports.ignoring()) return null;
-      const replay = replayNonfunctionalPhase(this.observe().history.lines, nfrIds, marker?.data.maxRounds ?? 3);
+      const replay = replayNonfunctionalPhase(this.observe().history.lines, nfrIds);
       if (!replay.ok) {
         await this.ports.fail('recovery-exhausted', `Committed non-functional phase is unavailable: ${replay.reason}`);
         return null;
@@ -1866,7 +1866,7 @@ export class Acceptance {
       return false;
     }
     const nfrIds = assessedElements(evidence.catalog);
-    const replay = replayNonfunctionalPhase(this.observe().history.lines, nfrIds, this.observe().policy.limits.nonfunctionalRoundsPerPlan ?? 3);
+    const replay = replayNonfunctionalPhase(this.observe().history.lines, nfrIds);
     if (!replay.ok) return unavailable(replay.reason);
     const decision = decideNonfunctionalRound(replay.value.input);
     if (decision.action !== 'stop' || replay.value.final?.candidateId !== binding.candidateId
@@ -2122,7 +2122,6 @@ export class Acceptance {
         await this.ports.afterWrite('writer-process-registered', this.input.record.jobId);
       },
       commandTimeoutMs: this.observe().policy.limits.commandTimeoutMs,
-      rejectedToolInputsPerTurn: this.observe().policy.limits.rejectedToolInputsPerTurn,
       outputFile: call => this.path(runLayout.shellOutput(session.invocation, call)),
     }, session);
   }

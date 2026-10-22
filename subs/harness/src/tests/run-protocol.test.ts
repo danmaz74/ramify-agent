@@ -264,7 +264,8 @@ describe('every query of a completed run, over HTTP', () => {
     const unknownItem = await get(server, protocolPaths.runWorkItem(plan, runId, 'work-item:unknown'));
     expect(unknownItem.status).toBe(404);
     expect(errorResponseSchema.parse(unknownItem.body).error.code).toBe('not-found');
-    expect(detail.iterations[0]!.result?.outcome).toBe('partial');
+    expect(detail.iterations[0]!.result?.outcome).toBe('accepted');
+    expect(detail.iterations[0]!.gates.map(gate => [gate.verdict, gate.next])).toEqual([['failed', 'repair'], ['passed', 'accept']]);
     expect(detail.iterations[1]!.result?.outcome).toBe('accepted');
     const engineer = detail.iterations[0]!.invocations.find(invocation => invocation.role === 'engineer')!;
     expect(engineer.outsideScope).toContain(outsidePath);
@@ -582,3 +583,76 @@ describe('a record of an unsupported version', () => {
     expect(errorResponseSchema.parse((await get(server, protocolPaths.run(plan, '20990101T000000Z-000000'))).body).error.code).toBe('not-found');
   }, 60_000);
 });
+
+test('a current job with an invalid own log reports that log at the command and query boundaries', async () => {
+  const target = await scriptedTarget();
+  cleanups.push(target.remove);
+  const runId = '20990101T000000Z-abcdef';
+  const directory = runPath(target.root, plan, runId);
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, runLayout.record), `${JSON.stringify(constructedRecord({ jobId: runId }))}\n`);
+  const at = '2026-09-21T08:00:00.000Z';
+  const retired = { sequence: 1, at, event: { sequence: 1, jobId: runId, at, type: ['restart', 'prepared'].join('-'), data: {} }, records: [] };
+  await writeFile(join(directory, runLayout.events), `${JSON.stringify(retired)}\n`);
+
+  const server = await serve(target.root);
+  cleanups.push(() => server.close());
+  expect(server.recovery.skipped).toEqual([`${plan}/${runId}`]);
+  const command = await post(server, { type: 'prepare-restart', commandId: 'continue-invalid-log', expectedVersion: 1, payload: { planId: plan, jobId: runId } });
+  expect(command.status).toBe(422);
+  const refusal = errorResponseSchema.parse(command.body).error;
+  expect(refusal).toMatchObject({ code: 'unreadable', message: expect.stringContaining(runLayout.events), evidence: expect.arrayContaining([`plans/${plan}/.harness/jobs/${runId}/${runLayout.events}`]) });
+
+  const query = await get(server, protocolPaths.run(plan, runId));
+  expect(query.status).toBe(422);
+  expect(errorResponseSchema.parse(query.body).error).toMatchObject({ code: 'unreadable', evidence: expect.arrayContaining([`plans/${plan}/.harness/jobs/${runId}/${runLayout.events}`]) });
+  const list = runListResponseSchema.parse((await get(server, protocolPaths.runs(plan))).body);
+  expect(list.unserved).toEqual([expect.objectContaining({ jobId: runId, code: 'unreadable', message: expect.stringContaining(runLayout.events) })]);
+  expect(await readFile(join(directory, runLayout.events), 'utf8')).toBe(`${JSON.stringify(retired)}\n`);
+}, 60_000);
+
+test.each(['continuity', 'recovery'] as const)('a current job missing required %s policy reports job.json at command and query boundaries', async field => {
+  const target = await scriptedTarget();
+  cleanups.push(target.remove);
+  const runId = '20990101T000000Z-abcdef';
+  const directory = runPath(target.root, plan, runId);
+  await mkdir(directory, { recursive: true });
+  const record = constructedRecord({ jobId: runId });
+  const policy = { ...record.policy } as Record<string, unknown>;
+  delete policy[field];
+  await writeFile(join(directory, runLayout.record), `${JSON.stringify({ ...record, policy })}\n`);
+
+  const server = await serve(target.root);
+  cleanups.push(() => server.close());
+  expect(server.recovery.skipped).toEqual([`${plan}/${runId}`]);
+  const evidence = `plans/${plan}/.harness/jobs/${runId}/${runLayout.record}`;
+  const command = await post(server, { type: 'prepare-restart', commandId: `continue-missing-${field}`, expectedVersion: 1, payload: { planId: plan, jobId: runId } });
+  expect(command.status).toBe(422);
+  expect(errorResponseSchema.parse(command.body).error).toMatchObject({ code: 'unreadable', message: expect.stringContaining(runLayout.record), evidence: [evidence] });
+  const query = await get(server, protocolPaths.run(plan, runId));
+  expect(query.status).toBe(422);
+  expect(errorResponseSchema.parse(query.body).error).toMatchObject({ code: 'unreadable', evidence: expect.arrayContaining([evidence]) });
+  const list = runListResponseSchema.parse((await get(server, protocolPaths.runs(plan))).body);
+  expect(list.unserved).toEqual([expect.objectContaining({ jobId: runId, code: 'unreadable', path: evidence })]);
+}, 60_000);
+
+test('a current job whose captured documents are missing reports job.json at command and query boundaries', async () => {
+  const target = await scriptedTarget();
+  cleanups.push(target.remove);
+  const runId = '20990101T000000Z-abcdef';
+  const directory = runPath(target.root, plan, runId);
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, runLayout.record), `${JSON.stringify(constructedRecord({ jobId: runId }))}\n`);
+  await writeFile(join(directory, runLayout.events), '');
+
+  const server = await serve(target.root);
+  cleanups.push(() => server.close());
+  expect(server.recovery.skipped).toEqual([`${plan}/${runId}`]);
+  const evidence = `plans/${plan}/.harness/jobs/${runId}/${runLayout.record}`;
+  const command = await post(server, { type: 'prepare-restart', commandId: 'continue-missing-capture', expectedVersion: 1, payload: { planId: plan, jobId: runId } });
+  expect(command.status).toBe(422);
+  expect(errorResponseSchema.parse(command.body).error).toMatchObject({ code: 'unreadable', message: expect.stringContaining(runLayout.record), evidence: [evidence] });
+  const query = await get(server, protocolPaths.run(plan, runId));
+  expect(query.status).toBe(422);
+  expect(errorResponseSchema.parse(query.body).error).toMatchObject({ code: 'unreadable', message: expect.stringContaining(runLayout.record), evidence: [evidence] });
+}, 60_000);

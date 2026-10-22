@@ -10,7 +10,7 @@ import { scriptedCandidates, type ScriptedCommit } from '../../../autonomous/sub
 import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';
 import { validateReconciliationForExecution } from '../../../reviews/src/reconciliation.js';
 import type { AssistedReviewSubmission } from '../../../reviews/src/assisted.js';
-import { factualFindingKey, findingDetails, reportReviewConcerns } from '../findings.js';
+import { factualFindingKey, findingDetails, reportReviewConcerns, retainedRequirementAnswers } from '../findings.js';
 import { AssistanceService } from '../service.js';
 import { finalizeApproval } from '../approval.js';
 import { emptyCheckFindingState } from '../../../check-findings/src/replay.js';
@@ -79,6 +79,74 @@ afterEach(async () => {
 });
 
 describe('assisted assessment pipeline with real service records', () => {
+  it.each(['documents', 'review'] as const)('refuses a retired %s checkpoint when resuming an assessment', async kind => {
+    const root = await mkdtemp(join(tmpdir(), 'assistance-retired-checkpoint-')); roots.push(root);
+    await mkdir(join(root, 'plans/sample'), { recursive: true });
+    await writeFile(join(root, 'plans/sample/plan.md'), '# Plan\nThe feature returns 2.\n');
+    const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
+      resolveCommit: async (_root, revision) => revision, assessor: async context => {
+        if (kind === 'documents') await context.checkpoint('documents', { storage: 'inline', documents: [] });
+        else await context.checkpoint('review-accepted', { result: { status: 'submitted', value: reviewReport(first),
+          operationId: 'review', sessionId: 'review-session', eventCount: 1 }, bindings: [], read: [], inspected: [],
+          sourceVerification: ['git', 'exact', 'text/1'].join('-') });
+        throw new Error('Stopped after checkpoint');
+      } }); services.push(old);
+    const job = await old.planStart({ planId: 'sample', commandId: 'start' });
+    const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'assess' });
+    await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    await old.close();
+    const candidates = scriptedCandidates(root, { [baseline]: source('0', baseline), [first]: source('2', baseline) });
+    const resumed = await AssistanceService.open({ projectRoot: root, assessor: createAssessor({ candidates,
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async () => { throw new Error('Retired review must not be reused'); } }) }); services.push(resumed);
+    const revision = resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision;
+    await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId)).toMatchObject({
+      status: 'interrupted', revision: expect.any(Number), error: expect.stringContaining(
+        kind === 'documents' ? 'git-references document reference' : 'candidate-inspection/1'),
+    }));
+    expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(revision);
+    expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).error).toContain(
+      kind === 'documents' ? 'git-references document reference' : 'candidate-inspection/1');
+  });
+
+  it('refuses a completed predecessor review before selecting focused or skipped review', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'assistance-retired-predecessor-')); roots.push(root);
+    await mkdir(join(root, 'plans/sample'), { recursive: true });
+    await writeFile(join(root, 'plans/sample/plan.md'), '# Plan\nThe feature returns 2.\n');
+    const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
+      resolveCommit: async (_root, revision) => revision, assessor: async context => {
+        await context.checkpoint('review-accepted', { result: { status: 'submitted', value: reviewReport(first),
+          operationId: 'review', sessionId: 'review-session', eventCount: 1 }, bindings: [], read: [], inspected: [],
+          sourceVerification: ['git', 'exact', 'text/1'].join('-') });
+        return { gate: 'clear', summary: 'Retained predecessor.', gaps: [], repairs: [], decisions: [], evidence: [] };
+      } }); services.push(old);
+    const job = await old.planStart({ planId: 'sample', commandId: 'start' });
+    const prior = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'prior' });
+    expect((await outcome(old, job.jobId, prior.assessmentId)).gate).toBe('clear');
+    await old.close();
+    const candidates = scriptedCandidates(root, { [baseline]: source('0', baseline), [first]: source('2', baseline),
+      [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) });
+    let reviewCalls = 0;
+    const resumed = await AssistanceService.open({ projectRoot: root, resolveCommit: async (_root, revision) => revision,
+      assessor: createAssessor({ candidates,
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async () => { reviewCalls++; throw new Error('Predecessor evidence must be refused before review'); } }) }); services.push(resumed);
+    const previous = resumed.assessmentDetail('sample', job.jobId, prior.assessmentId);
+    expect(() => retainedRequirementAnswers(previous, [previous])).toThrow('candidate-inspection/1');
+    const admitted = await resumed.iterationAssess({ planId: 'sample', jobId: job.jobId, base: first, candidate: repaired,
+      kind: 'iteration', brief: 'Verify the repair.', acceptance: ['The feature returns 2.'], requirementDocuments: [],
+      previousAssessment: prior.assessmentId, commandId: 'follow-up' });
+    await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId)).toMatchObject({
+      status: 'interrupted', error: expect.stringContaining('candidate-inspection/1'),
+    }));
+    const detail = resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId);
+    expect(detail.stages.some(stage => stage.name === 'review-policy')).toBe(false);
+    expect(reviewCalls).toBe(0);
+  });
+
   it.each(['audit-first', 'review-first'] as const)('starts independent checks and retains the %s result while its sibling is pending', async order => {
     let releaseAudit!: () => void;
     let releaseReview!: () => void;
@@ -268,7 +336,7 @@ describe('assisted assessment pipeline with real service records', () => {
         const bindings = report.concerns.map(() => ({ ground: null, credibility: 'ungrounded' as const, modules: [] }));
         const reviewed = { result: { status: 'submitted' as const, value: report,
           operationId: 'accepted-review', sessionId: 'accepted-review-session', eventCount: 1 },
-          bindings, read: ['src/feature.ts'], inspected: ['src/feature.ts'] };
+          bindings, read: ['src/feature.ts'], inspected: ['src/feature.ts'], sourceVerification: 'candidate-inspection/1' as const };
         await context.checkpoint('review-accepted', reviewed);
         await context.recordFindings(reportReviewConcerns({ assessment: context.assessment.id, tree: 'tree-1', report, bindings,
           evidence: { kind: 'assisted-review', ref: `assessments/${context.assessment.id}/stages/review.json`,
@@ -522,115 +590,8 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(JSON.parse(await readFile(join(directory, reference.artifact.path), 'utf8'))).toEqual(artifact);
   });
 
-  it('restores a missing historical compact document catalog using its original discovery policy', async () => {
-    const planMarkdown = '# Plan\nThe feature returns 2. [Companion](../../docs/companion.md)\n';
-    const initial = { ...source('0', baseline), files: { ...source('0', baseline).files,
-      'docs/companion.md': '# Companion constraint', 'quality.principles.md': '# Relevant quality' } };
-    const { service, job, candidates } = await setup({ [baseline]: initial, [first]: source('2', baseline) },
-      { operations: unusedOperations, audit: async input => audit(input.candidateCommit) }, planMarkdown);
-    await service.close();
-    let original: AssistanceDocuments | undefined;
-    const old = await AssistanceService.open({ projectRoot: service.projectRoot, resolveCommit: async (_root, revision) => revision,
-      assessor: async context => {
-        original = await captureAssistanceDocuments({ projectRoot: context.projectRoot, planId: 'sample',
-          planMarkdown: context.planMarkdown, baselineCommit: baseline, candidates, discoverReferences: true });
-        await context.checkpoint('documents', { schema: 'ramify-agent.assisted-document-reference/1', baselineCommit: baseline,
-          artifact: await context.retainEvidence(original) });
-        throw new Error('Historical executor stopped after compact capture');
-      } }); services.push(old);
-    const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
-      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'legacy-compact' });
-    await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
-    const detail = old.assessmentDetail('sample', job.jobId, admitted.assessmentId);
-    const stage = detail.stages.find(stage => stage.name === 'documents')!.evidence as { artifact: { path: string; sha256: string } };
-    expect(original!.documents.map(document => document.path)).toContain('docs/companion.md');
-    const artifact = join(service.projectRoot, 'plans/sample/.harness/jobs', job.jobId, stage.artifact.path);
-    await old.close();
-    await rm(artifact);
-    const resumed = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ candidates,
-      operations: unusedOperations, audit: async input => audit(input.candidateCommit), review: async input => {
-        expect(input.prepared.message).not.toContain('# Companion constraint');
-        const checked = input.prepared.validate(reviewReport(input.candidate));
-        if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
-        return { status: 'submitted', value: checked.value, operationId: input.operationId, sessionId: 'legacy-compact-review', eventCount: 1 };
-      } }) }); services.push(resumed);
-    await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
-    await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(detail.revision));
-    expect((await outcome(resumed, job.jobId, admitted.assessmentId)).gate).toBe('clear');
-    expect(JSON.parse(await readFile(artifact, 'utf8'))).toEqual(original);
-    expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(item => item.name === 'documents')!.evidence).toEqual(stage);
-  });
-
-  it.each(['valid', 'lossy-principle', 'lossy-companion', 'cached-lossy-companion'] as const)('verifies resumed legacy inline documents without changing their historical records (%s)', async scenario => {
-    const lossy = scenario !== 'valid';
-    const root = await mkdtemp(join(tmpdir(), 'assistance-legacy-documents-')); roots.push(root);
-    await mkdir(join(root, 'plans/sample'), { recursive: true });
-    const planMarkdown = '# Plan\nThe feature returns 2. [Companion](../../docs/companion.md)\n';
-    await writeFile(join(root, 'plans/sample/plan.md'), planMarkdown);
-    const historicalText = '\uFFFD';
-    const bodies = { 'plans/sample/plan.md': planMarkdown, 'docs/companion.md': historicalText, 'quality.principles.md': historicalText };
-    const entries = Object.entries(bodies).map(([path, text], index) => ({ id: `doc-${String(index + 1).padStart(3, '0')}`, path,
-      kind: path.endsWith('.principles.md') ? 'principle' as const : 'plan' as const, sha256: createHash('sha256').update(text).digest('hex'), bytes: Buffer.byteLength(text),
-      storedAt: index === 0 ? 'input/plan.md' : `input/documents/doc-${String(index + 1).padStart(3, '0')}.bin`, revision: { commit: null, dirty: null } }));
-    const legacy: AssistanceDocuments = { baselineCommit: baseline,
-      manifest: { schema: 'ramify-agent.document-manifest/2', root: 'doc-001', documents: entries, missing: [], principlesScan: { status: 'complete', unreadable: [] } },
-      documents: entries.map(entry => ({ id: entry.id, path: entry.path, kind: entry.kind, sha256: entry.sha256,
-        text: entry.id === 'doc-001' ? 'Historical root copy is not authority' : historicalText, adoption: 'undetermined' })),
-      gaps: { missing: [], unreadablePrinciples: [] } };
-    const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
-      resolveCommit: async (_root, revision) => revision, assessor: async context => {
-        await context.checkpoint('documents', legacy);
-        if (scenario === 'cached-lossy-companion') await context.checkpoint('review-accepted', { result: { status: 'submitted', value: reviewReport(first), operationId: 'legacy-review', sessionId: 'legacy-session', eventCount: 1 }, bindings: [], read: [], inspected: [] });
-        throw new Error('Legacy executor stopped');
-      } });
-    services.push(old);
-    const job = await old.planStart({ planId: 'sample', commandId: 'register-legacy' });
-    const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first, kind: 'iteration',
-      brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'legacy-assess' });
-    await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
-    const original = old.assessmentDetail('sample', job.jobId, admitted.assessmentId);
-    await old.close();
-    const files = { ...source('0', baseline).files, ...bodies };
-    const candidates = scriptedCandidates(root, { [baseline]: { ...source('0', baseline), files }, [first]: { ...source('2', baseline), files: { ...files, 'src/feature.ts': 'export const feature = 2;\n' } } });
-    const listed = candidates.treeEntries.bind(candidates);
-    vi.spyOn(candidates, 'treeEntries').mockImplementation(async (project, commit) => (await listed(project, commit)).map(entry => {
-      if (entry.path !== 'docs/companion.md' && entry.path !== 'quality.principles.md') return entry;
-      const invalid = scenario === 'lossy-principle' || lossy && entry.path === 'docs/companion.md';
-      const bytes = invalid ? Buffer.from([0xf0, 0x90, 0x80]) : Buffer.from(historicalText);
-      return { ...entry, bytes: bytes.length, objectId: createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
-    }));
-    const resumed = await AssistanceService.open({ projectRoot: root, assessor: createAssessor({ candidates, operations: unusedOperations,
-      audit: async input => audit(input.candidateCommit), review: async input => {
-        expect(scenario).not.toBe('cached-lossy-companion');
-        const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
-        const call = (ref: string) => tool.execute({ ref }, new AbortController().signal);
-        const capturedPlan = JSON.parse((await call('baseline:plans/sample/plan.md')).text) as { content: string };
-        expect(capturedPlan.content).toBe(planMarkdown);
-        for (const path of ['docs/companion.md', 'quality.principles.md']) {
-          const answer = await call(`baseline:${path}`);
-          if (scenario === 'lossy-principle' || lossy && path === 'docs/companion.md') expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('could not be decoded exactly') });
-          else expect(JSON.parse(answer.text).content).toBe(historicalText);
-        }
-        const documentStage = JSON.parse((await call(`assessments/${admitted.assessmentId}/stages/documents.json`)).text) as { content: string };
-        const projection = JSON.parse(documentStage.content) as AssistanceDocuments;
-        expect(projection).toEqual(legacy);
-        const report = reviewReport(input.candidate);
-        const checked = input.prepared.validate({ ...report, requirements: report.requirements.map(answer => lossy && answer.ref === 'captured-plan'
-          ? { ...answer, outcome: 'uncertain', explanation: 'Required legacy companion text is unavailable.', evidencePaths: [] } : answer) });
-        if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
-        return { status: 'submitted', value: checked.value, operationId: input.operationId, sessionId: 'legacy-source-review', eventCount: 1 };
-      } }) });
-    services.push(resumed);
-    await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
-    await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(original.revision));
-    const result = await outcome(resumed, job.jobId, admitted.assessmentId);
-    expect(result.gate).toBe(lossy && scenario !== 'cached-lossy-companion' ? 'incomplete' : 'clear');
-    if (lossy && scenario !== 'cached-lossy-companion') expect(result.gaps.join(' ')).toContain('Required legacy companion text is unavailable');
-    expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(stage => stage.name === 'documents')?.evidence).toEqual(legacy);
-  });
-
-  it.each(['valid-review', 'lossy-review', 'lossy-base', 'valid-conflict', 'lossy-conflict', 'unproven-closure', 'applied-fixed', 'applied-supersede', 'applied-lossy', 'valid-applied', 'user-applied'] as const)(
-    'revalidates accepted historical candidate judgments before applying them after restart (%s)', async scenario => {
+  it.each(['valid-review', 'valid-conflict', 'lossy-conflict', 'unproven-closure', 'applied-fixed', 'applied-supersede', 'applied-lossy', 'valid-applied', 'user-applied'] as const)(
+    'revalidates current candidate judgments before applying them after restart (%s)', async scenario => {
       const root = await mkdtemp(join(tmpdir(), 'assistance-legacy-judgments-')); roots.push(root);
       await mkdir(join(root, 'plans/sample'), { recursive: true });
       await writeFile(join(root, 'plans/sample/plan.md'), '# Plan\nThe feature returns 2.\n');
@@ -642,7 +603,7 @@ describe('assisted assessment pipeline with real service records', () => {
         resolveCommit: async (_root, revision) => revision, assessor: async context => {
           const bindings = report.concerns.map(() => ({ ground: null, credibility: 'ungrounded' as const, modules: [] }));
           const reviewed = { result: { status: 'submitted', value: report,
-            operationId: 'legacy-review', sessionId: 'legacy-session', eventCount: 1 }, bindings, read: ['src/feature.ts'], inspected: ['src/feature.ts'] };
+            operationId: 'legacy-review', sessionId: 'legacy-session', eventCount: 1 }, bindings, read: ['src/feature.ts'], inspected: ['src/feature.ts'], sourceVerification: 'candidate-inspection/1' as const };
           await context.checkpoint('review-accepted', reviewed);
           if (reconciliation) {
             await context.recordFindings(reportReviewConcerns({ assessment: context.assessment.id, tree: 'tree-2', report, bindings,
@@ -701,15 +662,15 @@ describe('assisted assessment pipeline with real service records', () => {
       await old.close();
       const candidates = scriptedCandidates(root, {
         [baseline]: source('0', baseline, { files: { ...source('0', baseline).files,
-          ...(scenario === 'lossy-base' ? { 'src/feature.ts': '\uFFFD' } : {}) } }),
+           } }),
         [first]: source('2', baseline, { files: { ...source('2', baseline).files, 'docs/authority.md': '\uFFFD',
-          ...(scenario === 'lossy-review' || scenario === 'applied-lossy' ? { 'src/feature.ts': '\uFFFD' } : {}) } }),
+          ...(scenario === 'applied-lossy' ? { 'src/feature.ts': '\uFFFD' } : {}) } }),
         [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }),
       });
       const listed = candidates.treeEntries.bind(candidates);
       vi.spyOn(candidates, 'treeEntries').mockImplementation(async (project, commit) => (await listed(project, commit)).map(entry => {
         if (entry.path !== 'docs/authority.md' && !(entry.path === 'src/feature.ts' &&
-          ((scenario === 'lossy-review' || scenario === 'applied-lossy') && commit === first || scenario === 'lossy-base' && commit === baseline))) return entry;
+          (scenario === 'applied-lossy' && commit === first))) return entry;
         const bytes = scenario === 'valid-conflict' ? Buffer.from('\uFFFD') : Buffer.from([0xf0, 0x90, 0x80]);
         return { ...entry, bytes: bytes.length, objectId: createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
       }));

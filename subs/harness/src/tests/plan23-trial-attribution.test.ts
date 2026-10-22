@@ -13,7 +13,7 @@ it('trial writes resolve against actual assigned module src cwd while scope stay
   try {
     const directory = 'subs/workspace/subs/shared-ui'; const owner = 'collection-review/workspace/shared-ui';
     await mkdir(join(root, directory, 'src'), { recursive: true });
-    const scope = { base: { module: owner, included: [] }, extra: [], read: [], bootstrap: [], rationale: 'independent fixed trial', revision: 1, resolved: { roots: [join(root, directory)], files: [], included: [], excluded: [], view: { status: 'placeholder' }, ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted', inputId: 'fixed', configuration: 'tsconfig.json', root, modules: [{ id: owner, parent: 'collection-review/workspace', directory }], exclusions: [] } } } as WriteScope;
+    const scope = { base: { module: owner, included: [] }, extra: [], read: [], bootstrap: [], rationale: 'independent fixed trial', revision: 1, resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], roots: [join(root, directory)], files: [], included: [], excluded: [], view: { status: 'placeholder' }, ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: 'scripted', inputId: 'fixed', configuration: 'tsconfig.json', root, modules: [{ id: owner, parent: 'collection-review/workspace', directory }], exclusions: [] } } } as WriteScope;
     const index = { revision: 'fixed', input: 'fixed', symbols: new Map(), modules: new Map([[owner, { module: owner, dir: directory, parent: 'collection-review/workspace', children: [], tags: [], areas: ['src'] }]]) };
     const cwd = await engineerWorkingDirectory(root, scope, index, fixtureScratchGit(mockGit()));
     expect(cwd).toBe(join(root, directory, 'src'));

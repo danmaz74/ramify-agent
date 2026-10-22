@@ -149,7 +149,10 @@ describe('a run started with the review stop', () => {
     const restarted = await openRuns(root, { script: [] });
     cleanups.push(() => restarted.service.close());
     expect(restarted.recovery.skipped).toContain(`${plan}/${receipt.jobId}`);
-    expect(restarted.service.getRun(plan, receipt.jobId)).toBeUndefined();
+    let refusal: unknown;
+    try { restarted.service.getRun(plan, receipt.jobId); } catch (error) { refusal = error; }
+    expect(refusal).toMatchObject({ code: 'unreadable', message: expect.stringContaining('Document capture stopped before the run was published'),
+      evidence: [`plans/${plan}/.harness/jobs/${receipt.jobId}/${runLayout.record}`] });
   });
 
   test('waits at awaiting-review holding the project, and an approval continues it to completion', async () => {
@@ -184,7 +187,7 @@ describe('a run started with the review stop', () => {
     expect(done).toMatchObject({ state: 'completed', phase: 'ended', review: { reviewer: 'dana@example.com', at: approved.acceptedAt, duringRun: false } });
     const events = await runEventsOnDisk(root, plan, receipt.jobId);
     expect(events.map(event => event.type)).toEqual([
-      'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested', 'continuity-policy-adopted', 'analysis-approved',
+      'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested', 'analysis-approved',
       'gate-started', 'readiness-passed', 'scratch-setting-up', 'scratch-setup-complete',
       'nonfunctional-phase-started', 'candidate-prepared', 'gate-committing', 'gate-attempted',
       'nonfunctional-assessed', 'candidate-bound-to-gate', 'nonfunctional-round-closed', 'session-finished', 'job-completed',

@@ -4,7 +4,7 @@ import type { RunPolicy } from '../../../../src/run/records.js';
 export const capabilityRunPolicyVersion = 'run-policy/8';
 
 export function supportedCapabilityPolicy(version: string): boolean {
-  return version === 'run-policy/7' || version === capabilityRunPolicyVersion;
+  return version === capabilityRunPolicyVersion;
 }
 
 export interface CapabilityLimits {

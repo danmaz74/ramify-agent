@@ -17,7 +17,7 @@ test('real guard and durable ledger retain new exclusions and exact refusal thro
   await mkdir(join(root, 'Reviews')); await mkdir(join(root, 'plans/.harness'), { recursive: true });
   const modules = [{ id: 'Root', parent: null, directory: '.' }, { id: 'Root/Reviews', parent: 'Root', directory: 'Reviews' }];
   const scope: WriteScope = { revision: 1, base: { module: 'Root/Reviews', included: [] }, extra: [], bootstrap: [], read: [], rationale: 'repair',
-    resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', roots: [join(root, 'Reviews')], files: [], excluded: [], included: [], view: { status: 'placeholder' },
+    resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations: [], roots: [join(root, 'Reviews')], files: [], excluded: [], included: [], view: { status: 'placeholder' },
       ownership: { provider: 'ramify.ownership/1', ramifyVersion: 'scripted', root, inputId: 'capture', configuration: 'tsconfig.json', modules, exclusions: [] } } };
   const assignment = assignmentAuthorityIdentity({ scope, guarded: [] });
   const logPath = join(root, 'plans/.harness/events.jsonl'); let log = await RunLog.open(logPath, 'repair');

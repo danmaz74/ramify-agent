@@ -12,7 +12,7 @@ import { copyFixture, temporaryDirectory } from '../../../../src/tests/helpers/f
 import {
   assign, byRole, failureAnalystFake, outline, partialReport, shell, submit, treeInputs, type Turn,
 } from '../../../../src/tests/helpers/iterations.js';
-import { installTestRunner, onlyRun, runPath, startRun, testPolicy } from '../../../../src/tests/helpers/runs.js';
+import { installTestRunner, onlyRun, runPath, startRun, stopRun, testPolicy, until } from '../../../../src/tests/helpers/runs.js';
 import { scenariosCommit } from '../../../../src/tests/helpers/scripted-git.js';
 import { assertUnchangedGit, openUnchangedRuns as openRuns } from '../../../../src/tests/helpers/unchanged-run.js';
 import { iterationLayout, type IterationAssignment, type IterationResult } from '../../../autonomous/subs/work-coordination/src/work/iterations.js';
@@ -79,7 +79,7 @@ function scriptedShell(asked: AskedCommand[]): CommandRunner {
 }
 
 /** A run of the fixture's plan with one entry in `reviews`, driven by `turns`, whose sessions are kept. */
-async function run(turns: Readonly<Record<string, readonly Turn[]>>, limits: Partial<RunPolicy['limits']> = {}, asked: AskedCommand[] = []) {
+async function run(turns: Readonly<Record<string, readonly Turn[]>>, limits: Partial<RunPolicy['limits']> = {}, asked: AskedCommand[] = [], previewCount = 5) {
   const fixture = await copyFixture();
   cleanups.push(fixture.remove);
   await installTestRunner(fixture.root);
@@ -91,6 +91,7 @@ async function run(turns: Readonly<Record<string, readonly Turn[]>>, limits: Par
       return scripted(spec);
     },
     unchangedCheckpoints: checkpoints,
+    previewCount,
     inputs: treeInputs(),
     commandExecution: scriptedShell(asked),
     policy: projectRoot => {
@@ -109,6 +110,59 @@ async function iterationResult(root: string, runId: string, number: number): Pro
   return JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.result('work-item:reviewer-note', number)), 'utf8')) as IterationResult;
 }
 
+test('a genuine engineer provider failure retains its diagnostic while current recovery pauses the assignment', async () => {
+  const fixture = await copyFixture();
+  cleanups.push(fixture.remove);
+  await installTestRunner(fixture.root);
+  const opened = await openRuns(fixture.root, {
+    script: byRole({
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
+      'local-architect': [submit(assign(reviews, {}, outline()))],
+      engineer: [[{ kind: 'fail', error: 'The provider refused this unsupported request' }]],
+    }),
+    unchangedCheckpoints: [scenariosCommit(plan)],
+    gitScript: { previews: [{ repositoryRoot: fixture.root, head: `scenarios-of-${plan}`, tree: 'a'.repeat(40) }] },
+    inputs: treeInputs(),
+  });
+  cleanups.push(() => opened.service.close());
+  const receipt = await opened.service.execute(startRun(plan));
+  await until(() => opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
+  const inspection = await opened.service.recoveryInspection(plan, receipt.jobId);
+  expect(inspection).toMatchObject({ state: 'paused', boundary: { role: 'engineer' }, evidence: { diagnostic: expect.stringContaining('The provider refused this unsupported request') } });
+  const ended = opened.service.events(plan, receipt.jobId)!.find(event => event.type === 'invocation-ended' && event.data.ended === 'failed');
+  expect(ended).toMatchObject({ data: { ended: 'failed' } });
+  expect(onlyRun(opened.service, plan)).toMatchObject({ state: 'running', recovery: { state: 'paused' } });
+  await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
+  await opened.service.settled(plan, receipt.jobId);
+});
+
+test('a genuine failure-analyst provider failure retains its diagnostic while current recovery pauses analysis', async () => {
+  const fixture = await copyFixture();
+  cleanups.push(fixture.remove);
+  await installTestRunner(fixture.root);
+  const opened = await openRuns(fixture.root, {
+    script: byRole({
+      'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
+      'local-architect': [submit(assign(reviews, {}, outline()))],
+      engineer: [[{ kind: 'end', message: 'No submission.' }]],
+      'failure-analyst': [[{ kind: 'fail', error: 'The analyst provider refused this request' }]],
+    }),
+    unchangedCheckpoints: [scenariosCommit(plan)],
+    gitScript: { previews: [{ repositoryRoot: fixture.root, head: `scenarios-of-${plan}`, tree: 'a'.repeat(40) }] },
+    inputs: treeInputs(),
+  });
+  cleanups.push(() => opened.service.close());
+  const receipt = await opened.service.execute(startRun(plan));
+  await until(() => opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
+  const inspection = await opened.service.recoveryInspection(plan, receipt.jobId);
+  expect(inspection).toMatchObject({ state: 'paused', boundary: { role: 'failure-analyst' }, evidence: { diagnostic: expect.stringContaining('The analyst provider refused this request') } });
+  const ended = opened.service.events(plan, receipt.jobId)!.find(event => event.type === 'invocation-ended' && event.data.ended === 'failed');
+  expect(ended).toMatchObject({ data: { ended: 'failed' } });
+  expect(onlyRun(opened.service, plan)).toMatchObject({ state: 'running', recovery: { state: 'paused' } });
+  await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
+  await opened.service.settled(plan, receipt.jobId);
+});
+
 describe('an engineer failure with revised command settings', () => {
   test('analyzes semantic failure before its architect revises the command maximum', async () => {
     const asked: AskedCommand[] = [];
@@ -117,16 +171,16 @@ describe('an engineer failure with revised command settings', () => {
       'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(assign(reviews, { bounds: raised })), submit(requestCompletion())],
       engineer: [
-        [{ kind: 'fail', error: 'The provider refused this unsupported request' }],
+        [{ kind: 'end', message: 'The provider refused this unsupported request' }],
         submit(partialReport(['the suite passed'], ['nothing']), shell('npm run test:slow:rerun', { timeoutMs: 1_000_000 })),
       ],
       'failure-analyst': [failureAnalystFake('bound-too-tight', { recommendation: 'Use the supported request and appropriate command maximum.' })],
-    }, {}, asked);
+    }, {}, asked, 6);
     const snapshot = onlyRun(service, plan);
     expect(snapshot.state, JSON.stringify(snapshot.failure)).toBe('completed');
     const result = await iterationResult(root, runId, 1);
-    expect(result.failure!.digest).toMatchObject({ ended: 'failed', interruption: null,
-      cause: 'The session failed: The provider refused this unsupported request', inFlight: [] });
+    expect(result.failure!.digest).toMatchObject({ ended: 'ended', interruption: null,
+      cause: 'The session stopped on its own without an accepted submission.', inFlight: [] });
     expect(result.failure!.analysis).toMatchObject({ outcome: 'analyzed', cause: 'bound-too-tight' });
     expect(role('local-architect')[1]!.prompt).toContain('Use the supported request and appropriate command maximum.');
     const assignment = JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.assignment('work-item:reviewer-note', 2)), 'utf8')) as IterationAssignment;
@@ -143,17 +197,17 @@ describe('a failure analysis that fails', () => {
     const { root, runId, service, role } = await run({
       'initial-architect': [submit(currentAnalysis(analysis([entry('reviewer-note', reviews)]), 'document:review-notes-plan'))],
       'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
-      engineer: [[{ kind: 'fail', error: 'the provider refused the request' }]],
-      'failure-analyst': [[{ kind: 'fail', error: 'the analyst\'s provider refused the request too' }]],
+      engineer: [[{ kind: 'end', message: 'the provider refused the request' }]],
+      'failure-analyst': [[{ kind: 'end', message: 'the analyst\'s provider refused the request too' }]],
     });
 
     expect(onlyRun(service, plan).state).toBe('completed');
     const result = await iterationResult(root, runId, 1);
-    expect(result.failure!.digest).toMatchObject({ ended: 'failed', interruption: null, cause: 'The session failed: the provider refused the request', inFlight: [] });
-    expect(result.failure!.analysis).toMatchObject({ outcome: 'unavailable', reason: 'the analysis ended `failed` (the analyst\'s provider refused the request too)' });
+    expect(result.failure!.digest).toMatchObject({ ended: 'ended', interruption: null, cause: 'The session stopped on its own without an accepted submission.', inFlight: [] });
+    expect(result.failure!.analysis).toMatchObject({ outcome: 'unavailable', reason: 'the analysis ended `ended`' });
 
     const briefing = role('local-architect')[1]!.prompt;
-    expect(briefing).toContain('- Why it ended: The session failed: the provider refused the request');
+    expect(briefing).toContain('- Why it ended: The session stopped on its own without an accepted submission.');
     expect(briefing).toContain('The failure analysis is unavailable');
     expect(briefing).toContain('Decide on the digest above.');
     expect(briefing).not.toContain('If the work needs more, raise');
@@ -184,14 +238,14 @@ describe('every cause an analyst judges', () => {
         submit(assign(reviews)),
         submit(requestCompletion()),
       ],
-      engineer: [[{ kind: 'fail', error: 'the provider refused the request' }]],
+      engineer: [[{ kind: 'end', message: 'the provider refused the request' }]],
       'failure-analyst': [
         failureAnalystFake('environment-problem'),
         failureAnalystFake('work-problem'),
         failureAnalystFake('agent-behavior'),
         failureAnalystFake('unknown'),
       ],
-    });
+    }, {}, [], 8);
     expect(onlyRun(service, plan).state).toBe('completed');
     const causes = [];
     for (const number of [1, 2, 3, 4]) {

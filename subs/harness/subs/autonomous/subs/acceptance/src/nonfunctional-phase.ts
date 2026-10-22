@@ -5,6 +5,7 @@ import { preparedCandidateSchema, nonfunctionalRepairAssignmentSchema, type Nonf
 import { assessmentCoverage, assessmentSchema, roundSchema, type Assessment, type Candidate } from '../../../../nonfunctional/src/interfaces/contracts.js';
 import { decideNonfunctionalRound, type ClosedRound, type RoundDecisionInput } from '../../../../nonfunctional/src/rounds.js';
 import { workItemSchema, workLayout } from '../../work-coordination/src/work/records.js';
+import { CommittedRecordError, parseCommittedRecord } from '../../../../../src/jobs/committed-reader.js';
 
 export interface CommittedNonfunctionalPhase {
   /** Only committed facts enter the pure round transition rule. */
@@ -38,7 +39,6 @@ function soleRecord<T>(records: readonly RecordBody[], path: string, id: string,
 export function replayNonfunctionalPhase(
   entries: readonly LedgerEntry<RunEvent>[],
   nfrIds: readonly string[],
-  maxRounds: number,
 ): NonfunctionalPhaseReplay {
   try {
     const closedRounds: ClosedRound[] = [];
@@ -58,7 +58,6 @@ export function replayNonfunctionalPhase(
     const invocationIds = new Set<string>();
     const assignmentIds = new Set<string>();
     let markerSeen = false;
-    let legacyMaxRounds = maxRounds;
     const requireFact = (condition: unknown, reason: string): void => { if (!condition) throw new Error(reason); };
 
     for (const entry of entries) {
@@ -68,7 +67,6 @@ export function replayNonfunctionalPhase(
         case 'nonfunctional-phase-started': {
           requireFact(!markerSeen && candidateIds.size === 0, 'phase marker is duplicated or late');
           markerSeen = true;
-          legacyMaxRounds = event.data.maxRounds;
           break;
         }
         case 'nonfunctional-final-invalidated': {
@@ -183,7 +181,7 @@ export function replayNonfunctionalPhase(
             && candidateId === event.data.candidate && repair === null && assignment === null,
           'repair assignment does not follow the current assessment and candidate');
           requireFact(!assignmentIds.has(event.data.assignment), 'repair assignment ID was reused');
-          const next = decideNonfunctionalRound({ nfrIds, maxRounds: legacyMaxRounds, closedRounds, externalContinuations, candidate, initial,
+          const next = decideNonfunctionalRound({ nfrIds, closedRounds, externalContinuations, candidate, initial,
             investigated: investigationInvocations.length > 0, repairCommitted: false, reassessment });
           requireFact(next.action === 'repair-or-close', `repair assignment is not permitted while next action is ${next.action}`);
           const targets = event.data.nfrs;
@@ -192,8 +190,15 @@ export function replayNonfunctionalPhase(
           requireFact(targets.length > 0 && new Set(targets).size === targets.length
             && targets.every(nfr => unresolved.has(nfr) && (!undetermined.has(nfr) || investigatedNfrs.includes(nfr))),
           'repair assignment targets satisfied, duplicate, or uninvestigated NFR IDs');
-          const body = soleRecord(records, runLayout.nonfunctionalRepairAssignment(event.data.assignment), event.data.assignment,
-            value => nonfunctionalRepairAssignmentSchema.parse(value));
+          const path = runLayout.nonfunctionalRepairAssignment(event.data.assignment);
+          const body = soleRecord(records, path, event.data.assignment, value => {
+            try { return parseCommittedRecord(nonfunctionalRepairAssignmentSchema, value, path); }
+            catch (error) {
+              if (error instanceof CommittedRecordError && error.errors.some(issue => issue.startsWith('scope.resolved.boundaryVersion:') || issue.startsWith('scope.resolved.nestedDeclarations:')))
+                throw new CommittedRecordError(path, ['write scope expects ramify-agent.assignment-boundary/1 with nestedDeclarations', ...error.errors]);
+              throw error;
+            }
+          });
           requireFact(body.round === round && body.assessment === event.data.assessment
             && body.candidate === event.data.candidate && body.startingModule === event.data.startingModule
             && JSON.stringify(body.nfrs) === JSON.stringify(event.data.nfrs), 'repair assignment event and record disagree');
@@ -215,7 +220,7 @@ export function replayNonfunctionalPhase(
         case 'nonfunctional-round-closed': {
           requireFact(event.data.round === round, 'round closure is out of order');
           if (event.data.outcome !== 'unavailable') {
-            const decision = decideNonfunctionalRound({ nfrIds, maxRounds: legacyMaxRounds, closedRounds, externalContinuations, candidate, initial,
+            const decision = decideNonfunctionalRound({ nfrIds, closedRounds, externalContinuations, candidate, initial,
               investigated: investigationInvocations.length > 0, repairCommitted: repair !== null, reassessment });
             requireFact(decision.action === 'close' || decision.action === 'repair-or-close',
               `round closed while next action is ${decision.action}`);
@@ -233,10 +238,8 @@ export function replayNonfunctionalPhase(
             requireFact(results !== undefined, 'round closed without an assessment');
             requireFact(!initial?.results.some(item => item.result === 'undetermined')
               || investigationInvocations.length > 0, 'undetermined evidence was closed without investigation');
-            const legacyCountClosure = record.outcome === 'exhausted' && repair !== null
-              && reassessment !== null && round === legacyMaxRounds;
             const expected = results!.every(item => item.result === 'satisfied')
-              ? 'satisfied' : repair === null || legacyCountClosure ? 'exhausted' : 'continue';
+              ? 'satisfied' : repair === null ? 'exhausted' : 'continue';
             requireFact(record.outcome === expected, `round outcome ${record.outcome} disagrees with assessed results`);
           }
           if (record.outcome !== 'unavailable') {
@@ -260,7 +263,7 @@ export function replayNonfunctionalPhase(
       }
     }
     const input: RoundDecisionInput = {
-      nfrIds, maxRounds: legacyMaxRounds, closedRounds, externalContinuations, candidate, initial,
+      nfrIds, closedRounds, externalContinuations, candidate, initial,
       investigated: investigationInvocations.length > 0, repairCommitted: repair !== null, reassessment,
     };
     decideNonfunctionalRound(input);

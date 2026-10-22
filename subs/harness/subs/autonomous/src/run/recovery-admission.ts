@@ -21,8 +21,6 @@ export const externalRepairAdmissionSchema = z.object({ schema: z.literal('ramif
   before: recoveryIdentitySchema, after: recoveryIdentitySchema, declaration: externalRepairDeclarationSchema.nullable(),
   admitted: z.boolean(), blockers: z.array(text), changes: z.array(z.object({ path: text, before: file, after: file }).strict()),
   invalidatesQualification: z.boolean(), requiresReassessment: z.boolean(), outstandingVerification: z.array(text),
-  restartComparison: z.object({ sourceRun: text, sourceCursor: z.int().positive(), sourceDigest: text, importDigest: text,
-    normalizedBefore: recoveryIdentitySchema }).strict().optional(),
 }).strict();
 export type ExternalRepairAdmission = z.infer<typeof externalRepairAdmissionSchema>;
 

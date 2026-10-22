@@ -197,6 +197,9 @@ export interface Scenario {
   readonly git: GitResponses;
   /** The final audited revision and its exact tree for a completed run. */
   readonly finalCandidate?: { readonly head: string; readonly tree: string };
+  readonly finalTreePreviews?: number;
+  readonly preliminaryTreeHead?: string;
+  readonly treePreviews?: readonly { readonly head: string; readonly tree: string }[];
   /** The commands this scenario's engineer runs, and what each one answers. */
   readonly commands?: readonly StatedCommand[] | undefined;
   /** A command the scenario sends while it runs, such as a stop. */
@@ -265,6 +268,7 @@ const limitsModule = { directory: limitsDirectory, name: 'limits', files: {} };
  */
 const iteration: Scenario = {
   name: 'iteration',
+  finalTreePreviews: 5,
   commands: [
     {
       // What the shell leaves: the assigned included child removed and an
@@ -374,6 +378,7 @@ const iteration: Scenario = {
  */
 const delegation: Scenario = {
   name: 'delegation',
+  preliminaryTreeHead: source(1),
   git: {
     head: base,
     after: source(3),
@@ -558,6 +563,8 @@ const nameRejection: Scenario = {
  */
 const access: Scenario = {
   name: 'access',
+  preliminaryTreeHead: source(1),
+  finalTreePreviews: 5,
   git: {
     head: base,
     after: source(2),
@@ -800,6 +807,7 @@ const testless: Scenario = {
 /** A provider that cannot conform, the revision its consumer assigns, and the reopening that follows. */
 const revision: Scenario = {
   name: 'revision',
+  preliminaryTreeHead: source(1),
   git: {
     head: base,
     after: source(4),
@@ -867,6 +875,7 @@ const revision: Scenario = {
 const cycleDetections = new Map<string, number>();
 const cycle: Scenario = {
   name: 'cycle',
+  treePreviews: [source(1), source(2)].map(head => ({ head, tree: '6'.repeat(40) })),
   git: {
     head: base,
     after: source(2),
@@ -918,6 +927,7 @@ const cycle: Scenario = {
 /** A context return continues the pending engineer until its explicit partial result. */
 const engineerBudget: Scenario = {
   name: 'engineer-budget',
+  finalTreePreviews: 5,
   git: { head: base, after: materialized, commits: [materialize(featureOf(notesDirectory, 'review-notes')), unchanged(materialized), unchanged(materialized)] },
   exercises: 'a module engineer reaches a context limit, continues, and explicitly reports partial work for an architect decision',
   ends: 'completed',
@@ -966,7 +976,12 @@ function failingAnalysis(name: ScenarioName, exercises: string, turn: Turn, poli
   };
 }
 
-const agentFails = failingAnalysis('agent-fails', 'an plan architect whose session fails: agent-failed', [{ kind: 'fail', error: 'the provider refused the request' }]);
+let failedAnalysisEnds = 0;
+const agentFails: Scenario = {
+  ...failingAnalysis('agent-fails', 'a plan architect whose failed session retains recovery evidence until an explicit stop', [{ kind: 'fail', error: 'the provider refused the request' }]),
+  ends: 'stopped',
+  during(write, context) { if (write === 'invocation-ended' && ++failedAnalysisEnds === 2) context.stop(); },
+};
 const noSubmission = failingAnalysis('no-submission', 'an plan architect that ends without a submission: analysis-invalid', [{ kind: 'end', message: 'I have nothing to submit.' }]);
 const invalidAnalysis = failingAnalysis('invalid-analysis', 'an plan architect whose every submission is invalid: invalid-submission at the bound',
   [1, 2, 3, 4].map(() => ({ kind: 'submit' as const, input: { entries: 'none' } })));
@@ -991,7 +1006,7 @@ export const scenarios: Readonly<Record<ScenarioName, Scenario>> = {
   'agent-fails': agentFails, 'no-submission': noSubmission, 'invalid-analysis': invalidAnalysis, 'over-limit': overLimit, 'engineer-budget': engineerBudget,
 };
 
-/** The completed path makes four exact tree previews; the final gate's unchanged commit keeps its head. */
+/** Each completed path states its exact candidate-tree preview count. */
 export function compositionGit(root: string, scenario: Scenario): ScenarioGit {
   const final = scenario.finalCandidate;
   if (scenario.ends === 'completed' && final === undefined) {
@@ -1002,7 +1017,11 @@ export function compositionGit(root: string, scenario: Scenario): ScenarioGit {
   }
   return scenarioGit(root, {
     ...scenario.git,
-    ...(final === undefined ? {} : { previews: Array.from({ length: 4 }, () => ({ repositoryRoot: root, head: final.head, tree: final.tree })) }),
+    ...(scenario.treePreviews === undefined ? {} : { previews: scenario.treePreviews.map(preview => ({ repositoryRoot: root, ...preview })) }),
+    ...(final === undefined ? {} : { previews: [
+      ...(scenario.preliminaryTreeHead === undefined ? [] : [{ repositoryRoot: root, head: scenario.preliminaryTreeHead, tree: final.tree }]),
+      ...Array.from({ length: scenario.finalTreePreviews ?? 4 }, () => ({ repositoryRoot: root, head: final.head, tree: final.tree })),
+    ] }),
   });
 }
 
@@ -1051,7 +1070,7 @@ export async function runToEnd(scenario: Scenario, watch?: (service: RunService,
   try { commands.assertComplete(); } catch (error) {
     throw new Error(`${scenario.name}: command script incomplete; run ${JSON.stringify(opened.service.getRun(plan, receipt.jobId))}`, { cause: error });
   }
-  try { git.assertComplete(); } catch (error) { throw new Error(`${scenario.name}: Git script incomplete; commits ${JSON.stringify(git.commits())}; run ${JSON.stringify(opened.service.getRun(plan, receipt.jobId))}`, { cause: error }); }
+  try { git.assertComplete(); } catch (error) { throw new Error(`${scenario.name}: Git script incomplete: ${String(error)}; commits ${JSON.stringify(git.commits())}; run ${JSON.stringify(opened.service.getRun(plan, receipt.jobId))}`, { cause: error }); }
   void runId;
   return {
     root: target.root,

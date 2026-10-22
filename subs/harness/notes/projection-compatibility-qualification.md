@@ -5,7 +5,7 @@ Parent-owned integration: `src/tests/helpers/projection-compatibility.ts`, `src/
 ## Tested matrix
 
 - Supported `ramify-agent.job/3` with current constructed policy: completed retained run, version 11, independent expected event transitions and session state/model/finish, recorded transcript bytes, HTTP/direct equivalence.
-- Historical `ramify-agent.session/2`, `run-policy/7`, outcome `/1`: finished with recorded prompt and submitted outcome; interrupted with deliberately removed outcome, null outcome/evaluation end. Public transcript pages match installed retained entries and HTTP.
+- Historical `ramify-agent.session/2`, retired run-policy form, outcome `/1`: finished with recorded prompt and submitted outcome; interrupted with deliberately removed outcome, null outcome/evaluation end. Public transcript pages match installed retained entries and HTTP.
 - Committed hypothesis `/999`: unsupported-version; `/1` with required fields absent: unreadable. Both include the concrete `plans/review-notes/.harness/jobs/<id>/hypotheses/hyp-001.json` evidence. Invalid bodies are committed by the real ledger as setup stimuli, not decoded in parent query code.
 - Historical session `/999` and `/2` missing required fields, both retaining supported policy: unsupported-version/unreadable respectively, concrete `plans/.harness/sessions/<id>/session.json` evidence. Exact HTTP refusal matches direct code/message/evidence. Session listing retains all four failures as unserved entries rather than absence.
 

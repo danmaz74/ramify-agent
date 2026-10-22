@@ -342,7 +342,7 @@ describe('CF07: a shutdown owns the live readers of the composed run, and a late
 });
 
 describe('CF15: the composed run under tight review bounds', () => {
-  test('one reader, a queue of one and one retry: overflow, a retried invalid review and architect-left-open signals are explicit, and every gate keeps its verdict', async () => {
+  test('one reader, a queue of one and one retry: queued coverage, a retried invalid review and architect-left-open signals are explicit, and every gate keeps its verdict', async () => {
     const root = await compositionTarget(cleanups);
     const scenario = compositionScenario(root, { concurrency: 1, queue: 1, retries: 1 });
     const run = await reviewRun(root, cleanups, {
@@ -356,10 +356,10 @@ describe('CF15: the composed run under tight review bounds', () => {
       },
       reconcilers: {
         'work-item:review-notes.rc01': [{ kind: 'submit', input: { relations: [], dispositions: [], next: { kind: 'complete' },
-          brief: 'Continue using the passing configured checks; keep the queue-overflow review unavailable.' } }],
+          brief: 'Continue using the passing configured checks; all queued reviews completed.' } }],
         // The architect considers all signals and explicitly leaves them open.
         'work-item:catalog-tags.rc01': reconcile(
-          submission([disposition('finding:case-0001', { action: 'leave' }), disposition('finding:case-0003', { action: 'leave' }), disposition('finding:case-0002', { action: 'leave' })], { kind: 'unresolved' }),
+          submission([disposition('finding:case-0001', { action: 'leave' }), disposition('finding:case-0003', { action: 'leave' }), disposition('finding:case-0002', { action: 'leave' }), disposition('finding:case-0004', { action: 'leave' })], { kind: 'unresolved' }),
         ),
       },
     });
@@ -368,29 +368,29 @@ describe('CF15: the composed run under tight review bounds', () => {
     const measured = compositionMeasurements(events, { policy: await capturedPolicy(root, runId) });
     const exported = process.env['PLAN12_MEASUREMENTS_EXPORT'];
     if (exported !== undefined && exported !== '') await writeFile(`${exported}.tight.json`, `${JSON.stringify({ fixture: 'tight', measured }, null, 2)}\n`);
-    // The third request of every candidate found the queue full and never ran.
+    // Tight queue bounds preserve coverage by waiting for a reader slot.
     expect(eventsOf(events, 'review-attempt-finished').map(event => [event.data.attempt, event.data.result, event.data.reason])).toEqual([
-      ['rq-0003.a01', 'not-verified', 'queue-overflow'], ['rq-0001.a01', 'complete', null], ['rq-0002.a01', 'complete', null],
-      ['rq-0006.a01', 'not-verified', 'queue-overflow'], ['rq-0004.a01', 'not-verified', 'invalid-output'], ['rq-0004.a02', 'complete', null],
-      ['rq-0005.a01', 'complete', null], ['rq-0009.a01', 'not-verified', 'queue-overflow'], ['rq-0007.a01', 'complete', null], ['rq-0008.a01', 'complete', null],
+      ['rq-0001.a01', 'complete', null], ['rq-0002.a01', 'complete', null], ['rq-0003.a01', 'complete', null],
+      ['rq-0004.a01', 'not-verified', 'invalid-output'], ['rq-0004.a02', 'complete', null], ['rq-0005.a01', 'complete', null],
+      ['rq-0006.a01', 'complete', null], ['rq-0007.a01', 'complete', null], ['rq-0008.a01', 'complete', null], ['rq-0009.a01', 'complete', null],
     ]);
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 9, complete: 6, partial: 0, notVerified: 3, pending: 0 });
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 9, complete: 9, partial: 0, notVerified: 0, pending: 0 });
     // The architect left every signal unresolved after considering the full attention set.
     const forks = reconcilerSessions(run.agent!);
-    expect(forks).toHaveLength(2);
+    expect(forks).toHaveLength(1);
     for (const fork of forks) expect(fork.verdicts[0]).toMatchObject({ accepted: true });
-    expect(eventsOf(events, 'reconciliation-assessed').map(event => event.data.next)).toEqual(['complete', 'unresolved']);
+    expect(eventsOf(events, 'reconciliation-assessed').map(event => event.data.next)).toEqual(['unresolved']);
     expect(eventsOf(events, 'work-item-completed').map(event => [event.data.workItem, event.data.unresolved])).toEqual([
       ['work-item:review-notes', undefined],
-      ['work-item:catalog-tags', [{ checkFinding: 'finding:case-0001', reason: 'left-open' }, { checkFinding: 'finding:case-0003', reason: 'left-open' }, { checkFinding: 'finding:case-0002', reason: 'left-open' }]],
+      ['work-item:catalog-tags', [{ checkFinding: 'finding:case-0004', reason: 'left-open' }, { checkFinding: 'finding:case-0001', reason: 'left-open' }, { checkFinding: 'finding:case-0003', reason: 'left-open' }, { checkFinding: 'finding:case-0002', reason: 'left-open' }]],
     ]);
     // Nothing manufactured a pass: the signals stay open, and every gate kept the verdict its checks gave.
     expect(summariesOf(service, runId).map(summary => [summary.id, summary.standing, summary.risk])).toEqual([
-      ['finding:case-0001', 'open', 'high'], ['finding:case-0002', 'open', 'low'], ['finding:case-0003', 'open', 'medium'],
+      ['finding:case-0001', 'open', 'high'], ['finding:case-0002', 'open', 'low'], ['finding:case-0003', 'open', 'medium'], ['finding:case-0004', 'open', 'high'],
     ]);
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
-    expect(measured.reviews).toMatchObject({ requests: 9, attempts: 10, retries: 1, notVerifiedByReason: { 'queue-overflow': 3 }, orientations: { recorded: 0 } });
-    expect(measured.rounds).toEqual({ 'work-item:review-notes': { rounds: 1, corrections: 0 }, 'work-item:catalog-tags': { rounds: 1, corrections: 0 } });
-    expect(measured.unresolved.map(entry => entry.risk)).toEqual(['high', 'medium', 'low']);
+    expect(measured.reviews).toMatchObject({ requests: 9, attempts: 10, retries: 1, notVerifiedByReason: {}, orientations: { recorded: 2 } });
+    expect(measured.rounds).toEqual({ 'work-item:review-notes': { rounds: 0, corrections: 0 }, 'work-item:catalog-tags': { rounds: 1, corrections: 0 } });
+    expect(measured.unresolved.map(entry => entry.risk)).toEqual(['high', 'high', 'medium', 'low']);
   }, 120_000);
 });

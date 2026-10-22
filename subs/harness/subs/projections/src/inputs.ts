@@ -1,4 +1,5 @@
 import { planningRecords } from '../../autonomous/subs/planning/src/committed.js';
+import { readCapturedDocuments } from '../../autonomous/subs/planning/src/documents.js';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { z } from 'zod';
@@ -6,7 +7,8 @@ import { hypothesisSchema, type Hypothesis } from '../../autonomous/subs/plannin
 import { jobIdSchema, planIdSchema } from '../../../src/interfaces/protocol/ids.js';
 import { jobSchemaVersion, jobsDirectory } from '../../../src/jobs/records.js';
 import { runPolicyVersion } from '../../../src/run/policy.js';
-import type { RunEvent } from '../../autonomous/src/run/log.js';
+import { runEventSchema, type RunEvent } from '../../autonomous/src/run/log.js';
+import { readJsonLines } from '../../ledger/src/jsonl.js';
 import { gateAttemptSchema, gateAuditOutcomeSchema } from '../../autonomous/subs/acceptance/src/gate-records.js';
 import { runLayout, runRecordSchema, type RunRecord } from '../../autonomous/src/run/records.js';
 import { type EntryAssignments } from '../../autonomous/subs/planning/src/records.js';
@@ -33,7 +35,6 @@ import { iterationAssignmentSchema, type IterationAssignment } from '../../auton
 
 /** One complete line of the log, as the service replays it. */
 export interface CommittedLine {
-  readonly source?: { readonly runId: string; readonly sequence: number };
   readonly sequence: number;
   readonly at: string;
   readonly transaction: {
@@ -65,7 +66,6 @@ export class ProjectionError extends Error {
 
 /** One committed body of one schema, with where and when the log committed it. */
 export interface CommittedBody<T> {
-  readonly sourceRun?: string;
   readonly body: T;
   readonly path: string;
   readonly sequence: number;
@@ -170,10 +170,9 @@ export function runView(run: CommittedRun): RunView {
   };
 }
 
-/** Public source references retain the original positive sequence and identify its owning run. */
-export function publicSequence(entries: readonly CommittedLine[], sequence: number): { sequence: number; sourceRun?: string } {
-  const source = entries.find(entry => entry.sequence === sequence)?.source;
-  return source === undefined ? { sequence } : { sequence: source.sequence, sourceRun: source.runId };
+/** A source reference within this run. */
+export function publicSequence(_entries: readonly CommittedLine[], sequence: number): { sequence: number } {
+  return { sequence };
 }
 
 function firstSequence(run: CommittedRun, gate: string): number {
@@ -238,8 +237,29 @@ export async function unservedRun(projectRoot: string, planId: string, runId: st
     );
   }
   const parsed = runRecordSchema.safeParse(document);
-  // A valid record the service does not hold yet is a run being created.
-  if (parsed.success) return null;
+  // A valid record the service does not hold yet must still name current, readable run inputs.
+  if (parsed.success) {
+    const logPath = join(jobsDirectory(projectRoot, planId), runId, runLayout.events);
+    const shownLog = relative(projectRoot, logPath);
+    try {
+      const lines = await readJsonLines(logPath);
+      for (const [index, raw] of lines.records.entries()) {
+        const line = z.object({ sequence: z.int().positive(), event: runEventSchema }).passthrough().safeParse(raw);
+        if (!line.success || line.data.sequence !== index + 1 || line.data.event.sequence !== index + 1 || line.data.event.jobId !== runId) {
+          return new ProjectionError('unreadable', `${shownLog}:${index + 1} is not an event of run ${runId} in the current log format`,
+            [shownLog, `line ${index + 1}`]);
+        }
+      }
+    } catch (error) {
+      return new ProjectionError('unreadable', `${shownLog} cannot be read: ${error instanceof Error ? error.message : String(error)}`, [shownLog]);
+    }
+    try {
+      await readCapturedDocuments(join(jobsDirectory(projectRoot, planId), runId), parsed.data.manifest);
+    } catch (error) {
+      return new ProjectionError('unreadable', `${shown} names captured documents that cannot be read: ${error instanceof Error ? error.message : String(error)}`, [shown]);
+    }
+    return null;
+  }
   return new ProjectionError(
     'unreadable',
     `${shown} declares ${jobSchemaVersion} and does not satisfy it`,

@@ -110,8 +110,8 @@ test('U01: a run snapshot names its breakpoint in the run and run-list queries, 
   expect(debugStateResponseSchema.parse((await handle('get', protocolPaths.runDebug(plan, runId))).body).run.breakpoint).toBe('before-agent:engineer');
   expect(runSnapshot(constructedRecord({ breakpoint: 'before-agent:engineer' }), []).breakpoint).toBe('before-agent:engineer');
   expect(runSnapshot(constructedRecord(), []).breakpoint).toBeNull();
-  const { breakpoint: _omitted, ...legacy } = run;
-  expect(runSnapshotSchema.parse(legacy).breakpoint).toBeNull();
+  const { breakpoint: _omitted, ...withoutBreakpoint } = run;
+  expect(runSnapshotSchema.safeParse(withoutBreakpoint).success).toBe(false);
 });
 
 test('U02: interventions list every message with its exchange as the harness derives it, then the resume, whatever the after cursor', async () => {

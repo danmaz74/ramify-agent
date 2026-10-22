@@ -235,7 +235,7 @@ function snapshot(version: number): RunSnapshot {
     jobId: runId, planId, agent: 'scripted', version, state: 'running', phase: 'working', stopRequested: false,
     startedAt: at(0), updatedAt: at(0), endedAt: null, failure: null, current: null, waits: [],
     counts: { workItems: 2, completedWorkItems: 0, openRequirements: 0, invocations: 4, readinessAttempts: 1, gateAttempts: 0, scenarios: { pending: 0, bound: 0, done: 0 }, degradedStarts: 0 },
-    writer: { held: null, unsettled: null }, review: 'not-reviewed', notices: [], decisionRequests: { open: 0, waiting: false, workItems: [] }, planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [],
+    writer: { held: null, unsettled: null }, review: 'not-reviewed', notices: [], decisionRequests: { open: 0, waiting: false, workItems: [] }, planDeviations: { recorded: 0, toReview: 0 }, environmentProblems: [], automaticRepairs: { attempted: 0, refused: 0, incidents: [] }, breakpoint: null, recovery: null,
   });
 }
 

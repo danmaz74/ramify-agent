@@ -63,8 +63,6 @@ export type SubmissionAcceptance<T> = (value: T) => Promise<void>;
 export interface SubmissionJudgeOptions<T> {
   /** The tool the input came through: the submission tool's name, or a harness tool's. */
   readonly target: string;
-  /** Historical option accepted by older callers; it does not limit corrections. */
-  readonly bound?: number;
   readonly validate: (input: unknown) => Promise<SubmissionValidation<T>> | SubmissionValidation<T>;
   /** Applied only to an accepted input, and only once. */
   readonly accept: SubmissionAcceptance<T>;
@@ -174,19 +172,12 @@ export class ToolInputJudge<T> {
 
   constructor(private readonly options: {
     readonly tool: string;
-    /** Historical option accepted by older callers; it does not limit corrections. */
-    readonly bound?: number;
     readonly validate: (input: unknown) => SubmissionValidation<T>;
     readonly observations: ObservationLog;
   }) {}
 
   get rejections(): number {
     return this.attemptCount;
-  }
-
-  /** Historical compatibility for callers that used to map errors to exhaustion. */
-  get exhausted(): boolean {
-    return false;
   }
 
   async judge(input: unknown, callId = ''): Promise<{ readonly ok: true; readonly value: T } | { readonly ok: false; readonly text: string }> {

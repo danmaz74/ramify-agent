@@ -1,4 +1,3 @@
-import { runPolicySchema } from './records.js';
 import { consultationTargetSchema } from '../../subs/work-coordination/src/consultations/targets.js';
 import { debugExchangeSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { repairIncidentIdSchema, repairIncidentStageSchema } from '../../../../src/interfaces/protocol/repairs.js';
@@ -15,7 +14,6 @@ import { catalogFindingSchema, scenarioWarningSchema } from '../../subs/planning
 import { scenarioIdSchema } from '../../../scenarios/src/records.js';
 import { obligationBoundDataSchema, obligationRegisteredDataSchema, obligationReportedDataSchema } from '../../subs/work-coordination/src/work/obligations.js';
 import { LedgerCorruptError, openLedger, type Ledger } from '../../../ledger/src/ledger.js';
-import type { LedgerEntry } from '../../../ledger/src/ledger.js';
 import type { LedgerFileSystem } from '../../../ledger/src/fs.js';
 import { replayCheckFindingEvents } from '../../../check-findings/src/replay.js';
 import type { CheckFindingEvent } from '../../../check-findings/src/interfaces/check-findings.js';
@@ -76,10 +74,6 @@ const invocationEndedFields = {
 
 /** One line of a run's event log. */
 export const runEventSchema = z.discriminatedUnion('type', [
-  event('restart-branch-setting-up', z.object({ branch: text, head: text, tree: text }).strict()),
-  event('restart-branch-ready', z.object({ branch: text, head: text, tree: text }).strict()),
-  event('restart-prepared', z.object({ sourceRun: jobIdSchema, sourceCursor: z.int().nonnegative(), sourceDigest: text, importDigest: text, importPath: text, generation: z.int().positive(), occurrenceId: text, revision: z.int().positive(), command: acceptedCommandSchema }).strict()),
-  event('continuity-policy-adopted', z.object({ from: text, to: z.literal('run-policy/8'), occurrenceId: text, policy: runPolicySchema }).strict()),
   event('operation-recovery-attempt', z.object({ requestHash: text, group: z.int().nonnegative(), attempt: z.int().nonnegative(), invocation: text, predecessor: text.nullable() }).strict()),
   event('operation-recovery-pausing', z.object({ occurrenceId: text, revision: z.int().positive() }).strict()),
   event('operation-recovery-paused', z.object({ occurrenceId: text, revision: z.int().positive() }).strict()),
@@ -838,22 +832,7 @@ export function runEvent(runId: string, sequence: number, input: RunEventInput, 
  * line it did not write, and discards a trailing partial line on load.
  */
 export class RunLog {
-  private imported: readonly LedgerEntry<RunEvent>[] = [];
-  private durableReplay: (() => readonly LedgerEntry<RunEvent>[]) | undefined;
-
-  /** Install authenticated initial workflow state; historical events are never appended. */
-  installWorkflowImport(entries: readonly LedgerEntry<RunEvent>[]): void {
-    if (this.durableReplay) throw new Error('Workflow import was already installed');
-    this.imported = entries.map((entry, index) => ({ ...entry, sequence: index - entries.length, transaction: { ...entry.transaction, event: { ...entry.transaction.event, sequence: index - entries.length } as RunEvent } }));
-    const carriers = [...this.imported.map(entry => entry.transaction.event), ...this.ownEvents].filter(event => carriedCheckFindings(event).length > 0);
-    const replayed = replayCheckFindingEvents(carriers.flatMap(carriedCheckFindings));
-    if (!replayed.ok) throw new CorruptRunLogError(this.path, 0, `imported CheckFinding history does not replay: ${replayed.rejection.message}`);
-    this.durableReplay = this.ledger.replay.bind(this.ledger);
-    this.ledger.replay = () => [...this.imported, ...this.durableReplay!()];
-  }
-
-  /** Physical execution events, excluding the immutable workflow seed. */
-  get ownEvents(): readonly RunEvent[] { return (this.durableReplay?.() ?? this.ledger.replay()).map(entry => entry.transaction.event); }
+  get ownEvents(): readonly RunEvent[] { return this.events; }
 
   private constructor(
     readonly path: string,
@@ -867,7 +846,7 @@ export class RunLog {
    * carried CheckFinding events replay. `fs` is the ledger's file system
    * seam, for a test that fails one of its operations.
    */
-  static async open(path: string, runId: string, fs?: LedgerFileSystem, awaitingWorkflowImport = false): Promise<RunLog> {
+  static async open(path: string, runId: string, fs?: LedgerFileSystem): Promise<RunLog> {
     let ledger: Ledger<RunEvent>;
     try {
       ledger = await openLedger({ logPath: path, recordsRoot: dirname(path), eventSchema: runEventSchema, ...(fs === undefined ? {} : { fs }) });
@@ -884,8 +863,7 @@ export class RunLog {
     });
     const carriers = events.filter(current => carriedCheckFindings(current).length > 0);
     const replayed = replayCheckFindingEvents(carriers.flatMap(carriedCheckFindings));
-    if (awaitingWorkflowImport && events[0]?.type !== 'restart-prepared') throw new CorruptRunLogError(path, 1, 'Deferred workflow validation requires a committed restart initialization');
-    if (!replayed.ok && !awaitingWorkflowImport) {
+    if (!replayed.ok) {
       // Name the line that carries the refused event.
       let remaining = replayed.event;
       const line = carriers.find(current => (remaining -= carriedCheckFindings(current).length) < 0);
@@ -990,7 +968,6 @@ export type RunWrite =
   | 'revision-needed'
   | 'dependency-cycle-detected'
   | 'restart-staged'
-  | 'restart-prepared'
   | 'session-opened'
   | 'invocation-started'
   | 'invocation-ended'
