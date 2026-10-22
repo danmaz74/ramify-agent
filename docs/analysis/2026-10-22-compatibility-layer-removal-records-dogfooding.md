@@ -147,3 +147,35 @@ full-suite evidence; default mode scopes the audit from the candidate's parent
 rather than from the plan baseline. Fix candidate: run `final` assessments
 with `mode: 'full'`, or let the assessment request carry the mode. Left for a
 harness fix outside this run; the live host (PID 2003584) runs the older code.
+
+The coordinator closed the gap itself. A worker ran `npm test -- --maxWorkers=4`
+on unchanged `b01860cb` (11:09 to 11:27 UTC): 4136 passed, 1 failed, 2
+skipped. The failure was a 25 s timeout of the unchanged
+`subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-revision-scripted.test.ts`
+(observed 25.13 s; this job's earlier full audits ran it in about 18 s) while
+another session's four-worker audit shared the 12-core host at a load average
+near 9. `as-0013` (11:28 to 11:39) accepted the implementation conclusions and
+opened `cf-0012`, the unmet full-suite condition, with the instruction not to
+weaken the test or call the partial audit a full pass. The coordinator
+investigated the environment read-only, found the same contention, and ran one
+complete suite at `--maxWorkers=2` (11:41 to 12:04): exit 0, 4137 passed, 2
+skipped, no test, timeout or source change. `as-0014` (12:05 to 12:07) decided
+`cf-0012` fixed on that evidence and completed with gate `clear`.
+
+## Outcome
+
+- Branch `feat/compat-records-assisted-20261022` at `b01860cb`, 13 commits
+  above baseline `91f6de7c`: 129 files changed, 892 insertions, 6204 deletions.
+  Two pinned requirement documents are committed on the branch and on main.
+- The five retired identifiers appear nowhere in `src/` or `subs/`; the
+  session-store event union carries `session-store-commit/2` only; the two
+  fixture trees and the compatibility helper are gone.
+- Fourteen assessments: six iteration ends (`as-0005`, `as-0006`, `as-0011`
+  clear), twelve check findings decided fixed or moot, three final passes.
+- Harness findings for follow-up: the assisted final audit's fixed default
+  scope (above); the busy-send command identity conflict (above). Plan
+  authoring lessons: a file-scoped "only these schemas change" constraint must
+  not contradict identifier evidence; identifier evidence should name source
+  files explicitly.
+- Elapsed 07:04 to 12:08 UTC. The host (PID 2003584) and coordinator thread
+  were left running for inspection; `coordinate stop` closes them.
