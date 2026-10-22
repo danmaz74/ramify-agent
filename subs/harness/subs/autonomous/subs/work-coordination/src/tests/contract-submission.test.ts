@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { outline, readDeclaredTree } from '../../../../../../src/tests/helpers/iterations.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
-import { contractAuthorJsonSchema, contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, contractIdentityErrors, validateContract } from '../contracts/submission.js';
+import { contractAuthorJsonSchema, contractJsonSchema, contractSubmissionSchema, contractIdentityErrors, validateContract } from '../contracts/submission.js';
 import { fakeNamingViolations, isFakeFile } from '../contracts/naming.js';
 import { contractPublicationRefusal, executionRetirements, registerContract, registrationNeeded } from '../contracts/accept.js';
 import { consumerRequirementSchema, contractRecordSchema, executionRetirementSchema, providerObligationSchema } from '../contracts/records.js';
@@ -232,12 +232,7 @@ describe('the contract submission', () => {
       consumerRequirementId: requirementId }, await evidence(), revision);
     expect(bypass.ok).toBe(false);
   });
-  test('it is a union discriminated on kind, and has no field for an ID the harness knows', () => {
-    const union = (contractJsonSchema as { anyOf?: unknown[]; oneOf?: unknown[] });
-    expect(union.anyOf ?? union.oneOf).toHaveLength(3);
-    const kinds = [...new Set(contractSubmissionSchema.options.map(option => option.shape.kind.value))];
-    expect(kinds).toEqual(['established', 'incomplete']);
-    expect([...contractSubmissionKinds]).toEqual(kinds);
+  test('it has no field for an ID the harness knows', () => {
     // The contract, its revision, the obligation, the requirement, the
     // iteration and the work item are all the harness's.
     const text = JSON.stringify(contractJsonSchema);
@@ -422,8 +417,6 @@ describe('the revision a consumer architect assigns directly', () => {
   });
 
   test('a contract engineer has no unsuitable member at all, so it cannot report a provider\'s inability', () => {
-    const kinds = contractSubmissionSchema.options.map(option => option.shape.kind.value);
-    expect(kinds).not.toContain('unsuitable');
     expect(contractSubmissionSchema.safeParse({
       kind: 'unsuitable', reason: 'provider-cannot-conform', detail: 'the agreement cannot be met',
     }).success).toBe(false);

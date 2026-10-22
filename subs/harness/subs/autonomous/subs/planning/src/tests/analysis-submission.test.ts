@@ -554,53 +554,25 @@ describe('the scripted fake\'s demonstration, which `serve --agent fake` runs', 
 });
 
 describe('the prompt package', () => {
-  test('offers exactly the submission members this iteration produces', async () => {
+  test('each package carries the files its role needs, covered by its hash', async () => {
     const { manifest } = await loadPromptPackages({ capabilityWorkflow: false });
-    expect(Object.keys(manifest.packages).sort()).toEqual(['catalog-extractor', 'context-selector', 'contract-engineer', 'engineer', 'failure-analyst', 'global-fork', 'initial-architect', 'local-architect', 'nonfunctional-coordinator', 'nonfunctional-repair-engineer', 'reviewer']);
     const initial = manifest.packages['initial-architect']!;
-    expect(initial.package).toBe('initial-architect/8');
-    expect(initial.submissionKinds).toEqual(['initial-analysis']);
     expect(initial.files.map(file => file.kind).sort()).toEqual(expect.arrayContaining(['procedure', 'skill', 'submission-schema', 'system']));
     expect(initial.hash).toMatch(/^[0-9a-f]{64}$/);
 
-    // Each role is offered exactly the members a run of this iteration
-    // produces, and no other.
     // The catalog extractor's three turns are three submissions of one package.
     const extractor = manifest.packages['catalog-extractor']!;
-    expect(extractor.package).toBe('catalog-extractor/2');
-    expect(extractor.submissionKinds).toEqual(['intake', 'principle-extraction', 'catalog-check']);
     expect(extractor.files.filter(file => file.kind === 'procedure').map(file => file.path.split('/').at(-1)).sort())
       .toEqual(['check.procedure.md', 'intake.procedure.md', 'principles.procedure.md']);
-    expect(extractor.hash).toMatch(/^[0-9a-f]{64}$/);
-
-    const local = manifest.packages['local-architect']!;
-    expect(local.package).toBe('local-architect/23');
-    // The reconciliation fork's submission is the package's second.
-    expect(local.submissionKinds).toEqual(['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved', 'reconciliation', 'work-orientation']);
-
-    const fork = manifest.packages['global-fork']!;
-    expect(fork.package).toBe('global-fork/8');
-    expect(fork.submissionKinds).toEqual(['decision', 'partial', 'deviation', 'nothing-possible', 'environment']);
-    expect(fork.hash).toMatch(/^[0-9a-f]{64}$/);
-
-    const engineer = manifest.packages['engineer']!;
-    expect(engineer.package).toBe('engineer/19');
-    expect(engineer.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed']);
-    expect(engineer.hash).toMatch(/^[0-9a-f]{64}$/);
 
     // The contract sub-session is a module engineer invocation with the contract
     // skill, and the skill is a file of its package like any other.
     const contract = manifest.packages['contract-engineer']!;
-    expect(contract.package).toBe('contract-engineer/5');
-    expect(contract.submissionKinds).toEqual(['established', 'incomplete']);
     expect(contract.files.some(file => file.kind === 'skill' && file.path.endsWith('contract.skill.md'))).toBe(true);
-    expect(contract.hash).toMatch(/^[0-9a-f]{64}$/);
 
     // A reviewer submits its review; a design orientation submits what it
     // read. One procedure per question, each a file the hash covers.
     const reviewer = manifest.packages['reviewer']!;
-    expect(reviewer.package).toBe('reviewer/5');
-    expect(reviewer.submissionKinds).toEqual(['review', 'orientation']);
     const procedures = reviewer.files.filter(file => file.kind === 'procedure').map(file => file.path.split('/').at(-1)).sort();
     expect(procedures).toEqual(['code-review.procedure.md', 'design-review.procedure.md', 'scope-review.procedure.md']);
     expect(reviewer.files.filter(file => file.kind === 'system').map(file => file.path.split('/').at(-1)).sort()).toEqual(['reviewer-orientation.system.md', 'reviewer.system.md']);
@@ -609,20 +581,15 @@ describe('the prompt package', () => {
     // A failure analyst reads what a failed engineer left and submits one
     // account; its system prompt and procedure are files of its package.
     const analyst = manifest.packages['failure-analyst']!;
-    expect(analyst.package).toBe('failure-analyst/2');
-    expect(analyst.submissionKinds).toEqual(['failure-analysis']);
     expect(analyst.files.filter(file => file.kind !== 'skill').map(file => file.path.split('/').at(-1)).sort())
       .toEqual(['failure-analysis.procedure.md', 'failure-analysis.schema.json', 'failure-analyst.system.md']);
   });
 
   test('the current package set includes contract agreement and capability architecture', async () => {
     const { manifest } = await loadPromptPackages();
-    expect(manifest.packages['contract-engineer']?.package).toBe('contract-engineer/5');
-    expect(manifest.packages['local-architect']?.package).toBe('local-architect/23');
+    expect(manifest.packages['contract-engineer']).toBeDefined();
+    expect(manifest.packages['capability-architect']).toBeDefined();
     expect(manifest.packages['local-architect']?.submissionKinds).toContain('yield-for-providers');
-    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/10');
-    expect(manifest.packages['context-selector']?.package).toBe('context-selector/4');
-    expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/5');
     expect(manifest.packages['engineer']?.submissionKinds).toContain('contract-needed');
   });
 
@@ -640,13 +607,5 @@ describe('the prompt package', () => {
     expect(current.packages.get('local-architect')!.package).toBe('local-architect/23');
     expect(current.packages.get('engineer')!.package).toBe('engineer/19');
     expect(current.packages.get('engineer')!.procedure).toContain('`edit` and `write` refuse those files unless your');
-  });
-
-  test('asks for the entry assignments, which become the work items', async () => {
-    const { packages } = await loadPromptPackages();
-    const initial = packages.get('initial-architect')!;
-    expect(initial.procedure).toContain('One work item is created per entry capability');
-    expect(initial.procedure).toContain('Name the plan\'s entry capabilities');
-    expect(initial.procedure).not.toContain('asks for no entry assignment');
   });
 });

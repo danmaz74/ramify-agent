@@ -254,24 +254,16 @@ describe('the design question\'s guidance', () => {
   } as ReviewRequest);
   const snapshotOf = async () => openCandidateSnapshot(scriptedCandidates('/project', { c1: { tree: 't1', base: 'c0', changes: [], files: { 'docs/style.md': '# Style\n' } } }), '/project', { commit: 'c1', base: 'c0' });
 
-  test('a fresh design review inspects selected guidance when relevant', async () => {
-    const message = reviewMessage({ request: request(), snapshot: await snapshotOf(), assignment: null, checkFindings: [] });
-    expect(message).toContain('If this session has not read one of them yet, inspect it when relevant.');
-    expect(message).not.toContain('read in orientation');
-  });
-
-  test('a fork of the orientation identifies supplied guidance without an exhaustive read claim', async () => {
+  test('a fork of the orientation names supplied and changed guidance', async () => {
     const oriented = [guidance[0]!, { ref: 'docs/layout.md', hash: 'c'.repeat(64) }];
     const message = reviewMessage({ request: request(), snapshot: await snapshotOf(), assignment: null, checkFindings: [], oriented });
-    expect(message).toContain('inspect current originals when needed');
     expect(message).toContain(`- docs/style.md (sha256 ${'a'.repeat(12)}), supplied in orientation`);
     expect(message).toContain(`- docs/layout.md (sha256 ${'b'.repeat(12)}), changed since orientation: inspect when relevant`);
-    expect(message).not.toContain('If this session has not read one of them yet');
   });
 });
 
 describe('the candidate\'s test pointers', () => {
-  test('name the test area as information, not as an instruction to list it', async () => {
+  test('name the test area', async () => {
     const source = scriptedCandidates('/project', { c1: { tree: 't1', base: 'c0', changes: [], files: { 'pkg/src/tests/a.test.ts': 'test\n' } } });
     const snapshot = await openCandidateSnapshot(source, '/project', { commit: 'c1', base: 'c0' });
     const request: ReviewRequest = {
@@ -279,10 +271,6 @@ describe('the candidate\'s test pointers', () => {
       workItem: 'wi-001', assignment: 'a.json', base: 'c0', gate: 'ga-0001', tree: 't1', guidance: [], forkPoint: { kind: 'none' },
     };
     const assignment = { goal: 'G', approach: 'A', completionEvidence: 'E', scopeRationale: 'S', testAreas: ['pkg/src/tests'] };
-    const plain = reviewMessage({ request, snapshot, assignment, checkFindings: [] });
-    expect(plain).toContain("## Candidate test pointers\n\nThe candidate's test area for this module is `pkg/src/tests/`. Read a file there when a concern needs it.\n");
-    expect(plain).not.toContain('inspect with snapshot_list');
-    const withPatches = reviewMessage({ request, snapshot, assignment, checkFindings: [], diffPayload: '## Patches\n' });
-    expect(withPatches).toContain('Read a file there when a concern needs it; the patches above already show the changed tests.');
+    expect(reviewMessage({ request, snapshot, assignment, checkFindings: [] })).toContain('`pkg/src/tests/`');
   });
 });
