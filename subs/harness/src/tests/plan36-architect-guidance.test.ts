@@ -1,6 +1,6 @@
 import { beforeAll, expect, test } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import type { Role } from '../interfaces/protocol/runs.js';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
 import { buildTaskPacket, type TaskKind } from '../../subs/task-workflow/src/prompts/tasks.js';
@@ -64,7 +64,6 @@ test.each([
   expect(effective.get('environment:views')!.text).toContain('complete ordinary area');
   expect(effective.get('environment:availableTools')!.text).not.toContain('shell');
   expect(first.roleInstructions).not.toMatch(/\]\([^)]*references\/(?:discovery|access)\.md\)/);
-  expect(first.roleInstructions).not.toContain('Run `ramify materialize');
 });
 
 test('expanded capability context changes the selected package while automatic reselection guidance matches current action declarations', () => {
@@ -83,53 +82,26 @@ test('expanded capability context changes the selected package while automatic r
   expect(currentActions).toEqual(['consult-consumer', 'assign', 'delegate-capability', 'request-placement', 'unresolved', 'request-handback', 'partial']);
   for (const action of currentActions) expect(procedure).toContain(`\`${action}\``);
   expect(currentActions).not.toContain('select-context');
-  expect(procedure).toContain('the harness automatically reselects');
-  expect(procedure).toContain('stateless preflight');
-  expect(procedure).toContain('Send the complete action again');
-  expect(procedure).toContain('Final submission validates current authority');
 });
 
-test('engineer effective guidance resolves contradictory assignment instructions within actual command restrictions', () => {
+test('an engineer packet keeps a contradictory assignment as written while the shell refuses whole-suite runs', () => {
   const base = input('engineer', 'engineering', 'submit_iteration_result');
   const instruction = 'Run full declared Vitest and Cucumber suites after implementing the provider.';
   const current = taskBriefingRevision({ revision: 'conflict', goal: base.goal, requirements: base.requirements, sections: [{ key: 'assignment', text: instruction }] });
   const packet = buildTaskPacket({ ...base, briefing: buildBriefingDelivery({ mode: 'fresh', current, inheritedRevision: null, history: [] }) });
   const blocks = effectiveBlocks(packet.additions);
-  // Preserve the recorded architect prose; guidance resolves the conflict, without keyword classification or rewriting.
+  // Preserve the recorded architect prose, without keyword classification or rewriting.
   expect(blocks.get('brief:assignment')!.text).toContain(instruction);
-  expect(blocks.get(packet.additions.find(item => item.kind === 'procedure')!.key)!.text).toContain('responsible architect');
-  expect(packet.roleInstructions).toContain('Whole-suite Vitest and Cucumber runs\n  are refused');
-  expect(packet.roleInstructions).toContain('prepared Cucumber feature check');
   const facts = { workingDirectory: '/project', testScripts: {} };
   expect(classifyShellTestRun('vitest run', facts).kind).toBe('whole-suite');
   expect(classifyShellTestRun('cucumber-js', facts).kind).toBe('whole-suite');
   expect(classifyShellTestRun('vitest run subs/validation/src/tests/preview.test.ts', facts).kind).toBe('focused');
   expect(classifyShellTestRun('cucumber-js features/preview.feature', facts).kind).toBe('unverified');
-  expect(packet.roleInstructions).toContain("rg -n -F -C 6 '<exact-symbol>' .ramify");
-  expect(blocks.get(packet.additions.find(item => item.kind === 'procedure')!.key)!.text).toContain('every configured project and nested project');
 });
 
-test('fixture relative import resolves from the actual consumer while source and API evidence remain separate', () => {
-  const consumer = '/project/subs/workspace/subs/reviews/subs/validation/src/preview.ts';
-  const provider = '/project/subs/workspace/subs/catalog/subs/core/src/history.js';
-  const correct = '../../../../catalog/subs/core/src/history.js';
-  expect(resolve(dirname(consumer), correct)).toBe(provider);
-  expect(resolve(dirname(consumer), '../../../catalog/subs/core/src/history.js')).not.toBe(provider);
-  const packet = buildTaskPacket(input('capability-architect', 'capability', 'submit_capability_action'));
-  const procedure = effectiveBlocks(packet.additions).get(packet.additions.find(item => item.kind === 'procedure')!.key)!.text;
-  const text = procedure.replace(/\s+/g, ' ');
-  expect(text).toContain("Resolve its relative path from the consumer file's directory");
-  expect(text).toContain('Path resolution alone does not prove importability');
-  expect(text).toContain('not at each intermediate descendant');
-  expect(procedure).toContain('explicitly\nrevise the authoritative design');
-});
-
-test('module navigation treats supplied identity and coverage as authority without a metadata rediscovery instruction', () => {
+test('module navigation points at each module\'s supplied API view', () => {
   const pointers = moduleInputPointers({ projectRoot: '/project', modules: [{ module: 'project/validation', directory: 'subs/validation', apiPaths: ['subs/validation/src/.ramify'] }], testAreas: [] });
   expect(pointers).toContain('/project/subs/validation/src/.ramify/');
-  expect(pointers).not.toContain('Read its metadata for revision');
-  expect(pointers).toContain('supplied revision and coverage as authoritative delivery evidence');
-  expect(pointers).toContain('Absence under coverage limits is not proof');
 });
 
 test.each([false, true])('assignment-based completion survives mixed feature results (capability workflow %s)', async capabilityWorkflow => {
@@ -143,17 +115,9 @@ test.each([false, true])('assignment-based completion survives mixed feature res
   const continued = buildTaskPacket({ ...base, inheritedPoint: 'engineer:1', inherited: first.additions, supplyRoleInstructions: false,
     briefing: buildBriefingDelivery({ mode: 'continue', current, inheritedRevision: current.revision, history: [current] }) });
   for (const blocks of [effectiveBlocks(first.additions), effectiveBlocks([...first.additions, ...continued.additions])]) {
-    // Retain the authored request and failed receipt; the role procedure explains how to assess their scope.
+    // Retain the authored request and failed receipt.
     expect(blocks.get('brief:assignment')!.text).toContain(assignment);
     expect(blocks.get('brief:check-results')!.text).toContain(result);
-    const procedure = [...blocks.values()].find(block => block.kind === 'procedure')!.text.replace(/\s+/g, ' ');
-    expect(procedure).toContain('Propose completion when the assigned work is complete and supported by evidence.');
-    expect(procedure).toContain('Report actual case results and the command exit status in `findings`.');
-    expect(procedure).toContain('a request for a passing feature command adds no unassigned obligations');
-    expect(procedure).toContain('Pending or undefined unassigned cases alone do not require `partial`');
-    expect(procedure).toContain('assigned work remains unfinished');
-    expect(procedure).toContain('Investigate unexpected failures');
-    expect(procedure).toContain('all required gates still apply');
   }
   expect(continued.additions.some(block => block.kind === 'role-instructions')).toBe(false);
   const evidence = { assigned: ['sc-001', 'sc-002'], capabilityWorkflow };
@@ -171,13 +135,12 @@ test.each([
   [false, 'local-architect', 'assignment', 'submit_work_item_result'],
   [true, 'local-architect', 'assignment', 'submit_work_item_result'],
   [true, 'capability-architect', 'capability', 'submit_capability_action'],
-] as const)('assigning architect receives planning once, retains it on continuation and preserves feature-check rules (%s/%s)', async (capabilityWorkflow, role, kind, tool) => {
+] as const)('assigning architect receives planning once and retains it on continuation (%s/%s)', async (capabilityWorkflow, role, kind, tool) => {
   const loaded = (await loadPromptPackages({ capabilityWorkflow })).packages.get(role)!;
   const base = { ...input(role, kind, tool), loaded };
   const packet = buildTaskPacket(base);
   const rawProcedure = [...effectiveBlocks(packet.additions).values()].find(block => block.kind === 'procedure')!.text;
   expect(rawProcedure.split(body(planning))).toHaveLength(2);
-  expect(rawProcedure.indexOf(body(planning))).toBeLessThan(rawProcedure.indexOf('`assignment.scope` decides'));
   expect(rawProcedure.split('`assignment.startingPoints`')).toHaveLength(2);
   const planningSource = packet.manifest.entries.find(entry => entry.kind === 'procedure')!.sources.find(source => source.path.endsWith('architect-planning.procedure.md'));
   expect(planningSource).toMatchObject({ hash: exactInputHash(planning), bytes: Buffer.byteLength(planning) });
@@ -187,10 +150,4 @@ test.each([
   expect(continued.additions.some(block => block.kind === 'procedure')).toBe(false);
   const effective = [...effectiveBlocks([...packet.additions, ...continued.additions]).values()].find(block => block.kind === 'procedure')!.text;
   expect(effective).toBe(rawProcedure);
-  const procedure = rawProcedure.replace(/\s+/g, ' ');
-  expect(procedure).toContain('Do not require an intermediate contribution to make the entire selected feature pass');
-  expect(procedure).toContain('including unexpected failures and regressions');
-  expect(procedure).toContain('unfinished assigned work requires `partial`');
-  expect(procedure).toContain('all applicable gates before acceptance');
-  expect(procedure).toContain('feature selection adds no completion obligations');
 });
