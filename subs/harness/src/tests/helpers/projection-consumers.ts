@@ -8,6 +8,7 @@ import { discoverDocuments } from '../../../subs/plan-evidence/src/discovery.js'
 import type { ChangeHistory } from '../../../subs/evidence/src/git.js';
 import { RamifyCli } from '../../../subs/evidence/src/ramify-cli.js';
 import { createScriptedAgent } from '../../../subs/agent/src/scripted.js';
+import { volatileFileSystem } from '../../../subs/ledger/src/fs.js';
 import type { ConfiguredAuditPort } from '../../../subs/audit/src/check-execution.js';
 import { RunQueries } from '../../../subs/projections/src/queries.js';
 import { SessionQueries } from '../../../subs/projections/src/session-queries.js';
@@ -150,7 +151,7 @@ export async function recordedProjectionConsumers(paging = false, prepare?: (roo
   return RunService.open({ projectRoot: root, lock, agent: effects.agent, ramify: effects,
     inputs: { capture: async () => { effects.acquisition.inputs++; throw new Error('No evidence capture'); }, index: async () => null, changes: async () => [], refresh: async () => null },
     configuredAudit: effects.audit, commandExecution: effects.commandExecution, changeHistory: effects.history,
-    repairIncidentExport: { executable: '/tools/scripted-exporter', workspace: root }, warn });
+    repairIncidentExport: { executable: '/tools/scripted-exporter', workspace: root }, warn, fs: volatileFileSystem });
   }
   let { service, recovery } = await open();
   assert.deepEqual(recovery.skipped, []);

@@ -9,6 +9,7 @@ import { declaringScenarios } from './declarations.js';
 import { childEnvironment } from '../../../subs/evidence/src/run-command.js';
 import { gitChangeHistory, gitService, type ChangeHistory } from '../../../subs/evidence/src/git.js';
 import { readJsonLines } from '../../../subs/ledger/src/jsonl.js';
+import { volatileFileSystem } from '../../../subs/ledger/src/fs.js';
 import { checkCommand } from '../../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { privateRamify, RamifyCli, ramifyExecutable } from '../../../subs/evidence/src/ramify-cli.js';
 import type { CapturedInputManifest } from '../../interfaces/protocol/evidence.js';
@@ -226,6 +227,8 @@ export async function realRamify(): Promise<Awaited<ReturnType<typeof privateRam
 }
 
 export interface OpenRunsOptions extends Partial<RunServiceOptions> {
+  /** Flush every ledger write, as production does; by default the ledgers skip flushes. */
+  readonly durable?: boolean | undefined;
   /** Use the supplied Git scratch answers, for scratch-specific or real-Git tests. */
   readonly scratchGit?: 'provided' | undefined;
   /** Exercise the public production constructor and its fixed policy. */
@@ -263,7 +266,7 @@ export async function openRuns(root: string, options: OpenRunsOptions) {
   const scripted = options.script === undefined ? undefined : createScriptedAgent(declaringScenarios(options.script), options.agentOptions);
   const agent = scripted ?? options.agent;
   const warnings: string[] = [];
-  const { script: _script, checkScript, agentOptions: _agentOptions, capabilityWorkflowFactory, production, scratchGit, ...rest } = options;
+  const { script: _script, checkScript, agentOptions: _agentOptions, capabilityWorkflowFactory, production, scratchGit, durable, ...rest } = options;
   const configuredAudit = checkScript === undefined
     ? passingAudit()
     : typeof checkScript === 'function'
@@ -278,6 +281,7 @@ export async function openRuns(root: string, options: OpenRunsOptions) {
     stopGraceMs: 500,
     ...(production === true ? {} : { policy: (projectRoot: string) => testPolicy(projectRoot) }),
     warn: message => warnings.push(message),
+    ...(durable === true ? {} : { fs: volatileFileSystem }),
     ...rest,
     git: scratchGit === 'provided' || options.git === gitService ? options.git : fixtureScratchGit(options.git),
     // A run's delivered change is read from the real history only where the

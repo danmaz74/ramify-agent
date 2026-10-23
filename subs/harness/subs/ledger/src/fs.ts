@@ -71,6 +71,19 @@ export const nodeFileSystem: LedgerFileSystem = {
 };
 
 /**
+ * Node's file system with flushes that return at once. Writes and renames are
+ * Node's, so a reader still sees the old file or the whole new one; only
+ * durability across a crash of the machine is given up. For ordinary tests.
+ */
+export const volatileFileSystem: LedgerFileSystem = {
+  ...nodeFileSystem,
+  async open(path, flags) {
+    const handle = await nodeFileSystem.open(path, flags);
+    return { ...handle, datasync: async () => undefined, sync: async () => undefined };
+  },
+};
+
+/**
  * Flushes a directory's entries, so that a new name in it survives a crash.
  * A file system that refuses to sync a directory makes the entry as durable
  * as it can, which is not an error here.
