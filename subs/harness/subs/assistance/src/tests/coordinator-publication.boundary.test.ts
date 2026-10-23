@@ -6,16 +6,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { expect, test, vi } from 'vitest';
+import { expect, inject, test, vi } from 'vitest';
 import { ownedTreeKernelPath } from '../../../../src/owned-tree-kernel.js';
 import { coordinatorStartSchema } from '../coordinator-contracts.js';
 import { coordinatorDirectory, readCoordinator, readCoordinatorHistory } from '../coordinator-store.js';
 
 const execute = promisify(execFile);
-const main = fileURLToPath(new URL('../../../../../../src/main.ts', import.meta.url));
+const { cli: main, publicationHost } = inject('bundledEntries');
 const executable = fileURLToPath(new URL('./native-provider.py', import.meta.url));
 async function cli(root: string, action: string, flags: readonly string[] = [], retained = false) {
-  try { return JSON.parse((await execute(process.execPath, ['--import', import.meta.resolve('tsx'), main, 'coordinate', action, '--project', root, ...flags, '--json'], { cwd: root, timeout: 20000, maxBuffer: 2_000_000 })).stdout); }
+  try { return JSON.parse((await execute(process.execPath, [main, 'coordinate', action, '--project', root, ...flags, '--json'], { cwd: root, timeout: 20000, maxBuffer: 2_000_000 })).stdout); }
   catch (error) { const outcome = error as { code?: number; stdout?: string }; if (retained && outcome.code === 2 && outcome.stdout) return JSON.parse(outcome.stdout); throw error; }
 }
 
@@ -52,7 +52,7 @@ test('startup crashes before and after successor admission plus listener failure
         const options = coordinatorStartSchema.parse({ projectRoot: root, planId: previous.planId, jobId: previous.jobId, commandId: `admit-${stage}`, resumeFrom: previous.id, model: 'gpt-6-sol', workerModel: previous.workerModel, assessmentModel: 'retained-assessor', freshThread: true, skill: previous.skill, codexExecutable: previous.codexExecutable, replaceMcp: [...new Set([...previous.replaceMcp, previousHost, 'added-stdio'])], message: `${retained}\nAdditional successor directions` });
         const request = join(launchDirectory, 'launch.json'), marker = join(launchDirectory, 'marker.json'), receipt = join(launchDirectory, 'guardian.json');
         await writeFile(request, JSON.stringify({ options, id, guardian: descriptor, marker, stage }), { mode: 0o600 });
-        guardian = spawn('python3', [fileURLToPath(new URL('../coordinator-guardian.py', import.meta.url)), ownedTreeKernelPath(), receipt, descriptor.generation, process.execPath, '--import', import.meta.resolve('tsx'), fileURLToPath(new URL('./native-publication-host.ts', import.meta.url)), request], { cwd: root, env: { ...process.env, RAMIFY_COORDINATOR_GUARDIAN_RECORD: descriptor.path }, stdio: 'ignore' });
+        guardian = spawn('python3', [fileURLToPath(new URL('../coordinator-guardian.py', import.meta.url)), ownedTreeKernelPath(), receipt, descriptor.generation, process.execPath, publicationHost, request], { cwd: root, env: { ...process.env, RAMIFY_COORDINATOR_GUARDIAN_RECORD: descriptor.path }, stdio: 'ignore' });
         guardianClosed = once(guardian, 'close'); hostPid = undefined;
         await vi.waitFor(async () => { hostPid = (JSON.parse(await readFile(marker, 'utf8')) as { pid: number }).pid; expect(hostPid).toBeGreaterThan(0); }, { timeout: 10000 });
         if (stage !== 'listener-failure') process.kill(hostPid!, 'SIGKILL');

@@ -3,13 +3,13 @@ import { readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, inject, test } from 'vitest';
 import { copyFixture } from './helpers/fixture.js';
 import { installTestRunner, until } from './helpers/runs.js';
 
 const title = 'B17: actual clients disconnect, retry, stop and reconnect while the native host survives; host loss restarts the unfinished task after process settlement';
 const packageRoot = fileURLToPath(new URL('../../../../', import.meta.url));
-const host = fileURLToPath(new URL('./helpers/breakpoint-host.ts', import.meta.url));
+const { cli: main, breakpointHost: host } = inject('bundledEntries');
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
 const plan = 'review-notes';
@@ -30,7 +30,7 @@ test(title, async () => {
   } });
   async function launch() {
     await writeFile(ready, '');
-    const child = spawn(process.execPath, ['--import', 'tsx', host, setup], { cwd: packageRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, [host, setup], { cwd: packageRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     children.push(child); let diagnostic = ''; child.stdout?.on('data', value => { diagnostic += String(value); }); child.stderr?.on('data', value => { diagnostic += String(value); });
     await until(async () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(diagnostic); return (await readFile(ready, 'utf8')).startsWith('{'); }, 30_000);
     const receipt = JSON.parse(await readFile(ready, 'utf8')) as { url: string; pid: number; recovery: { interrupted: string[] } };
@@ -38,8 +38,7 @@ test(title, async () => {
     hosts.set(child, receipt.pid);
     return { child, ...receipt };
   }
-  const main = join(packageRoot, 'src/main.ts');
-  const command = async (args: string[]) => exec(process.execPath, ['--import', 'tsx', main, ...args], { cwd: packageRoot, timeout: 15_000, maxBuffer: 1024 * 1024 })
+  const command = async (args: string[]) => exec(process.execPath, [main, ...args], { cwd: packageRoot, timeout: 15_000, maxBuffer: 1024 * 1024 })
     .then(result => ({ code: 0, ...result }), error => ({ code: error.code as number, stdout: String(error.stdout), stderr: String(error.stderr) }));
   const first = await launch();
   const start = async (id: string) => {
@@ -61,7 +60,7 @@ test(title, async () => {
   expect(inspected.code).toBe(0); expect(inspected.stderr).toBe(''); expect(JSON.parse(inspected.stdout).kind).toBe('inspection');
   const message = join(fixture.root, '..', 'message.txt'); await writeFile(message, 'Explain without editing.');
   const args = ['debug', 'message', ...base, '--expected-revision', '1', '--command-id', 'native-message', '--message-file', message, '--timeout-ms', '10000'];
-  const disconnected = spawn(process.execPath, ['--import', 'tsx', main, ...args], { cwd: packageRoot, stdio: 'ignore' }); children.push(disconnected);
+  const disconnected = spawn(process.execPath, [main, ...args], { cwd: packageRoot, stdio: 'ignore' }); children.push(disconnected);
   await until(async () => { const result = await (await fetch(first.url + path + '/debug/exchanges/native-message')).json() as { exchange: { status: string } | null }; return result.exchange?.status === 'admitted'; });
   disconnected.kill('SIGKILL'); await new Promise<void>(done => disconnected.once('exit', () => done()));
   expect((await fetch(first.url + '/api/v1/project')).ok).toBe(true);
@@ -124,10 +123,18 @@ test(title, async () => {
   // The explicitly stopped first run stays stopped when the active task is restarted.
   const stoppedAgain = await (await fetch(restarted.url + path)).json() as { run: { state: string } };
   expect(stoppedAgain.run.state).toBe('stopped');
-  const stopResumed = await fetch(restarted.url + '/api/v1/commands', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
-    commandId: 'stop-restarted-task', expectedVersion: snapshot.run.version, type: 'stop-job', payload: { planId: plan, jobId: secondRun.jobId },
-  }) });
-  expect(stopResumed.status).toBe(202);
+  // The restarted task keeps appending while it runs, so a stop names the
+  // version the last refusal reported until one is accepted.
+  let expectedVersion = snapshot.run.version;
+  for (let attempt = 1; ; attempt += 1) {
+    const stopResumed = await fetch(restarted.url + '/api/v1/commands', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+      commandId: `stop-restarted-task-${attempt}`, expectedVersion, type: 'stop-job', payload: { planId: plan, jobId: secondRun.jobId },
+    }) });
+    if (stopResumed.status === 202) break;
+    const refusal = await stopResumed.json() as { code?: string; currentVersion?: number };
+    expect(stopResumed.status).toBe(409); expect(refusal.code).toBe('stale-version'); expect(attempt).toBeLessThan(20);
+    expectedVersion = refusal.currentVersion!;
+  }
   const terminalAgain = await command(['debug', 'wait', '--server', restarted.url, '--plan', plan, '--run', secondRun.jobId, '--json']);
   expect(terminalAgain.code).toBe(1);
   expect(JSON.parse(terminalAgain.stdout).run.state).toBe('stopped');

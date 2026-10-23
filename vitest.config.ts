@@ -64,7 +64,7 @@ export default defineConfig(async () => {
   return {
     test: {
       projects: [
-        { test: { name: 'boundaries', environment: 'node', setupFiles: ['src/tests/vitest-test-lock.ts', 'src/tests/vitest-boundary-processes.ts'], include: paths, exclude: ['subs/harness/fixtures/**', '**/src/tmp/**'] } },
+        { test: { name: 'boundaries', environment: 'node', globalSetup: ['src/tests/vitest-bundled-entries.ts'], setupFiles: ['src/tests/vitest-test-lock.ts', 'src/tests/vitest-boundary-processes.ts'], include: paths, exclude: ['subs/harness/fixtures/**', '**/src/tmp/**'] } },
         {
           test: {
             name: 'node',

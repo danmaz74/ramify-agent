@@ -72,7 +72,8 @@ export interface Ledger<E> {
   matchesCommittedContent(bytes: Uint8Array): boolean;
   /** Appends one line holding the whole transaction, flushed before it resolves, then materializes its records. */
   append(transaction: Transaction<E>): Promise<{ readonly sequence: number; readonly at: string }>;
-  /** Every complete line, in order. */
+  /** Every complete line, in order. The entries are deeply frozen, and the
+   * array is the same object until the next append. */
   replay(): ReadonlyArray<LedgerEntry<E>>;
   /** Rewrites every record file that is missing or differs from the log; removes none it did not write. */
   materialize(): Promise<{ readonly rewritten: readonly string[] }>;
@@ -181,6 +182,29 @@ async function writeRecordFile(fs: LedgerFileSystem, path: string, bytes: Uint8A
   }
 }
 
+/**
+ * A deeply frozen copy of plain objects and arrays; any other value is kept as
+ * it is. A transaction's caller keeps its own objects mutable.
+ */
+function frozenCopy<T>(value: T): T {
+  if (Array.isArray(value)) return Object.freeze(value.map(frozenCopy)) as T;
+  if (typeof value !== 'object' || value === null) return value;
+  const prototype = Object.getPrototypeOf(value) as unknown;
+  if (prototype !== Object.prototype && prototype !== null) return value;
+  const copy = Object.create(prototype) as Record<string, unknown>;
+  for (const key of Object.keys(value)) copy[key] = frozenCopy((value as Record<string, unknown>)[key]);
+  return Object.freeze(copy) as T;
+}
+
+/** The replayed form of one line, frozen once. */
+function entryOf<E>(line: Line): LedgerEntry<E> {
+  return Object.freeze({
+    sequence: line.sequence,
+    at: line.at,
+    transaction: Object.freeze({ event: frozenCopy(line.event) as E, records: frozenCopy(line.records) }),
+  });
+}
+
 function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) return false;
   for (let index = 0; index < a.byteLength; index += 1) if (a[index] !== b[index]) return false;
@@ -202,7 +226,10 @@ export async function openLedger<E>(options: OpenLedgerOptions<E>): Promise<Ledg
   await fs.mkdir(recordsRoot);
 
   const loaded = await loadLog<E>(fs, logPath, recordsRoot, eventSchema);
-  const lines: Line[] = loaded.lines;
+  const entries: LedgerEntry<E>[] = loaded.lines.map((line) => entryOf<E>(line));
+  const lines: Line[] = loaded.lines.map((line, index) => ({ ...line, event: entries[index]!.transaction.event, records: entries[index]!.transaction.records }));
+  /** What `replay` returns until the next append. */
+  let replayed: ReadonlyArray<LedgerEntry<E>> | null = null;
   let logBytes = loaded.completeBytes;
   const content = createHash('sha256').update(loaded.completeContent);
   let committedContentHash = content.copy().digest('hex');
@@ -212,21 +239,13 @@ export async function openLedger<E>(options: OpenLedgerOptions<E>): Promise<Ledg
   /** Appends are serialized here; the chain also carries a failure to its caller only. */
   let queue: Promise<unknown> = Promise.resolve();
 
-  function entries(): LedgerEntry<E>[] {
-    return lines.map((line) => ({
-      sequence: line.sequence,
-      at: line.at,
-      transaction: { event: line.event as E, records: line.records },
-    }));
-  }
-
   async function appendLine(transaction: Transaction<E>, effect?: EffectMark): Promise<Line> {
     for (const record of transaction.records) resolveRecordPath(recordsRoot, record.path);
 
     const sequence = (lines.at(-1)?.sequence ?? 0) + 1;
     const at = now().toISOString();
-    const line: Line = { sequence, at, event: transaction.event, records: [...transaction.records], ...(effect ? { effect } : {}) };
-    const text = JSON.stringify(line);
+    const written: Line = { sequence, at, event: transaction.event, records: transaction.records, ...(effect ? { effect } : {}) };
+    const text = JSON.stringify(written);
     if (text === undefined) throw new TypeError('The transaction has no JSON representation');
     const bytes = encoder.encode(`${text}\n`);
     if (bytes.byteLength > maximumLineBytes) {
@@ -248,7 +267,12 @@ export async function openLedger<E>(options: OpenLedgerOptions<E>): Promise<Ledg
       await handle.close();
     }
     logBytes += bytes.byteLength;
+    const entry = entryOf<E>(written);
+    // The line shares the entry's frozen copies, so later changes to the caller's objects reach neither.
+    const line: Line = { ...written, event: entry.transaction.event, records: entry.transaction.records };
     lines.push(line);
+    entries.push(entry);
+    replayed = null;
     content.update(bytes);
     committedContentHash = content.copy().digest('hex');
     committedChunks.push(Buffer.from(bytes));
@@ -309,7 +333,8 @@ export async function openLedger<E>(options: OpenLedgerOptions<E>): Promise<Ledg
     },
 
     replay() {
-      return entries();
+      replayed ??= Object.freeze(entries.slice());
+      return replayed;
     },
 
     async materialize() {

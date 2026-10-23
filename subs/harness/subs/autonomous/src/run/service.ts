@@ -179,6 +179,7 @@ import { capturePlan, EvidenceUnavailableError, type RunInputs } from './inputs.
 import { extractPlanScenarios } from '../../../scenarios/src/extraction.js';
 
 import { CorruptRunLogError, RunLog, type RunEvent, type RunEventInput } from './log.js';
+import type { LedgerFileSystem } from '../../../ledger/src/fs.js';
 import { ObservationLog } from '../../../task-execution/src/observations.js';
 
 import { defaultRunPolicy, withProjectTimeouts } from '../../../../src/run/policy.js';
@@ -275,6 +276,8 @@ export interface RunServiceOptions {
   readonly recoveryRuntime?: (() => Promise<RecoveryRuntime>) | undefined;
   /** Settled producer evidence independent of a source commit acknowledgement. */
   readonly warn?: ((message: string) => void) | undefined;
+  /** The file system of each run's ledger; Node's, flushing every write, by default. */
+  readonly fs?: LedgerFileSystem | undefined;
 }
 
 /** What a recovery did with each run it found without a terminal event. */
@@ -675,7 +678,7 @@ export class AutonomousRunService {
     const observe = (): ReturnType<AcceptanceJournal['observe']> => {
       if (reading !== undefined && reading.version === run.log.version && index === run.index && policy === run.policy) return reading;
       index = run.index; policy = run.policy;
-      reading = { history: coordinationHistory(run.log), version: run.log.version, terminal: structuredClone(run.log.terminal), policy: structuredClone(run.policy), pendingEffects: run.log.ledger.pendingEffects().map(effect => effect.key), index: structuredClone(run.index) };
+      reading = { history: coordinationHistory(run.log), version: run.log.version, terminal: run.log.terminal, policy: structuredClone(run.policy), pendingEffects: run.log.ledger.pendingEffects().map(effect => effect.key), index: structuredClone(run.index) };
       return reading;
     };
     return {
@@ -1287,7 +1290,7 @@ export class AutonomousRunService {
         }
         const record = runRecordSchema.parse(parsed);
         if (record.jobId !== jobId || record.planId !== planId) throw new Error('job.json names another run');
-        const log = await RunLog.open(join(directory, runLayout.events), jobId);
+        const log = await RunLog.open(join(directory, runLayout.events), jobId, this.options.fs);
         const captured = await readCapturedDocuments(directory, record.manifest);
         if (!log.find('job-started')) throw new Error('Document capture stopped before the run was published');
         if (!log.find('document-manifest-committed')) await log.append({ type: 'document-manifest-committed', data: {
@@ -2018,7 +2021,7 @@ export class AutonomousRunService {
     });
     await writeOnce(join(directory, runLayout.record), `${JSON.stringify(record, null, 2)}\n`);
 
-    const log = await RunLog.open(join(directory, runLayout.events), runId);
+    const log = await RunLog.open(join(directory, runLayout.events), runId, this.options.fs);
     const base = manifest.source?.commit ?? await this.git.currentHead(this.projectRoot);
     let run!: Run;
     run = new Run(record, directory, log, base, this.newWriter(record.policy, () => this.coordination(run).accepted()));
@@ -2693,7 +2696,7 @@ export class AutonomousRunService {
         if (!blockers.length) {
           // The old owner may have completed its last durable transition while
           // draining. Reopen only after it settled, before becoming the writer.
-          run.log = await RunLog.open(run.log.path, run.jobId);
+          run.log = await RunLog.open(run.log.path, run.jobId, this.options.fs);
           run.stopRequested = run.log.find('stop-requested') !== undefined;
           if (run.stopRequested) blockers.push('The explicit stop remains effective');
           else await this.closeInterruptedInvocations(run);

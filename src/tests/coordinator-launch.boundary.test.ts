@@ -5,14 +5,14 @@ import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test, vi } from 'vitest';
+import { expect, inject, test, vi } from 'vitest';
 
 const execute = promisify(execFile);
-const main = fileURLToPath(new URL('../main.ts', import.meta.url));
+const main = inject('bundledEntries').cli;
 const executable = fileURLToPath(new URL('../../subs/harness/subs/assistance/src/tests/native-provider.py', import.meta.url));
 interface Snapshot { record: { id: string; generation: string; jobId: string; threadId: string; phase: string; owner: { pid: number }; readiness: { process: { providerPid: number; supervisorPid: number } }; ownershipReleased: boolean }; stale: boolean }
 async function cli(root: string, action: string, flags: readonly string[] = []): Promise<unknown> {
-  const answer = await execute(process.execPath, ['--import', import.meta.resolve('tsx'), main, 'coordinate', action, '--project', root, ...flags, '--json'], { cwd: root, timeout: 20000, maxBuffer: 2_000_000 });
+  const answer = await execute(process.execPath, [main, 'coordinate', action, '--project', root, ...flags, '--json'], { cwd: root, timeout: 20000, maxBuffer: 2_000_000 });
   return JSON.parse(answer.stdout);
 }
 
@@ -34,7 +34,7 @@ test('detached CLI host survives its launching command, reconnects without anoth
     const again = await cli(root, 'start', ['--plan', 'sample', '--job', started.record.jobId]) as Snapshot;
     expect(again.record).toMatchObject({ id: started.record.id, generation: started.record.generation, jobId: started.record.jobId, threadId: started.record.threadId });
     const status = await cli(root, 'status', ['--id', started.record.id]) as Snapshot; expect(status.stale).toBe(false);
-    const watch = spawn(process.execPath, ['--import', import.meta.resolve('tsx'), main, 'coordinate', 'watch', '--project', root, '--id', started.record.id, '--json'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    const watch = spawn(process.execPath, [main, 'coordinate', 'watch', '--project', root, '--id', started.record.id, '--json'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
     watch.stderr!.resume();
     try {
       await once(watch.stdout!, 'data'); watch.stdout!.resume();
