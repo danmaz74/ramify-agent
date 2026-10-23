@@ -50,7 +50,7 @@ test('CA20: a registered real process group survives a service crash and is sett
     return { ...base, limits: { ...base.limits, stopSettleMs: 500, writerSettleMs: 500 } };
   };
   const first = await openCapabilityRuns(fixture.root, {
-    git: gitService, script, inputs: treeInputs(), policy,
+    git: gitService, script, inputs: treeInputs(), policy, durable: true,
     commandExecution: async request => {
       const result = await runCommand({ ...request, registerProcessGroup: async (pid, identity) => {
         cleanups.push(async () => nodeProcessGroups.kill(pid));
@@ -75,7 +75,7 @@ test('CA20: a registered real process group survives a service crash and is sett
 
   await staleCrashLock(fixture.root);
   const second = await openCapabilityRuns(fixture.root, {
-    git: gitService, script, inputs: treeInputs(), policy,
+    git: gitService, script, inputs: treeInputs(), policy, durable: true,
   });
   cleanups.push(async () => { await expect(second.service.close()).rejects.toThrow(/settlement.*(?:unavailable|not confirmed)/u); });
   await until(() => !nodeProcessGroups.alive(pid));

@@ -9,6 +9,7 @@ import { runSessionsResponseSchema, type RunSessionView } from '../../interfaces
 import type { RunServiceOptions } from '../../run/lifecycle.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { readTranscript } from '../../../subs/task-execution/src/transcripts/writer.js';
+import { volatileFileSystem } from '../../../subs/ledger/src/fs.js';
 import { analysis, currentAnalysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import { openRunsWithoutProcesses } from './external-tools.js';
 import { assign, byRole, completionProposed, outline, read, submit, treeInputs } from './iterations.js';
@@ -303,6 +304,7 @@ export function liveRunSettings(root: string, pacer: Pacer): LiveRunSettings {
       policy: projectRoot => testPolicy(projectRoot),
       stopGraceMs: 500,
       warn: () => undefined,
+      fs: volatileFileSystem,
     },
   };
 }
