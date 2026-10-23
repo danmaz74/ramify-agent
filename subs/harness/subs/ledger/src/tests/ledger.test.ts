@@ -243,3 +243,30 @@ describe('replay', () => {
     expect(await readFile(logOf(), 'utf8')).toBe(before);
   });
 });
+
+describe('replayed entries are frozen', () => {
+  test('appended and reloaded entries refuse mutation; the caller keeps its objects and the array lasts until the next append', async () => {
+    const ledger = await testLedger(directory.path);
+    const body = { nested: { a: 1 } };
+    const committed = transaction(1, [record('run', 1, body)]);
+    await ledger.append(committed);
+
+    const replayed = ledger.replay();
+    expect(ledger.replay()).toBe(replayed);
+    const [entry] = replayed;
+    expect(() => { (entry!.transaction.event as { step: number }).step = 9; }).toThrow(TypeError);
+    expect(() => { ((entry!.transaction.records[0]!.body as typeof body).nested).a = 9; }).toThrow(TypeError);
+    expect(() => { (replayed as unknown[]).push(entry); }).toThrow(TypeError);
+    body.nested.a = 2;
+    expect(Object.isFrozen(committed.event)).toBe(false);
+    expect(entry!.transaction.records[0]!.body).toEqual({ nested: { a: 1 } });
+
+    await ledger.append(transaction(2));
+    expect(ledger.replay()).not.toBe(replayed);
+    expect(replayed).toHaveLength(1);
+    expect(await recordsMatchLog(ledger, recordsOf())).toBe(1);
+
+    const reopened = await testLedger(directory.path);
+    expect(() => { (reopened.replay()[0]!.transaction.event as { step: number }).step = 9; }).toThrow(TypeError);
+  });
+});
