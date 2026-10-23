@@ -123,10 +123,18 @@ test(title, async () => {
   // The explicitly stopped first run stays stopped when the active task is restarted.
   const stoppedAgain = await (await fetch(restarted.url + path)).json() as { run: { state: string } };
   expect(stoppedAgain.run.state).toBe('stopped');
-  const stopResumed = await fetch(restarted.url + '/api/v1/commands', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
-    commandId: 'stop-restarted-task', expectedVersion: snapshot.run.version, type: 'stop-job', payload: { planId: plan, jobId: secondRun.jobId },
-  }) });
-  expect(stopResumed.status).toBe(202);
+  // The restarted task keeps appending while it runs, so a stop names the
+  // version the last refusal reported until one is accepted.
+  let expectedVersion = snapshot.run.version;
+  for (let attempt = 1; ; attempt += 1) {
+    const stopResumed = await fetch(restarted.url + '/api/v1/commands', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+      commandId: `stop-restarted-task-${attempt}`, expectedVersion, type: 'stop-job', payload: { planId: plan, jobId: secondRun.jobId },
+    }) });
+    if (stopResumed.status === 202) break;
+    const refusal = await stopResumed.json() as { code?: string; currentVersion?: number };
+    expect(stopResumed.status).toBe(409); expect(refusal.code).toBe('stale-version'); expect(attempt).toBeLessThan(20);
+    expectedVersion = refusal.currentVersion!;
+  }
   const terminalAgain = await command(['debug', 'wait', '--server', restarted.url, '--plan', plan, '--run', secondRun.jobId, '--json']);
   expect(terminalAgain.code).toBe(1);
   expect(JSON.parse(terminalAgain.stdout).run.state).toBe('stopped');
