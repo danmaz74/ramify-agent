@@ -13,7 +13,7 @@ import { ownershipEvidenceRetainedSchema } from '../../../../src/work/ownership-
 import { catalogFindingSchema, scenarioWarningSchema } from '../../subs/planning/src/records.js';
 import { scenarioIdSchema } from '../../../scenarios/src/records.js';
 import { obligationBoundDataSchema, obligationRegisteredDataSchema, obligationReportedDataSchema } from '../../subs/work-coordination/src/work/obligations.js';
-import { LedgerCorruptError, openLedger, type Ledger } from '../../../ledger/src/ledger.js';
+import { LedgerCorruptError, openLedger, type Ledger, type LedgerEntry } from '../../../ledger/src/ledger.js';
 import type { LedgerFileSystem } from '../../../ledger/src/fs.js';
 import { replayCheckFindingEvents } from '../../../check-findings/src/replay.js';
 import type { CheckFindingEvent } from '../../../check-findings/src/interfaces/check-findings.js';
@@ -873,13 +873,17 @@ export class RunLog {
   }
 
   /**
-   * Every event, read from the ledger each time. The log keeps no copy, so a
-   * transaction a caller committed through the ledger is here at once and
-   * the two can never disagree.
+   * Every event, read from the ledger's replay. The log derives them once per
+   * replayed array, so a transaction a caller committed through the ledger is
+   * here at once and the two can never disagree.
    */
   get events(): readonly RunEvent[] {
-    return this.ledger.replay().map(entry => entry.transaction.event);
+    const lines = this.ledger.replay();
+    if (this.replayed?.lines !== lines) this.replayed = { lines, events: Object.freeze(lines.map(entry => entry.transaction.event)) };
+    return this.replayed.events;
   }
+
+  private replayed: { readonly lines: ReadonlyArray<LedgerEntry<RunEvent>>; readonly events: readonly RunEvent[] } | undefined;
 
   get version(): number {
     return this.ledger.version;

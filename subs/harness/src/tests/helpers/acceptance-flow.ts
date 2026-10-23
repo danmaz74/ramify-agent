@@ -383,14 +383,12 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'reloa
           }
 
           const authoritative = JSON.stringify(active.log.ledger.replay());
+          // The history is frozen, so each attempt is refused and nothing needs restoring.
           const last = observation.history.events.at(-1)!;
-          const original = structuredClone(last.data);
-          Reflect.set(last.data, 'task', 'mutated-child');
+          expect(Reflect.set(last.data, 'task', 'mutated-child')).toBe(false);
           const record = observation.history.lines.flatMap(line => line.transaction.records).at(0)!;
-          Reflect.set(record.body as object, 'childMutation', true);
+          expect(Reflect.set(record.body as object, 'childMutation', true)).toBe(false);
           expect(JSON.stringify(active.log.ledger.replay())).toBe(authoritative);
-          Object.assign(last.data, original);
-          Reflect.deleteProperty(record.body as object, 'childMutation');
           const refreshed = await coordinator['ports'].refreshIndex();
           if (refreshed !== null) {
             const before = JSON.stringify(active.index);

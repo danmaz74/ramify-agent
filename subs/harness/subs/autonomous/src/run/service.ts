@@ -675,7 +675,7 @@ export class AutonomousRunService {
     const observe = (): ReturnType<AcceptanceJournal['observe']> => {
       if (reading !== undefined && reading.version === run.log.version && index === run.index && policy === run.policy) return reading;
       index = run.index; policy = run.policy;
-      reading = { history: coordinationHistory(run.log), version: run.log.version, terminal: structuredClone(run.log.terminal), policy: structuredClone(run.policy), pendingEffects: run.log.ledger.pendingEffects().map(effect => effect.key), index: structuredClone(run.index) };
+      reading = { history: coordinationHistory(run.log), version: run.log.version, terminal: run.log.terminal, policy: structuredClone(run.policy), pendingEffects: run.log.ledger.pendingEffects().map(effect => effect.key), index: structuredClone(run.index) };
       return reading;
     };
     return {
