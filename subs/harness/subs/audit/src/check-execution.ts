@@ -117,6 +117,7 @@ export interface AuditInvocationProject {
     readonly ignoredChangedPaths: readonly string[];
     /** Absent in records made before ramify-audit 0.11.0 reported version-only manifest changes. */
     readonly versionOnlyChangedPaths?: readonly string[];
+    readonly historyDeletionExemptPaths: readonly string[];
     readonly requestedMode: 'full' | 'ramify-partial';
     readonly resolution: 'requested' | 'defaulted';
   } | null;
@@ -534,6 +535,7 @@ function invocationReceipt(
           sourceCommit: answer.reused.sourceCommit, auditedCommit: answer.reused.auditedCommit,
           ignoredChangedPaths: [...answer.reused.ignoredChangedPaths],
           versionOnlyChangedPaths: [...answer.reused.versionOnlyChangedPaths],
+          historyDeletionExemptPaths: [...answer.reused.historyDeletionExemptPaths],
           requestedMode: answer.reused.requestedMode, resolution: answer.reused.resolution,
         } : null,
         unpublished: answer.status === 'completed' ? null : structuredClone(answer),
@@ -574,6 +576,7 @@ async function retrieveInvocation(receipt: AuditInvocationReceipt, repositoryRoo
         ...(project.reused === null ? {} : { reused: {
           ...project.reused, ignoredChangedPaths: [...project.reused.ignoredChangedPaths],
           versionOnlyChangedPaths: [...(project.reused.versionOnlyChangedPaths ?? [])],
+          historyDeletionExemptPaths: [...project.reused.historyDeletionExemptPaths],
         } }),
       };
     }

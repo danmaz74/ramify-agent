@@ -1,7 +1,7 @@
 # audit
 
 Implements the harness's in-process adapter to `ramify-audit`, pinned at
-version 0.12.1. It hides the library, its evidence model, repository lease,
+version 0.13.0. It hides the library, its evidence model, repository lease,
 isolated worktree, publication refs and Git environment from the rest of
 the harness. The harness owns gate policy and durable run state; this child
 reads the project's committed audit definition, asks the installed provider
@@ -95,7 +95,7 @@ the gate and every durable record.
 
 ## Dependency
 
-`ramify-audit` is pinned to the exact version 0.12.1 from the private proxy
+`ramify-audit` is pinned to the exact version 0.13.0 from the private proxy
 registry this package's `.npmrc` names, which also serves the other
 dependencies. It is MIT-licensed. No other module imports it. The existing
 `legacy-peer-deps=true` setting remains necessary for npm 10.9's Vitest peer
@@ -107,8 +107,10 @@ known shared-test consumers. The provider requires a compatible full baseline
 before composing partial audits under those contracts; older selection records
 are not evidence of the new behavior. Selection and execution verification
 remain provider responsibilities. From 0.10.0 the provider also reports Vitest
-flakiness evidence and may leave an uncommitted `ramify-audit.flakes.json`
-history diff in the audited project; the harness passes both through without
+flakiness evidence. From 0.13.0 its history lives in the audit report rather
+than a committed `ramify-audit.flakes.json`, the audited checkout is never
+written, and a reuse result lists an exempt deletion of that migrated file as
+`historyDeletionExemptPaths`; the harness passes these through without
 interpreting them. From 0.11.0 a committed change to the root `package.json`
 or `package-lock.json` that alters only the package's own version keeps an
 earlier full audit applicable and never widens a partial audit; the reuse

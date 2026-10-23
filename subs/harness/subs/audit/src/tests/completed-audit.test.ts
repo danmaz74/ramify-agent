@@ -50,7 +50,7 @@ function completed(shape: Shape = {}): Completed {
     runId: 'provider-run',
     summary: {
       evidenceSchemaVersion: shape.schema ?? 6,
-      producer: { name: shape.producer ?? 'ramify-audit', version: '0.12.1' },
+      producer: { name: shape.producer ?? 'ramify-audit', version: '0.13.0' },
       sourceCommit: shape.sourceCommit ?? made,
       overall: 'pass',
       flakinessPolicy: { onFailure: 'warning' },
@@ -127,17 +127,17 @@ describe('a completed audit as a gate\'s answer', () => {
 
   it('accepts the provider\'s reuse of applicable evidence of an earlier commit, with both source identities and no new receipt', () => {
     const reused = completed({ sourceCommit: earlier, records: ['tests', 'scenarios'],
-      reused: { sourceCommit: made, auditedCommit: earlier, ignoredChangedPaths: ['docs/guide.md'], versionOnlyChangedPaths: [], requestedMode: 'full', resolution: 'defaulted' } });
+      reused: { sourceCommit: made, auditedCommit: earlier, ignoredChangedPaths: ['docs/guide.md'], versionOnlyChangedPaths: [], historyDeletionExemptPaths: [], requestedMode: 'full', resolution: 'defaulted' } });
     expect(refusal(reused)).toBeNull();
     expect(refusal(reused, 'full')).toBeNull();
   });
 
   it('refuses reuse that does not answer the requested commit or misnames its audited commit', () => {
     expect(refusal(completed({ sourceCommit: earlier,
-      reused: { sourceCommit: 'e'.repeat(40), auditedCommit: earlier, ignoredChangedPaths: [], versionOnlyChangedPaths: [], requestedMode: 'full', resolution: 'defaulted' } })))
+      reused: { sourceCommit: 'e'.repeat(40), auditedCommit: earlier, ignoredChangedPaths: [], versionOnlyChangedPaths: [], historyDeletionExemptPaths: [], requestedMode: 'full', resolution: 'defaulted' } })))
       .toBe(`the result does not answer source ${made}`);
     expect(refusal(completed({ sourceCommit: made,
-      reused: { sourceCommit: made, auditedCommit: earlier, ignoredChangedPaths: [], versionOnlyChangedPaths: [], requestedMode: 'full', resolution: 'defaulted' } })))
+      reused: { sourceCommit: made, auditedCommit: earlier, ignoredChangedPaths: [], versionOnlyChangedPaths: [], historyDeletionExemptPaths: [], requestedMode: 'full', resolution: 'defaulted' } })))
       .toBe(`the result does not answer source ${made}`);
   });
 
