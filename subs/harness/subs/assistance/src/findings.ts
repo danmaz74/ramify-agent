@@ -81,7 +81,7 @@ export function reportAuditInstability(input: {
         consequence: 'Determine whether this unstable test was added by the plan; added tests require reliable verification.',
         rationale: 'The audit provider established instability, but it did not determine test origin.',
         uncertainty: 'Compare the individual test with the original execution baseline, including additions to existing files.',
-        remedy: 'If added by this plan, repair or replace the test while preserving coverage; if existing, retain the provider verdict without assigning repair.',
+        remedy: 'If added by this plan, repair or replace the test while preserving coverage; if existing, supersede this finding with that origin judgment, retaining the provider verdict without assigning repair.',
         risk: 'medium', ground: null }, suggests: null, credibility: 'ungrounded', modules: [],
     })];
   });
