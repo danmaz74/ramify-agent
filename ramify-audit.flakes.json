@@ -29,14 +29,14 @@
       "latestFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
-          "reportObject": "34e1c87f292fc5055c28966d08378e92381a0fba"
+          "reportObject": "1af30f0f660b5b94f448157d91c53ce01182c329"
         },
         "isolatedOutcome": "passed",
-        "sourceRevision": "04d5eada8e82b350c0a5d6aae580012eb2c1cd97"
+        "sourceRevision": "5f8234430c9f3adf77ddd2a1da2777edd3522539"
       }
     },
     {
-      "consecutiveFullPasses": 6,
+      "consecutiveFullPasses": 7,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -71,7 +71,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 3,
+      "consecutiveFullPasses": 4,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -106,7 +106,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 6,
+      "consecutiveFullPasses": 7,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -133,7 +133,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 6,
+      "consecutiveFullPasses": 7,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -160,7 +160,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 6,
+      "consecutiveFullPasses": 7,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -185,13 +185,48 @@
         "isolatedOutcome": "failed",
         "sourceRevision": "adfe2acee37a1b267b34bf5bfc1f071992c837fc"
       }
+    },
+    {
+      "consecutiveFullPasses": 0,
+      "firstFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "1af30f0f660b5b94f448157d91c53ce01182c329"
+        },
+        "isolatedOutcome": "passed",
+        "sourceRevision": "5f8234430c9f3adf77ddd2a1da2777edd3522539"
+      },
+      "flakinessEvidence": {
+        "context": "isolated",
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "1af30f0f660b5b94f448157d91c53ce01182c329"
+        },
+        "sourceRevision": "5f8234430c9f3adf77ddd2a1da2777edd3522539"
+      },
+      "identity": {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "path": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-name-race.test.ts",
+        "project": "node",
+        "runner": "vitest",
+        "testId": "a nested descriptive request resumes its accepted provider assignment after reload"
+      },
+      "latestFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "1af30f0f660b5b94f448157d91c53ce01182c329"
+        },
+        "isolatedOutcome": "passed",
+        "sourceRevision": "5f8234430c9f3adf77ddd2a1da2777edd3522539"
+      }
     }
   ],
   "lastApplied": {
-    "preimageDigest": "sha256:021000e25bebdf3b41fb12b42ed62a801cd680233b377bdf71b5610bf1168667",
+    "preimageDigest": "sha256:e26993a0eac6e85066a8dfcd69815caba109fc59f554d5a39245b8420a0146ec",
     "projectRoot": ".",
-    "reportObject": "34e1c87f292fc5055c28966d08378e92381a0fba",
-    "sourceRevision": "04d5eada8e82b350c0a5d6aae580012eb2c1cd97"
+    "reportObject": "1af30f0f660b5b94f448157d91c53ce01182c329",
+    "sourceRevision": "5f8234430c9f3adf77ddd2a1da2777edd3522539"
   },
   "version": 1
 }
