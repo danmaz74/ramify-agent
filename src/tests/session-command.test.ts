@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { afterAll, beforeAll, expect, test } from 'vitest';
+import { afterAll, beforeAll, expect, inject, test } from 'vitest';
 
 /*
  * `ramify-agent session` in a child process, on the scripted fake and a git
@@ -18,7 +18,7 @@ import { afterAll, beforeAll, expect, test } from 'vitest';
 
 const run = promisify(execFile);
 const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
-const main = join(packageRoot, 'src', 'main.ts');
+const main = inject('bundledEntries').cli;
 const fixture = join(packageRoot, 'subs', 'harness', 'fixtures', 'collection-review');
 const reviews = 'subs/workspace/subs/reviews';
 
@@ -40,7 +40,7 @@ afterAll(async () => {
 });
 
 async function command(args: readonly string[]): Promise<{ code: number; stdout: string; stderr: string }> {
-  return run(process.execPath, ['--import', 'tsx', main, ...args], { cwd: packageRoot, maxBuffer: 16 * 1024 * 1024, timeout: 240_000 })
+  return run(process.execPath, [main, ...args], { cwd: packageRoot, maxBuffer: 16 * 1024 * 1024, timeout: 240_000 })
     .then(({ stdout, stderr }) => ({ code: 0, stdout, stderr }),
       (error: { code?: number; stdout?: string; stderr?: string }) => ({ code: error.code ?? -1, stdout: error.stdout ?? '', stderr: error.stderr ?? '' }));
 }
