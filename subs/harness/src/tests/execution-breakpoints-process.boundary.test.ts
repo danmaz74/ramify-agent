@@ -131,7 +131,7 @@ test(title, async () => {
       commandId: `stop-restarted-task-${attempt}`, expectedVersion, type: 'stop-job', payload: { planId: plan, jobId: secondRun.jobId },
     }) });
     if (stopResumed.status === 202) break;
-    const refusal = await stopResumed.json() as { code?: string; currentVersion?: number };
+    const { error: refusal } = await stopResumed.json() as { error: { code?: string; currentVersion?: number } };
     expect(stopResumed.status).toBe(409); expect(refusal.code).toBe('stale-version'); expect(attempt).toBeLessThan(20);
     expectedVersion = refusal.currentVersion!;
   }

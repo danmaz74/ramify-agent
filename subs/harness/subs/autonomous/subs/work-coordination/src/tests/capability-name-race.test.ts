@@ -1,4 +1,4 @@
-import { readFile, stat } from 'node:fs/promises';
+import { access, readFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -304,7 +304,10 @@ test('a nested descriptive request resumes its accepted provider assignment afte
     && event.data.request === nestedId) || (service!.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
   const before = service.events('need', receipt.jobId) ?? [];
   expect(before.filter(event => event.type === 'job-failed'), JSON.stringify(before.slice(-12))).toEqual([]);
-  const nested = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, capabilityLayout.request(nestedId)), 'utf8')) as CapabilityRequest;
+  // The log shows an event before its records are written; wait for the record.
+  const requestPath = runPath(fixture.root, 'need', receipt.jobId, capabilityLayout.request(nestedId));
+  await until(() => access(requestPath).then(() => true, () => false));
+  const nested = JSON.parse(await readFile(requestPath, 'utf8')) as CapabilityRequest;
   const acceptedBytes = await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.submission(nested.invocation)));
   const snapshotBytes = await readFile(runPath(fixture.root, 'need', receipt.jobId, nested.source.snapshot));
   await service.close();
