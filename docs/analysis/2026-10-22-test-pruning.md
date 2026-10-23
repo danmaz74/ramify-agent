@@ -129,6 +129,44 @@ sweep used to delay the run enough to hide it; `runToEnd` now holds the run
 at the stopping write until the stop is accepted (49cc7f95). The production
 ordering is recorded in `docs/todo.md` §5.
 
+## Mechanics, 2026-10-23
+
+Three changes to how tests run, none to what they assert, merged as
+5f823443 and audited in full as report 1af30f0f:
+
+| tier | files | tests | seconds | share | s/test |
+|---|---|---|---|---|---|
+| memory | 237 | 2121 | 121 | 8% | 0.06 |
+| tmp | 50 | 557 | 52 | 4% | 0.09 |
+| run | 119 | 919 | 936 | 64% | 1.02 |
+| boundary | 49 | 184 | 360 | 24% | 1.95 |
+
+455 files, 3781 tests, 339 s wall, 1468 summed file-seconds, measured at a
+load average near 8 from other work on the machine.
+
+- Boundary tests spawn a CLI and native hosts bundled once per run by a
+  global setup (`src/tests/vitest-bundled-entries.ts`) instead of through
+  `tsx`: `coordinator-launch.boundary` 89 s to 56 s,
+  `coordinator-publication.boundary` 79 s to 50 s,
+  `execution-breakpoints-process.boundary` 31 s to under 10 s. What those
+  files still spend is the detached host that `coordinator-client.ts`
+  launches through `tsx` in production.
+- Ledger entries are frozen once at append and the replay array is reused
+  until the next append; `coordinationHistory` is memoized per log version
+  instead of cloning the whole journal on every read. A production change
+  that also speeds real runs; 15 to 20% off the composed run files.
+- The run service takes an optional `LedgerFileSystem`, and the run test
+  helpers pass one whose `sync` is a no-op; the durability witnesses keep
+  the real one. This removed 43% of the suite's fsyncs with no measurable
+  wall-time change on a lightly loaded disk. The remaining syncs come from
+  `observations.ts`, the transcript appenders, `session-operations.ts` and
+  `writeFileExclusive`, which write through Node directly.
+
+Two load-sensitive waits were fixed on the way: B17 now retries its stop
+against the version each refusal reports, and the name-race reload case
+waits for the request record file rather than the log line that precedes
+it, since the ledger shows a line to readers before it writes its records.
+
 ## Decisions taken after the audit
 
 - `workspace-preparation.boundary` relabels its retained schema-4 receipts
