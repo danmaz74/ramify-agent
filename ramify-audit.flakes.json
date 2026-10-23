@@ -1,7 +1,42 @@
 {
   "entries": [
     {
-      "consecutiveFullPasses": 5,
+      "consecutiveFullPasses": 0,
+      "firstFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "34e1c87f292fc5055c28966d08378e92381a0fba"
+        },
+        "isolatedOutcome": "passed",
+        "sourceRevision": "04d5eada8e82b350c0a5d6aae580012eb2c1cd97"
+      },
+      "flakinessEvidence": {
+        "context": "isolated",
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "34e1c87f292fc5055c28966d08378e92381a0fba"
+        },
+        "sourceRevision": "04d5eada8e82b350c0a5d6aae580012eb2c1cd97"
+      },
+      "identity": {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "path": "subs/harness/src/tests/execution-breakpoints-process.boundary.test.ts",
+        "project": "boundaries",
+        "runner": "vitest",
+        "testId": "B17: actual clients disconnect, retry, stop and reconnect while the native host survives; host loss restarts the unfinished task after process settlement"
+      },
+      "latestFailure": {
+        "evidence": {
+          "artifactPath": "reports/audit/flakiness-observations.json",
+          "reportObject": "34e1c87f292fc5055c28966d08378e92381a0fba"
+        },
+        "isolatedOutcome": "passed",
+        "sourceRevision": "04d5eada8e82b350c0a5d6aae580012eb2c1cd97"
+      }
+    },
+    {
+      "consecutiveFullPasses": 6,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -36,7 +71,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 2,
+      "consecutiveFullPasses": 3,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -71,7 +106,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 5,
+      "consecutiveFullPasses": 6,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -98,7 +133,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 5,
+      "consecutiveFullPasses": 6,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -125,7 +160,7 @@
       }
     },
     {
-      "consecutiveFullPasses": 5,
+      "consecutiveFullPasses": 6,
       "firstFailure": {
         "evidence": {
           "artifactPath": "reports/audit/flakiness-observations.json",
@@ -153,10 +188,10 @@
     }
   ],
   "lastApplied": {
-    "preimageDigest": "sha256:cc6c1659a5774b0723de465984b21f8fd9820ce3903a12d13712a95b36544d10",
+    "preimageDigest": "sha256:021000e25bebdf3b41fb12b42ed62a801cd680233b377bdf71b5610bf1168667",
     "projectRoot": ".",
-    "reportObject": "07056e9d8330d4bca3e4f9a77205976c9d95352f",
-    "sourceRevision": "d16e4bb674be25211b7b5641957588fc862975ec"
+    "reportObject": "34e1c87f292fc5055c28966d08378e92381a0fba",
+    "sourceRevision": "04d5eada8e82b350c0a5d6aae580012eb2c1cd97"
   },
   "version": 1
 }
