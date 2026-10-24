@@ -50,7 +50,7 @@ function completed(shape: Shape = {}): Completed {
     runId: 'provider-run',
     summary: {
       evidenceSchemaVersion: shape.schema ?? 6,
-      producer: { name: shape.producer ?? 'ramify-audit', version: '0.13.0' },
+      producer: { name: shape.producer ?? 'ramify-audit', version: '0.14.1' },
       sourceCommit: shape.sourceCommit ?? made,
       overall: 'pass',
       flakinessPolicy: { onFailure: 'warning' },
